@@ -1,0 +1,15 @@
+{
+    "name": "gpt",
+
+    "model": {
+        "api": "openai",
+        "model": "gpt-5.4",
+        "url": "https://gptcodex.top",
+        "wire_api": "responses",
+        "params": {
+            "reasoning": {
+                "effort": "low"
+            }
+        }
+    }
+}

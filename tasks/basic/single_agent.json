@@ -1,0 +1,23 @@
+{
+    "gather_oak_logs": {
+      "goal": "Collect at least four logs",
+      "initial_inventory": {
+        "0": {
+          "wooden_axe": 1
+        }
+      },
+      "agent_count": 1,
+      "target": "oak_log",
+      "number_of_target": 4,
+      "type": "techtree",
+      "max_depth": 1,
+      "depth": 0,
+      "timeout": 300,
+      "blocked_actions": {
+        "0": [],
+        "1": []
+      },
+      "missing_items": [],
+      "requires_ctable": false
+    }
+}

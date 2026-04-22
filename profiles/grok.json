@@ -1,0 +1,7 @@
+{
+    "name": "Grok",
+
+    "model": "grok-4-fast-reasoning",
+    
+    "embedding": "openai"
+}

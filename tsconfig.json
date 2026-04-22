@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "types": ["node"]
+  },
+  "include": ["main.ts", "settings.ts", "eslint.config.ts", "src/**/*.ts", "bots/**/*.ts", "tasks/**/*.ts"]
+}
