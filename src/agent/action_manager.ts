@@ -1,4 +1,23 @@
 ﻿// @ts-nocheck
+const FAILURE_OUTPUT_PATTERNS = [
+    /\bcould not\b/i,
+    /\bfailed to\b/i,
+    /\bunable to\b/i,
+    /\bdon't have\b/i,
+    /\bdo not have\b/i,
+    /\bnot found\b/i,
+    /\bno .+ nearby\b/i
+];
+
+export function actionOutputIndicatesFailure(output) {
+    const lastLine = String(output || '')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .at(-1) || '';
+    return FAILURE_OUTPUT_PATTERNS.some(pattern => pattern.test(lastLine));
+}
+
 export class ActionManager {
     constructor(agent) {
         this.agent = agent;
@@ -62,6 +81,7 @@ export class ActionManager {
     async _executeAction(actionLabel, actionFn, timeout = 10) {
         let TIMEOUT;
         try {
+            this.timedout = false;
             if (this.last_action_time > 0) {
                 let time_diff = Date.now() - this.last_action_time;
                 if (time_diff < 20) {
@@ -103,7 +123,7 @@ export class ActionManager {
             }
 
             // start the action
-            await actionFn();
+            const actionResult = await actionFn();
 
             // mark action as finished + cleanup
             this.executing = false;
@@ -123,7 +143,13 @@ export class ActionManager {
             }
 
             // return action status report
-            return { success: true, message: output, interrupted, timedout };
+            const outputFailed = actionOutputIndicatesFailure(output);
+            return {
+                success: actionResult !== false && !timedout && !outputFailed,
+                message: output,
+                interrupted,
+                timedout
+            };
         } catch (err) {
             this.executing = false;
             this.currentActionLabel = '';

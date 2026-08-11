@@ -1,14 +1,20 @@
 ﻿// @ts-nocheck
-import { createMindServer, registerAgent, numStateListeners } from './mindserver.js';
+import { closeMindServer, createMindServer, getAgentAuthToken, numStateListeners, registerAgent, rotateAgentAuthToken, waitForMindServerListening } from './mindserver.js';
 import { AgentProcess } from '../process/agent_process.js';
 import { getServer } from './mcserver.js';
 import open from 'open';
+import { buildVoiceMicChildArgs } from '../voice/micLauncherConfig.js';
+import { createVoiceMicProcess } from '../process/voiceMicProcess.js';
+import { initRunContext } from '../utils/runContext.js';
 
 let mindserver;
 let connected = false;
 let agent_processes = {};
 let agent_count = 0;
 let mindserver_port = 8080;
+const voice_mic_processes = {};
+let shutting_down = false;
+let run_root = null;
 
 export async function init(host_public=false, port=8080, auto_open_ui=true) {
     if (connected) {
@@ -16,7 +22,9 @@ export async function init(host_public=false, port=8080, auto_open_ui=true) {
         return;
     }
     mindserver = createMindServer(host_public, port);
+    run_root = initRunContext();
     mindserver_port = port;
+    await waitForMindServerListening(mindserver);
     connected = true;
     if (auto_open_ui) {
         setTimeout(() => {
@@ -58,9 +66,33 @@ export async function createAgent(settings) {
             console.warn(`Attempting to connect anyway...`);
         }
 
-        const agentProcess = new AgentProcess(agent_name, mindserver_port);
-        agentProcess.start(load_memory, init_message, agentIndex);
-        agent_processes[settings.profile.name] = agentProcess;
+    const agentProcess = new AgentProcess(agent_name, mindserver_port, {
+        authTokenProvider: () => rotateAgentAuthToken(agent_name),
+        runRoot: run_root || initRunContext()
+    });
+    agentProcess.start(load_memory, init_message, agentIndex);
+    agent_processes[settings.profile.name] = agentProcess;
+    const mic = settings.voice?.mic || {};
+    const micTarget = mic.target_agent || mic.targetAgent || '';
+    const ownsPhysicalMic = micTarget ? micTarget === agent_name : agentIndex === 0;
+    if (settings.voice?.enabled && mic.enabled && ownsPhysicalMic) {
+        const childArgs = buildVoiceMicChildArgs({
+            scriptPath: 'scripts/voice-mic-listener.py',
+            agent: agent_name,
+            settingsPort: mindserver_port,
+            micSettings: mic,
+            doubaoRealtimeSettings: settings.voice?.doubao?.realtime || {}
+        });
+        const voiceMic = createVoiceMicProcess({
+            agent: agent_name,
+            pythonCommand: mic.python_command || mic.pythonCommand,
+            childArgs,
+            authTokenProvider: () => getAgentAuthToken(agent_name),
+            onState: (state) => console.log('[voice-mic]', JSON.stringify(state))
+        });
+        voice_mic_processes[agent_name] = voiceMic;
+        voiceMic.start();
+    }
     } catch (error) {
         console.error(`Error creating agent ${agent_name}:`, error);
         destroyAgent(agent_name);
@@ -89,25 +121,36 @@ export function startAgent(agentName) {
 }
 
 export function stopAgent(agentName) {
+    voice_mic_processes[agentName]?.stop('agent-stop');
     if (agent_processes[agentName]) {
         agent_processes[agentName].stop();
     }
 }
 
 export function destroyAgent(agentName) {
+    voice_mic_processes[agentName]?.stop('agent-destroy');
+    delete voice_mic_processes[agentName];
     if (agent_processes[agentName]) {
         agent_processes[agentName].stop();
         delete agent_processes[agentName];
     }
 }
 
-export function shutdown() {
+export function setAgentRuntimeReady(agentName, ready) {
+    const mic = voice_mic_processes[agentName];
+    if (mic) mic.setReady(ready);
+}
+
+export async function shutdown() {
+    if (shutting_down) return;
+    shutting_down = true;
     console.log('Shutting down');
-    for (let agentName in agent_processes) {
-        agent_processes[agentName].stop();
-    }
-    setTimeout(() => {
-        process.exit(0);
-    }, 2000);
+    await Promise.all(Object.values(voice_mic_processes).map((process) => process.shutdown()));
+    const exits = Object.values(agent_processes).map((process) => {
+        process.stop();
+        return process.waitForExit(2000);
+    });
+    await Promise.all(exits);
+    await closeMindServer();
 }
 

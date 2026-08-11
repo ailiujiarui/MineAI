@@ -53,3 +53,17 @@ test('wake phrase tolerates chinese punctuation and keeps direct command text', 
   assert.equal(result.reason, 'direct-command')
   assert.equal(result.text, '跟着我')
 })
+
+test('repeated Chinese wake phrases arm once without routing the duplicate', () => {
+  const gate = createMicWakeGate({ wakePhrases: ['豆包'] })
+  const result = gate.process('豆包，豆包。')
+  assert.equal(result.accepted, true)
+  assert.equal(result.reason, 'wake-phrase')
+  assert.equal(result.text, '')
+})
+
+test('repeated inline Chinese wake phrases preserve only request content', () => {
+  const gate = createMicWakeGate({ wakePhrases: ['豆包'] })
+  const result = gate.process('豆包豆包给我两组钻石')
+  assert.equal(result.text, '给我两组钻石')
+})

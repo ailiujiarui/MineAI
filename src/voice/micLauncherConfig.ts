@@ -60,6 +60,11 @@ export function buildVoiceMicChildArgs(options = {}) {
         ['--speaker-id', micSettings.speaker_id || micSettings.speakerId],
         ['--sample-rate', micSettings.sample_rate || micSettings.sampleRate],
         ['--chunk-ms', micSettings.chunk_ms || micSettings.chunkMs],
+        ['--speech-rms-threshold', micSettings.speech_rms_threshold || micSettings.speechRmsThreshold],
+        ['--min-speech-ms', micSettings.min_speech_ms || micSettings.minSpeechMs],
+        ['--trailing-silence-ms', micSettings.trailing_silence_ms || micSettings.trailingSilenceMs],
+        ['--max-utterance-ms', micSettings.max_utterance_ms || micSettings.maxUtteranceMs],
+        ['--leading-context-ms', micSettings.leading_context_ms || micSettings.leadingContextMs],
         ['--device', micSettings.device]
     ];
 
@@ -75,8 +80,6 @@ export function buildVoiceMicChildArgs(options = {}) {
     const configuredBridgeArgs = [
         ['--mindserver-host', options.mindserverHost],
         ['--endpoint', doubaoRealtimeSettings.endpoint],
-        ['--resource-id', doubaoRealtimeSettings.resource_id || doubaoRealtimeSettings.resourceId],
-        ['--app-key', doubaoRealtimeSettings.app_key || doubaoRealtimeSettings.appKey],
         ['--model', doubaoRealtimeSettings.model]
     ];
 

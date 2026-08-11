@@ -34,3 +34,17 @@ test('createTtsAdapter returns Doubao adapter for doubao provider', () => {
 
   assert.equal(adapter.constructor.name, 'DoubaoVoiceAdapter')
 })
+
+test('createTtsAdapter uses v3 HTTP TTS when realtime mode is reserved for ASR', () => {
+  const adapter = createTtsAdapter({
+    provider: 'doubao',
+    doubao: {
+      mode: 'realtime',
+      ttsMode: 'v3',
+      apiKey: 'api-key-1'
+    }
+  })
+
+  assert.equal(adapter.constructor.name, 'DoubaoVoiceAdapter')
+  assert.equal(adapter.endpoint, 'https://openspeech.bytedance.com/api/v3/tts/create')
+})

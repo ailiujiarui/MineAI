@@ -5,6 +5,7 @@ import { chooseWaterEscapeTarget, shouldTriggerWaterEscape } from './library/wat
 import * as mc from '../utils/mcdata.js';
 import settings from './settings.js'
 import convoManager from './conversation.js';
+import { buildRuntimeMessage } from '../locale/chinese.js';
 
 async function say(agent, message) {
     agent.bot.modes.behavior_log += message + '\n';
@@ -166,13 +167,13 @@ const modes_list = [
             }
             const max_stuck_time = cur_dig_block?.name === 'obsidian' ? this.max_stuck_time * 2 : this.max_stuck_time;
             if (this.stuck_time > max_stuck_time) {
-                say(agent, 'I\'m stuck!');
+                say(agent, buildRuntimeMessage('stuck', agent.prompter?.profile, settings.language));
                 this.stuck_time = 0;
                 execute(this, agent, async () => {
                     const crashTimeout = setTimeout(() => { agent.cleanKill("Got stuck and couldn't get unstuck") }, 10000);
                     await skills.moveAway(bot, 5);
                     clearTimeout(crashTimeout);
-                    say(agent, 'I\'m free.');
+                    say(agent, buildRuntimeMessage('free', agent.prompter?.profile, settings.language));
                 });
             }
             this.last_time = Date.now();

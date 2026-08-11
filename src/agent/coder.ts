@@ -1,32 +1,64 @@
 ﻿// @ts-nocheck
-import { writeFile, readFile, mkdirSync } from 'fs';
+import { writeFile, mkdirSync } from 'fs';
+import { readFile } from 'fs/promises';
 import { makeCompartment, lockdown } from './library/lockdown.js';
 import * as skills from './library/skills.js';
 import * as world from './library/world.js';
 import { Vec3 } from 'vec3';
 import {ESLint} from "eslint";
 import { resolveRunPath } from '../utils/runContext.js';
+import settings from './settings.js';
 
 export class Coder {
-    constructor(agent) {
+    constructor(agent, options = {}) {
         this.agent = agent;
         this.file_counter = 0;
         this.fp = resolveRunPath('bots', agent.name, 'action-code');
         this.code_template = '';
         this.code_lint_template = '';
-
-        readFile('./bots/execTemplate.ts', 'utf8', (err, data) => {
-            if (err) throw err;
-            this.code_template = data;
-        });
-        readFile('./bots/lintTemplate.ts', 'utf8', (err, data) => {
-            if (err) throw err;
-            this.code_lint_template = data;
-        });
+        this.template_load_error = null;
+        this.template_loading_enabled = options.allowInsecureCoding ?? Boolean(settings.allow_insecure_coding);
+        this.exec_template_path = options.execTemplatePath || './bots/execTemplate.ts';
+        this.lint_template_path = options.lintTemplatePath || './bots/lintTemplate.ts';
+        this.template_load_promise = this.template_loading_enabled
+            ? this._loadTemplates()
+            : Promise.resolve();
         mkdirSync(this.fp, { recursive: true });
     }
 
+    async _loadTemplates() {
+        try {
+            [this.code_template, this.code_lint_template] = await Promise.all([
+                readFile(this.exec_template_path, 'utf8'),
+                readFile(this.lint_template_path, 'utf8')
+            ]);
+        } catch (error) {
+            this.template_load_error = error;
+        }
+    }
+
+    async initializeTemplates() {
+        await this.template_load_promise;
+        return {
+            enabled: this.template_loading_enabled,
+            ready: Boolean(this.code_template && this.code_lint_template),
+            error: this.template_load_error
+        };
+    }
+
+    async _ensureTemplates() {
+        const state = await this.initializeTemplates();
+        if (!state.enabled) {
+            throw new Error('Dynamic code templates are unavailable because allow_insecure_coding is disabled.');
+        }
+        if (!state.ready) {
+            const detail = state.error instanceof Error ? state.error.message : String(state.error || 'unknown error');
+            throw new Error(`Dynamic code templates could not be loaded: ${detail}`);
+        }
+    }
+
     async generateCode(agent_history) {
+        await this._ensureTemplates();
         this.agent.bot.modes.pause('unstuck');
         lockdown();
         // this message history is transient and only maintained in this function
@@ -155,6 +187,7 @@ export class Coder {
     // write custom code to file and import it
     // write custom code to file and prepare for evaluation
     async _stageCode(code) {
+        await this._ensureTemplates();
         code = this._sanitizeCode(code);
         let src = '';
         code = code.replaceAll('console.log(', 'log(bot,');

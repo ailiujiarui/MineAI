@@ -202,6 +202,9 @@ export function buildAutonomySnapshot(agent) {
     const hostileCount = nearbyEntities.filter(entity => mc.isHostile(entity)).length;
 
     return {
+        gameMode: agent.bot.game?.gameMode || 'unknown',
+        restrictToInventory: agent.bot.restrict_to_inventory === true,
+        creativeUnrestricted: agent.bot.game?.gameMode === 'creative' && agent.bot.restrict_to_inventory !== true,
         inventoryCounts,
         nearbyBlocks,
         knownResourceLocations: buildKnownResourceLocations(agent.bot),
@@ -288,6 +291,13 @@ export class AutonomyController {
         const effectiveGoalPrompt = this.userMission
             ? `${decision.goalPrompt} Overall user mission: ${this.userMission}.`
             : decision.goalPrompt;
+
+        if (snapshot.creativeUnrestricted && !this.userMission) {
+            this.currentStage = decision.stage;
+            this.currentGoalPrompt = effectiveGoalPrompt;
+            this.lastCommand = null;
+            return decision;
+        }
 
         if (!isIdle) {
             return decision;

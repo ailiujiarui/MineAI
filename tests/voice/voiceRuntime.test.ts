@@ -108,6 +108,30 @@ test('runtime can synthesize outbound speech through the adapter', async () => {
   assert.equal(spoken[0].channel, 'status')
 })
 
+test('runtime suppresses microphone for the full local playback lifecycle', async () => {
+  const states = []
+  const runtime = new VoiceRuntime({
+    enabled: true,
+    ttsAdapter: { async synthesize() { return { audio: Buffer.from('voice'), mimeType: 'audio/mp3' } } },
+    playAudio: async () => {},
+    setPlaybackState: (active) => states.push(active)
+  })
+  await runtime.speak({ text: '测试回复' })
+  assert.deepEqual(states, [true, false])
+})
+
+test('runtime restores microphone state when playback fails', async () => {
+  const states = []
+  const runtime = new VoiceRuntime({
+    enabled: true,
+    ttsAdapter: { async synthesize() { return { audio: Buffer.from('voice'), mimeType: 'audio/mp3' } } },
+    playAudio: async () => { throw new Error('speaker failed') },
+    setPlaybackState: (active) => states.push(active)
+  })
+  await assert.rejects(runtime.speak({ text: '测试回复' }), /speaker failed/)
+  assert.deepEqual(states, [true, false])
+})
+
 test('runtime leaves room for conversational voice control', async () => {
   const runtime = new VoiceRuntime({
     enabled: true,

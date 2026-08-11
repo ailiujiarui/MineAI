@@ -37,6 +37,17 @@ function buildPrompt(lines) {
 export function decideAutonomyStage(snapshot) {
     const inventoryCounts = snapshot.inventoryCounts || {};
     const nearbyBlocks = snapshot.nearbyBlocks || [];
+    if (snapshot.creativeUnrestricted) {
+        return {
+            stage: 'creative_ready',
+            goalPrompt: buildPrompt([
+                'Work in unrestricted creative mode and follow the player mission directly.',
+                'Use !creativeItem before actions that require a physical inventory item.',
+                'Do not gather, mine, craft, or smelt merely to obtain resources.',
+                'Preserve the world unless the player explicitly asks for a change.'
+            ])
+        };
+    }
     const logCount = countAny(inventoryCounts, LOG_NAMES);
     const plankCount = countAny(inventoryCounts, PLANK_NAMES);
     const stickCount = inventoryCounts.stick || 0;

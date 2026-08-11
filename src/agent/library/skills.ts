@@ -5,6 +5,12 @@ import { createCombatNavigator } from "./combatNavigation.js";
 import pf from 'mineflayer-pathfinder';
 import Vec3 from 'vec3';
 import settings from "../../../settings.js";
+import {
+    canProvisionCreative,
+    materializeCreativeItem,
+    MAX_CREATIVE_ITEM_COUNT,
+    withTemporaryCreativeItem
+} from './creativeInventory.js';
 
 const blockPlaceDelay = settings.block_place_delay == null ? 0 : settings.block_place_delay;
 const useDelay = blockPlaceDelay > 0;
@@ -53,9 +59,15 @@ export async function craftRecipe(bot, itemName, num=1) {
      * @example
      * await skills.craftRecipe(bot, "stick");
      **/
+    if (canProvisionCreative(bot)) {
+        log(bot, `Creative mode does not need crafting. Use !creativeItem("${itemName}", amount) to add the item to inventory.`);
+        return false;
+    }
+
     let placedTable = false;
 
-    if (mc.getItemCraftingRecipes(itemName).length == 0) {
+    const knownRecipes = mc.getItemCraftingRecipes(itemName) || [];
+    if (knownRecipes.length === 0) {
         log(bot, `${itemName} is either not an item, or it does not have a crafting recipe!`);
         return false;
     }
@@ -448,6 +460,10 @@ export async function collectBlock(bot, blockType, num=1, exclude=null) {
         log(bot, `Invalid number of blocks to collect: ${num}.`);
         return false;
     }
+    if (canProvisionCreative(bot)) {
+        log(bot, `Creative mode does not need collection. Use !creativeItem("${blockType}", ${num}) if the block has an inventory item.`);
+        return false;
+    }
     let blocktypes = [blockType];
     if (blockType === 'coal' || blockType === 'diamond' || blockType === 'emerald' || blockType === 'iron' || blockType === 'gold' || blockType === 'lapis_lazuli' || blockType === 'redstone')
         blocktypes.push(blockType+'_ore');
@@ -708,9 +724,9 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
         item_name = 'lava_bucket';
     }
     let block_item = bot.inventory.findInventoryItem(item_name);
-    if (!block_item && bot.game.gameMode === 'creative' && !bot.restrict_to_inventory) {
-        await bot.creative.setInventorySlot(36, mc.makeItem(item_name, 1)); // 36 is first hotbar slot
-        block_item = bot.inventory.findInventoryItem(item_name);
+    if (!block_item && canProvisionCreative(bot)) {
+        log(bot, `Use !creativeItem("${item_name}", 1) before placing it.`);
+        return false;
     }
     if (!block_item) {
         log(bot, `Don't have any ${item_name} to place.`);
@@ -823,9 +839,9 @@ export async function equip(bot, itemName) {
     }
     let item = bot.inventory.slots.find(slot => slot && slot.name === itemName);
     if (!item) {
-        if (bot.game.gameMode === "creative") {
-            await bot.creative.setInventorySlot(36, mc.makeItem(itemName, 1));
-            item = bot.inventory.findInventoryItem(itemName);
+        if (canProvisionCreative(bot)) {
+            log(bot, `Use !creativeItem("${itemName}", 1) before equipping it.`);
+            return false;
         }
         else {
             log(bot, `You do not have any ${itemName} to equip.`);
@@ -1029,9 +1045,14 @@ export async function giveToPlayer(bot, itemType, username, num=1) {
         log(bot, `You cannot give items to yourself.`);
         return false;
     }
-    let player = bot.players[username].entity
+    let player = bot.players?.[username]?.entity;
     if (!player) {
         log(bot, `Could not find ${username}.`);
+        return false;
+    }
+    const available = world.getInventoryCounts(bot)[itemType] || 0;
+    if (available < num) {
+        log(bot, `You only have ${available} ${itemType}, but ${num} were requested.`);
         return false;
     }
     await goToPlayer(bot, username, 3);
@@ -1062,15 +1083,17 @@ export async function giveToPlayer(bot, itemType, username, num=1) {
     }
 
     await bot.lookAt(player.position);
-    if (await discard(bot, itemType, num)) {
-        let given = false;
-        bot.once('playerCollect', (collector, collected) => {
+    let given = false;
+    const onPlayerCollect = (collector, collected) => {
+        if (collector?.username === username) {
             console.log(collected.name);
-            if (collector.username === username) {
-                log(bot, `${username} received ${itemType}.`);
-                given = true;
-            }
-        });
+            log(bot, `${username} received ${itemType}.`);
+            given = true;
+        }
+    };
+    bot.on('playerCollect', onPlayerCollect);
+    try {
+      if (await discard(bot, itemType, num)) {
         let start = Date.now();
         while (!given && !bot.interrupt_code) {
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -1081,6 +1104,9 @@ export async function giveToPlayer(bot, itemType, username, num=1) {
                 break;
             }
         }
+      }
+    } finally {
+        bot.removeListener('playerCollect', onPlayerCollect);
     }
     log(bot, `Failed to give ${itemType} to ${username}, it was never received.`);
     return false;
@@ -2019,7 +2045,7 @@ export async function goToSurface(bot) {
     return false;
 }
 
-export async function useToolOn(bot, toolName, targetName) {
+export async function useToolOn(bot, toolName, targetName, options={}) {
     /**
      * Equip a tool and use it on the nearest target.
      * @param {MinecraftBot} bot
@@ -2027,9 +2053,20 @@ export async function useToolOn(bot, toolName, targetName) {
      * @param {string} targetName - entity type, block type, or "nothing" for no target
      * @returns {Promise<boolean>} true if action succeeded
      */
-    if (!bot.inventory.slots.find(slot => slot && slot.name === toolName) && !bot.game.gameMode === 'creative') {
+    if (toolName !== 'hand'
+        && !bot.inventory.slots.find(slot => slot && slot.name === toolName)
+        && !canProvisionCreative(bot)) {
         log(bot, `You do not have any ${toolName} to use.`);
         return false;
+    }
+
+    if (toolName !== 'hand' && !bot.inventory.slots.find(slot => slot && slot.name === toolName)) {
+        return withTemporaryCreativeItem(
+            bot,
+            toolName,
+            async () => useToolOn(bot, toolName, targetName, options),
+            options
+        );
     }
 
     targetName = targetName.toLowerCase();
@@ -2080,6 +2117,25 @@ export async function useToolOn(bot, toolName, targetName) {
 
     return true;
  }
+
+export async function creativeItem(bot, itemName, num=1) {
+    if (!canProvisionCreative(bot)) {
+        log(bot, 'Creative item provisioning is unavailable or restricted to the current inventory.');
+        return false;
+    }
+    const result = await materializeCreativeItem(bot, itemName, num);
+    if (!result.ok) {
+        const detail = result.reason === 'invalid-count'
+            ? `Count must be between 1 and ${MAX_CREATIVE_ITEM_COUNT}.`
+            : result.reason === 'inventory-full'
+                ? 'Inventory does not have enough capacity.'
+                : `Could not provision ${itemName}: ${result.reason}.`;
+        log(bot, detail);
+        return false;
+    }
+    log(bot, `Added ${num} ${itemName} to the creative inventory.`);
+    return true;
+}
 
  export async function useToolOnBlock(bot, toolName, block) {
     /**

@@ -2,6 +2,7 @@
 import * as skills from '../library/skills.js';
 import settings from '../settings.js';
 import convoManager from '../conversation.js';
+import { giveArmorSet } from '../library/armorSet.js';
 
 
 function runAsAction (actionFn, resume = false, timeout = -1) {
@@ -15,11 +16,21 @@ function runAsAction (actionFn, resume = false, timeout = -1) {
         }
 
         const actionFnWithAgent = async () => {
-            await actionFn(agent, ...args);
+            return actionFn(agent, ...args);
         };
         const code_return = await agent.actions.runAction(`action:${actionLabel}`, actionFnWithAgent, { timeout, resume });
-        if (code_return.interrupted && !code_return.timedout)
-            return;
+        if (code_return.interrupted && !code_return.timedout) {
+            return {
+                __commandOutcome: 'interrupted',
+                result: code_return.message || 'Command was interrupted.'
+            };
+        }
+        if (!code_return.success) {
+            return {
+                __commandOutcome: 'failed',
+                result: code_return.message || (code_return.timedout ? 'Command timed out.' : 'Command failed.')
+            };
+        }
         return code_return.message;
     }
 
@@ -222,7 +233,21 @@ export const actionsList = [
             'num': { type: 'int', description: 'The number of items to give.', domain: [1, Number.MAX_SAFE_INTEGER] }
         },
         perform: runAsAction(async (agent, player_name, item_name, num) => {
-            await skills.giveToPlayer(agent.bot, item_name, player_name, num);
+            return await skills.giveToPlayer(agent.bot, item_name, player_name, num);
+        })
+    },
+    {
+        name: '!giveArmorSet',
+        description: 'Give a player one complete armor set (helmet, chestplate, leggings, boots) using one confirmation. Use this for requests such as a full netherite armor set.',
+        params: {
+            'player_name': { type: 'string', description: 'The player receiving the full armor set.' },
+            'material': { type: 'string', description: 'Armor material: leather, chainmail, iron, golden, diamond, or netherite.' }
+        },
+        perform: runAsAction(async (agent, player_name, material) => {
+            return await giveArmorSet(agent.bot, player_name, material, {
+                giveItem: skills.giveToPlayer,
+                log: (message) => skills.log(agent.bot, message)
+            });
         })
     },
     {
@@ -238,7 +263,7 @@ export const actionsList = [
         description: 'Equip the given item.',
         params: {'item_name': { type: 'ItemName', description: 'The name of the item to equip.' }},
         perform: runAsAction(async (agent, item_name) => {
-            await skills.equip(agent.bot, item_name);
+            return await skills.equip(agent.bot, item_name);
         })
     },
     {
@@ -306,7 +331,7 @@ export const actionsList = [
             'num': { type: 'int', description: 'The number of blocks to collect.', domain: [1, Number.MAX_SAFE_INTEGER] }
         },
         perform: runAsAction(async (agent, type, num) => {
-            await skills.collectBlock(agent.bot, type, num);
+            return await skills.collectBlock(agent.bot, type, num);
         }, false, 10) // 10 minute timeout
     },
     {
@@ -317,7 +342,18 @@ export const actionsList = [
             'num': { type: 'int', description: 'The number of times to craft the recipe. This is NOT the number of output items, as it may craft many more items depending on the recipe.', domain: [1, Number.MAX_SAFE_INTEGER] }
         },
         perform: runAsAction(async (agent, recipe_name, num) => {
-            await skills.craftRecipe(agent.bot, recipe_name, num);
+            return await skills.craftRecipe(agent.bot, recipe_name, num);
+        })
+    },
+    {
+        name: '!creativeItem',
+        description: 'Add a valid item to your physical inventory in unrestricted creative mode.',
+        params: {
+            'item_name': { type: 'ItemName', description: 'The item to add to the physical inventory.' },
+            'num': { type: 'int', description: 'The number of items to add.', domain: [1, 2305] }
+        },
+        perform: runAsAction(async (agent, item_name, num) => {
+            return await skills.creativeItem(agent.bot, item_name, num);
         })
     },
     {
@@ -542,7 +578,7 @@ export const actionsList = [
             'target': { type: 'string', description: 'The target as an entity type, block type, or "nothing" for no target.' }
         },
         perform: runAsAction(async (agent, tool_name, target) => {
-            await skills.useToolOn(agent.bot, tool_name, target);
+            return await skills.useToolOn(agent.bot, tool_name, target);
         })
     },
 ];

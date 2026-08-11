@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import io.github.gameai.forgeagent.GameAiForgeAgent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 
 public final class ClientCommandExecutor {
     private ClientCommandExecutor() {
@@ -27,6 +29,7 @@ public final class ClientCommandExecutor {
                     case "attack" -> executeAttack(minecraft, action);
                     case "equip_hotbar" -> executeEquipHotbar(minecraft, action);
                     case "use_skill" -> executeUseSkill(minecraft, action);
+                    case "mine_block" -> executeMineBlock(minecraft, action);
                     case "stop_all" -> executeStopAll(minecraft);
                     default -> GameAiForgeAgent.LOGGER.debug("Unhandled bridge action {}", kind);
                 }
@@ -86,6 +89,24 @@ public final class ClientCommandExecutor {
             case "weapon_innate", "guard", "dodge" -> ClientInputPulseExecutor.pulseUse(minecraft);
             default -> GameAiForgeAgent.LOGGER.debug("Unhandled skill slot {}", skillSlot);
         }
+    }
+
+    private static void executeMineBlock(Minecraft minecraft, JsonObject action) {
+        LocalPlayer player = minecraft.player;
+        if (player == null || minecraft.gameMode == null || !action.has("position")) {
+            return;
+        }
+        JsonObject position = action.getAsJsonObject("position");
+        if (!position.has("x") || !position.has("y") || !position.has("z")) {
+            return;
+        }
+        BlockPos blockPos = new BlockPos(
+                position.get("x").getAsInt(),
+                position.get("y").getAsInt(),
+                position.get("z").getAsInt()
+        );
+        minecraft.gameMode.startDestroyBlock(blockPos, Direction.UP);
+        minecraft.gameMode.continueDestroyBlock(blockPos, Direction.UP);
     }
 
     private static void executeStopAll(Minecraft minecraft) {

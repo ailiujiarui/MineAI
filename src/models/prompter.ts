@@ -78,14 +78,18 @@ export class Prompter {
 
         
         let embedding_model_profile = null;
-        if (this.profile.embedding) {
+        const lexicalRetrieval = this.profile.embedding === false;
+        if (!lexicalRetrieval && this.profile.embedding) {
             try {
                 embedding_model_profile = selectAPI(this.profile.embedding);
             } catch (e) {
                 embedding_model_profile = null;
             }
         }
-        if (embedding_model_profile) {
+        if (lexicalRetrieval) {
+            this.embedding_model = null;
+        }
+        else if (embedding_model_profile) {
             this.embedding_model = createModel(embedding_model_profile);
         }
         else {
@@ -138,6 +142,7 @@ export class Prompter {
 
     async replaceStrings(prompt, messages, examples=null, to_summarize=[], last_goals=null) {
         prompt = prompt.replaceAll('$NAME', this.agent.name);
+        prompt = prompt.replaceAll('$DISPLAY_NAME', this.profile.display_name || this.agent.name);
 
         if (prompt.includes('$STATS')) {
             let stats = await getCommand('!stats').perform(this.agent) + '\n';
@@ -168,6 +173,13 @@ export class Prompter {
             prompt = prompt.replaceAll('$EXAMPLES', await examples.createExampleMessage(messages));
         if (prompt.includes('$MEMORY'))
             prompt = prompt.replaceAll('$MEMORY', this.agent.history.memory);
+        if (prompt.includes('$STRUCTURED_MEMORY')) {
+            const memory = this.agent.history.structured.retrieve(
+                messages?.slice?.(-1)?.[0]?.content || '',
+                this.agent.last_sender || null
+            );
+            prompt = prompt.replaceAll('$STRUCTURED_MEMORY', JSON.stringify(memory));
+        }
         if (prompt.includes('$TO_SUMMARIZE'))
             prompt = prompt.replaceAll('$TO_SUMMARIZE', stringifyTurns(to_summarize));
         if (prompt.includes('$CONVO'))

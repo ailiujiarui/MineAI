@@ -122,6 +122,19 @@
         "description": "Whether to allow newAction command that let's LLM write/run code on host computer. Despite sandboxxing, it is potentially insecure.",
         "default": false
     },
+    "forge_action": {
+        "type": "object",
+        "description": "Loopback Forge emergency-stop channel settings",
+        "default": {
+            "enabled": true,
+            "host": "127.0.0.1",
+            "port": 18765,
+            "client_id": null,
+            "target_player_name": null,
+            "snapshot_freshness_ms": 2000,
+            "ack_timeout_ms": 3000
+        }
+    },
     "code_timeout_mins": {
         "type": "number",
         "description": "Number of minutes to allow code execution. -1 for no timeout",

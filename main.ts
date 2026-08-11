@@ -212,11 +212,32 @@ function pathLikeRoot(instanceDir) {
 }
 
 
-Mindcraft.init(false, settings.mindserver_port, settings.auto_open_ui);
+let shutdownPromise = null;
+async function shutdownRuntime(signal = 'shutdown') {
+    if (shutdownPromise) return shutdownPromise;
+    shutdownPromise = (async () => {
+        console.log(`[runtime] shutting down (${signal})`);
+        await Mindcraft.shutdown();
+        if (clientBridgeRuntime) await clientBridgeRuntime.stop();
+    })();
+    return shutdownPromise;
+}
+
+process.on('SIGINT', async () => {
+    await shutdownRuntime('SIGINT');
+    process.exit(0);
+});
+process.on('SIGTERM', async () => {
+    await shutdownRuntime('SIGTERM');
+    process.exit(0);
+});
+
+await Mindcraft.init(false, settings.mindserver_port, settings.auto_open_ui);
 initRunContext(settings.run?.base_dir || './runs');
 
 for (let profile of settings.profiles) {
     const profile_json = JSON.parse(readFileSync(profile, 'utf8'));
     settings.profile = profile_json;
-    Mindcraft.createAgent(settings);
+    const result = await Mindcraft.createAgent(settings);
+    if (!result.success) throw new Error(`Failed to create agent ${profile_json.name}: ${result.error}`);
 }

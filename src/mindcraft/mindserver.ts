@@ -6,6 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import * as mindcraft from './mindcraft.js';
 import { readFileSync } from 'fs';
+import { randomUUID } from 'crypto';
+import { requestBridgeStopAll } from '../clientBridge/bridgeControlClient.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Mindserver is:
@@ -17,16 +19,22 @@ let io;
 let server;
 const agent_connections = {};
 const agent_listeners = [];
+const forge_stop_inflight = new Map();
+const forge_stop_last_requested_at = new Map();
+const FORGE_STOP_AGENT_COOLDOWN_MS = 250;
 
 const settings_spec = JSON.parse(readFileSync(path.join(__dirname, 'public/settings_spec.json'), 'utf8'));
 
 class AgentConnection {
-    constructor(settings, viewer_port) {
+    constructor(settings, viewer_port, auth_token) {
         this.socket = null;
+        this.microphone_socket = null;
         this.settings = settings;
         this.in_game = false;
+        this.runtime_ready = false;
         this.full_state = null;
         this.viewer_port = viewer_port;
+        this.auth_token = auth_token;
     }
     setSettings(settings) {
         this.settings = settings;
@@ -34,13 +42,36 @@ class AgentConnection {
 }
 
 export function registerAgent(settings, viewer_port) {
-    let agentConnection = new AgentConnection(settings, viewer_port);
+    const authToken = randomUUID();
+    let agentConnection = new AgentConnection(settings, viewer_port, authToken);
     agent_connections[settings.profile.name] = agentConnection;
+    return authToken;
+}
+
+export function rotateAgentAuthToken(agentName) {
+    const connection = agent_connections[agentName];
+    if (!connection) throw new Error(`Agent '${agentName}' is not registered`);
+    connection.auth_token = randomUUID();
+    connection.runtime_ready = false;
+    return connection.auth_token;
+}
+
+export function getAgentAuthToken(agentName) {
+    return agent_connections[agentName]?.auth_token || '';
+}
+
+function isAuthorizedAgentSocket(socket, agentName) {
+    const connection = agent_connections[agentName];
+    return !!connection
+        && socket.handshake?.auth?.agentName === agentName
+        && socket.handshake?.auth?.token === connection.auth_token;
 }
 
 export function logoutAgent(agentName) {
     if (agent_connections[agentName]) {
         agent_connections[agentName].in_game = false;
+        agent_connections[agentName].runtime_ready = false;
+        mindcraft.setAgentRuntimeReady(agentName, false);
         agentsStatusUpdate();
     }
 }
@@ -101,39 +132,123 @@ export function createMindServer(host_public = false, port = 8080) {
         });
 
         socket.on('get-settings', (agentName, callback) => {
-            if (agent_connections[agentName]) {
+            if (isAuthorizedAgentSocket(socket, agentName)) {
                 callback({ settings: agent_connections[agentName].settings });
             } else {
-                callback({ error: `Agent '${agentName}' not found.` });
+                callback({ error: `Agent '${agentName}' authentication failed.` });
             }
         });
 
         socket.on('connect-agent-process', (agentName) => {
-            if (agent_connections[agentName]) {
+            if (isAuthorizedAgentSocket(socket, agentName)) {
                 agent_connections[agentName].socket = socket;
                 agentsStatusUpdate();
             }
         });
 
+        socket.on('register-microphone', (agentName) => {
+            const connection = agent_connections[agentName];
+            if (!isAuthorizedAgentSocket(socket, agentName)) return;
+            connection.microphone_socket = socket;
+        });
+
+        socket.on('voice-playback-state', (agentName, state) => {
+            const connection = agent_connections[agentName];
+            if (!isAuthorizedAgentSocket(socket, agentName) || connection?.socket !== socket) return;
+            const active = Boolean(state?.active);
+            connection.microphone_socket?.emit('voice-playback-state', {
+                active,
+                cooldownMs: Number.isFinite(Number(state?.cooldownMs)) ? Number(state.cooldownMs) : 250,
+                generation: state?.generation || null
+            });
+        });
+
         socket.on('login-agent', (agentName) => {
-            if (agent_connections[agentName]) {
+            if (isAuthorizedAgentSocket(socket, agentName)) {
                 agent_connections[agentName].socket = socket;
                 agent_connections[agentName].in_game = true;
+                agent_connections[agentName].runtime_ready = false;
                 curAgentName = agentName;
                 agentsStatusUpdate();
             }
             else {
-                console.warn(`Unregistered agent ${agentName} tried to login`);
+                console.warn(`Agent ${agentName} failed MindServer authentication`);
             }
         });
 
+        socket.on('agent-runtime-ready', (agentName) => {
+            const connection = agent_connections[agentName];
+            if (!isAuthorizedAgentSocket(socket, agentName) || connection.socket !== socket) return;
+            connection.runtime_ready = true;
+            mindcraft.setAgentRuntimeReady(agentName, true);
+            agentsStatusUpdate();
+        });
+
+        socket.on('forge-stop-request', async (request, callback) => {
+            const connection = agent_connections[curAgentName];
+            if (!connection || connection.socket !== socket || !connection.runtime_ready) {
+                callback?.({ status: 'rejected', message: 'Agent is not runtime-ready' });
+                return;
+            }
+
+            const config = connection.settings?.forge_action || {};
+            if (config.enabled === false) {
+                callback?.({ status: 'unavailable', message: 'Forge action channel is disabled' });
+                return;
+            }
+
+            if (forge_stop_inflight.has(curAgentName)) {
+                callback?.(await forge_stop_inflight.get(curAgentName));
+                return;
+            }
+
+            const sinceLastRequest = Date.now() - (forge_stop_last_requested_at.get(curAgentName) || 0);
+            if (sinceLastRequest < FORGE_STOP_AGENT_COOLDOWN_MS) {
+                callback?.({
+                    status: 'rejected',
+                    message: `Agent Forge stop rate limit active; retry after ${FORGE_STOP_AGENT_COOLDOWN_MS - sinceLastRequest}ms`
+                });
+                return;
+            }
+
+            const requestId = `${curAgentName}-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+            const configuredAckTimeout = Number(config.ack_timeout_ms || config.ackTimeoutMs || 3000);
+            const ackTimeoutMs = Math.min(Math.max(Number.isFinite(configuredAckTimeout) ? configuredAckTimeout : 3000, 100), 3000);
+            const pending = requestBridgeStopAll({
+                host: config.host || '127.0.0.1',
+                port: config.port || 18765,
+                requestId,
+                clientId: config.client_id || config.clientId || undefined,
+                targetPlayerName: config.target_player_name || config.targetPlayerName || undefined,
+                snapshotFreshnessMs: config.snapshot_freshness_ms || config.snapshotFreshnessMs || 2000,
+                ackTimeoutMs
+            }).catch((error) => ({
+                status: /timed out/i.test(String(error))
+                    ? 'timeout'
+                    : /disconnect|closed/i.test(String(error))
+                        ? 'disconnected'
+                        : 'unavailable',
+                message: error instanceof Error ? error.message : String(error)
+            })).finally(() => {
+                forge_stop_inflight.delete(curAgentName);
+            });
+
+            forge_stop_inflight.set(curAgentName, pending);
+            forge_stop_last_requested_at.set(curAgentName, Date.now());
+            callback?.(await pending);
+        });
+
         socket.on('disconnect', () => {
-            if (agent_connections[curAgentName]) {
+            const connection = agent_connections[curAgentName];
+            if (connection?.socket === socket) {
                 console.log(`Agent ${curAgentName} disconnected`);
-                agent_connections[curAgentName].in_game = false;
-                agent_connections[curAgentName].socket = null;
+                connection.in_game = false;
+                connection.socket = null;
+                connection.runtime_ready = false;
+                mindcraft.setAgentRuntimeReady(curAgentName, false);
                 agentsStatusUpdate();
             }
+            if (connection?.microphone_socket === socket) connection.microphone_socket = null;
             if (agent_listeners.includes(socket)) {
                 removeListener(socket);
             }
@@ -184,17 +299,10 @@ export function createMindServer(host_public = false, port = 8080) {
             }
         });
 
-        socket.on('shutdown', () => {
+        socket.on('shutdown', async () => {
             console.log('Shutting down');
-            for (let agentName in agent_connections) {
-                mindcraft.stopAgent(agentName);
-            }
-            // wait 2 seconds
-            setTimeout(() => {
-                console.log('Exiting MindServer');
-                process.exit(0);
-            }, 2000);
-            
+            await mindcraft.shutdown();
+            process.exit(0);
         });
 
 		socket.on('send-message', (agentName, data) => {
@@ -210,8 +318,9 @@ export function createMindServer(host_public = false, port = 8080) {
 		});
 
         socket.on('voice-transcript', (agentName, data) => {
-            if (!agent_connections[agentName]) {
-                console.warn(`Agent ${agentName} not in game, cannot send voice transcript via MindServer.`);
+            const connection = agent_connections[agentName];
+            if (!isAuthorizedAgentSocket(socket, agentName) || !connection?.socket || !connection.runtime_ready) {
+                console.warn(`Voice transcript authentication or readiness failed for Agent ${agentName}; transcript was ignored.`);
                 return;
             }
             try {
@@ -221,7 +330,7 @@ export function createMindServer(host_public = false, port = 8080) {
                     text: data?.text,
                     metadata: data?.metadata || {}
                 }));
-                agent_connections[agentName].socket.emit('voice-transcript', data);
+                connection.socket.emit('voice-transcript', data);
             } catch (error) {
                 console.error('Error forwarding voice transcript: ', error);
             }
@@ -247,6 +356,32 @@ export function createMindServer(host_public = false, port = 8080) {
     return server;
 }
 
+export function waitForMindServerListening(targetServer = server) {
+    if (!targetServer) return Promise.reject(new Error('MindServer has not been created'));
+    if (targetServer.listening) return Promise.resolve(targetServer);
+    return new Promise((resolve, reject) => {
+        const cleanup = () => {
+            targetServer.off('listening', onListening);
+            targetServer.off('error', onError);
+        };
+        const onListening = () => { cleanup(); resolve(targetServer); };
+        const onError = (error) => { cleanup(); reject(error); };
+        targetServer.once('listening', onListening);
+        targetServer.once('error', onError);
+    });
+}
+
+export async function closeMindServer() {
+    const currentIo = io;
+    const currentServer = server;
+    io = null;
+    server = null;
+    if (currentIo) await new Promise((resolve) => currentIo.close(() => resolve()));
+    if (currentServer?.listening) {
+        await new Promise((resolve) => currentServer.close(() => resolve()));
+    }
+}
+
 function agentsStatusUpdate(socket) {
     if (!socket) {
         socket = io;
@@ -259,6 +394,7 @@ function agentsStatusUpdate(socket) {
             in_game: conn.in_game,
             viewerPort: conn.viewer_port,
             socket_connected: !!conn.socket
+            ,runtime_ready: !!conn.runtime_ready
         });
     };
     socket.emit('agents-status', agents);

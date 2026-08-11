@@ -34,6 +34,9 @@ function hasNearby(nearbyBlocks, blockName) {
 }
 
 export function planAutonomyCommand(stage, snapshot) {
+    if (snapshot.creativeUnrestricted || stage === 'creative_ready') {
+        return null;
+    }
     const inventoryCounts = snapshot.inventoryCounts || {};
     const nearbyBlocks = snapshot.nearbyBlocks || [];
     const knownResourceLocations = snapshot.knownResourceLocations || [];

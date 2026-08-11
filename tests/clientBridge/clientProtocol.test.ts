@@ -6,7 +6,10 @@ import {
   CLIENT_BRIDGE_PROTOCOL_VERSION,
   createCommandMessage,
   createHelloMessage,
-  createSnapshotMessage
+  createSnapshotMessage,
+  isBridgeAckMessage,
+  isBridgeHelloMessage,
+  isBridgeSnapshotMessage
 } from '../../src/clientBridge/clientProtocol.js'
 
 test('createHelloMessage advertises protocol version and runtime capabilities', () => {
@@ -99,4 +102,33 @@ test('createAckMessage carries command completion status', () => {
   assert.equal(message.protocolVersion, CLIENT_BRIDGE_PROTOCOL_VERSION)
   assert.equal(message.payload.commandId, 'cmd-1')
   assert.equal(message.payload.status, 'ok')
+})
+
+test('bridge message validators reject incompatible protocol versions and malformed payloads', () => {
+  const hello = createHelloMessage({
+    clientId: 'forge-agent-validated',
+    minecraftVersion: '1.20.1',
+    loader: 'forge',
+    modCapabilities: { epicFight: false, slashBlade: false }
+  })
+  const snapshot = createSnapshotMessage({
+    tick: 1,
+    player: {
+      name: 'BotPilot',
+      health: 20,
+      food: 20,
+      position: { x: 0, y: 64, z: 0 },
+      yaw: 0,
+      pitch: 0,
+      combatMode: 'vanilla'
+    },
+    nearbyEntities: []
+  })
+
+  assert.equal(isBridgeHelloMessage(hello), true)
+  assert.equal(isBridgeHelloMessage({ ...hello, protocolVersion: 999 }), false)
+  assert.equal(isBridgeSnapshotMessage(snapshot), true)
+  assert.equal(isBridgeSnapshotMessage({ ...snapshot, payload: { tick: 1 } }), false)
+  assert.equal(isBridgeAckMessage(createAckMessage({ commandId: 'cmd-1', status: 'ok' })), true)
+  assert.equal(isBridgeAckMessage(createAckMessage({ commandId: '', status: 'ok' })), false)
 })

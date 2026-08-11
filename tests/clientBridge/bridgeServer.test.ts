@@ -89,8 +89,11 @@ test('bridge server stores latest snapshots per client', async () => {
         health: 17,
         food: 18,
         position: { x: 10, y: 70, z: -2 },
+        yaw: 0,
+        pitch: 0,
         combatMode: 'epicfight'
-      }
+      },
+      nearbyEntities: []
     }))
 
     await new Promise((resolve) => setTimeout(resolve, 50))
@@ -180,6 +183,127 @@ test('bridge server can send structured command messages back to a connected cli
   }
 })
 
+test('bridge server resolves a command only when its matching ack arrives', async () => {
+  const bridge = createClientBridgeServer()
+  await bridge.listen(0)
+
+  try {
+    const socket = await connectClient(bridge.address().port)
+    sendJsonLine(socket, createHelloMessage({
+      clientId: 'forge-agent-awaited-ack',
+      minecraftVersion: '1.20.1',
+      loader: 'forge',
+      modCapabilities: { epicFight: false, slashBlade: false }
+    }))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    const command = createCommandMessage({ id: 'cmd-awaited', actions: [{ kind: 'stop_all' }] })
+    const receivedCommand = readJsonLine(socket)
+    const pendingAck = bridge.sendCommandAndWaitForAck('forge-agent-awaited-ack', command, { timeoutMs: 500 })
+    assert.equal((await receivedCommand).payload.id, 'cmd-awaited')
+
+    sendJsonLine(socket, createAckMessage({ commandId: 'another-command', status: 'ok' }))
+    sendJsonLine(socket, createAckMessage({ commandId: 'cmd-awaited', status: 'error', detail: 'action rejected' }))
+
+    const ack = await pendingAck
+    assert.equal(ack.payload.status, 'error')
+    assert.equal(ack.payload.detail, 'action rejected')
+    socket.destroy()
+  } finally {
+    await bridge.close()
+  }
+})
+
+test('bridge server rejects command acknowledgement waits on timeout', async () => {
+  const bridge = createClientBridgeServer()
+  await bridge.listen(0)
+
+  try {
+    const socket = await connectClient(bridge.address().port)
+    sendJsonLine(socket, createHelloMessage({
+      clientId: 'forge-agent-timeout',
+      minecraftVersion: '1.20.1',
+      loader: 'forge',
+      modCapabilities: { epicFight: false, slashBlade: false }
+    }))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    await assert.rejects(
+      bridge.sendCommandAndWaitForAck(
+        'forge-agent-timeout',
+        createCommandMessage({ id: 'cmd-timeout', actions: [{ kind: 'stop_all' }] }),
+        { timeoutMs: 30 }
+      ),
+      /Timed out after 30ms.*cmd-timeout/
+    )
+    socket.destroy()
+  } finally {
+    await bridge.close()
+  }
+})
+
+test('bridge server rejects pending acknowledgement waits when the client disconnects', async () => {
+  const bridge = createClientBridgeServer()
+  await bridge.listen(0)
+
+  try {
+    const socket = await connectClient(bridge.address().port)
+    sendJsonLine(socket, createHelloMessage({
+      clientId: 'forge-agent-disconnect',
+      minecraftVersion: '1.20.1',
+      loader: 'forge',
+      modCapabilities: { epicFight: false, slashBlade: false }
+    }))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    const pendingAck = bridge.sendCommandAndWaitForAck(
+      'forge-agent-disconnect',
+      createCommandMessage({ id: 'cmd-disconnect', actions: [{ kind: 'stop_all' }] }),
+      { timeoutMs: 500 }
+    )
+    await readJsonLine(socket)
+    socket.destroy()
+
+    await assert.rejects(pendingAck, /disconnected before acknowledging command/)
+  } finally {
+    await bridge.close()
+  }
+})
+
+test('bridge server ignores malformed and incompatible client messages without crashing', async () => {
+  const bridge = createClientBridgeServer()
+  await bridge.listen(0)
+
+  try {
+    const socket = await connectClient(bridge.address().port)
+    socket.write('{not-json}\n')
+    sendJsonLine(socket, {
+      ...createHelloMessage({
+        clientId: 'forge-agent-wrong-version',
+        minecraftVersion: '1.20.1',
+        loader: 'forge',
+        modCapabilities: { epicFight: false, slashBlade: false }
+      }),
+      protocolVersion: 999
+    })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    assert.equal(bridge.listClients().length, 0)
+
+    sendJsonLine(socket, createHelloMessage({
+      clientId: 'forge-agent-valid-after-invalid',
+      minecraftVersion: '1.20.1',
+      loader: 'forge',
+      modCapabilities: { epicFight: false, slashBlade: false }
+    }))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    assert.equal(bridge.listClients().length, 1)
+    socket.destroy()
+  } finally {
+    await bridge.close()
+  }
+})
+
 test('bridge server can answer admin list requests with connected clients', async () => {
   const bridge = createClientBridgeServer()
   await bridge.listen(0)
@@ -217,7 +341,7 @@ test('bridge server can answer admin list requests with connected clients', asyn
   }
 })
 
-test('bridge server accepts admin command envelopes and forwards them to target clients', async () => {
+test('bridge server rejects legacy arbitrary admin command envelopes', async () => {
   const bridge = createClientBridgeServer()
   await bridge.listen(0)
 
@@ -238,7 +362,9 @@ test('bridge server accepts admin command envelopes and forwards them to target 
 
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    const outbound = readJsonLine(clientSocket)
+    let forwarded = false
+    clientSocket.once('data', () => { forwarded = true })
+    const responsePromise = readJsonLine(adminSocket)
     sendJsonLine(adminSocket, {
       type: 'admin_command',
       payload: {
@@ -250,9 +376,11 @@ test('bridge server accepts admin command envelopes and forwards them to target 
       }
     })
 
-    const forwarded = await outbound
-    assert.equal(forwarded.type, 'command')
-    assert.equal(forwarded.payload.id, 'cmd-admin')
+    const response = await responsePromise
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    assert.equal(response.type, 'admin_command_result')
+    assert.equal(response.payload.status, 'rejected')
+    assert.equal(forwarded, false)
 
     clientSocket.destroy()
     adminSocket.destroy()
