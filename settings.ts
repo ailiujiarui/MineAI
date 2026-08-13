@@ -75,6 +75,13 @@ const settings = {
         "interval_ms": 5000
     },
 
+    "execution": {
+        "state_machine": {
+            "enabled": false,
+            "package_version": "1.7.0"
+        }
+    },
+
     "mod_runtime": {
         "enabled": true,
         "instance_mode": "launcher",
@@ -127,51 +134,6 @@ const settings = {
             "max_utterance_ms": 15000,
             "leading_context_ms": 400,
             "device": null
-        },
-        "openvoice": {
-            "python_command": ".\\.local\\openvoice-venv\\Scripts\\python.exe",
-            "tts_script": "scripts/openvoice_tts.py",
-            "reference_audio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-            "voice_name": "EN-US",
-            "language": "EN_V2",
-            "zh_voice_name": "ZH",
-            "zh_language": "ZH",
-            "zh_reference_audio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-            "active_profile": "default",
-            "profiles": {
-                "default": {
-                    "voiceName": "EN-US",
-                    "language": "EN_V2",
-                    "referenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-                    "zhVoiceName": "ZH",
-                    "zhLanguage": "ZH",
-                    "zhReferenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3"
-                },
-                "maid_soft": {
-                    "voiceName": "EN-AU",
-                    "language": "EN_V2",
-                    "referenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-                    "zhVoiceName": "ZH",
-                    "zhLanguage": "ZH",
-                    "zhReferenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3"
-                },
-                "combat_cool": {
-                    "voiceName": "EN-US",
-                    "language": "EN_V2",
-                    "referenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-                    "zhVoiceName": "ZH",
-                    "zhLanguage": "ZH",
-                    "zhReferenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3"
-                },
-                "klee_zh": {
-                    "voiceName": "EN-US",
-                    "language": "EN_V2",
-                    "referenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-                    "zhVoiceName": "ZH",
-                    "zhLanguage": "ZH",
-                    "zhReferenceAudio": ".\\sources\\sound\\可莉.mp3"
-                }
-            }
         },
         "doubao": {
             "mode": "realtime",

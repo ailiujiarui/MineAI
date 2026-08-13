@@ -5,6 +5,7 @@ import { createBot } from 'mineflayer';
 import prismarine_items from 'prismarine-item';
 import { pathfinder } from 'mineflayer-pathfinder';
 import { plugin as pvp } from 'mineflayer-pvp';
+import { plugin as tool } from 'mineflayer-tool';
 import { plugin as collectblock } from 'mineflayer-collectblock';
 import { plugin as autoEat } from 'mineflayer-auto-eat';
 import plugin from 'mineflayer-armor-manager';
@@ -130,6 +131,7 @@ export function initBot(username) {
     };
 
     bot.loadPlugin(pathfinder);
+    bot.loadPlugin(tool);
     bot.loadPlugin(pvp);
     bot.loadPlugin(collectblock);
     bot.loadPlugin(autoEat);

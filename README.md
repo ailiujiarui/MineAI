@@ -186,7 +186,7 @@ MineAI 的主要配置入口有两个：
 - 唤醒词
 - 语音意图路由
 - 语音回复策略
-- OpenVoice / 豆包等 provider 相关支持
+- 豆包 ASR/TTS provider 支持
 
 相关脚本位于 `scripts/`，核心代码位于 `src/voice/`。
 

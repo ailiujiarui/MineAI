@@ -2,12 +2,8 @@
 import { NullTtsAdapter } from '../voiceRuntime.js';
 import { DoubaoVoiceAdapter } from './doubaoVoice.js';
 import { DoubaoRealtimeAsrClient } from './doubaoRealtime.js';
-import { OpenVoiceLocalTtsAdapter } from './openVoiceLocal.js';
 
 export function createTtsAdapter(settings = {}) {
-    if (settings.provider === 'openvoice-local') {
-        return new OpenVoiceLocalTtsAdapter(settings.openvoice || {});
-    }
     if (settings.provider === 'doubao') {
         return new DoubaoVoiceAdapter(settings.doubao || {});
     }

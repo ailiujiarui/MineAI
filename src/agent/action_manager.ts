@@ -36,6 +36,19 @@ export class ActionManager {
     }
 
     async runAction(actionLabel, actionFn, { timeout, resume = false } = {}) {
+        const stateMachine = this.agent.execution_state_machine;
+        if (stateMachine?.enabled) {
+            await stateMachine.stop();
+            const actionId = `${actionLabel}:${Date.now()}:${++this.recent_action_counter}`;
+            return stateMachine.submit({
+                actionId,
+                kind: actionLabel,
+                run: () => resume
+                    ? this._executeResume(actionLabel, actionFn, timeout, true)
+                    : this._executeAction(actionLabel, actionFn, timeout, true),
+                verify: result => result?.success !== false
+            });
+        }
         if (resume) {
             return this._executeResume(actionLabel, actionFn, timeout);
         } else {
@@ -44,6 +57,7 @@ export class ActionManager {
     }
 
     async stop() {
+        await this.agent.execution_state_machine?.stop?.();
         if (!this.executing) return;
         const timeout = setTimeout(() => {
             this.agent.cleanKill('Code execution refused stop after 10 seconds. Killing process.');
@@ -61,7 +75,7 @@ export class ActionManager {
         this.resume_name = null;
     }
 
-    async _executeResume(actionLabel = null, actionFn = null, timeout = 10) {
+    async _executeResume(actionLabel = null, actionFn = null, timeout = 10, preserveStateMachine = false) {
         const new_resume = actionFn != null;
         if (new_resume) { // start new resume
             this.resume_func = actionFn;
@@ -70,7 +84,7 @@ export class ActionManager {
         }
         if (this.resume_func != null && (this.agent.isIdle() || new_resume) && (!this.agent.self_prompter.isActive() || new_resume)) {
             this.currentActionLabel = this.resume_name;
-            let res = await this._executeAction(this.resume_name, this.resume_func, timeout);
+            let res = await this._executeAction(this.resume_name, this.resume_func, timeout, preserveStateMachine);
             this.currentActionLabel = '';
             return res;
         } else {
@@ -78,7 +92,7 @@ export class ActionManager {
         }
     }
 
-    async _executeAction(actionLabel, actionFn, timeout = 10) {
+    async _executeAction(actionLabel, actionFn, timeout = 10, preserveStateMachine = false) {
         let TIMEOUT;
         try {
             this.timedout = false;
@@ -108,7 +122,7 @@ export class ActionManager {
             if (this.executing) {
                 console.log(`action "${actionLabel}" trying to interrupt current action "${this.currentActionLabel}"`);
             }
-            await this.stop();
+            if (!preserveStateMachine) await this.stop();
 
             // clear bot logs and reset interrupt code
             this.agent.clearBotLogs();

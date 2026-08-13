@@ -102,7 +102,7 @@ export const actionsList = [
     },
     {
         name: '!setVoiceProfile',
-        description: 'Switch the local OpenVoice output to a named voice profile.',
+        description: 'Switch the active TTS provider to a named voice profile.',
         params: {
             'profile_name': { type: 'string', description: 'The configured voice profile name to activate.' }
         },

@@ -28,6 +28,7 @@ import { log, validateNameFormat, handleDisconnection } from './connection_handl
 import { recoverAgentFromDeath } from './deathRecovery.js';
 import { createDeathDisconnectGuard, shouldHandleRuntimeDisconnect } from './deathDisconnectGuard.js';
 import { extractChineseMemories } from './memory/memoryExtractor.js';
+import { StateMachineExecutionAdapter } from './execution/stateMachineAdapter.js';
 
 export class Agent {
     async start(load_mem=false, init_message=null, count_id=0, startup_context={}) {
@@ -104,6 +105,10 @@ export class Agent {
 
         console.log(this.name, 'logging into minecraft...');
         this.bot = initBot(this.name);
+        this.execution_state_machine = new StateMachineExecutionAdapter(this.bot, {
+            enabled: settings.execution?.state_machine?.enabled === true,
+            requestInterrupt: () => this.requestInterruptLegacy()
+        });
         
         // Connection Handler
         const onDisconnect = (event, reason) => {
@@ -294,6 +299,11 @@ export class Agent {
     }
 
     requestInterrupt() {
+        this.execution_state_machine?.stop?.().catch?.(() => {});
+        this.requestInterruptLegacy();
+    }
+
+    requestInterruptLegacy() {
         this.bot.interrupt_code = true;
         this.bot.stopDigging();
         this.bot.collectBlock.cancelTask();
