@@ -154,6 +154,24 @@ SelfPrompter 的主动任务路径。该编排层每轮只允许一个经命令�
 
 ### Phase 5：可扩展生态
 
+当前进度：已完成第一版离线执行回放工具。回放使用真实命令注册表和 Loop 校验，
+通过确定性 executor 验证成功、失败、取消、重复和非法命令，不连接 Minecraft、
+Forge、模型或语音服务。
+
+Skill Plugin 静态契约与显式注册表已实现；插件默认禁用，不自动扫描、加载或执行
+第三方代码。
+
+女仆式沉浸战斗第一阶段已实现纯逻辑 CombatController、威胁目标排序和战斗上下文
+恢复测试；尚未接入 Mineflayer/Forge 执行器。
+
+Phase 10-12 批次已完成安全边界实现：CombatArbiter 提供唯一 owner 和优先级抢占，
+ForgeCombatAdapter 提供能力检查、结构化动作映射与 ACK 结果，语音路由支持保护、
+攻击、撤退和停火四类高层战斗意图；Agent 已增加默认关闭的 Mineflayer fallback
+接线。Forge adapter 仍需显式注入 Bridge 才能接管，不会自动伪造执行成功。
+
+- 提供 `npm run replay -- <case.json>` 命令行入口。
+- 回放报告包含停止原因、执行命令、结果和断言状态。
+
 - 定义 MineAI Skill Plugin 接口。
 - 允许新增原版技能、Forge 模组技能和只读观察工具。
 - 每个插件必须声明权限、风险等级、输入约束、后置验证和停止行为。

@@ -25,6 +25,12 @@ test('routes Chinese stop speech to the safe stop command', async () => {
   }
 })
 
+test('routes high-level Chinese combat phrases to combat intents', async () => {
+  assert.equal((await routeVoiceTranscript({ text: '保护我', source: 'chat' }) as any).kind, 'combat')
+  assert.equal((await routeVoiceTranscript({ text: '撤退', source: 'chat' }) as any).payload, 'retreat')
+  assert.equal((await routeVoiceTranscript({ text: '停火', source: 'chat' }) as any).payload, 'ceasefire')
+})
+
 test('keeps negative and interrogative stop phrases out of the stop command path', async () => {
   const negative = await routeVoiceTranscript({ text: '不要停止', source: 'chat' })
   assert.notEqual(negative.kind, 'command')

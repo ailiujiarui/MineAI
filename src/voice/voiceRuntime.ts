@@ -37,6 +37,10 @@ export function createCompanionIntent(payload, meta = {}) {
     };
 }
 
+export function createCombatIntent(payload, meta = {}) {
+    return { kind: 'combat', payload, meta };
+}
+
 export class NullTtsAdapter {
     async synthesize(request) {
         return {
@@ -60,11 +64,28 @@ export class VoiceRuntime {
             || ((active) => serverProxy?.setVoicePlaybackState?.(active));
         this.micTranscriptAggregator = config.micTranscriptAggregator
             || createMicTranscriptAggregator(config.micConfig || {});
+        this.activeSpeech = null;
     }
 
     setEnabled(enabled) {
         this.enabled = enabled;
-        if (!enabled) this.micTranscriptAggregator?.clear?.();
+        if (!enabled) {
+            this.cancelSpeech('voice-disabled');
+            this.micTranscriptAggregator?.clear?.();
+        }
+    }
+
+    /** Stop the current synthesis/playback without affecting the next turn. */
+    cancelSpeech(reason = 'interrupted') {
+        const active = this.activeSpeech;
+        if (!active) return false;
+        active.reason = reason;
+        active.controller.abort(reason);
+        return true;
+    }
+
+    interruptSpeech(reason = 'interrupted') {
+        return this.cancelSpeech(reason);
     }
 
     setVoiceProfile(profileName) {
@@ -106,17 +127,36 @@ export class VoiceRuntime {
         }
 
         const normalized = createTtsRequest(request);
-        const result = await this.ttsAdapter.synthesize(normalized);
-        if (this.localPlayback && result?.audio?.length) {
-            try {
-                this.setPlaybackState(true);
-                await this.playAudio(result.audio, result.mimeType);
-            } finally {
-                try { this.setPlaybackState(false); } catch (error) {
-                    console.warn('[voice] failed to clear playback suppression:', error);
+        this.cancelSpeech('superseded');
+        const controller = new AbortController();
+        const active = { controller, reason: null };
+        this.activeSpeech = active;
+
+        try {
+            const result = await this.ttsAdapter.synthesize(normalized, {
+                signal: controller.signal
+            });
+            if (controller.signal.aborted) return null;
+            if (this.localPlayback && result?.audio?.length) {
+                try {
+                    this.setPlaybackState(true);
+                    await this.playAudio(result.audio, result.mimeType, {
+                        signal: controller.signal
+                    });
+                } finally {
+                    try { this.setPlaybackState(false); } catch (error) {
+                        console.warn('[voice] failed to clear playback suppression:', error);
+                    }
                 }
             }
+            return result;
+        } catch (error) {
+            if (controller.signal.aborted || error?.name === 'AbortError') {
+                return null;
+            }
+            throw error;
+        } finally {
+            if (this.activeSpeech === active) this.activeSpeech = null;
         }
-        return result;
     }
 }

@@ -31,6 +31,8 @@ import { extractChineseMemories } from './memory/memoryExtractor.js';
 import { StateMachineExecutionAdapter } from './execution/stateMachineAdapter.js';
 import { SkillExperienceStore } from './execution/skillExperienceStore.js';
 import { TaskMetrics } from './execution/taskMetrics.js';
+import { CombatArbiter } from '../combat/combatArbiter.js';
+import pf from 'mineflayer-pathfinder';
 
 export class Agent {
     async start(load_mem=false, init_message=null, count_id=0, startup_context={}) {
@@ -40,6 +42,7 @@ export class Agent {
 
         // Initialize components
         this.actions = new ActionManager(this);
+        this.combat_arbiter = new CombatArbiter();
         this.prompter = new Prompter(this, settings.profile);
         this.name = (this.prompter.getName() || '').trim();
         console.log(`Initializing agent ${this.name}...`);
@@ -389,6 +392,22 @@ export class Agent {
                 await this.handleMessage(event.speakerId || 'voice_user', payload, 1, {
                     skipIntentRouting: true
                 });
+            },
+            onCombat: async (payload) => {
+                if (settings.combat?.immersive_npc?.enabled !== true) {
+                    await this.routeResponse(event.speakerId || 'voice_user', '沉浸战斗当前未启用。');
+                    return;
+                }
+                if (payload === 'protect') this.combat_arbiter.setProtectedPlayer(event.speakerId || 'voice_user');
+                if (payload === 'ceasefire') {
+                    this.combat_arbiter.stop('voice ceasefire');
+                    this.requestInterrupt();
+                } else if (payload === 'retreat') {
+                    this.combat_arbiter.retreat();
+                } else {
+                    this.combat_arbiter.request('voice');
+                }
+                await this.routeResponse(event.speakerId || 'voice_user', payload === 'protect' ? '已进入保护模式。' : payload === 'attack' ? '已进入战斗模式。' : payload === 'retreat' ? '正在撤退。' : '已停止攻击。');
             },
             onConversation: async (payload) => {
                 await this.handleMessage(event.speakerId || 'voice_user', payload, 1);
@@ -864,11 +883,55 @@ export class Agent {
 
     async update(delta) {
         await this.bot.modes.update();
+        await this.updateImmersiveCombat();
         this.self_prompter.update(delta);
         if (this.autonomy) {
             await this.autonomy.update(delta);
         }
         await this.checkTaskDone();
+    }
+
+    async updateImmersiveCombat() {
+        if (settings.combat?.immersive_npc?.enabled !== true || !this.combat_arbiter || !this.bot?.entity) return;
+        if (this.actions?.executing && this.combat_arbiter.getOwner() === 'none') return;
+        const nearbyEntities = Object.values(this.bot.entities || {})
+            .filter((entity: any) => entity?.position)
+            .map((entity: any) => ({
+                entityId: Number(entity.id),
+                type: entity.type === 'hostile' || entity.name === 'monster' ? 'hostile' : entity.type === 'player' ? 'player' : 'neutral',
+                name: String(entity.name || entity.displayName || entity.type || 'unknown'),
+                distance: this.bot.entity.position.distanceTo(entity.position),
+                attackingSelf: entity.target?.id === this.bot.entity.id,
+                attackingPlayer: false,
+                threat: entity.type === 'hostile' ? 1 : 0
+            }));
+        const action = this.combat_arbiter.tick({
+            health: Number(this.bot.health ?? 20),
+            food: Number(this.bot.food ?? 20),
+            hostileCount: nearbyEntities.filter((entity: any) => entity.type === 'hostile').length,
+            combatMode: 'vanilla',
+            nearbyEntities,
+            now: Date.now()
+        }, { mode: this.autonomy ? 'autonomy' : 'task' });
+        if (!action) return;
+        const target = action.targetEntityId ? this.bot.entities[action.targetEntityId] : null;
+        try {
+            if (action.kind === 'move' && target) {
+                this.bot.pathfinder.setMovements(new pf.Movements(this.bot));
+                this.bot.pathfinder.setGoal(new pf.goals.GoalFollow(target, 3), true);
+            } else if (action.kind === 'look' && target) {
+                await this.bot.lookAt(target.position, true);
+            } else if (action.kind === 'attack' && target) {
+                this.bot.pvp.attack(target);
+            } else if (action.kind === 'stop_all') {
+                this.requestInterruptLegacy();
+            } else if (action.kind === 'use_skill') {
+                this.combat_arbiter.controller.recordFailure();
+            }
+        } catch (error) {
+            this.combat_arbiter.controller.recordFailure();
+            console.warn('[combat] fallback action failed:', error?.message || error);
+        }
     }
 
     isIdle() {

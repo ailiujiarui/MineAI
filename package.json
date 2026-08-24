@@ -54,6 +54,7 @@
         "client:bridge": "tsx scripts/run-client-bridge.ts",
         "client:command": "tsx scripts/send-client-command.ts",
         "client:list": "tsx scripts/list-client-bridge.ts",
+        "replay": "tsx scripts/run-offline-replay.ts",
         "client:autocombat": "tsx scripts/run-client-autocombat.ts",
         "forge-agent:build": "powershell -ExecutionPolicy Bypass -File scripts/build-forge-agent.ps1",
         "forge-agent:deploy": "tsx scripts/deploy-forge-agent.ts",

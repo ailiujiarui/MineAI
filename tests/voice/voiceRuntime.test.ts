@@ -132,6 +132,59 @@ test('runtime restores microphone state when playback fails', async () => {
   assert.deepEqual(states, [true, false])
 })
 
+test('runtime cancels an in-flight synthesis and treats it as a normal interruption', async () => {
+  let signal
+  const runtime = new VoiceRuntime({
+    enabled: true,
+    ttsAdapter: {
+      synthesize(_request, options) {
+        signal = options.signal
+        return new Promise((resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            const error = new Error('aborted')
+            error.name = 'AbortError'
+            reject(error)
+          }, { once: true })
+        })
+      }
+    }
+  })
+
+  const pending = runtime.speak({ text: '正在说话' })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(runtime.cancelSpeech('user-stop'), true)
+  assert.equal(signal.aborted, true)
+  assert.equal(await pending, null)
+  assert.equal(runtime.cancelSpeech(), false)
+})
+
+test('runtime passes cancellation to local playback and clears suppression', async () => {
+  const states = []
+  let playbackSignal
+  const runtime = new VoiceRuntime({
+    enabled: true,
+    ttsAdapter: { async synthesize() { return { audio: Buffer.from('voice'), mimeType: 'audio/mp3' } } },
+    setPlaybackState: active => states.push(active),
+    playAudio: async (_audio, _mime, options) => {
+      playbackSignal = options.signal
+      await new Promise((resolve, reject) => {
+        options.signal.addEventListener('abort', () => {
+          const error = new Error('aborted')
+          error.name = 'AbortError'
+          reject(error)
+        }, { once: true })
+      })
+    }
+  })
+
+  const pending = runtime.speak({ text: '播放中' })
+  await new Promise(resolve => setImmediate(resolve))
+  runtime.interruptSpeech('new-command')
+  assert.equal(playbackSignal.aborted, true)
+  assert.equal(await pending, null)
+  assert.deepEqual(states, [true, false])
+})
+
 test('runtime leaves room for conversational voice control', async () => {
   const runtime = new VoiceRuntime({
     enabled: true,

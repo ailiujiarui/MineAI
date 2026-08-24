@@ -1,0 +1,20 @@
+{
+  "name": "read-stats-then-finish",
+  "maxIterations": 2,
+  "steps": [
+    {
+      "observation": { "health": 20, "food": 20 },
+      "plan": { "command": "!stats" },
+      "execution": { "outcome": "success", "result": "stats observed" }
+    },
+    {
+      "observation": { "health": 20, "food": 20 },
+      "plan": { "done": true }
+    }
+  ],
+  "assertions": {
+    "expectedStopReason": "completed",
+    "expectedCommands": ["!stats"],
+    "maxExecutedCommands": 1
+  }
+}

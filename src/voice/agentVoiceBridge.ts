@@ -20,6 +20,11 @@ export async function applyVoiceIntent(event, intent, handlers) {
         return intent;
     }
 
+    if (intent.kind === 'combat') {
+        await handlers.onCombat?.(intent.payload, event, intent);
+        return intent;
+    }
+
     await handlers.onConversation?.(intent.payload, event, intent);
     return intent;
 }

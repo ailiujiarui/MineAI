@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createCommandIntent, createCompanionIntent, createConversationIntent, createGoalIntent } from './voiceRuntime.js';
+import { createCommandIntent, createCombatIntent, createCompanionIntent, createConversationIntent, createGoalIntent } from './voiceRuntime.js';
 import { createMicWakeGate } from './micWakeGate.js';
 import { normalizeChineseText } from '../locale/chinese.js';
 
@@ -32,6 +32,12 @@ const IMPERATIVE_PREFIXES = [
 const CHINESE_IMPERATIVE_PREFIXES = ['帮我', '请', '采集', '收集', '挖', '制作', '合成', '建造', '寻找', '搜索', '跟着', '攻击', '去', '过来', '装备', '吃', '停止', '停下', '回家', '回来'];
 
 const STOP_COMMANDS = new Set(['stop', '停', '停止', '停下', '暂停', '别动', '别做了', '不要继续']);
+const COMBAT_INTENTS = [
+    [/^(保护我|保护玩家|守护我)$/, 'protect'],
+    [/^(攻击那个|攻击目标|攻击敌人|攻击左边|攻击右边|进攻)$/, 'attack'],
+    [/^(撤退|退后|快撤)$/, 'retreat'],
+    [/^(停火|停止攻击|别攻击)$/, 'ceasefire']
+];
 const DIRECT_GOALS = new Map([
     ['跟我来', '跟着我'],
     ['跟着我', '跟着我'],
@@ -131,6 +137,8 @@ export async function routeVoiceTranscript(event, options = {}) {
 
     const commandText = withoutTerminalPunctuation(text);
     const lowerCommandText = commandText.toLowerCase();
+    const combat = COMBAT_INTENTS.find(([pattern]) => pattern.test(commandText));
+    if (combat) return createCombatIntent(combat[1], { source: 'voice-combat' });
     if (STOP_COMMANDS.has(lowerCommandText)) {
         console.log('[voice-debug][intent-router] stop command intent');
         return createCommandIntent('!stop', { source: 'voice-stop-command' });

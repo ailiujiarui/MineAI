@@ -91,7 +91,7 @@ export class DoubaoVoiceAdapter {
         return Object.keys(this.profiles);
     }
 
-    async synthesize(request) {
+    async synthesize(request, options = {}) {
         const profile = resolveDoubaoProfile(request, {
             profiles: this.profiles,
             activeProfile: this.activeProfile,
@@ -123,7 +123,8 @@ export class DoubaoVoiceAdapter {
                 resourceId: profile.resourceId,
                 useApiKey: true
             }),
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            ...(options.signal ? { signal: options.signal } : {})
         });
 
         if (!response.ok) {

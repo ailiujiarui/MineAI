@@ -100,6 +100,14 @@ const settings = {
 
     "combat": {
         "mode": "auto",
+        "immersive_npc": {
+            "enabled": false,
+            "protect_player": true,
+            "max_chase_distance": 32,
+            "max_combat_ms": 45000,
+            "retreat_health": 8,
+            "retreat_food": 6
+        },
         "epicfight": {
             "weapon_profiles": ["sword", "axe", "slashblade"]
         }
