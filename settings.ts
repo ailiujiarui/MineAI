@@ -1,8 +1,10 @@
 ﻿// @ts-nocheck
+import 'dotenv/config';
+
 const settings = {
     "minecraft_version": "auto", // or specific version like "1.21.6"
     "host": "127.0.0.1", // or "localhost", "your.ip.address.here"
-    "port": 55916, // set to -1 to automatically scan for open ports
+    "port": 25565, // set to -1 to automatically scan for open ports
     "auth": "offline", // or "microsoft"
 
     // the mindserver manages all agents and hosts the UI
@@ -11,7 +13,7 @@ const settings = {
     
     "base_profile": "assistant", // survival, assistant, creative, or god_mode
     "profiles": [
-        "./profiles/gpt.json",
+        "./profiles/chinese_npc.json",
         // "./profiles/gpt.json",
         // "./profiles/claude.json",
         // "./profiles/gemini.json",
@@ -28,7 +30,7 @@ const settings = {
     ],
 
     "load_memory": false, // load memory from previous session
-    "init_message": "Respond with hello world and your name", // sends to all on spawn
+    "init_message": "请用中文介绍你自己，并告诉我你现在能做什么。", // sends to all on spawn
     "only_chat_with": [], // users that the bots listen to and send general messages to. if empty it will chat publicly
 
     "speak": false,
@@ -38,12 +40,21 @@ const settings = {
     // Works on windows and mac, but linux requires you to install the espeak package through your package manager eg: `apt install espeak` `pacman -S espeak`.
 
     "chat_ingame": true, // bot responses are shown in minecraft chat
-    "language": "en", // translate to/from this language. Supports these language names: https://cloud.google.com/translate/docs/languages
+    "language": "zh-CN", // translate to/from this language. Supports these language names: https://cloud.google.com/translate/docs/languages
     "render_bot_view": false, // show bot's view in browser at localhost:3000, 3001...
 
     "allow_insecure_coding": false, // allows newAction command and model can write/run code on your computer. enable at own risk
     "allow_vision": false, // allows vision model to interpret screenshots as inputs
     "blocked_actions" : ["!checkBlueprint", "!checkBlueprintLevel", "!getBlueprint", "!getBlueprintLevel"] , // commands to disable and remove from docs. Ex: ["!setMode"]
+    "safety": {
+        "enabled": true,
+        "default_role": "player",
+        "trusted_players": [],
+        "operators": [],
+        "require_confirmation": true,
+        "confirmation_ttl_ms": 60000,
+        "high_risk_actions": ["!newAction", "!restart", "!clearChat", "!attackPlayer", "!discard", "!givePlayer", "!giveArmorSet"]
+    },
     "code_timeout_mins": -1, // minutes code is allowed to run. -1 for no timeout
     "relevant_docs_count": 5, // number of relevant code function docs to select for prompting. -1 for all
 
@@ -61,7 +72,23 @@ const settings = {
 
     "autonomy": {
         "enabled": true,
-        "interval_ms": 5000
+        "interval_ms": 5000,
+        "agent_action_loop": {
+            "enabled": false,
+            "max_iterations": 2
+        }
+    },
+
+    "execution": {
+        "state_machine": {
+            "enabled": false,
+            "package_version": "1.7.0"
+        },
+        "agent_action_loop": {
+            "enabled": false,
+            "max_iterations": 3,
+            "cooldown_ms": 2000
+        }
     },
 
     "mod_runtime": {
@@ -78,6 +105,16 @@ const settings = {
         }
     },
 
+    "forge_action": {
+        "enabled": true,
+        "host": "127.0.0.1",
+        "port": 18765,
+        "client_id": null,
+        "target_player_name": null,
+        "snapshot_freshness_ms": 2000,
+        "ack_timeout_ms": 3000
+    },
+
     "companion": {
         "mode": "task-with-companion-tone",
         "task_update_chat": true
@@ -91,85 +128,33 @@ const settings = {
         "command_mode": "hybrid",
         "reply_speak_mode": "voice-triggered-only",
         "mic": {
-            "enabled": false,
+            "enabled": true,
             "python_command": ".\\.local\\voice-mic-venv\\Scripts\\python.exe",
             "speaker_id": "mic_user",
             "wake_phrases": ["豆包"],
+            "wake_followup_silence_ms": 800,
+            "wake_followup_max_wait_ms": 10000,
             "direct_commands": ["停止", "跟着我", "回家"],
             "sample_rate": 16000,
             "chunk_ms": 20,
-            "silence_ms": 800,
+            "speech_rms_threshold": 500,
+            "min_speech_ms": 200,
+            "trailing_silence_ms": 600,
+            "max_utterance_ms": 15000,
+            "leading_context_ms": 400,
             "device": null
-        },
-        "openvoice": {
-            "python_command": ".\\.local\\openvoice-venv\\Scripts\\python.exe",
-            "tts_script": "scripts/openvoice_tts.py",
-            "reference_audio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-            "voice_name": "EN-US",
-            "language": "EN_V2",
-            "zh_voice_name": "ZH",
-            "zh_language": "ZH",
-            "zh_reference_audio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-            "active_profile": "default",
-            "profiles": {
-                "default": {
-                    "voiceName": "EN-US",
-                    "language": "EN_V2",
-                    "referenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-                    "zhVoiceName": "ZH",
-                    "zhLanguage": "ZH",
-                    "zhReferenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3"
-                },
-                "maid_soft": {
-                    "voiceName": "EN-AU",
-                    "language": "EN_V2",
-                    "referenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-                    "zhVoiceName": "ZH",
-                    "zhLanguage": "ZH",
-                    "zhReferenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3"
-                },
-                "combat_cool": {
-                    "voiceName": "EN-US",
-                    "language": "EN_V2",
-                    "referenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-                    "zhVoiceName": "ZH",
-                    "zhLanguage": "ZH",
-                    "zhReferenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3"
-                },
-                "klee_zh": {
-                    "voiceName": "EN-US",
-                    "language": "EN_V2",
-                    "referenceAudio": ".\\.local\\OpenVoice\\resources\\example_reference.mp3",
-                    "zhVoiceName": "ZH",
-                    "zhLanguage": "ZH",
-                    "zhReferenceAudio": ".\\sources\\sound\\可莉.mp3"
-                }
-            }
         },
         "doubao": {
             "mode": "realtime",
-            "appId": "",
-            "accessToken": "",
-            "apiKey": "",
-            "cluster": "volcano_icl",
-            "speakerId": "S_JsOxjzg02",
-            "resourceId": "volc.service_type.10029",
-            "profiles": {
-                "default": {
-                    "speakerId": "S_JsOxjzg02",
-                    "resourceId": "volc.service_type.10029"
-                }
-            },
-            "clone": {
-                "modelType": 5,
-                "language": 0
-            },
+            "ttsMode": "v3",
+            "apiKey": process.env.DOUBAO_API_KEY || "",
             "realtime": {
-                "endpoint": "wss://openspeech.bytedance.com/api/v3/realtime/dialogue",
-                "resourceId": "volc.speech.dialog",
-                "appKey": "PlgvMymc7f3tQnJ6",
-                "model": "2.2.0.0",
-                "sampleRate": 24000
+                "endpoint": "wss://openspeech.bytedance.com/api/v3/duplex/realtime/dialogue",
+                "model": "1.2.6.1",
+                "inputSampleRate": 16000,
+                "outputSampleRate": 24000,
+                "inputFormat": "pcm",
+                "outputFormat": "pcm_s16le"
             }
         }
     },

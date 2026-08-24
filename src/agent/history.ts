@@ -3,6 +3,7 @@ import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs';
 import { NPCData } from './npc/data.js';
 import settings from './settings.js';
 import { resolveRunPath } from '../utils/runContext.js';
+import { StructuredMemory } from './memory/structuredMemory.js';
 
 
 export class History {
@@ -19,6 +20,7 @@ export class History {
 
         // Natural language memory as a summary of recent messages + previous memory
         this.memory = '';
+        this.structured = new StructuredMemory();
 
         // Maximum number of messages to keep in context before saving chunk to memory
         this.max_messages = settings.max_messages;
@@ -71,6 +73,7 @@ export class History {
             content = `${name}: ${content}`;
         }
         this.turns.push({role, content});
+        if (name !== 'system' && name !== this.name) this.structured.noteInteraction(name);
 
         if (this.turns.length >= this.max_messages) {
             let chunk = this.turns.splice(0, this.summary_chunk_size);
@@ -91,6 +94,7 @@ export class History {
                 self_prompt: this.agent.self_prompter.isStopped() ? null : this.agent.self_prompter.prompt,
                 taskStart: this.agent.task.taskStartTime,
                 last_sender: this.agent.last_sender
+                ,structured_memory: this.structured.toJSON()
             };
             writeFileSync(this.memory_fp, JSON.stringify(data, null, 2));
             console.log('Saved memory to:', this.memory_fp);
@@ -109,6 +113,7 @@ export class History {
             const data = JSON.parse(readFileSync(this.memory_fp, 'utf8'));
             this.memory = data.memory || '';
             this.turns = data.turns || [];
+            this.structured.load(data.structured_memory);
             console.log('Loaded memory:', this.memory);
             return data;
         } catch (error) {
@@ -120,5 +125,6 @@ export class History {
     clear() {
         this.turns = [];
         this.memory = '';
+        this.structured.clear();
     }
 }

@@ -83,6 +83,55 @@ test('controller stands down when an explicit task is active', async () => {
   assert.equal(commands.length, 0)
 })
 
+test('controller stays idle in unrestricted creative mode without a player mission', async () => {
+  const commands = []
+  const decisions = []
+  const controller = new AutonomyController(
+    { task: { data: null }, history: { add: async () => {} } },
+    {
+      executeCommand: async (_, command) => commands.push(command),
+      onDecision: async (decision) => decisions.push(decision),
+      buildSnapshot: () => ({
+        creativeUnrestricted: true,
+        inventoryCounts: {},
+        nearbyBlocks: ['oak_log'],
+        hunger: 20,
+        health: 20
+      })
+    }
+  )
+
+  const decision = await controller.tick()
+
+  assert.equal(decision.stage, 'creative_ready')
+  assert.deepEqual(commands, [])
+  assert.deepEqual(decisions, [])
+})
+
+test('controller accepts a player mission in unrestricted creative mode without survival commands', async () => {
+  const commands = []
+  const controller = new AutonomyController(
+    { task: { data: null }, history: { add: async () => {} } },
+    {
+      executeCommand: async (_, command) => commands.push(command),
+      buildSnapshot: () => ({
+        creativeUnrestricted: true,
+        inventoryCounts: {},
+        nearbyBlocks: ['oak_log'],
+        hunger: 20,
+        health: 20
+      })
+    }
+  )
+  controller.setMission('build a shelter')
+
+  await controller.tick()
+
+  assert.equal(commands.length, 1)
+  assert.match(commands[0], /^!goal\("/)
+  assert.match(commands[0], /build a shelter/)
+})
+
 test('controller prioritizes recovery goals over normal progression', async () => {
   const commands = []
   const controller = new AutonomyController(

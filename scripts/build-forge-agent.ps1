@@ -8,6 +8,15 @@ $gradleZip = Join-Path $gradleRoot "gradle-$gradleVersion-bin.zip"
 $gradleHome = Join-Path $gradleRoot "gradle-$gradleVersion"
 $gradleExe = Join-Path $gradleHome 'bin\gradle.bat'
 
+$javaVersionOutput = (& cmd /c "java -version 2>&1" | Out-String)
+if ($LASTEXITCODE -ne 0 -or $javaVersionOutput -notmatch 'version "(?<major>\d+)') {
+    throw '[forge-agent-build] Java was not found or its version could not be detected. Forge 1.20.1 requires JDK 17.'
+}
+$javaMajor = [int]$Matches['major']
+if ($javaMajor -ne 17) {
+    throw "[forge-agent-build] Unsupported Java $javaMajor. Forge 1.20.1 in this project requires JDK 17; set JAVA_HOME and PATH to a JDK 17 installation."
+}
+
 New-Item -ItemType Directory -Force -Path $gradleRoot | Out-Null
 
 if (!(Test-Path $gradleExe)) {
@@ -19,3 +28,6 @@ if (!(Test-Path $gradleExe)) {
 
 Write-Host "[forge-agent-build] using $gradleExe"
 & $gradleExe -p $forgeAgentDir build
+if ($LASTEXITCODE -ne 0) {
+    throw "[forge-agent-build] Gradle failed with exit code $LASTEXITCODE."
+}

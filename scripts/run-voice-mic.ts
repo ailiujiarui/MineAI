@@ -5,7 +5,10 @@ import { spawn } from 'child_process';
 import settings from '../settings.ts';
 import { buildVoiceMicChildArgs, resolveVoiceMicPythonCommand } from '../src/voice/micLauncherConfig.js';
 
-const pythonCommand = resolveVoiceMicPythonCommand(settings.voice?.mic?.python_command || settings.voice?.mic?.pythonCommand);
+const configuredPythonCommand = resolveVoiceMicPythonCommand(settings.voice?.mic?.python_command || settings.voice?.mic?.pythonCommand);
+const pythonCommand = configuredPythonCommand.includes('\\') || configuredPythonCommand.includes('/')
+  ? path.resolve(process.cwd(), configuredPythonCommand)
+  : configuredPythonCommand;
 const scriptPath = 'scripts/voice-mic-listener.py';
 
 function parseAgentArg(argv) {
@@ -80,9 +83,27 @@ if (!wantsHelp) {
 }
 
 const child = spawn(pythonCommand, childArgs, {
-  stdio: 'inherit',
+  stdio: ['pipe', 'inherit', 'inherit'],
   shell: false
 });
+
+let stopping = false;
+async function stopChild(signal) {
+  if (stopping) return;
+  stopping = true;
+  console.log(`[voice:mic] stopping (${signal})`);
+  try {
+    child.stdin?.write('stop\n');
+    child.stdin?.end();
+  } catch {}
+  const forceTimer = setTimeout(() => {
+    try { child.kill('SIGTERM'); } catch {}
+  }, 6000);
+  child.once('exit', () => clearTimeout(forceTimer));
+}
+
+process.once('SIGINT', () => { void stopChild('SIGINT'); });
+process.once('SIGTERM', () => { void stopChild('SIGTERM'); });
 
 child.on('exit', (code) => {
   process.exit(code ?? 0);

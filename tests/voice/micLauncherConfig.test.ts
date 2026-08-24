@@ -120,6 +120,78 @@ test('voice mic launcher respects explicit CLI mic args over configured defaults
   ])
 })
 
+test('voice mic launcher propagates configured utterance segmentation defaults', () => {
+  const childArgs = buildVoiceMicChildArgs({
+    scriptPath: 'scripts/voice-mic-listener.py',
+    agent: 'gpt',
+    remainingArgs: [],
+    envPort: '',
+    settingsPort: 28126,
+    micSettings: {
+      speech_rms_threshold: 500,
+      min_speech_ms: 200,
+      trailing_silence_ms: 600,
+      max_utterance_ms: 15000,
+      leading_context_ms: 400
+    }
+  })
+
+  assert.deepEqual(childArgs, [
+    'scripts/voice-mic-listener.py',
+    '--agent',
+    'gpt',
+    '--port',
+    '28126',
+    '--speech-rms-threshold',
+    '500',
+    '--min-speech-ms',
+    '200',
+    '--trailing-silence-ms',
+    '600',
+    '--max-utterance-ms',
+    '15000',
+    '--leading-context-ms',
+    '400'
+  ])
+})
+
+test('voice mic launcher keeps explicit CLI segmentation args over configured defaults', () => {
+  const childArgs = buildVoiceMicChildArgs({
+    scriptPath: 'scripts/voice-mic-listener.py',
+    agent: 'gpt',
+    remainingArgs: [
+      '--speech-rms-threshold=750',
+      '--min-speech-ms',
+      '300',
+      '--trailing-silence-ms=900',
+      '--max-utterance-ms',
+      '12000'
+    ],
+    envPort: '',
+    settingsPort: 28126,
+    micSettings: {
+      speech_rms_threshold: 500,
+      min_speech_ms: 200,
+      trailing_silence_ms: 600,
+      max_utterance_ms: 15000
+    }
+  })
+
+  assert.deepEqual(childArgs, [
+    'scripts/voice-mic-listener.py',
+    '--agent',
+    'gpt',
+    '--port',
+    '28126',
+    '--speech-rms-threshold=750',
+    '--min-speech-ms',
+    '300',
+    '--trailing-silence-ms=900',
+    '--max-utterance-ms',
+    '12000'
+  ])
+})
+
 test('voice mic launcher resolves python command from settings before falling back to the default venv path', () => {
   assert.equal(
     resolveVoiceMicPythonCommand('.\\.local\\custom-voice\\python.exe'),
@@ -141,8 +213,6 @@ test('voice mic launcher propagates configured mindserver host and doubao realti
     mindserverHost: '192.168.0.8',
     doubaoRealtimeSettings: {
       endpoint: 'wss://example.invalid/realtime',
-      resourceId: 'volc.custom.dialog',
-      appKey: 'custom-app-key',
       model: '9.9.9.9'
     }
   })
@@ -157,10 +227,6 @@ test('voice mic launcher propagates configured mindserver host and doubao realti
     '192.168.0.8',
     '--endpoint',
     'wss://example.invalid/realtime',
-    '--resource-id',
-    'volc.custom.dialog',
-    '--app-key',
-    'custom-app-key',
     '--model',
     '9.9.9.9'
   ])

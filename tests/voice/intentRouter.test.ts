@@ -114,7 +114,23 @@ test('routes post-wake microphone imperative transcripts to goal intent', async 
   assert.match(intent.payload, /follow me/i)
 })
 
-test('routes microphone direct commands with chinese punctuation to goal intent', async () => {
+test('does not route a wake phrase without a transcript payload', async () => {
+  const intent = await routeVoiceTranscript(
+    {
+      text: '豆包',
+      source: 'mic',
+      speakerId: 'user',
+      metadata: {}
+    },
+    {
+      micGate: createMicWakeGate({ wakePhrases: ['豆包'] })
+    }
+  )
+
+  assert.equal(intent, null)
+})
+
+test('routes microphone direct commands with chinese punctuation to normalized goal intent', async () => {
   const intent = await routeVoiceTranscript(
     {
       text: '豆包，跟着我。',
@@ -135,4 +151,40 @@ test('routes microphone direct commands with chinese punctuation to goal intent'
 
   assert.equal(intent.kind, 'goal')
   assert.equal(intent.payload, '跟着我')
+})
+
+test('routes configured microphone stop phrase through the safe stop classifier', async () => {
+  const intent = await routeVoiceTranscript(
+    {
+      text: '停止。',
+      source: 'mic',
+      speakerId: 'user',
+      metadata: {}
+    },
+    {
+      micGate: createMicWakeGate({ directCommands: ['停止'] }),
+      micConfig: { direct_commands: ['停止'] }
+    }
+  )
+
+  assert.equal(intent.kind, 'command')
+  assert.equal(intent.payload, '!stop')
+})
+
+test('honors mic-gate direct goals even in conversation-only mode', async () => {
+  const intent = await routeVoiceTranscript(
+    {
+      text: '回家',
+      source: 'mic',
+      speakerId: 'user',
+      metadata: {}
+    },
+    {
+      micGate: createMicWakeGate({ directCommands: ['回家'] }),
+      commandMode: 'conversation-only'
+    }
+  )
+
+  assert.equal(intent.kind, 'goal')
+  assert.equal(intent.payload, '回家')
 })

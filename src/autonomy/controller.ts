@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { executeCommand } from '../agent/commands/index.js';
+import { executeCommand, commandExists } from '../agent/commands/index.js';
 import * as world from '../agent/library/world.js';
 import * as mc from '../utils/mcdata.js';
 import { createBlockLookup, resourceLocationKey, selectBestMiningTarget } from './baritoneMining.js';
@@ -7,6 +7,8 @@ import { planAutonomyCommand } from './commandPlanner.js';
 import { decideAutonomyStage } from './progression.js';
 import { decideRecoveryAction } from './recovery.js';
 import { planMaidCommand } from '../maid/maidCommandPlanner.js';
+import { AgentActionLoop } from '../agent/execution/agentActionLoop.js';
+import settings from '../agent/settings.js';
 
 const RESOURCE_BLOCKS = [
     'oak_log',
@@ -202,6 +204,9 @@ export function buildAutonomySnapshot(agent) {
     const hostileCount = nearbyEntities.filter(entity => mc.isHostile(entity)).length;
 
     return {
+        gameMode: agent.bot.game?.gameMode || 'unknown',
+        restrictToInventory: agent.bot.restrict_to_inventory === true,
+        creativeUnrestricted: agent.bot.game?.gameMode === 'creative' && agent.bot.restrict_to_inventory !== true,
         inventoryCounts,
         nearbyBlocks,
         knownResourceLocations: buildKnownResourceLocations(agent.bot),
@@ -234,8 +239,11 @@ export class AutonomyController {
         this.lastCommand = null;
         this.userMission = null;
         this.resourceBlacklist = new Set();
+        this.replanAttempts = 0;
+        this.lastFeedbackActionId = null;
         this.intervalMs = deps.intervalMs || 5000;
         this.elapsedMs = 0;
+        this.loopActive = false;
     }
 
     shouldRun() {
@@ -273,7 +281,34 @@ export class AutonomyController {
         this.lastCommand = null;
     }
 
+    applySkillFeedback(nextCommand, snapshot, feedback) {
+        if (!feedback || feedback.actionId === this.lastFeedbackActionId) return;
+        this.lastFeedbackActionId = feedback.actionId;
+        if (feedback.success) {
+            this.replanAttempts = 0;
+            return;
+        }
+        const reason = feedback.failureReason;
+        if (reason === 'permission_denied' || reason === 'inventory_full') {
+            this.lastCommand = nextCommand;
+            return;
+        }
+        if (reason === 'target_missing') {
+            this.noteFailedCommand(nextCommand, snapshot, feedback.message);
+        }
+        if (reason === 'path_failed' || reason === 'execution_error' || reason === 'target_missing') {
+            if (this.replanAttempts < 1) {
+                this.replanAttempts += 1;
+                this.lastCommand = null;
+            } else {
+                this.lastCommand = nextCommand;
+            }
+        }
+    }
+
     async tick() {
+        const actionLoopEnabled = settings.autonomy?.agent_action_loop?.enabled === true;
+        if (this.loopActive) return null;
         if (!this.shouldRun()) {
             return null;
         }
@@ -283,15 +318,25 @@ export class AutonomyController {
             blacklistedResourceKeys: [...this.resourceBlacklist]
         };
         const decision = decideRecoveryAction(snapshot) || decideAutonomyStage(snapshot);
+        this.agent.recordCurriculumStage?.(decision.stage);
         const isIdle = typeof this.agent.isIdle === 'function' ? this.agent.isIdle() : true;
         const maidPlan = decision.stage === 'survival_steady_state' ? planMaidCommand(snapshot) : null;
         const effectiveGoalPrompt = this.userMission
             ? `${decision.goalPrompt} Overall user mission: ${this.userMission}.`
             : decision.goalPrompt;
 
+        if (snapshot.creativeUnrestricted && !this.userMission) {
+            this.currentStage = decision.stage;
+            this.currentGoalPrompt = effectiveGoalPrompt;
+            this.lastCommand = null;
+            return decision;
+        }
+
         if (!isIdle) {
             return decision;
         }
+
+        if (actionLoopEnabled) this.loopActive = true;
 
         if (decision.stage !== this.currentStage || effectiveGoalPrompt !== this.currentGoalPrompt) {
             this.currentStage = decision.stage;
@@ -302,16 +347,77 @@ export class AutonomyController {
             await this.onDecision({ decision, nextCommand: null, snapshot, goalChanged: true });
         }
 
+        if (actionLoopEnabled) {
+            return this.runBoundedActionLoop(decision, effectiveGoalPrompt);
+        }
+
         const nextCommand = planAutonomyCommand(decision.stage, snapshot) || maidPlan?.command || null;
         if (nextCommand && nextCommand !== this.lastCommand) {
             this.lastCommand = nextCommand;
             const result = await this.executeCommand(this.agent, nextCommand);
             this.noteFailedCommand(nextCommand, snapshot, typeof result === 'string' ? result : '');
-            await this.onDecision({ decision, nextCommand, snapshot, goalChanged: false, maidDecision: maidPlan?.decision || null });
-            await this.onCommandResult({ decision, nextCommand, snapshot, result });
+            const feedback = this.agent.getSkillFeedback?.(1)?.[0] || null;
+            this.applySkillFeedback(nextCommand, snapshot, feedback);
+            await this.onDecision({ decision, nextCommand, snapshot, feedback, goalChanged: false, maidDecision: maidPlan?.decision || null });
+            await this.onCommandResult({ decision, nextCommand, snapshot, feedback, result });
         }
 
         return decision;
+    }
+
+    async runBoundedActionLoop(decision, effectiveGoalPrompt) {
+        if (!this.shouldRun()) return decision;
+        const config = settings.autonomy?.agent_action_loop || {};
+        const controller = this;
+        try {
+            const loop = new AgentActionLoop({
+                agent: this.agent,
+                maxIterations: config.max_iterations || 2,
+                observe: () => {
+                    const snapshot = {
+                        ...controller.buildSnapshot(),
+                        blacklistedResourceKeys: [...controller.resourceBlacklist]
+                    };
+                    return { decision, goal: effectiveGoalPrompt, snapshot };
+                },
+                plan: ({ observation }) => {
+                    const nextCommand = planAutonomyCommand(decision.stage, observation.snapshot)
+                        || (decision.stage === 'survival_steady_state' ? planMaidCommand(observation.snapshot)?.command : null)
+                        || null;
+                    return nextCommand ? { command: nextCommand } : { done: true };
+                },
+                execute: async (nextCommand, context) => {
+                    const snapshot = context.observation.snapshot;
+                    if (nextCommand === controller.lastCommand) return { outcome: 'success', result: 'duplicate-skip' };
+                    controller.lastCommand = nextCommand;
+                    const result = await controller.executeCommand(controller.agent, nextCommand);
+                    controller.noteFailedCommand(nextCommand, snapshot, typeof result === 'string' ? result : '');
+                    const feedback = controller.agent.getSkillFeedback?.(1)?.[0] || null;
+                    controller.applySkillFeedback(nextCommand, snapshot, feedback);
+                    await controller.onDecision({ decision, nextCommand, snapshot, feedback, goalChanged: false });
+                    await controller.onCommandResult({ decision, nextCommand, snapshot, feedback, result });
+                    const outcome = feedback?.failureReason === 'permission_denied'
+                        ? 'denied'
+                        : feedback?.failureReason === 'inventory_full'
+                            ? 'failed'
+                            : feedback?.success === false ? 'failed' : 'success';
+                    return { outcome, result, feedback };
+                },
+                getSkillFeedback: (limit) => this.agent.getSkillFeedback?.(limit) || [],
+                executionContext: { origin: 'internal' },
+                validateCommand: (command) => {
+                    const name = command.match(/^!(\w+)/)?.[0];
+                    return name && commandExists(name) ? null : '命令不存在或格式无效。';
+                }
+            });
+            await loop.run();
+            return decision;
+        } catch (error) {
+            console.error('[autonomy] bounded action loop failed:', error);
+            return decision;
+        } finally {
+            this.loopActive = false;
+        }
     }
 
     async update(delta) {

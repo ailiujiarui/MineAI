@@ -2,6 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planAutonomyCommand } from '../../src/autonomy/commandPlanner.js'
 
+test('does not issue survival resource commands in unrestricted creative mode', () => {
+  assert.equal(planAutonomyCommand('creative_ready', { creativeUnrestricted: true }), null)
+})
+
 test('plans nearby log collection for gather_wood stage', () => {
   const command = planAutonomyCommand('gather_wood', {
     inventoryCounts: {},

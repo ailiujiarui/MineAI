@@ -2,6 +2,8 @@
 import { createTtsRequest, createVoiceTranscriptEvent } from './voiceTypes.js';
 import { routeVoiceTranscript } from './intentRouter.js';
 import { playAudioBuffer } from './localAudioPlayer.js';
+import { createMicTranscriptAggregator } from './micTranscriptAggregator.js';
+import { serverProxy } from '../agent/mindserver_proxy.js';
 
 export function createCommandIntent(payload, meta = {}) {
     return {
@@ -54,10 +56,15 @@ export class VoiceRuntime {
         this.onIntent = config.onIntent || (async () => {});
         this.playAudio = config.playAudio || playAudioBuffer;
         this.localPlayback = config.localPlayback ?? true;
+        this.setPlaybackState = config.setPlaybackState
+            || ((active) => serverProxy?.setVoicePlaybackState?.(active));
+        this.micTranscriptAggregator = config.micTranscriptAggregator
+            || createMicTranscriptAggregator(config.micConfig || {});
     }
 
     setEnabled(enabled) {
         this.enabled = enabled;
+        if (!enabled) this.micTranscriptAggregator?.clear?.();
     }
 
     setVoiceProfile(profileName) {
@@ -79,7 +86,11 @@ export class VoiceRuntime {
             return null;
         }
 
-        const transcript = createVoiceTranscriptEvent(event);
+        const rawTranscript = createVoiceTranscriptEvent(event);
+        const transcript = await this.micTranscriptAggregator.process(rawTranscript);
+        if (!transcript) {
+            return null;
+        }
         const intent = await this.router(transcript);
         if (!intent) {
             return null;
@@ -97,7 +108,14 @@ export class VoiceRuntime {
         const normalized = createTtsRequest(request);
         const result = await this.ttsAdapter.synthesize(normalized);
         if (this.localPlayback && result?.audio?.length) {
-            await this.playAudio(result.audio, result.mimeType);
+            try {
+                this.setPlaybackState(true);
+                await this.playAudio(result.audio, result.mimeType);
+            } finally {
+                try { this.setPlaybackState(false); } catch (error) {
+                    console.warn('[voice] failed to clear playback suppression:', error);
+                }
+            }
         }
         return result;
     }

@@ -2,6 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { decideAutonomyStage } from '../../src/autonomy/progression.js'
 
+test('chooses a non-destructive ready stage in unrestricted creative mode', () => {
+  const decision = decideAutonomyStage({ creativeUnrestricted: true, inventoryCounts: {}, nearbyBlocks: [] })
+  assert.equal(decision.stage, 'creative_ready')
+  assert.match(decision.goalPrompt, /!creativeItem/)
+  assert.doesNotMatch(decision.goalPrompt, /!collectBlocks/)
+})
+
 test('chooses gather_wood when starting empty handed', () => {
   const decision = decideAutonomyStage({
     inventoryCounts: {},

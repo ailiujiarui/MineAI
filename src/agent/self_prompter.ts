@@ -1,7 +1,24 @@
 ﻿// @ts-nocheck
+import settings from './settings.js'
+import { buildGoalPauseMessage, buildNoCommandStopMessage } from '../locale/chinese.js'
+import { AgentActionLoop } from './execution/agentActionLoop.js'
+import { AgentActionPlanner } from './execution/agentActionPlanner.js'
+
 const STOPPED = 0
 const ACTIVE = 1
 const PAUSED = 2
+const WAITING_PLAYER = 3
+
+const FAILURE_OUTCOMES = new Set(['failed', 'denied', 'invalid', 'interrupted'])
+const WAIT_OUTCOMES = new Set(['confirmation-required', 'player-action-required'])
+const MAX_IDENTICAL_FAILURES = 2
+const MAX_TOTAL_FAILURES = 5
+
+function normalizeFailurePart(value) {
+    if (typeof value === 'string') return value.trim().replace(/\s+/g, ' ').toLowerCase()
+    return JSON.stringify(value)
+}
+
 export class SelfPrompter {
     constructor(agent) {
         this.agent = agent;
@@ -11,6 +28,12 @@ export class SelfPrompter {
         this.prompt = '';
         this.idle_time = 0;
         this.cooldown = 2000;
+        this.total_failures = 0;
+        this.last_failure_fingerprint = '';
+        this.identical_failure_count = 0;
+        this.last_failed_command = '';
+        this.pause_reason = '';
+        this.waiting_player = null;
     }
 
     start(prompt) {
@@ -20,7 +43,10 @@ export class SelfPrompter {
                 return 'No prompt specified. Ignoring request.';
             prompt = this.prompt;
         }
+        if (prompt !== this.prompt) this.resetFailureBudget();
         this.state = ACTIVE;
+        this.pause_reason = '';
+        this.waiting_player = null;
         this.prompt = prompt;
         this.startLoop();
     }
@@ -37,6 +63,10 @@ export class SelfPrompter {
         return this.state === PAUSED;
     }
 
+    isWaitingForPlayer() {
+        return this.state === WAITING_PLAYER;
+    }
+
     async handleLoad(prompt, state) {
         if (state == undefined)
             state = STOPPED;
@@ -50,8 +80,82 @@ export class SelfPrompter {
     }
 
     setPromptPaused(prompt) {
+        this.resetFailureBudget();
         this.prompt = prompt;
         this.state = PAUSED;
+        this.pause_reason = 'manual';
+    }
+
+    resetFailureBudget() {
+        this.total_failures = 0;
+        this.last_failure_fingerprint = '';
+        this.identical_failure_count = 0;
+        this.last_failed_command = '';
+    }
+
+    handlePlayerInstruction(actor = null) {
+        this.resetFailureBudget();
+        const normalizedActor = String(actor || '').trim().toLowerCase();
+        const canResolveWait = this.state !== WAITING_PLAYER
+            || !this.waiting_player
+            || normalizedActor === this.waiting_player;
+        if ((this.state === WAITING_PLAYER && canResolveWait)
+            || (this.state === PAUSED && this.pause_reason === 'failure-budget')) {
+            this.state = ACTIVE;
+            this.pause_reason = '';
+            if (!this.loop_active) this.interrupt = false;
+            this.waiting_player = null;
+        }
+    }
+
+    waitForPlayer(actor = null) {
+        this.state = WAITING_PLAYER;
+        this.pause_reason = 'player-action';
+        this.interrupt = true;
+        this.waiting_player = String(actor || '').trim().toLowerCase() || null;
+    }
+
+    recordCommandOutcome(commandOutcome) {
+        const outcome = commandOutcome?.outcome;
+        if (outcome === 'success') {
+            this.resetFailureBudget();
+            return { paused: false };
+        }
+        if (WAIT_OUTCOMES.has(outcome)) {
+            this.waitForPlayer(outcome === 'confirmation-required' ? commandOutcome.actor : null);
+            return { paused: true, waitingForPlayer: true };
+        }
+        if (!FAILURE_OUTCOMES.has(outcome)) return { paused: false };
+
+        const commandName = commandOutcome.commandName || 'unknown';
+        const fingerprint = [
+            normalizeFailurePart(commandName),
+            normalizeFailurePart(commandOutcome.args || []),
+            outcome
+        ].join('|');
+        this.total_failures++;
+        this.identical_failure_count = fingerprint === this.last_failure_fingerprint
+            ? this.identical_failure_count + 1
+            : 1;
+        this.last_failure_fingerprint = fingerprint;
+        this.last_failed_command = commandName;
+
+        if (this.identical_failure_count >= MAX_IDENTICAL_FAILURES || this.total_failures >= MAX_TOTAL_FAILURES) {
+            this.state = PAUSED;
+            this.pause_reason = 'failure-budget';
+            this.interrupt = true;
+            const message = buildGoalPauseMessage(
+                commandName,
+                this.identical_failure_count >= MAX_IDENTICAL_FAILURES,
+                this.agent.prompter?.profile,
+                settings.language
+            );
+            Promise.resolve(this.agent.openChat(message)).catch(error => {
+                console.error('Failed to report self-prompt pause:', error);
+            });
+            return { paused: true, waitingForPlayer: false, message };
+        }
+        return { paused: false };
     }
 
     async startLoop() {
@@ -61,16 +165,24 @@ export class SelfPrompter {
         }
         console.log('starting self-prompt loop')
         this.loop_active = true;
+        if (settings.execution?.agent_action_loop?.enabled === true) {
+            await this.startBoundedActionLoop();
+            return;
+        }
         let no_command_count = 0;
         const MAX_NO_COMMAND = 3;
         while (!this.interrupt) {
             const msg = `You are self-prompting with the goal: '${this.prompt}'. Your next response MUST contain a command with this syntax: !commandName. Respond:`;
             
-            let used_command = await this.agent.handleMessage('system', msg, -1);
+            let used_command = await this.agent.handleMessage('system', msg, 1);
             if (!used_command) {
                 no_command_count++;
                 if (no_command_count >= MAX_NO_COMMAND) {
-                    let out = `Agent did not use command in the last ${MAX_NO_COMMAND} auto-prompts. Stopping auto-prompting.`;
+                    let out = buildNoCommandStopMessage(
+                        MAX_NO_COMMAND,
+                        this.agent.prompter?.profile,
+                        settings.language
+                    );
                     this.agent.openChat(out);
                     console.warn(out);
                     this.state = STOPPED;
@@ -79,12 +191,51 @@ export class SelfPrompter {
             }
             else {
                 no_command_count = 0;
+                if (this.interrupt) break;
                 await new Promise(r => setTimeout(r, this.cooldown));
             }
         }
         console.log('self prompt loop stopped')
         this.loop_active = false;
         this.interrupt = false;
+    }
+
+    async startBoundedActionLoop() {
+        const config = settings.execution.agent_action_loop;
+        const planner = new AgentActionPlanner(this.agent);
+        const thisPrompter = this;
+        try {
+            const loop = new AgentActionLoop({
+                agent: this.agent,
+                maxIterations: config.max_iterations,
+                signal: {
+                    get aborted() { return thisPrompter.interrupt; }
+                } as AbortSignal,
+                observe: ({ iteration }) => planner.observe({ iteration, goal: this.prompt }),
+                plan: ({ observation }) => planner.plan({ observation, goal: this.prompt }),
+                getSkillFeedback: (limit) => this.agent.getSkillFeedback?.(limit) || [],
+                executionContext: { actor: this.agent.name, origin: 'system' }
+            });
+            const result = await loop.run();
+            for (const commandResult of result.results) {
+                if (commandResult?.commandName || commandResult?.outcome) {
+                    this.recordCommandOutcome(commandResult);
+                }
+            }
+            if (result.stoppedReason === 'permission_denied'
+                || result.stoppedReason === 'confirmation_required'
+                || result.stoppedReason === 'inventory_full') {
+                this.waitForPlayer();
+            } else if (result.stoppedReason !== 'max_iterations' && result.stoppedReason !== 'completed') {
+                this.interrupt = true;
+            }
+        } catch (error) {
+            console.error('Bounded agent action loop failed:', error);
+            this.interrupt = true;
+        } finally {
+            this.loop_active = false;
+            if (!this.isWaitingForPlayer()) this.interrupt = false;
+        }
     }
 
     update(delta) {
@@ -124,6 +275,9 @@ export class SelfPrompter {
             await this.agent.actions.stop();
         this.stopLoop();
         this.state = STOPPED;
+        this.pause_reason = '';
+        this.waiting_player = null;
+        this.resetFailureBudget();
     }
 
     async pause() {
@@ -131,6 +285,7 @@ export class SelfPrompter {
         await this.agent.actions.stop();
         this.stopLoop();
         this.state = PAUSED;
+        this.pause_reason = 'manual';
     }
 
     shouldInterrupt(is_self_prompt) { // to be called from handleMessage

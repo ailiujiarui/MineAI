@@ -2,6 +2,9 @@
 import { getBlockId, getItemId } from "../../utils/mcdata.js";
 import { actionsList } from './actions.js';
 import { queryList } from './queries.js';
+import { resolveMinecraftName } from '../../locale/chinese.js';
+import settings from '../settings.js';
+import { createCommandPermissionPolicy } from '../../safety/commandPermissionPolicy.js';
 
 let suppressNoDomainWarning = true;
 
@@ -40,7 +43,28 @@ export function containsCommand(message) {
 export function commandExists(commandName) {
     if (!commandName.startsWith("!"))
         commandName = "!" + commandName;
-    return commandMap[commandName] !== undefined;
+    return commandMap[commandName] !== undefined || commandName === '!confirm' || commandName === '!cancelConfirm';
+}
+
+export const COMMAND_OUTCOMES = Object.freeze({
+    SUCCESS: 'success',
+    FAILED: 'failed',
+    CONFIRMATION_REQUIRED: 'confirmation-required',
+    PLAYER_ACTION_REQUIRED: 'player-action-required',
+    DENIED: 'denied',
+    INVALID: 'invalid',
+    INTERRUPTED: 'interrupted'
+});
+
+function commandOutcome(outcome, result, details = {}) {
+    return {
+        executed: outcome === COMMAND_OUTCOMES.SUCCESS
+            || outcome === COMMAND_OUTCOMES.FAILED
+            || outcome === COMMAND_OUTCOMES.INTERRUPTED,
+        outcome,
+        result,
+        ...details
+    };
 }
 
 /**
@@ -134,6 +158,7 @@ export function parseCommandMessage(message) {
             case 'BlockName':
             case 'BlockOrItemName':
             case 'ItemName':
+                arg = resolveMinecraftName(arg);
                 if (arg.endsWith('plank') || arg.endsWith('seed'))
                     arg += 's'; // add 's' to for common mistakes like "oak_plank" or "wheat_seed"
             case 'string':
@@ -210,24 +235,90 @@ function numParams(command) {
     return commandParams(command).length;
 }
 
-export async function executeCommand(agent, message) {
+function getPermissionPolicy(agent) {
+    if (!agent.command_permission_policy) {
+        agent.command_permission_policy = createCommandPermissionPolicy(settings.safety || {});
+    }
+    return agent.command_permission_policy;
+}
+
+export async function executeCommandWithOutcome(agent, message, context = {}) {
+    const controlCommand = containsCommand(message);
+    const policy = getPermissionPolicy(agent);
+    if (controlCommand === '!confirm') {
+        if (context.origin !== 'user' && context.origin !== 'voice')
+            return commandOutcome(COMMAND_OUTCOMES.DENIED, '确认操作只能由玩家直接发起。', { commandName: controlCommand, args: [] });
+        const pending = policy.consumeConfirmation(context.actor);
+        if (!pending) return commandOutcome(COMMAND_OUTCOMES.DENIED, '没有待确认的操作，或确认已过期。', { commandName: controlCommand, args: [] });
+        return executeCommandWithOutcome(agent, pending.commandText, pending);
+    }
+    if (controlCommand === '!cancelConfirm') {
+        if (context.origin !== 'user' && context.origin !== 'voice')
+            return commandOutcome(COMMAND_OUTCOMES.DENIED, '取消确认只能由玩家直接发起。', { commandName: controlCommand, args: [] });
+        const cancelled = policy.cancelConfirmation(context.actor);
+        return commandOutcome(
+            cancelled ? COMMAND_OUTCOMES.SUCCESS : COMMAND_OUTCOMES.DENIED,
+            cancelled ? '已取消待确认的操作。' : '没有待确认的操作。',
+            { commandName: controlCommand, args: [] }
+        );
+    }
+
     let parsed = parseCommandMessage(message);
     if (typeof parsed === 'string')
-        return parsed; //The command was incorrectly formatted or an invalid input was given.
+        return commandOutcome(COMMAND_OUTCOMES.INVALID, parsed, { commandName: controlCommand, args: [] });
     else {
         console.log('parsed command:', parsed);
         const command = getCommand(parsed.commandName);
+        const permission = policy.evaluate({
+            actor: context.actor,
+            origin: context.origin,
+            confirmed: context.confirmed,
+            commandName: parsed.commandName,
+            commandText: message
+        });
+        if (!permission.allowed) {
+            if (permission.reason === 'confirmation-required') {
+                if (context.origin === 'system' || context.origin === 'internal') {
+                    policy.cancelConfirmation(context.actor);
+                    return commandOutcome(
+                        COMMAND_OUTCOMES.PLAYER_ACTION_REQUIRED,
+                        `高风险操作 ${parsed.commandName} 必须由玩家直接发起。`,
+                        parsed
+                    );
+                }
+                return commandOutcome(COMMAND_OUTCOMES.CONFIRMATION_REQUIRED, permission.message, {
+                    ...parsed,
+                    actor: context.actor
+                });
+            }
+            return commandOutcome(COMMAND_OUTCOMES.DENIED, permission.message, parsed);
+        }
         let numArgs = 0;
         if (parsed.args) {
             numArgs = parsed.args.length;
         }
         if (numArgs !== numParams(command))
-            return `Command ${command.name} was given ${numArgs} args, but requires ${numParams(command)} args.`;
+            return commandOutcome(COMMAND_OUTCOMES.INVALID, `Command ${command.name} was given ${numArgs} args, but requires ${numParams(command)} args.`, parsed);
         else {
-            const result = await command.perform(agent, ...parsed.args);
-            return result;
+            try {
+                const result = await command.perform(agent, ...parsed.args);
+                if (result && typeof result === 'object' && result.__commandOutcome) {
+                    return commandOutcome(result.__commandOutcome, result.result, parsed);
+                }
+                if (result === false) {
+                    return commandOutcome(COMMAND_OUTCOMES.FAILED, 'Command returned false.', parsed);
+                }
+                return commandOutcome(COMMAND_OUTCOMES.SUCCESS, result, parsed);
+            } catch (error) {
+                console.error(`Command ${parsed.commandName} failed:`, error);
+                return commandOutcome(COMMAND_OUTCOMES.FAILED, `Command failed: ${error?.message || error}`, parsed);
+            }
         }
     }
+}
+
+export async function executeCommand(agent, message, context = {}) {
+    return (await executeCommandWithOutcome(agent, message, context)).result;
 }
 
 export function getCommandDocs(agent) {

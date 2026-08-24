@@ -2,8 +2,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import settings from '../settings.ts';
-import { DoubaoVoiceAdapter } from '../src/voice/providers/doubaoVoice.js';
-import { DoubaoRealtimeTtsAdapter } from '../src/voice/providers/doubaoRealtime.js';
+import { createTtsAdapter } from '../src/voice/providers/index.js';
 import { playAudioBuffer } from '../src/voice/localAudioPlayer.js';
 
 const argv = await yargs(hideBin(process.argv))
@@ -25,9 +24,7 @@ const argv = await yargs(hideBin(process.argv))
     .help()
     .parse();
 
-const adapter = settings.voice?.doubao?.mode === 'realtime'
-    ? new DoubaoRealtimeTtsAdapter(settings.voice?.doubao || {})
-    : new DoubaoVoiceAdapter(settings.voice?.doubao || {});
+const adapter = createTtsAdapter(settings.voice || {});
 const result = await adapter.synthesize({
     text: argv.text,
     channel: 'chat',

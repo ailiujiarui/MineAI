@@ -4,7 +4,7 @@ import { Coder } from './coder.js';
 import { Prompter } from '../models/prompter.js';
 import { initModes } from './modes.js';
 import { initBot } from '../utils/mcdata.js';
-import { containsCommand, commandExists, executeCommand, truncCommandMessage, isAction, blacklistCommands } from './commands/index.js';
+import { containsCommand, commandExists, executeCommandWithOutcome, truncCommandMessage, isAction, blacklistCommands } from './commands/index.js';
 import { ActionManager } from './action_manager.js';
 import { AutonomyController } from '../autonomy/controller.js';
 import { NPCContoller } from './npc/controller.js';
@@ -19,6 +19,7 @@ import { routeVoiceTranscript } from '../voice/intentRouter.js';
 import { VoiceRuntime } from '../voice/voiceRuntime.js';
 import convoManager from './conversation.js';
 import { handleTranslation, handleEnglishTranslation } from '../utils/translator.js';
+import { buildRuntimeMessage, buildSpawnGreeting } from '../locale/chinese.js';
 import { serverProxy, sendOutputToServer } from './mindserver_proxy.js';
 import settings from './settings.js';
 import { Task } from './tasks/tasks.js';
@@ -26,9 +27,13 @@ import { speak } from './speak.js';
 import { log, validateNameFormat, handleDisconnection } from './connection_handler.js';
 import { recoverAgentFromDeath } from './deathRecovery.js';
 import { createDeathDisconnectGuard, shouldHandleRuntimeDisconnect } from './deathDisconnectGuard.js';
+import { extractChineseMemories } from './memory/memoryExtractor.js';
+import { StateMachineExecutionAdapter } from './execution/stateMachineAdapter.js';
+import { SkillExperienceStore } from './execution/skillExperienceStore.js';
+import { TaskMetrics } from './execution/taskMetrics.js';
 
 export class Agent {
-    async start(load_mem=false, init_message=null, count_id=0) {
+    async start(load_mem=false, init_message=null, count_id=0, startup_context={}) {
         this.last_sender = null;
         this.count_id = count_id;
         this._disconnectHandled = false;
@@ -49,12 +54,17 @@ export class Agent {
         }
         
         this.history = new History(this);
+        this.skill_experiences = new SkillExperienceStore(this.name);
+        this.task_metrics = new TaskMetrics(this.name);
+        if (load_mem) this.skill_experiences.load();
+        if (load_mem) this.task_metrics.load();
         this.coder = new Coder(this);
         this.npc = new NPCContoller(this);
         this.memory_bank = new MemoryBank();
         this.self_prompter = new SelfPrompter(this);
         this.companion_runtime = new CompanionRuntime({
-            mode: settings.companion?.mode || 'task-with-companion-tone'
+            mode: settings.companion?.mode || 'task-with-companion-tone',
+            language: settings.language || 'en'
         });
         this.embodiment_runtime = createEmbodimentRuntime({
             profile: settings.embodiment?.profile || {
@@ -101,6 +111,10 @@ export class Agent {
 
         console.log(this.name, 'logging into minecraft...');
         this.bot = initBot(this.name);
+        this.execution_state_machine = new StateMachineExecutionAdapter(this.bot, {
+            enabled: settings.execution?.state_machine?.enabled === true,
+            requestInterrupt: () => this.requestInterruptLegacy()
+        });
         
         // Connection Handler
         const onDisconnect = (event, reason) => {
@@ -166,8 +180,9 @@ export class Agent {
                 console.log(`${this.name} spawned.`);
                 this.clearBotLogs();
               
-                this._setupEventHandlers(save_data, init_message);
+                await this._setupEventHandlers(save_data, init_message, startup_context);
                 this.startEvents();
+                serverProxy.runtimeReady();
               
                 if (!load_mem) {
                     if (settings.task) {
@@ -195,7 +210,7 @@ export class Agent {
         });
     }
 
-    async _setupEventHandlers(save_data, init_message) {
+    async _setupEventHandlers(save_data, init_message, startup_context={}) {
         const ignore_messages = [
             "Set own game mode to",
             "Set the time to",
@@ -220,8 +235,7 @@ export class Agent {
                     console.warn('received whisper from other bot??')
                 }
                 else {
-                    let translation = await handleEnglishTranslation(message);
-                    this.handleMessage(username, translation);
+                    this.handleMessage(username, message);
                 }
             } catch (error) {
                 console.error('Error handling message:', error);
@@ -245,15 +259,24 @@ export class Agent {
             bannedFood: ["rotten_flesh", "spider_eye", "poisonous_potato", "pufferfish", "chicken"]
         };
 
+        const restartCause = startup_context.restartCause || null;
+        if (restartCause) {
+            console.log(`[Lifecycle] Restoring agent after ${restartCause}.`);
+            await this.history.add('system', `[Internal lifecycle] Agent restarted: ${restartCause}.`);
+        }
+
         if (save_data?.self_prompt) {
             if (init_message) {
                 this.history.add('system', init_message);
             }
-            await this.self_prompter.handleLoad(save_data.self_prompt, save_data.self_prompting_state);
+            const restoredState = restartCause && (save_data.self_prompting_state === 1 || save_data.self_prompting_state === 3)
+                ? 2
+                : save_data.self_prompting_state;
+            await this.self_prompter.handleLoad(save_data.self_prompt, restoredState);
         }
         if (save_data?.last_sender) {
             this.last_sender = save_data.last_sender;
-            if (convoManager.otherAgentInGame(this.last_sender)) {
+            if (!restartCause && convoManager.otherAgentInGame(this.last_sender)) {
                 const msg_package = {
                     message: `You have restarted and this message is auto-generated. Continue the conversation with me.`,
                     start: true
@@ -264,8 +287,8 @@ export class Agent {
         else if (init_message) {
             await this.handleMessage('system', init_message, 2);
         }
-        else {
-            this.openChat("Hello world! I am "+this.name);
+        else if (!restartCause) {
+            this.openChat(buildSpawnGreeting(this.prompter.profile, settings.language));
         }
     }
 
@@ -282,6 +305,11 @@ export class Agent {
     }
 
     requestInterrupt() {
+        this.execution_state_machine?.stop?.().catch?.(() => {});
+        this.requestInterruptLegacy();
+    }
+
+    requestInterruptLegacy() {
         this.bot.interrupt_code = true;
         this.bot.stopDigging();
         this.bot.collectBlock.cancelTask();
@@ -311,9 +339,41 @@ export class Agent {
             speakerId: event?.speakerId,
             metadata: event?.metadata || {}
         }));
-        return applyVoiceIntent(event, intent, {
+        try {
+            return await applyVoiceIntent(event, intent, {
             onCommand: async (payload) => {
-                await this.handleMessage(event.speakerId || 'voice_user', payload, 1);
+                if (payload.trim() === '!stop') {
+                    const localStop = await executeCommandWithOutcome(this, payload, {
+                        actor: event.speakerId || 'voice_user',
+                        origin: 'user'
+                    });
+                    if (localStop.outcome !== 'success') {
+                        await this.routeResponse(event.speakerId || 'voice_user', localStop.result);
+                        return;
+                    }
+                    if (settings.forge_action?.enabled === false) {
+                        await this.routeResponse(event.speakerId || 'voice_user', '已停止当前动作。');
+                        return;
+                    }
+                    const forgeResult = await serverProxy.requestForgeStop({
+                        speakerId: event.speakerId || 'voice_user',
+                        origin: event.source || 'voice'
+                    });
+                    const forgeMessage = forgeResult?.status === 'ok'
+                        ? 'Forge 客户端已接受停止指令。'
+                        : forgeResult?.status === 'timeout'
+                            ? 'Forge 停止指令等待确认超时。'
+                            : forgeResult?.status === 'rejected'
+                                ? 'Forge 停止指令被拒绝。'
+                                : forgeResult?.status === 'disconnected'
+                                    ? 'Forge 客户端在确认停止前断开连接。'
+                                    : '未找到可用的 Forge 客户端。';
+                    await this.routeResponse(event.speakerId || 'voice_user', `已停止 Mineflayer；${forgeMessage}`);
+                    return;
+                }
+                await this.handleMessage(event.speakerId || 'voice_user', payload, 1, {
+                    skipIntentRouting: true
+                });
             },
             onGoal: async (payload) => {
                 const escaped = payload.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -326,18 +386,19 @@ export class Agent {
                         expression: 'happy'
                     });
                 }
-                const reply = await this.companion_runtime.respondToCompanionInput({
-                    speakerId: event.speakerId || 'voice_user',
-                    text: payload
+                await this.handleMessage(event.speakerId || 'voice_user', payload, 1, {
+                    skipIntentRouting: true
                 });
-                if (reply) {
-                    await this.openChat(reply);
-                }
             },
             onConversation: async (payload) => {
                 await this.handleMessage(event.speakerId || 'voice_user', payload, 1);
             }
-        });
+            });
+        } finally {
+            // A command-only or empty model response may leave the one-shot voice
+            // reply armed. Do not let a later autonomous/system chat consume it.
+            this.voice_reply_tracker?.reset?.();
+        }
     }
 
     async handleCompanionTaskUpdate(update) {
@@ -438,7 +499,7 @@ export class Agent {
         return true;
     }
 
-    async handleMessage(source, message, max_responses=null) {
+    async handleMessage(source, message, max_responses=null, options={}) {
         await this.checkTaskDone();
         if (!source || !message) {
             console.warn('Received empty message from', source);
@@ -459,6 +520,9 @@ export class Agent {
         if (!self_prompt && !from_other_bot) { // from user, check for forced commands
             const user_command_name = containsCommand(message);
             if (user_command_name) {
+                if (user_command_name !== '!confirm' && user_command_name !== '!cancelConfirm') {
+                    this.self_prompter.handlePlayerInstruction(source);
+                }
                 if (!commandExists(user_command_name)) {
                     this.routeResponse(source, `Command '${user_command_name}' does not exist.`);
                     return false;
@@ -469,26 +533,48 @@ export class Agent {
                     // add the preceding message to the history to give context for newAction
                     this.history.add(source, message);
                 }
-                let execute_res = await executeCommand(this, message);
-                if (execute_res) 
-                    this.routeResponse(source, execute_res);
+                const command_outcome = await executeCommandWithOutcome(this, message, { actor: source, origin: 'user' });
+                if ((user_command_name === '!confirm' || user_command_name === '!cancelConfirm')
+                    && command_outcome.outcome === 'success') {
+                    this.self_prompter.handlePlayerInstruction(source);
+                }
+                if (!this.self_prompter.isStopped()) {
+                    this.self_prompter.recordCommandOutcome(command_outcome);
+                }
+                if (command_outcome.result)
+                    this.routeResponse(source, command_outcome.result);
                 return true;
             }
+            this.self_prompter.handlePlayerInstruction(source);
         }
 
         if (from_other_bot)
             this.last_sender = source;
 
-        // Now translate the message
-        message = await handleEnglishTranslation(message);
-        console.log('received message from', source, ':', message);
-
         if (!self_prompt && !from_other_bot) {
+            this.history.structured.rememberEvent(message, source);
+            for (const extracted of extractChineseMemories(message)) {
+                if (extracted.kind === 'preference') {
+                    this.history.structured.addPreference(source, extracted.value);
+                } else if (extracted.key) {
+                    this.history.structured.rememberFact(`${source}:${extracted.key}`, extracted.value, 'user-stated');
+                }
+            }
+        }
+
+        if (!self_prompt && !from_other_bot && !options.skipIntentRouting) {
+            // Route the original text first so Chinese commands are not lost in translation.
             const routed = await this.maybeHandleInstructionIntent(source, message);
             if (routed) {
                 return true;
             }
         }
+
+        // Conversational prompts still use the model's established English context.
+        if (!self_prompt) {
+            message = await handleEnglishTranslation(message);
+        }
+        console.log('received message from', source, ':', message);
 
         const checkInterrupt = () => this.self_prompter.shouldInterrupt(self_prompt) || this.shut_up || convoManager.responseScheduledFor(source);
         
@@ -529,6 +615,13 @@ export class Agent {
                 if (!commandExists(command_name)) {
                     this.history.add('system', `Command ${command_name} does not exist.`);
                     console.warn('Agent hallucinated command:', command_name)
+                    if (self_prompt) {
+                        this.self_prompter.recordCommandOutcome({
+                            outcome: 'invalid',
+                            commandName: command_name,
+                            args: []
+                        });
+                    }
                     continue;
                 }
 
@@ -553,15 +646,29 @@ export class Agent {
                         this.routeResponse(source, pre_message);
                 }
 
-                let execute_res = await executeCommand(this, res);
+                const command_outcome = await executeCommandWithOutcome(this, res, {
+                    actor: self_prompt ? this.name : source,
+                    origin: self_prompt ? 'system' : (from_other_bot ? 'internal' : 'model')
+                });
 
-                console.log('Agent executed:', command_name, 'and got:', execute_res);
+                console.log('Agent executed:', command_name, 'and got:', command_outcome);
                 used_command = true;
 
-                if (execute_res)
-                    this.history.add('system', execute_res);
+                if (self_prompt || !this.self_prompter.isStopped()) {
+                    this.self_prompter.recordCommandOutcome(command_outcome);
+                }
+
+                if (command_outcome.result)
+                    this.history.add('system', command_outcome.result);
                 else
                     break;
+                if (command_outcome.outcome === 'confirmation-required'
+                    || command_outcome.outcome === 'player-action-required') {
+                    if (command_outcome.result) {
+                        await this.routeResponse(source, command_outcome.result);
+                    }
+                    break;
+                }
             }
             else { // conversation response
                 this.history.add(this.name, res);
@@ -767,11 +874,44 @@ export class Agent {
     isIdle() {
         return !this.actions.executing;
     }
+
+    async recordSkillFeedback(feedback) {
+        if (!this.skill_feedback) this.skill_feedback = [];
+        this.skill_feedback.push(feedback);
+        if (this.skill_feedback.length > 100) this.skill_feedback.splice(0, this.skill_feedback.length - 100);
+        this.skill_experiences?.record(feedback);
+        this.task_metrics?.recordFeedback(feedback);
+    }
+
+    getSkillFeedback(limit = 20) {
+        const count = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 20;
+        const live = this.skill_feedback || [];
+        if (live.length) return live.slice(-count);
+        return this.skill_experiences?.getRecent(count)?.map(record => ({
+            ...record,
+            timedout: record.failureReason === 'timeout',
+            interrupted: record.failureReason === 'interrupted',
+            message: '',
+            after: { executionState: record.afterState }
+        })) || [];
+    }
+
+    recordCurriculumStage(stage) {
+        this.task_metrics?.recordStage(stage);
+    }
+
+    getTaskMetrics() {
+        return this.task_metrics?.snapshot() || null;
+    }
     
 
     cleanKill(msg='Killing agent process...', code=1) {
         this.history.add('system', msg);
-        this.bot.chat(code > 1 ? 'Restarting.': 'Exiting.');
+        this.bot.chat(buildRuntimeMessage(
+            code === 0 ? 'exiting' : 'reconnecting',
+            this.prompter?.profile,
+            settings.language
+        ));
         this.history.save();
         process.exit(code);
     }

@@ -5,7 +5,7 @@ import yargs from 'yargs';
 
 const args = process.argv.slice(2);
 if (args.length < 1) {
-    console.log('Usage: node init_agent.js -n <agent_name> -p <port> -l <load_memory> -m <init_message> -c <count_id>');
+    console.log('Usage: node init_agent.js -n <agent_name> -p <port> -l <load_memory> -m <init_message> -c <count_id> [--restart-cause <cause>]');
     process.exit(1);
 }
 
@@ -36,6 +36,10 @@ const argv = yargs(args)
         type: 'number',
         description: 'port of mindserver'
     })
+    .option('restart-cause', {
+        type: 'string',
+        description: 'internal lifecycle metadata for a restarted child generation'
+    })
     .argv;
 
 (async () => {
@@ -45,7 +49,9 @@ const argv = yargs(args)
         console.log('Starting agent');
         const agent = new Agent();
         serverProxy.setAgent(agent);
-        await agent.start(argv.load_memory, argv.init_message, argv.count_id);
+        await agent.start(argv.load_memory, argv.init_message, argv.count_id, {
+            restartCause: argv.restartCause || null
+        });
     } catch (error) {
         console.error('Failed to start agent process:');
         console.error(error.message);

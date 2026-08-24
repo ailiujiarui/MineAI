@@ -23,7 +23,12 @@ class MindServerProxy {
         if (this.connected) return;
         
         this.name = name;
-        this.socket = io(`http://localhost:${port}`);
+        this.socket = io(`http://localhost:${port}`, {
+            auth: {
+                agentName: name,
+                token: process.env.MINDCRAFT_AGENT_TOKEN || ''
+            }
+        });
 
         await new Promise((resolve, reject) => {
             this.socket.on('connect', resolve);
@@ -126,6 +131,38 @@ class MindServerProxy {
 
     login() {
         this.socket.emit('login-agent', this.agent.name);
+    }
+
+    runtimeReady() {
+        this.socket.emit('agent-runtime-ready', this.agent.name);
+    }
+
+    requestForgeStop(context = {}) {
+        if (!this.socket?.connected) {
+            return Promise.resolve({ status: 'unavailable', message: 'MindServer is not connected' });
+        }
+        return new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                resolve({ status: 'timeout', message: 'MindServer Forge stop request timed out' });
+            }, 6500);
+            this.socket.emit('forge-stop-request', {
+                speakerId: context.speakerId || 'unknown',
+                origin: context.origin || 'unknown'
+            }, (result) => {
+                clearTimeout(timeout);
+                resolve(result || { status: 'rejected', message: 'MindServer returned no Forge stop result' });
+            });
+        });
+    }
+
+    setVoicePlaybackState(active, options = {}) {
+        if (!this.socket?.connected || !this.agent?.name) return false;
+        this.socket.emit('voice-playback-state', this.agent.name, {
+            active: Boolean(active),
+            cooldownMs: options.cooldownMs ?? 250,
+            generation: options.generation || null
+        });
+        return true;
     }
 
     shutdown() {

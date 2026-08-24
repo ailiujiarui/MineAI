@@ -6,6 +6,12 @@ import { formatStatCoordinate } from './statsFormatting.js';
 import convoManager from '../conversation.js';
 import { checkLevelBlueprint, checkBlueprint } from '../tasks/construction_tasks.js';
 import { load } from 'cheerio';
+import { canProvisionCreative } from '../library/creativeInventory.js';
+import {
+    buildCreativeCraftableGuidance,
+    buildCreativeInventoryGuidance,
+    isChineseLanguage
+} from '../../locale/chinese.js';
 
 const pad = (str) => {
     return '\n' + str + '\n';
@@ -79,8 +85,9 @@ export const queryList = [
             if (res === 'INVENTORY') {
                 res += ': Nothing';
             }
-            else if (agent.bot.game.gameMode === 'creative') {
-                res += '\n(You have infinite items in creative mode. You do not need to gather resources!!)';
+            if (canProvisionCreative(agent.bot)) {
+                const chinese = isChineseLanguage(agent.prompter?.profile?.native_language || agent.settings?.language);
+                res += `\n(${buildCreativeInventoryGuidance(chinese)})`;
             }
 
             let helmet = bot.inventory.slots[5];
@@ -135,6 +142,10 @@ export const queryList = [
         name: "!craftable",
         description: "Get the craftable items with the bot's inventory.",
         perform: function (agent) {
+            if (canProvisionCreative(agent.bot)) {
+                const chinese = isChineseLanguage(agent.prompter?.profile?.native_language || agent.settings?.language);
+                return pad(`CRAFTABLE_ITEMS\n${buildCreativeCraftableGuidance(chinese)}`);
+            }
             let craftable = world.getCraftableItems(agent.bot);
             let res = 'CRAFTABLE_ITEMS';
             for (const item of craftable) {

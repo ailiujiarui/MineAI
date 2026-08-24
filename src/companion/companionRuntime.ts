@@ -5,7 +5,8 @@ import { createCompanionState } from './companionState.js';
 export class CompanionRuntime {
     constructor(config = {}) {
         this.state = createCompanionState({
-            mode: config.mode || 'task-with-companion-tone'
+            mode: config.mode || 'task-with-companion-tone',
+            language: config.language || 'en'
         });
     }
 

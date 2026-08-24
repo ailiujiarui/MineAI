@@ -1,4 +1,25 @@
 ﻿// @ts-nocheck
+import { buildSkillFeedback, captureSkillSnapshot, classifySkillFailure } from './execution/skillContract.js';
+
+const FAILURE_OUTPUT_PATTERNS = [
+    /\bcould not\b/i,
+    /\bfailed to\b/i,
+    /\bunable to\b/i,
+    /\bdon't have\b/i,
+    /\bdo not have\b/i,
+    /\bnot found\b/i,
+    /\bno .+ nearby\b/i
+];
+
+export function actionOutputIndicatesFailure(output) {
+    const lastLine = String(output || '')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .at(-1) || '';
+    return FAILURE_OUTPUT_PATTERNS.some(pattern => pattern.test(lastLine));
+}
+
 export class ActionManager {
     constructor(agent) {
         this.agent = agent;
@@ -17,14 +38,63 @@ export class ActionManager {
     }
 
     async runAction(actionLabel, actionFn, { timeout, resume = false } = {}) {
-        if (resume) {
-            return this._executeResume(actionLabel, actionFn, timeout);
-        } else {
-            return this._executeAction(actionLabel, actionFn, timeout);
+        const stateMachine = this.agent.execution_state_machine;
+        if (stateMachine?.enabled) await stateMachine.stop();
+        const startedAt = Date.now();
+        const before = captureSkillSnapshot(this.agent);
+        const actionId = `${actionLabel}:${startedAt}:${++this.recent_action_counter}`;
+        const record = async (result, error = null) => {
+            const feedback = buildSkillFeedback({
+                actionId,
+                actionLabel,
+                startedAt,
+                before,
+                after: captureSkillSnapshot(this.agent),
+                success: result?.success === true,
+                interrupted: result?.interrupted === true,
+                timedOut: result?.timedout === true,
+                failureReason: classifySkillFailure(result, error),
+                message: String(result?.message || error?.message || '')
+            });
+            try { await this.agent.recordSkillFeedback?.(feedback); } catch (feedbackError) {
+                console.warn('[skill-feedback] consumer failed:', feedbackError?.message || feedbackError);
+            }
+            if (result && typeof result === 'object') result.feedback = feedback;
+            return result;
+        };
+        if (stateMachine?.enabled) {
+            try {
+                const result = await stateMachine.submit({
+                    actionId,
+                    kind: actionLabel,
+                    run: () => resume
+                        ? this._executeResume(actionLabel, actionFn, timeout, true)
+                        : this._executeAction(actionLabel, actionFn, timeout, true),
+                    verify: result => result?.success !== false
+                });
+                return record(result);
+            } catch (error) {
+                await record({ success: false, message: error?.message || String(error) }, error);
+                throw error;
+            }
+        }
+        try {
+            const result = resume
+                ? await this._executeResume(actionLabel, actionFn, timeout)
+                : await this._executeAction(actionLabel, actionFn, timeout);
+            return record(result);
+        } catch (error) {
+            await record({ success: false, message: error?.message || String(error) }, error);
+            throw error;
         }
     }
 
     async stop() {
+        const stopStartedAt = Date.now();
+        const stateMachine = this.agent.execution_state_machine;
+        const hadStateMachineAction = Boolean(stateMachine?.getSnapshot?.()?.activeActionId);
+        await stateMachine?.stop?.();
+        if (hadStateMachineAction) this.agent.task_metrics?.recordStop(Date.now() - stopStartedAt);
         if (!this.executing) return;
         const timeout = setTimeout(() => {
             this.agent.cleanKill('Code execution refused stop after 10 seconds. Killing process.');
@@ -42,7 +112,7 @@ export class ActionManager {
         this.resume_name = null;
     }
 
-    async _executeResume(actionLabel = null, actionFn = null, timeout = 10) {
+    async _executeResume(actionLabel = null, actionFn = null, timeout = 10, preserveStateMachine = false) {
         const new_resume = actionFn != null;
         if (new_resume) { // start new resume
             this.resume_func = actionFn;
@@ -51,7 +121,7 @@ export class ActionManager {
         }
         if (this.resume_func != null && (this.agent.isIdle() || new_resume) && (!this.agent.self_prompter.isActive() || new_resume)) {
             this.currentActionLabel = this.resume_name;
-            let res = await this._executeAction(this.resume_name, this.resume_func, timeout);
+            let res = await this._executeAction(this.resume_name, this.resume_func, timeout, preserveStateMachine);
             this.currentActionLabel = '';
             return res;
         } else {
@@ -59,9 +129,10 @@ export class ActionManager {
         }
     }
 
-    async _executeAction(actionLabel, actionFn, timeout = 10) {
+    async _executeAction(actionLabel, actionFn, timeout = 10, preserveStateMachine = false) {
         let TIMEOUT;
         try {
+            this.timedout = false;
             if (this.last_action_time > 0) {
                 let time_diff = Date.now() - this.last_action_time;
                 if (time_diff < 20) {
@@ -88,7 +159,7 @@ export class ActionManager {
             if (this.executing) {
                 console.log(`action "${actionLabel}" trying to interrupt current action "${this.currentActionLabel}"`);
             }
-            await this.stop();
+            if (!preserveStateMachine) await this.stop();
 
             // clear bot logs and reset interrupt code
             this.agent.clearBotLogs();
@@ -103,7 +174,7 @@ export class ActionManager {
             }
 
             // start the action
-            await actionFn();
+            const actionResult = await actionFn();
 
             // mark action as finished + cleanup
             this.executing = false;
@@ -123,7 +194,13 @@ export class ActionManager {
             }
 
             // return action status report
-            return { success: true, message: output, interrupted, timedout };
+            const outputFailed = actionOutputIndicatesFailure(output);
+            return {
+                success: actionResult !== false && !timedout && !outputFailed,
+                message: output,
+                interrupted,
+                timedout
+            };
         } catch (err) {
             this.executing = false;
             this.currentActionLabel = '';
