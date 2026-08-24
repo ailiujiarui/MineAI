@@ -225,3 +225,19 @@ test('runtime can switch active voice profile through the adapter', async () => 
   runtime.setVoiceProfile('maid_soft')
   assert.deepEqual(calls, ['maid_soft'])
 })
+
+test('runtime handles only allowlisted partial safety intents and interrupts speech', async () => {
+  const intents = []
+  const runtime = new VoiceRuntime({
+    enabled: true,
+    partialAsrEnabled: true,
+    onPartialIntent: async intent => intents.push(intent)
+  })
+  runtime.activeSpeech = { controller: new AbortController(), reason: null }
+  const ignored = await runtime.handlePartialTranscript({ text: '给我两组钻石', source: 'asr-partial' })
+  const handled = await runtime.handlePartialTranscript({ text: '停火', source: 'asr-partial' })
+  assert.equal(ignored, null)
+  assert.equal(handled?.payload, 'ceasefire')
+  assert.equal(intents.length, 1)
+  assert.equal(runtime.activeSpeech.controller.signal.aborted, true)
+})

@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { io } from 'socket.io-client';
 import convoManager from './conversation.js';
 import { setSettings } from './settings.js';
@@ -86,6 +86,14 @@ class MindServerProxy {
                 await this.agent.handleVoiceTranscript(data);
             } catch (error) {
                 console.error('Error handling voice transcript:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+            }
+        });
+
+        this.socket.on('voice-partial-transcript', async (data) => {
+            try {
+                await this.agent.handleVoicePartialTranscript(data);
+            } catch (error) {
+                console.error('Error handling partial voice transcript:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
             }
         });
 

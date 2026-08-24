@@ -4,6 +4,7 @@ import { routeVoiceTranscript } from './intentRouter.js';
 import { playAudioBuffer } from './localAudioPlayer.js';
 import { createMicTranscriptAggregator } from './micTranscriptAggregator.js';
 import { serverProxy } from '../agent/mindserver_proxy.js';
+import { classifyPartialVoiceIntent } from './partialVoiceIntent.js';
 
 export function createCommandIntent(payload, meta = {}) {
     return {
@@ -58,6 +59,8 @@ export class VoiceRuntime {
         this.ttsAdapter = config.ttsAdapter || new NullTtsAdapter();
         this.router = config.router || (async (event) => routeVoiceTranscript(event, config));
         this.onIntent = config.onIntent || (async () => {});
+        this.partialAsrEnabled = config.partialAsrEnabled === true;
+        this.onPartialIntent = config.onPartialIntent || (async () => {});
         this.playAudio = config.playAudio || playAudioBuffer;
         this.localPlayback = config.localPlayback ?? true;
         this.setPlaybackState = config.setPlaybackState
@@ -158,5 +161,19 @@ export class VoiceRuntime {
         } finally {
             if (this.activeSpeech === active) this.activeSpeech = null;
         }
+    }
+
+    async handlePartialTranscript(event) {
+        if (!this.enabled || !this.partialAsrEnabled || event?.final) return null;
+        const intent = classifyPartialVoiceIntent(event?.text);
+        if (!intent) return null;
+        this.cancelSpeech('partial-voice-interrupt');
+        const transcript = createVoiceTranscriptEvent({
+            ...event,
+            source: event.source || 'asr-partial',
+            metadata: { ...(event.metadata || {}), partial: true }
+        });
+        await this.onPartialIntent(intent, transcript);
+        return intent;
     }
 }

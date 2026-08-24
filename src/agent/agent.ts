@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { History } from './history.js';
 import { Coder } from './coder.js';
 import { Prompter } from '../models/prompter.js';
@@ -89,9 +89,11 @@ export class Agent {
             enabled: settings.voice?.enabled ?? false,
             commandMode: settings.voice?.command_mode || 'hybrid',
             companionMode: settings.companion?.mode || 'task-with-companion-tone',
+            partialAsrEnabled: settings.voice?.doubao?.partial_asr_enabled === true,
             micConfig: settings.voice?.mic || {},
             ttsAdapter: createTtsAdapter(settings.voice || {}),
-            onIntent: async (intent, event) => this.handleVoiceIntent(intent, event)
+            onIntent: async (intent, event) => this.handleVoiceIntent(intent, event),
+            onPartialIntent: async (intent, event) => this.handleVoiceIntent(intent, event)
         });
         this.voice_reply_tracker = createVoiceReplyTracker();
         convoManager.initAgent(this);
@@ -486,6 +488,18 @@ export class Agent {
         const intent = await this.voice_runtime.handleTranscript(transcriptEvent);
         console.log('[voice-debug][agent] handleVoiceTranscript result:', JSON.stringify(intent));
         return intent;
+    }
+
+    async handleVoicePartialTranscript(data) {
+        if (!this.voice_runtime) return null;
+        return this.voice_runtime.handlePartialTranscript({
+            text: data?.text || '',
+            final: data?.final === true,
+            source: data?.source || 'asr-partial',
+            speakerId: data?.speakerId || data?.from || 'voice_user',
+            timestamp: data?.timestamp || Date.now(),
+            metadata: data?.metadata || {}
+        });
     }
 
     async maybeHandleInstructionIntent(source, message) {

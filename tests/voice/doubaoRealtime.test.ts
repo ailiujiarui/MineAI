@@ -144,3 +144,55 @@ test('duplex realtime ASR fails before opening a socket when DOUBAO_API_KEY is m
     else process.env.DOUBAO_API_KEY = previousKey
   }
 })
+
+test('streamPcm forwards partial and one final transcript, while deduplicating repeats', async () => {
+  const socket = new FakeDuplexSocket()
+  socket.send = function (payload) {
+    const event = JSON.parse(String(payload))
+    this.sent.push(event)
+    if (event.type === 'session.create') queueMicrotask(() => this.emitJson({ type: 'session.created' }))
+    if (event.type === 'input_audio_buffer.commit') queueMicrotask(() => {
+      this.emitJson({ type: 'conversation.item.input_audio_transcription.delta', delta: '停' })
+      this.emitJson({ type: 'conversation.item.input_audio_transcription.delta', delta: '停止' })
+      this.emitJson({ type: 'conversation.item.input_audio_transcription.delta', delta: '停止' })
+      this.emitJson({ type: 'conversation.item.input_audio_transcription.completed', transcript: '停止' })
+      this.emitJson({ type: 'conversation.item.input_audio_transcription.completed', transcript: '停止' })
+    })
+  }
+  queueMicrotask(() => socket.emit('open'))
+  const events = []
+  const client = new DoubaoRealtimeAsrClient({ apiKey: 'key', chunkSize: 8, chunkIntervalMs: 0, wsFactory: () => socket })
+  await client.streamPcm(Buffer.from([1, 2]), event => events.push(event))
+  assert.deepEqual(events, [
+    { text: '停', final: false, eventType: 'conversation.item.input_audio_transcription.delta' },
+    { text: '停止', final: false, eventType: 'conversation.item.input_audio_transcription.delta' },
+    { text: '停止', final: true, eventType: 'conversation.item.input_audio_transcription.completed' }
+  ])
+})
+
+test('streamPcm rejects provider errors and closes on abort', async () => {
+  const socket = new FakeDuplexSocket()
+  queueMicrotask(() => socket.emit('open'))
+  socket.send = function (payload) {
+    const event = JSON.parse(String(payload))
+    this.sent.push(event)
+    if (event.type === 'session.create') queueMicrotask(() => this.emitJson({ type: 'session.created' }))
+    if (event.type === 'input_audio_buffer.commit') queueMicrotask(() => this.emitJson({ type: 'error', message: 'bad audio' }))
+  }
+  const client = new DoubaoRealtimeAsrClient({ apiKey: 'key', chunkIntervalMs: 0, wsFactory: () => socket })
+  await assert.rejects(client.streamPcm(Buffer.from([1]), () => {}), /bad audio/)
+
+  const abortSocket = new FakeDuplexSocket()
+  queueMicrotask(() => abortSocket.emit('open'))
+  abortSocket.send = function (payload) {
+    const event = JSON.parse(String(payload))
+    this.sent.push(event)
+    if (event.type === 'session.create') queueMicrotask(() => this.emitJson({ type: 'session.created' }))
+  }
+  const controller = new AbortController()
+  const abortClient = new DoubaoRealtimeAsrClient({ apiKey: 'key', chunkIntervalMs: 0, wsFactory: () => abortSocket })
+  const pending = abortClient.streamPcm(Buffer.from([1]), () => {}, { signal: controller.signal })
+  controller.abort()
+  await pending
+  assert.equal(abortSocket.closed, true)
+})

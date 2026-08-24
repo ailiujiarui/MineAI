@@ -70,7 +70,7 @@ export interface BridgeCommandPayload {
 
 export interface BridgeAckPayload {
     commandId: string
-    status: 'ok' | 'error'
+    status: 'ok' | 'error' | 'unsupported'
     detail?: string
 }
 
@@ -156,7 +156,7 @@ export function isBridgeAckMessage(value: unknown): value is ReturnType<typeof c
     const payload = value.payload
     return typeof payload.commandId === 'string'
         && payload.commandId.trim().length > 0
-        && (payload.status === 'ok' || payload.status === 'error')
+        && (payload.status === 'ok' || payload.status === 'error' || payload.status === 'unsupported')
         && (payload.detail === undefined || typeof payload.detail === 'string')
 }
 

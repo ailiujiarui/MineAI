@@ -169,6 +169,12 @@ ForgeCombatAdapter 提供能力检查、结构化动作映射与 ACK 结果，�
 攻击、撤退和停火四类高层战斗意图；Agent 已增加默认关闭的 Mineflayer fallback
 接线。Forge adapter 仍需显式注入 Bridge 才能接管，不会自动伪造执行成功。
 
+Phase 13 已完成第一版：Forge 客户端 ACK 延迟到主线程动作执行结束，并支持
+`ok/error/unsupported`；Node 端继续校验 commandId 和后置快照。豆包 realtime ASR
+新增 `streamPcm`，支持 partial/final 事件、去重、provider error 和 AbortSignal。
+partial 默认关闭，只允许“停止/停火/别打/撤退/保护我”等本地安全意图抢占 TTS 与战斗，
+不会进入 DeepSeek 或生成任意命令；MindServer 提供 `voice-partial-transcript` 入口。
+
 - 提供 `npm run replay -- <case.json>` 命令行入口。
 - 回放报告包含停止原因、执行命令、结果和断言状态。
 

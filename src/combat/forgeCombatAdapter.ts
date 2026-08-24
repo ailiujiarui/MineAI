@@ -77,7 +77,7 @@ export class ForgeCombatAdapter {
             if (ack?.payload?.commandId !== commandId) {
                 return { status: 'rejected', commandId, message: 'Bridge acknowledgement command id mismatch', ack: ack?.payload };
             }
-            return { status: ack.payload.status === 'ok' ? 'ok' : 'rejected', commandId, ack: ack.payload };
+            return { status: ack.payload.status === 'ok' ? 'ok' : ack.payload.status === 'unsupported' ? 'unsupported' : 'rejected', commandId, ack: ack.payload };
         } catch (error: any) {
             return { status: /Timed out/i.test(error?.message) ? 'timeout' : 'disconnected', commandId, message: String(error?.message || error) };
         }

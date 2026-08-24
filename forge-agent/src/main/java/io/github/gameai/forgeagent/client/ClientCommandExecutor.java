@@ -9,38 +9,78 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
 public final class ClientCommandExecutor {
     private ClientCommandExecutor() {
     }
 
-    public static void execute(JsonArray actions) {
+    public static void execute(JsonArray actions, Consumer<ExecutionResult> completion) {
         Minecraft minecraft = Minecraft.getInstance();
-        minecraft.execute(() -> {
+        Runnable task = () -> {
+            List<String> unsupported = new ArrayList<>();
+            List<String> errors = new ArrayList<>();
             for (JsonElement actionElement : actions) {
                 if (!actionElement.isJsonObject()) {
+                    unsupported.add("non_object_action");
                     continue;
                 }
 
                 JsonObject action = actionElement.getAsJsonObject();
                 String kind = action.has("kind") ? action.get("kind").getAsString() : "unknown";
-                switch (kind) {
-                    case "move" -> executeMove(minecraft, action);
-                    case "look" -> executeLook(minecraft, action);
-                    case "attack" -> executeAttack(minecraft, action);
-                    case "equip_hotbar" -> executeEquipHotbar(minecraft, action);
-                    case "use_skill" -> executeUseSkill(minecraft, action);
-                    case "mine_block" -> executeMineBlock(minecraft, action);
-                    case "stop_all" -> executeStopAll(minecraft);
-                    default -> GameAiForgeAgent.LOGGER.debug("Unhandled bridge action {}", kind);
+                try {
+                    switch (kind) {
+                        case "move" -> executeMove(minecraft, action);
+                        case "look" -> executeLook(minecraft, action);
+                        case "attack" -> executeAttack(minecraft, action);
+                        case "equip_hotbar" -> executeEquipHotbar(minecraft, action);
+                        case "use_skill" -> executeUseSkill(minecraft, action);
+                        case "mine_block" -> executeMineBlock(minecraft, action);
+                        case "stop_all" -> executeStopAll(minecraft);
+                        default -> {
+                            unsupported.add(kind);
+                            GameAiForgeAgent.LOGGER.debug("Unhandled bridge action {}", kind);
+                        }
+                    }
+                } catch (UnsupportedOperationException unsupportedAction) {
+                    unsupported.add(kind + ": " + unsupportedAction.getMessage());
+                    GameAiForgeAgent.LOGGER.debug("Bridge action {} is unsupported: {}", kind, unsupportedAction.getMessage());
+                } catch (Exception error) {
+                    errors.add(kind + ": " + error);
+                    GameAiForgeAgent.LOGGER.warn("Bridge action {} failed: {}", kind, error.toString());
                 }
             }
-        });
+            if (!errors.isEmpty()) {
+                completion.accept(new ExecutionResult("error", summarize(errors)));
+            } else if (!unsupported.isEmpty()) {
+                completion.accept(new ExecutionResult("unsupported", summarize(unsupported)));
+            } else if (actions.isEmpty()) {
+                completion.accept(new ExecutionResult("unsupported", "no_actions"));
+            } else {
+                completion.accept(new ExecutionResult("ok", "executed"));
+            }
+        };
+        try {
+            minecraft.execute(task);
+        } catch (Exception error) {
+            completion.accept(new ExecutionResult("error", "client_thread_dispatch: " + error));
+        }
+    }
+
+    private static String summarize(List<String> values) {
+        String detail = String.join(", ", values);
+        return detail.length() <= 512 ? detail : detail.substring(0, 512);
+    }
+
+    public record ExecutionResult(String status, String detail) {
     }
 
     private static void executeLook(Minecraft minecraft, JsonObject action) {
         LocalPlayer player = minecraft.player;
         if (player == null) {
-            return;
+            throw new IllegalStateException("player_unavailable");
         }
 
         float yaw = action.has("yaw") ? action.get("yaw").getAsFloat() : player.getYRot();
@@ -54,7 +94,7 @@ public final class ClientCommandExecutor {
     private static void executeAttack(Minecraft minecraft, JsonObject action) {
         LocalPlayer player = minecraft.player;
         if (player == null) {
-            return;
+            throw new IllegalStateException("player_unavailable");
         }
         ClientInputPulseExecutor.pulseAttack(minecraft);
     }
@@ -75,8 +115,11 @@ public final class ClientCommandExecutor {
 
     private static void executeEquipHotbar(Minecraft minecraft, JsonObject action) {
         LocalPlayer player = minecraft.player;
-        if (player == null || !action.has("hotbarIndex")) {
-            return;
+        if (player == null) {
+            throw new IllegalStateException("player_unavailable");
+        }
+        if (!action.has("hotbarIndex")) {
+            throw new IllegalArgumentException("hotbarIndex_required");
         }
 
         int hotbarIndex = Math.max(0, Math.min(8, action.get("hotbarIndex").getAsInt()));
@@ -87,18 +130,24 @@ public final class ClientCommandExecutor {
         String skillSlot = action.has("skillSlot") ? action.get("skillSlot").getAsString() : "unknown";
         switch (skillSlot) {
             case "weapon_innate", "guard", "dodge" -> ClientInputPulseExecutor.pulseUse(minecraft);
-            default -> GameAiForgeAgent.LOGGER.debug("Unhandled skill slot {}", skillSlot);
+            default -> throw new UnsupportedOperationException("skill_slot:" + skillSlot);
         }
     }
 
     private static void executeMineBlock(Minecraft minecraft, JsonObject action) {
         LocalPlayer player = minecraft.player;
-        if (player == null || minecraft.gameMode == null || !action.has("position")) {
-            return;
+        if (player == null) {
+            throw new IllegalStateException("player_unavailable");
+        }
+        if (minecraft.gameMode == null) {
+            throw new IllegalStateException("game_mode_unavailable");
+        }
+        if (!action.has("position")) {
+            throw new IllegalArgumentException("position_required");
         }
         JsonObject position = action.getAsJsonObject("position");
         if (!position.has("x") || !position.has("y") || !position.has("z")) {
-            return;
+            throw new IllegalArgumentException("position_coordinates_required");
         }
         BlockPos blockPos = new BlockPos(
                 position.get("x").getAsInt(),

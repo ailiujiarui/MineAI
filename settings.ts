@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import 'dotenv/config';
 
 const settings = {
@@ -155,6 +155,7 @@ const settings = {
         "doubao": {
             "mode": "realtime",
             "ttsMode": "v3",
+            "partial_asr_enabled": false,
             "apiKey": process.env.DOUBAO_API_KEY || "",
             "realtime": {
                 "endpoint": "wss://openspeech.bytedance.com/api/v3/duplex/realtime/dialogue",

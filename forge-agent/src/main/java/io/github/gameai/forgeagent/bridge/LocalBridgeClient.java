@@ -217,13 +217,10 @@ public final class LocalBridgeClient {
         String commandId = payload.has("id") ? payload.get("id").getAsString() : "unknown";
         JsonArray actions = payload.has("actions") ? payload.getAsJsonArray("actions") : new JsonArray();
         GameAiForgeAgent.LOGGER.info("Received bridge command {} with {} actions", commandId, actions.size());
-        try {
-            ClientCommandExecutor.execute(actions);
-            sendAck(commandId, "ok", "accepted");
-        } catch (Exception error) {
-            sendAck(commandId, "error", error.toString());
-            throw error;
-        }
+        // Minecraft.execute queues work on the client thread. ACK only from the
+        // completion callback so it means the action pulse was actually applied.
+        ClientCommandExecutor.execute(actions,
+                result -> sendAck(commandId, result.status(), result.detail()));
     }
 
     private void sendAck(String commandId, String status, String detail) {
