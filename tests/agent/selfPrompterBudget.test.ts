@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { SelfPrompter } from '../../src/agent/self_prompter.js'
+import settings, { setSettings } from '../../src/agent/settings.js'
 
 function createHarness() {
   const messages: string[] = []
@@ -10,7 +11,7 @@ function createHarness() {
     openChat(message: string) {
       messages.push(message)
     },
-    actions: { stop: async () => {} },
+    actions: { stop: async () => {}, cancelResume: () => {} },
     isIdle: () => true,
     handleMessage: async () => false
   }
@@ -105,4 +106,30 @@ test('each self-prompt iteration requests at most one model command', async () =
   await prompter.startLoop()
 
   assert.deepEqual(limits, [1])
+})
+
+test('enabled agent action loop uses bounded planner path', async () => {
+  const previous = { ...settings }
+  setSettings({ execution: { agent_action_loop: { enabled: true, max_iterations: 1 } } })
+  const calls: string[] = []
+  const agent: any = {
+    name: 'MineAI',
+    prompter: {
+      profile: { native_language: 'zh-CN' },
+      promptConvo: async () => { calls.push('plan'); return '!stop' }
+    },
+    bot: { entity: null, entities: {}, inventory: { items: () => [] }, emit: () => {} },
+    actions: { stop: async () => {}, cancelResume: () => {} },
+    isIdle: () => true,
+    getSkillFeedback: () => [],
+    clearBotLogs: () => {},
+    command_permission_policy: { evaluate: () => ({ allowed: true }) }
+  }
+  const prompter = new SelfPrompter(agent)
+  agent.self_prompter = prompter
+  prompter.state = 1
+  await prompter.startLoop()
+  assert.deepEqual(calls, ['plan'])
+  assert.equal(prompter.loop_active, false)
+  setSettings(previous)
 })

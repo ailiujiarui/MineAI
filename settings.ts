@@ -72,13 +72,22 @@ const settings = {
 
     "autonomy": {
         "enabled": true,
-        "interval_ms": 5000
+        "interval_ms": 5000,
+        "agent_action_loop": {
+            "enabled": false,
+            "max_iterations": 2
+        }
     },
 
     "execution": {
         "state_machine": {
             "enabled": false,
             "package_version": "1.7.0"
+        },
+        "agent_action_loop": {
+            "enabled": false,
+            "max_iterations": 3,
+            "cooldown_ms": 2000
         }
     },
 

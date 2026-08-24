@@ -1,4 +1,6 @@
 ﻿// @ts-nocheck
+import { buildSkillFeedback, captureSkillSnapshot, classifySkillFailure } from './execution/skillContract.js';
+
 const FAILURE_OUTPUT_PATTERNS = [
     /\bcould not\b/i,
     /\bfailed to\b/i,
@@ -37,27 +39,62 @@ export class ActionManager {
 
     async runAction(actionLabel, actionFn, { timeout, resume = false } = {}) {
         const stateMachine = this.agent.execution_state_machine;
-        if (stateMachine?.enabled) {
-            await stateMachine.stop();
-            const actionId = `${actionLabel}:${Date.now()}:${++this.recent_action_counter}`;
-            return stateMachine.submit({
+        if (stateMachine?.enabled) await stateMachine.stop();
+        const startedAt = Date.now();
+        const before = captureSkillSnapshot(this.agent);
+        const actionId = `${actionLabel}:${startedAt}:${++this.recent_action_counter}`;
+        const record = async (result, error = null) => {
+            const feedback = buildSkillFeedback({
                 actionId,
-                kind: actionLabel,
-                run: () => resume
-                    ? this._executeResume(actionLabel, actionFn, timeout, true)
-                    : this._executeAction(actionLabel, actionFn, timeout, true),
-                verify: result => result?.success !== false
+                actionLabel,
+                startedAt,
+                before,
+                after: captureSkillSnapshot(this.agent),
+                success: result?.success === true,
+                interrupted: result?.interrupted === true,
+                timedOut: result?.timedout === true,
+                failureReason: classifySkillFailure(result, error),
+                message: String(result?.message || error?.message || '')
             });
+            try { await this.agent.recordSkillFeedback?.(feedback); } catch (feedbackError) {
+                console.warn('[skill-feedback] consumer failed:', feedbackError?.message || feedbackError);
+            }
+            if (result && typeof result === 'object') result.feedback = feedback;
+            return result;
+        };
+        if (stateMachine?.enabled) {
+            try {
+                const result = await stateMachine.submit({
+                    actionId,
+                    kind: actionLabel,
+                    run: () => resume
+                        ? this._executeResume(actionLabel, actionFn, timeout, true)
+                        : this._executeAction(actionLabel, actionFn, timeout, true),
+                    verify: result => result?.success !== false
+                });
+                return record(result);
+            } catch (error) {
+                await record({ success: false, message: error?.message || String(error) }, error);
+                throw error;
+            }
         }
-        if (resume) {
-            return this._executeResume(actionLabel, actionFn, timeout);
-        } else {
-            return this._executeAction(actionLabel, actionFn, timeout);
+        try {
+            const result = resume
+                ? await this._executeResume(actionLabel, actionFn, timeout)
+                : await this._executeAction(actionLabel, actionFn, timeout);
+            return record(result);
+        } catch (error) {
+            await record({ success: false, message: error?.message || String(error) }, error);
+            throw error;
         }
     }
 
     async stop() {
-        await this.agent.execution_state_machine?.stop?.();
+        const stopStartedAt = Date.now();
+        const stateMachine = this.agent.execution_state_machine;
+        const hadStateMachineAction = Boolean(stateMachine?.getSnapshot?.()?.activeActionId);
+        await stateMachine?.stop?.();
+        if (hadStateMachineAction) this.agent.task_metrics?.recordStop(Date.now() - stopStartedAt);
         if (!this.executing) return;
         const timeout = setTimeout(() => {
             this.agent.cleanKill('Code execution refused stop after 10 seconds. Killing process.');

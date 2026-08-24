@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { selectAPI, createModel } from './_model_map.js';
 import { resolveRunPath } from '../utils/runContext.js';
+import { formatSkillFeedbackForPrompt } from '../agent/execution/skillContract.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -179,6 +180,9 @@ export class Prompter {
                 this.agent.last_sender || null
             );
             prompt = prompt.replaceAll('$STRUCTURED_MEMORY', JSON.stringify(memory));
+        }
+        if (prompt.includes('$SKILL_FEEDBACK')) {
+            prompt = prompt.replaceAll('$SKILL_FEEDBACK', formatSkillFeedbackForPrompt(this.agent.getSkillFeedback?.(5) || []));
         }
         if (prompt.includes('$TO_SUMMARIZE'))
             prompt = prompt.replaceAll('$TO_SUMMARIZE', stringifyTurns(to_summarize));

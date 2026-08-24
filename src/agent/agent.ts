@@ -29,6 +29,8 @@ import { recoverAgentFromDeath } from './deathRecovery.js';
 import { createDeathDisconnectGuard, shouldHandleRuntimeDisconnect } from './deathDisconnectGuard.js';
 import { extractChineseMemories } from './memory/memoryExtractor.js';
 import { StateMachineExecutionAdapter } from './execution/stateMachineAdapter.js';
+import { SkillExperienceStore } from './execution/skillExperienceStore.js';
+import { TaskMetrics } from './execution/taskMetrics.js';
 
 export class Agent {
     async start(load_mem=false, init_message=null, count_id=0, startup_context={}) {
@@ -52,6 +54,10 @@ export class Agent {
         }
         
         this.history = new History(this);
+        this.skill_experiences = new SkillExperienceStore(this.name);
+        this.task_metrics = new TaskMetrics(this.name);
+        if (load_mem) this.skill_experiences.load();
+        if (load_mem) this.task_metrics.load();
         this.coder = new Coder(this);
         this.npc = new NPCContoller(this);
         this.memory_bank = new MemoryBank();
@@ -867,6 +873,35 @@ export class Agent {
 
     isIdle() {
         return !this.actions.executing;
+    }
+
+    async recordSkillFeedback(feedback) {
+        if (!this.skill_feedback) this.skill_feedback = [];
+        this.skill_feedback.push(feedback);
+        if (this.skill_feedback.length > 100) this.skill_feedback.splice(0, this.skill_feedback.length - 100);
+        this.skill_experiences?.record(feedback);
+        this.task_metrics?.recordFeedback(feedback);
+    }
+
+    getSkillFeedback(limit = 20) {
+        const count = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 20;
+        const live = this.skill_feedback || [];
+        if (live.length) return live.slice(-count);
+        return this.skill_experiences?.getRecent(count)?.map(record => ({
+            ...record,
+            timedout: record.failureReason === 'timeout',
+            interrupted: record.failureReason === 'interrupted',
+            message: '',
+            after: { executionState: record.afterState }
+        })) || [];
+    }
+
+    recordCurriculumStage(stage) {
+        this.task_metrics?.recordStage(stage);
+    }
+
+    getTaskMetrics() {
+        return this.task_metrics?.snapshot() || null;
     }
     
 

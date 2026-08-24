@@ -1,6 +1,8 @@
 ﻿// @ts-nocheck
 import settings from './settings.js'
 import { buildGoalPauseMessage, buildNoCommandStopMessage } from '../locale/chinese.js'
+import { AgentActionLoop } from './execution/agentActionLoop.js'
+import { AgentActionPlanner } from './execution/agentActionPlanner.js'
 
 const STOPPED = 0
 const ACTIVE = 1
@@ -163,6 +165,10 @@ export class SelfPrompter {
         }
         console.log('starting self-prompt loop')
         this.loop_active = true;
+        if (settings.execution?.agent_action_loop?.enabled === true) {
+            await this.startBoundedActionLoop();
+            return;
+        }
         let no_command_count = 0;
         const MAX_NO_COMMAND = 3;
         while (!this.interrupt) {
@@ -192,6 +198,44 @@ export class SelfPrompter {
         console.log('self prompt loop stopped')
         this.loop_active = false;
         this.interrupt = false;
+    }
+
+    async startBoundedActionLoop() {
+        const config = settings.execution.agent_action_loop;
+        const planner = new AgentActionPlanner(this.agent);
+        const thisPrompter = this;
+        try {
+            const loop = new AgentActionLoop({
+                agent: this.agent,
+                maxIterations: config.max_iterations,
+                signal: {
+                    get aborted() { return thisPrompter.interrupt; }
+                } as AbortSignal,
+                observe: ({ iteration }) => planner.observe({ iteration, goal: this.prompt }),
+                plan: ({ observation }) => planner.plan({ observation, goal: this.prompt }),
+                getSkillFeedback: (limit) => this.agent.getSkillFeedback?.(limit) || [],
+                executionContext: { actor: this.agent.name, origin: 'system' }
+            });
+            const result = await loop.run();
+            for (const commandResult of result.results) {
+                if (commandResult?.commandName || commandResult?.outcome) {
+                    this.recordCommandOutcome(commandResult);
+                }
+            }
+            if (result.stoppedReason === 'permission_denied'
+                || result.stoppedReason === 'confirmation_required'
+                || result.stoppedReason === 'inventory_full') {
+                this.waitForPlayer();
+            } else if (result.stoppedReason !== 'max_iterations' && result.stoppedReason !== 'completed') {
+                this.interrupt = true;
+            }
+        } catch (error) {
+            console.error('Bounded agent action loop failed:', error);
+            this.interrupt = true;
+        } finally {
+            this.loop_active = false;
+            if (!this.isWaitingForPlayer()) this.interrupt = false;
+        }
     }
 
     update(delta) {
