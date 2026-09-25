@@ -9,7 +9,8 @@
 // agent.acceptance(验收骨骼:ActionQueue、MineAI 式机器判据 Objective/GoalPredicate、
 // CompletionGuard、白名单 Whitelist、RCON 靶场与 Harness 报告——装在工具层外面,不改工具与内核)、
 // agent.decision/utility/bt/control(控制层:JEV 判断口、Utility 仲裁、行为树运行时、
-// 事件驱动的 AgentController——LLM 被收在边界节点里,出不了内循环)。
+// 事件驱动的 AgentController——LLM 被收在边界节点里,出不了内循环)、
+// agent.plan(确定性执行:配方递归展开 GapCalculator、目标编译成行为树 Compiler)。
 plugins {
     id 'java-library'
     id 'maven-publish'
