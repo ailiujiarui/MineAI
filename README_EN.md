@@ -1,6 +1,6 @@
 <div align="center">
 
-# Numen · 言出法随
+# MineAI · 言出法随
 
 ### An AI companion that lives in your world
 
@@ -18,12 +18,12 @@
 </div>
 
 <p align="center">
-  <img src="docs/numen-demo.gif" alt="Numen in action: chopping, mining, crafting, fighting, driving Mekanism machines" width="640">
+  <img src="docs/numen-demo.gif" alt="MineAI in action: chopping, mining, crafting, fighting, driving Mekanism machines" width="640">
 </p>
 
 ---
 
-Numen puts an AI companion in your world. Tell it what you want in plain language — type it, or hold `V` and just say it, in any language your model speaks — and it breaks the goal into dozens of steps, plans a route, picks the right tool, adapts when things go wrong, and gets it done.
+MineAI is a derivative project based on [Numen](https://github.com/Dwinovo/minecraft-numen): it puts an AI companion in your world. Tell it what you want in plain language — type it, or hold `V` and just say it, in any language your model speaks — and it breaks the goal into dozens of steps, plans a route, picks the right tool, adapts when things go wrong, and gets it done.
 
 It isn't a chatbot NPC. It's a real player on the server: it mines, walks, swings, opens chests, and every action goes through the vanilla player code path — which means it plays by the same rules as redstone, mob AI, and everyone else's mods.
 
@@ -31,9 +31,9 @@ It can also get better at things. Write a Markdown file to teach it a new way to
 
 ```
 You:    Go get me a stack of iron
-Numen:  On it. Heading underground.
+MineAI:  On it. Heading underground.
         ▸ 4 steps · locate_biome · move_to · auto_mine · collect_items   ✔
-Numen:  Got 64 raw iron — want me to smelt it?
+MineAI:  Got 64 raw iron — want me to smelt it?
 ```
 
 ## Quick start
@@ -51,7 +51,7 @@ Numen:  Got 64 raw iron — want me to smelt it?
 
 > **Speech in and out**: seven speech-to-text presets ship with the mod, two of which (Alibaba Bailian and Doubao) are streaming — transcription happens as you speak. Companions can also talk back: text-to-speech supports Alibaba Bailian, Fish Audio, GPT-SoVITS, MiniMax, and any OpenAI-compatible TTS. Once a voice is picked, speech is synthesized and played sentence by sentence rather than after the whole reply is generated.
 
-> **macOS voice input**: the microphone permission has to be declared in the launcher's `.app` `Info.plist`, and the mod runs in a Java subprocess that can't add that declaration itself — so use a launcher that declares microphone access. [Prism Launcher](https://prismlauncher.org/) is the one we'd recommend. Allow microphone access the first time you use it; you can check it later under System Settings → Privacy & Security → Microphone. The launcher only provides that permission gate — recording and transcription are still done by Numen and whichever service you configured.
+> **macOS voice input**: the microphone permission has to be declared in the launcher's `.app` `Info.plist`, and the mod runs in a Java subprocess that can't add that declaration itself — so use a launcher that declares microphone access. [Prism Launcher](https://prismlauncher.org/) is the one we'd recommend. Allow microphone access the first time you use it; you can check it later under System Settings → Privacy & Security → Microphone. The launcher only provides that permission gate — recording and transcription are still done by MineAI and whichever service you configured.
 
 ## What it can do
 
@@ -91,7 +91,7 @@ There are two ways to teach it, and the community can write both.
 
 ## External brain
 
-It works in reverse too. Numen can run an MCP **server** on your machine, letting an external AI client (Claude Desktop, Cursor, anything that speaks MCP) drive the companion in your world directly — mining, building, fighting, talking to you, all through that AI instead of the built-in brain.
+It works in reverse too. MineAI can run an MCP **server** on your machine, letting an external AI client (Claude Desktop, Cursor, anything that speaks MCP) drive the companion in your world directly — mining, building, fighting, talking to you, all through that AI instead of the built-in brain.
 
 While it's on, the built-in brain stands down completely; one body can't have two brains. Flip the switch in settings and the endpoint and access token are right there on that page, with the token generated randomly by default. See the [external brain docs](docs/mcp-server.md).
 
@@ -102,17 +102,17 @@ The companion you chat with is just the body this system wears. Underneath it ar
 - 🧍 **The body — a real player.** The companion is a server-side fake player (`ServerPlayer`), and every action goes through the vanilla player code path. That's why it plays by the same rules as redstone, mob AI, containers, and other people's mods without being told to.
 - 👁️ **The eyes — the perception API.** Self and world state, ranged block and entity scans, recipe lookup, single-block inspection, and reading what a machine holds (items, fluids, energy) without opening its GUI.
 - ✋ **The hands — the action API.** Movement, mining, placement, combat, driving any container or machine GUI, inventory management, locating structures and biomes.
-- 🔁 **A feedback loop that teaches.** Every tool return — success or failure — is written as a sentence that teaches the model how Minecraft works. "You can't mine iron ore by hand — equip a stone pickaxe at least" is that loop doing its job. The model decides its next step from ground truth it collected in the environment.
+- 🔁 **A feedback loop that teaches.** Every tool return — success or failure — is written as a sentence that teaches the model how Minecraft works. "You can't mine iron ore by hand — equip a stone pickaxe at least" is that loop doing its job. The model decides its next step from ground truth it collected in the environment. Whether a goal is met is also decided by code reading authoritative game state: the model cannot declare itself done — if it says "finished", the system still re-checks the condition, and an unmet goal is not accepted.
 
 On top of all that, **the brain runs on your own machine**: the agent loop lives in the owner's client and calls the LLM with the owner's API key. Everyone pays for their own usage, server owners don't foot the bill for the whole server, and you never hand your key to anyone. LLM transport has zero third-party runtime dependencies — just the JDK's `HttpClient` and Gson.
 
 ## FAQ
 
-**Does it cost money? Which model should I use?** Numen itself is free and open source; the LLM calls use your own key. For cheap, DeepSeek, Qwen, Kimi, or GLM will usually run a typical task for a fraction of a cent. For the smartest results, Claude or GPT. Faster and smarter models make for a better companion. Same story for the two voice services — your key, your bill.
+**Does it cost money? Which model should I use?** MineAI itself is free and open source; the LLM calls use your own key. For cheap, DeepSeek, Qwen, Kimi, or GLM will usually run a typical task for a fraction of a cent. For the smartest results, Claude or GPT. Faster and smarter models make for a better companion. Same story for the two voice services — your key, your bill.
 
 **Is my API key safe?** The brain runs in your own client. The key is stored locally and used only to connect directly to the backend you chose. It never passes through a third-party server and is never uploaded to the author.
 
-**Does it work on multiplayer servers?** Yes. The companion is a real player on the server, its actions are validated one by one server-side, and you can only drive your own. The server just needs Numen installed; each client brings their own key.
+**Does it work on multiplayer servers?** Yes. The companion is a real player on the server, its actions are validated one by one server-side, and you can only drive your own. The server just needs MineAI installed; each client brings their own key.
 
 **Will it tear down my base or go rogue?** It only does what a real player could do in survival, and every action is ownership-checked against its owner. It can't conjure items, and it won't touch things that aren't yours.
 
@@ -120,7 +120,7 @@ On top of all that, **the brain runs on your own machine**: the agent loop lives
 
 ## For developers
 
-Every tool and every skill Numen ships with is written against the public API — there are no private back channels. **Writing a [plugin](#extending-it) gets you the same capabilities**:
+Every tool and every skill MineAI ships with is written against the public API — there are no private back channels. **Writing a [plugin](#extending-it) gets you the same capabilities**:
 
 - 🔧 **Register a tool through `NumenGateway`** and your mod's capabilities become part of the AI's hands. The tool contract deliberately contains no Minecraft concepts — how a call completes (synchronously, asynchronously, sending its own packets, calling an external web service) is entirely up to the tool. That's why the same API reaches a chat platform as comfortably as it reaches an ore vein.
 - 📖 **Ship skills inside your jar** — one call turns your jar's `/skills` directory into built-in skills, so players who install your mod get an AI that already knows how to play it.
@@ -135,7 +135,7 @@ dependencies  { modCompileOnly "com.dwinovo.numen:numen-api-fabric-1.21.1:<versi
 
 The line differs per loader, and changing engine mechanics means depending on core instead — see [api/README_EN](api/README_EN.md#depend-on-it).
 
-Plugins and compatibility mods may use any license, including proprietary: work distributed separately that uses Numen through its API is not bound by the LGPL.
+Plugins and compatibility mods may use any license, including proprietary: work distributed separately that uses MineAI through its API is not bound by the LGPL.
 
 Building it yourself: clone the repo and run `./gradlew :core:fabric:build` (or `:core:neoforge:build`). Bugs, ideas, and compat experiments are all welcome — [open an issue](https://github.com/Dwinovo/minecraft-numen/issues), or write a skill and send a PR.
 
@@ -153,7 +153,7 @@ Building it yourself: clone the repo and run `./gradlew :core:fabric:build` (or 
 
 <sub><b>Licensing</b>: the source code is <a href="LICENSE">LGPL-3.0</a> — forks you distribute must stay open under the same license; plugins and compatibility mods distributed separately that use Numen through its API may use any license, including proprietary. The art &amp; assets are <a href="LICENSE-ASSETS">All Rights Reserved</a>, and the names "Numen" / "言出法随" are reserved. Built on the <a href="https://github.com/jaredlll08/MultiLoader-Template">MultiLoader Template</a>.</sub>
 
-<sub>Pathfinding draws on <a href="https://github.com/cabaletta/baritone">Baritone</a>'s publicly documented mechanics (weighted A*, partial-path commitment, in-flight cost re-verification), but Baritone is a client-side mod driving the local player while Numen drives a server-side fake player, with movement, digging and placement all going through server APIs. <b>No source was copied, ported, or adapted from it</b>; the LGPL-3.0 licence is Numen's own choice, not a consequence of Baritone's.</sub>
+<sub>Pathfinding draws on <a href="https://github.com/cabaletta/baritone">Baritone</a>'s publicly documented mechanics (weighted A*, partial-path commitment, in-flight cost re-verification), but Baritone is a client-side mod driving the local player while MineAI drives a server-side fake player, with movement, digging and placement all going through server APIs. <b>No source was copied, ported, or adapted from it</b>; the LGPL-3.0 licence is Numen's own choice, not a consequence of Baritone's.</sub>
 
 <sub>The spatial representation fed to the model is an egocentric semantic character grid rather than a list of raw coordinates. The formatting principle comes from Gao et al., <i>Exploring Spatial Representation to Enhance LLM Reasoning in Aerial Vision-Language Navigation</i> (arXiv:2410.08500, 2024), adapted to three dimensions for the verticality of a block world.</sub>
 

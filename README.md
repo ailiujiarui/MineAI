@@ -1,6 +1,6 @@
 <div align="center">
 
-# Numen · 言出法随
+# MineAI · 言出法随
 
 ### 一个住在你世界里的 AI 同伴
 
@@ -18,12 +18,12 @@
 </div>
 
 <p align="center">
-  <img src="docs/numen-demo.gif" alt="Numen 实机演示：砍树 · 挖矿 · 合成 · 战斗 · 联动 Mekanism" width="640">
+  <img src="docs/numen-demo.gif" alt="MineAI 实机演示：砍树 · 挖矿 · 合成 · 战斗 · 联动 Mekanism" width="640">
 </p>
 
 ---
 
-Numen 在你的世界里放一个 AI 同伴。你用自然语言把要做的事告诉它——打字或者按住 `V` 直接说，你的模型会的任何语言都行——它自己拆解成几十步动作、规划路线、选对工具、随机应变，一口气干完。
+MineAI 是一个基于 [Numen](https://github.com/Dwinovo/minecraft-numen) 的二开项目：它在你世界里放一个 AI 同伴。你用自然语言把要做的事告诉它——打字或者按住 `V` 直接说，你的模型会的任何语言都行——它自己拆解成几十步动作、规划路线、选对工具、随机应变，一口气干完。
 
 它不是个会聊天的 NPC。它是服务端的一个真玩家，挖矿、走路、挥剑、开箱子，每个动作都走原生玩家代码路径，和红石、怪物 AI、别人的 mod 站在同一套规则里。
 
@@ -31,9 +31,9 @@ Numen 在你的世界里放一个 AI 同伴。你用自然语言把要做的事�
 
 ```
 你：    挖一组铁矿回来
-Numen： 这就去。下矿找铁。
+MineAI： 这就去。下矿找铁。
         ▸ 4 步 · locate_biome · move_to · auto_mine · collect_items   ✔
-Numen： 拿到 64 个粗铁——要我熔了吗？
+MineAI： 拿到 64 个粗铁——要我熔了吗？
 ```
 
 ## 快速开始
@@ -51,7 +51,7 @@ Numen： 拿到 64 个粗铁——要我熔了吗？
 
 > **说话和听见**：语音输入内置七个预设，其中阿里云百炼和豆包是流式的，边说边转写。同伴也能出声，语音输出支持阿里云百炼、Fish Audio、GPT-SoVITS、MiniMax 和任意 OpenAI 兼容 TTS，配好音色后它会边生成边念，不用等整段说完。
 
-> **macOS 语音输入**：麦克风权限声明在启动器 `.app` 的 `Info.plist` 里，而 mod 跑在 Java 子进程中，补不了这层声明，所以要用声明了麦克风权限的启动器，推荐 [Prism Launcher](https://prismlauncher.org/)。首次使用时允许麦克风访问，之后可在「系统设置 → 隐私与安全性 → 麦克风」里检查。启动器只负责这个授权入口，录音和语音识别仍由 Numen 和你配置的服务完成。
+> **macOS 语音输入**：麦克风权限声明在启动器 `.app` 的 `Info.plist` 里，而 mod 跑在 Java 子进程中，补不了这层声明，所以要用声明了麦克风权限的启动器，推荐 [Prism Launcher](https://prismlauncher.org/)。首次使用时允许麦克风访问，之后可在「系统设置 → 隐私与安全性 → 麦克风」里检查。启动器只负责这个授权入口，录音和语音识别仍由 MineAI 和你配置的服务完成。
 
 ## 能做什么
 
@@ -91,7 +91,7 @@ Numen： 拿到 64 个粗铁——要我熔了吗？
 
 ## 外接大脑
 
-反过来也行：Numen 能在你本机起一个 MCP **服务器**，让外部 AI 客户端（Claude Desktop、Cursor，或任何支持 MCP 的东西）直接驱动你世界里的同伴——挖矿、建造、战斗、跟你说话，全部经由那个 AI。
+反过来也行：MineAI 能在你本机起一个 MCP **服务器**，让外部 AI 客户端（Claude Desktop、Cursor，或任何支持 MCP 的东西）直接驱动你世界里的同伴——挖矿、建造、战斗、跟你说话，全部经由那个 AI。
 
 开启期间内置大脑完全停手，同一具身体不能有两个大脑。设置里按开关即开，端点和访问令牌就在那一页，令牌默认随机生成。详见 [外接大脑文档](docs/mcp-server.md)。
 
@@ -102,17 +102,17 @@ Numen： 拿到 64 个粗铁——要我熔了吗？
 - 🧍 **身体——一具真玩家。** 同伴是服务端的假玩家（`ServerPlayer`），每个动作都走原生玩家代码路径。这意味着它天生就和红石、怪物 AI、容器、以及别人的 mod 站在同一套规则里。
 - 👁️ **眼睛——感知 API。** 自身与世界的状态、范围方块与实体扫描、配方查询、单块检视，以及不开 GUI 就读出一台机器装着什么（物品、流体、能量）。
 - ✋ **双手——行动 API。** 移动、挖矿、放置、战斗、驱动任意容器/机器 GUI、管理背包、定位结构与群系。
-- 🔁 **反馈回路。** 每一次工具返回——无论成功还是失败——都被写成教模型"Minecraft 怎么玩"的一句话。"徒手挖不动铁矿——至少装备一把石镐"，就是这套回路在干活。模型靠在环境里拿到的真实反馈决定下一步。
+- 🔁 **反馈回路。** 每一次工具返回——无论成功还是失败——都被写成教模型"Minecraft 怎么玩"的一句话。"徒手挖不动铁矿——至少装备一把石镐"，就是这套回路在干活。模型靠在环境里拿到的真实反馈决定下一步。做没做完也不由它自己说了算：目标是否达成由代码读权威游戏状态判定，它说"做完了"系统仍会按条件复核，没达成就不算数。
 
 **大脑跑在你自己的机器上**：agent loop 在 owner 的客户端、用 owner 的 API key 调 LLM，每个玩家各付各的用量，服主不必替所有人买单，你也不必上交 key。LLM 传输零第三方运行时依赖，只用 JDK 的 `HttpClient` + Gson。
 
 ## 常见问题
 
-**要花钱吗？用哪个模型好？** Numen 本身开源免费，调用大模型用的是你自己的 key。想省钱用 DeepSeek、Qwen、Kimi、GLM，一次典型任务通常几分钱；想要最聪明用 Claude、GPT。模型越快越聪明，同伴表现越好。语音那两项同理，各用各的 key。
+**要花钱吗？用哪个模型好？** MineAI 本身开源免费，调用大模型用的是你自己的 key。想省钱用 DeepSeek、Qwen、Kimi、GLM，一次典型任务通常几分钱；想要最聪明用 Claude、GPT。模型越快越聪明，同伴表现越好。语音那两项同理，各用各的 key。
 
 **我的 API key 安全吗？** 大脑跑在你自己的客户端，key 只存在本地、只用于直连你选的后端，不经过任何第三方服务器，也不会上传给作者。
 
-**联机服能用吗？** 能。同伴是服务端的真玩家，动作由服务端逐一校验，你只能驱动自己的同伴。服务端只需装 Numen，客户端各自填各自的 key。
+**联机服能用吗？** 能。同伴是服务端的真玩家，动作由服务端逐一校验，你只能驱动自己的同伴。服务端只需装 MineAI，客户端各自填各自的 key。
 
 **它会拆我家、乱来吗？** 它只做生存里一个真玩家能做的事，且每个动作都归属校验到它的主人——不会凭空造物，也不碰不属于你的东西。
 
@@ -120,7 +120,7 @@ Numen： 拿到 64 个粗铁——要我熔了吗？
 
 ## 给开发者
 
-Numen 出厂的每一个工具、每一篇技能，全部只用公共 API 写成，没有任何私有通道。**写[插件](#扩展它)拿到的是同一份能力**：
+MineAI 出厂的每一个工具、每一篇技能，全部只用公共 API 写成，没有任何私有通道。**写[插件](#扩展它)拿到的是同一份能力**：
 
 - 🔧 **`NumenGateway` 注册工具**——你 mod 的能力就长在了 AI 的手上。工具契约里刻意不含任何 Minecraft 概念，怎么完成调用（同步、异步、自己发包、调外部网络服务）由工具自己做主。正因如此，同一套 API 伸向一个聊天平台，和伸向一条矿脉一样顺手。
 - 📖 **随 jar 附带技能**——一句调用就把你 jar 里的 `/skills` 目录变成内置技能。
@@ -135,7 +135,7 @@ dependencies  { modCompileOnly "com.dwinovo.numen:numen-api-fabric-1.21.1:<versi
 
 加载器不同写法不同，要改引擎机制则改依赖 core——详见 [api/README](api/README.md#如何依赖)。
 
-插件和兼容模组可以采用任何协议，包括闭源：单独发布、通过 API 使用 Numen 的作品不受 LGPL 约束。
+插件和兼容模组可以采用任何协议，包括闭源：单独发布、通过 API 使用 MineAI 的作品不受 LGPL 约束。
 
 自己构建：克隆仓库，`./gradlew :core:fabric:build`（或 `:core:neoforge:build`）。Bug、点子、兼容实验都欢迎——[开个 issue](https://github.com/Dwinovo/minecraft-numen/issues)，或者写一篇技能提 PR。
 
@@ -153,7 +153,7 @@ dependencies  { modCompileOnly "com.dwinovo.numen:numen-api-fabric-1.21.1:<versi
 
 <sub><b>授权</b>：源代码采用 <a href="LICENSE">LGPL-3.0</a>——你分发的修改版必须以同协议继续开源；单独发布、通过 API 使用 Numen 的插件与兼容模组可以采用任何协议，包括闭源。美术与资源为 <a href="LICENSE-ASSETS">保留所有权利</a>，"Numen" / "言出法随" 名称亦予保留。基于 <a href="https://github.com/jaredlll08/MultiLoader-Template">MultiLoader Template</a> 构建。</sub>
 
-<sub>寻路借鉴了 <a href="https://github.com/cabaletta/baritone">Baritone</a> 的公开机制（加权 A*、部分路径提交、执行期成本复核），但 Baritone 是客户端模组、操控本机玩家，Numen 驱动的是服务端假玩家，移动/挖掘/放置全走服务端 API。<b>未复制、移植或改写其任何源码</b>；LGPL-3.0 是自主选择，与其无衍生关系。</sub>
+<sub>寻路借鉴了 <a href="https://github.com/cabaletta/baritone">Baritone</a> 的公开机制（加权 A*、部分路径提交、执行期成本复核），但 Baritone 是客户端模组、操控本机玩家，MineAI 驱动的是服务端假玩家，移动/挖掘/放置全走服务端 API。<b>未复制、移植或改写其任何源码</b>；LGPL-3.0 是自主选择，与其无衍生关系。</sub>
 
 <sub>喂给大模型的空间感知用「自我中心的语义字符网格」而不是坐标列表，格式原则取自 Gao 等，<i>Exploring Spatial Representation to Enhance LLM Reasoning in Aerial Vision-Language Navigation</i>（arXiv:2410.08500, 2024），并针对方块世界做了三维适配。</sub>
 
