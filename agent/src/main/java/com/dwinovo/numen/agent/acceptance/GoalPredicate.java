@@ -52,6 +52,10 @@ public interface GoalPredicate {
             return ProbePredicate.all("", List.of());
         }
         String kind = o.has("kind") ? o.get("kind").getAsString() : "probes";
-        return "item".equals(kind) ? ObjectivePredicate.fromJson(o) : ProbePredicate.fromJson(o);
+        return switch (kind) {
+            case "item" -> ObjectivePredicate.fromJson(o);
+            case "decision" -> DecisionPredicate.fromJson(o);
+            default -> ProbePredicate.fromJson(o);
+        };
     }
 }

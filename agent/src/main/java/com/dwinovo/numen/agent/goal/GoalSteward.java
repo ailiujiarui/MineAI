@@ -7,8 +7,6 @@ import com.dwinovo.numen.agent.llm.ConvoState;
 import com.dwinovo.numen.agent.loop.AgentLoop;
 import com.dwinovo.numen.agent.loop.Hold;
 import com.dwinovo.numen.agent.loop.LoopEvent;
-import com.dwinovo.numen.agent.loop.ModelOutcome;
-import com.dwinovo.numen.agent.loop.ModelRequest;
 import com.dwinovo.numen.agent.loop.RunEnd;
 import com.dwinovo.numen.ai.AiLog;
 
@@ -42,6 +40,8 @@ public final class GoalSteward {
     private final Supplier<String> runtimeState;
     private final BooleanSupplier bodyOnFiniteTask;
     private final Consumer<GoalState> persist;
+    /** 判官:默认另开一次模型调用({@link LlmGoalJudge}),可换成 JEV。 */
+    private final GoalJudge judge;
 
     /** 当前的长期目标;{@code null} = 没有。 */
     private GoalState goal;
@@ -59,6 +59,14 @@ public final class GoalSteward {
     public GoalSteward(String name, AgentLoop loop, ConvoState convo, EventQueue inbox,
                        Supplier<String> runtimeState, BooleanSupplier bodyOnFiniteTask,
                        Consumer<GoalState> persist, GoalState restored) {
+        this(name, loop, convo, inbox, runtimeState, bodyOnFiniteTask, persist, restored,
+                new LlmGoalJudge(loop));
+    }
+
+    /** 换一个判官(比如 JEV);其余不变。 */
+    public GoalSteward(String name, AgentLoop loop, ConvoState convo, EventQueue inbox,
+                       Supplier<String> runtimeState, BooleanSupplier bodyOnFiniteTask,
+                       Consumer<GoalState> persist, GoalState restored, GoalJudge judge) {
         this.name = name;
         this.loop = loop;
         this.convo = convo;
@@ -67,6 +75,7 @@ public final class GoalSteward {
         this.bodyOnFiniteTask = bodyOnFiniteTask;
         this.persist = persist;
         this.goal = restored;
+        this.judge = judge == null ? new LlmGoalJudge(loop) : judge;
     }
 
     /** 当前的长期目标;{@code null} = 没有。 */
@@ -177,13 +186,9 @@ public final class GoalSteward {
      */
     private void judge() {
         GoalState target = goal;
-        ModelRequest request = new ModelRequest(
-                List.of(new ConvoState.Msg.User(
-                        GoalPrompts.evaluatorQuery(target, runtimeState.get(), sinceGoalForJudge()))),
-                List.of(), GoalPrompts.evaluatorSystem());
         CancelToken cancel = new CancelToken();
         judging = cancel;
-        loop.consult(LoopEvent.Purpose.GOAL, request, cancel, outcome -> {
+        judge.judge(target, runtimeState.get(), sinceGoalForJudge(), cancel, outcome -> {
             judging = null;
             finish(target, outcome);
         });
@@ -196,19 +201,18 @@ public final class GoalSteward {
         }
     }
 
-    private void finish(GoalState judged, ModelOutcome outcome) {
+    private void finish(GoalState judged, GoalJudge.Outcome outcome) {
         // 判的是上一个目标 —— 这次结果作废。
         if (goal == null || goal != judged) {
             return;
         }
-        if (outcome instanceof ModelOutcome.Failed failed) {
+        if (!outcome.ok()) {
             // 判不出来不等于做完了。歇一轮,下次做完再判。
-            AiLog.LOG.warn("[numen-entity#{}] 目标评估失败,这一轮先不续:{}", name, failed.words());
+            AiLog.LOG.warn("[numen-entity#{}] 目标评估失败,这一轮先不续:{}", name, outcome.failure());
             return;
         }
-        ModelOutcome.Answered answered = (ModelOutcome.Answered) outcome;
-        goal.addTokens(answered.usage().fresh());
-        var verdict = GoalPrompts.readVerdict(answered.turn().content());
+        goal.addTokens(outcome.freshTokens());
+        var verdict = outcome.verdict();
         goal.setLastReason(verdict.reason());
         boolean giveUp = goal.noteStuck(verdict.stuck());
         AiLog.LOG.info("[numen-entity#{}] 目标评估 第{}轮 {}:{}", name, goal.turnsExecuted(),
