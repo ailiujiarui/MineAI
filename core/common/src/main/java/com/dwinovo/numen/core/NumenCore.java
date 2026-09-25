@@ -61,6 +61,12 @@ public final class NumenCore {
         // 原版四件甲是第一处穿戴来源,和模组的饰品栏走同一扇门;内嵌联动在这之后才开闸,所以原版排在最前
         com.dwinovo.numen.api.NumenPlugins.register(numen ->
                 numen.registerGear(new com.dwinovo.numen.core.gear.VanillaArmor()));
+        // numen adapter reload / list:热重载模组适配器
+        com.dwinovo.numen.api.NumenPlugins.register(
+                com.dwinovo.numen.core.adapter.AdapterCommands::install);
+        // 数据适配器的装备路由:按适配文件里的容器名转发给处理器(没有处理器则等于没生效)
+        com.dwinovo.numen.api.NumenPlugins.register(numen ->
+                numen.registerGear(new com.dwinovo.numen.adapter.AdapterGearSource()));
         registerReflexes();
         enlistReflexRoster();
         Constants.LOG.info("[numen-core] registered {} tool(s), {} task type(s); survival chains enabled",

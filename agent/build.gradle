@@ -10,7 +10,11 @@
 // CompletionGuard、白名单 Whitelist、RCON 靶场与 Harness 报告——装在工具层外面,不改工具与内核)、
 // agent.decision/utility/bt/control(控制层:JEV 判断口、Utility 仲裁、行为树运行时、
 // 事件驱动的 AgentController——LLM 被收在边界节点里,出不了内循环)、
-// agent.plan(确定性执行:配方递归展开 GapCalculator、目标编译成行为树 Compiler)。
+// agent.plan(确定性执行:配方递归展开 GapCalculator、目标编译成行为树 Compiler)、
+// agent.recover(失败恢复:FailureClassifier、RecoveryPolicy、ProgressTracker、
+// 行为树上的 Recover 装饰——失败局部化、有界恢复)、
+// agent.adapter(模组适配框架:声明式 AdapterSpec、AdapterRegistry、目录热重载与 fail-soft——
+// 纯数据翻译表,世界操作由宿主按表去做)。
 plugins {
     id 'java-library'
     id 'maven-publish'

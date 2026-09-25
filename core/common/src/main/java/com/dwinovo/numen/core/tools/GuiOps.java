@@ -23,6 +23,21 @@ public final class GuiOps {
         if (menu == null) {
             return TaskResult.fail("no GUI open.").toJson();
         }
+        // 数据适配器:专用菜单的数据不在原版槽位数组里(BD 的服务端槽位是 -1、数据在客户端渲染)。
+        // 按菜单 id 匹配适配文件里的 gui 规则,有处理器就交给它读,别走会读空的通用转储。
+        String adapterMenu = menuId(menu);
+        if (adapterMenu != null) {
+            var adapterRoute = com.dwinovo.numen.adapter.AdapterManager.registry().gui(adapterMenu);
+            if (adapterRoute.isPresent()) {
+                var handler = com.dwinovo.numen.adapter.AdapterHandlers.gui(adapterRoute.get().source());
+                if (handler != null) {
+                    com.google.gson.JsonObject read = handler.read(self, menu, adapterRoute.get().source());
+                    if (read != null) {
+                        return TaskResult.ok(read.toString()).toJson();
+                    }
+                }
+            }
+        }
         // With no block menu open, containerMenu IS your own InventoryMenu — which carries the 2x2
         // crafting grid. Surface it so the model can craft small recipes without a table.
         boolean ownInventory = menu == self.inventoryMenu;
@@ -116,6 +131,12 @@ public final class GuiOps {
                 + dataLine
                 + "tip: transfer {from} (no `to`) routes a whole stack to the other section; add `to`"
                 + " + `count` for an exact move into a specific slot.").toJson();
+    }
+
+    private static String menuId(AbstractContainerMenu menu) {
+        var type = menu.getType();
+        var key = BuiltInRegistries.MENU.getKey(type);
+        return key == null ? null : key.toString();
     }
 
     private static String describe(ItemStack stack) {

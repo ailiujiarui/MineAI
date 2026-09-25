@@ -298,6 +298,17 @@ int z,
             return TaskResult.fail("block at " + coord + " is air — nothing to read.").toJson();
         }
         String id = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+        // 数据适配器:这个方块在适配文件里指定了容器处理器,就交给它读
+        var adapterRoute = com.dwinovo.numen.adapter.AdapterManager.registry().container(id);
+        if (adapterRoute.isPresent()) {
+            var handler = com.dwinovo.numen.adapter.AdapterHandlers.container(adapterRoute.get().access());
+            if (handler != null) {
+                JsonObject read = handler.read(self, pos, adapterRoute.get().access());
+                if (read != null) {
+                    return TaskResult.ok(id + " at " + coord + ":\n" + read).toJson();
+                }
+            }
+        }
         String caps = Services.CAPS.describe(self.level(), pos);
         if (caps == null || caps.isBlank()) {
             return TaskResult.ok(id + " at " + coord + " exposes no item/fluid/energy storage "

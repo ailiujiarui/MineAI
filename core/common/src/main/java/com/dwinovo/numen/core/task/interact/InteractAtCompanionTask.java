@@ -74,6 +74,22 @@ public final class InteractAtCompanionTask extends GoToThenDoTask<InteractAtTask
 
     @Override
     protected TaskState act() {
+        // 数据适配器的右键意图优先:模型手上这件物品在适配文件里挂了 intent(如 TaCZ 开火),
+        // 且该 intent 有处理器,就交给它,别走原版(原版没有 use 钩子的枪本来点不动)。
+        if (interaction == null && r.item != null) {
+            String adapterItem = BuiltInRegistries.ITEM.getKey(r.item).toString();
+            var adapterRoute = com.dwinovo.numen.adapter.AdapterManager.registry().use(adapterItem);
+            if (adapterRoute.isPresent()) {
+                var handler = com.dwinovo.numen.adapter.AdapterHandlers.use(adapterRoute.get().intent());
+                if (handler != null) {
+                    player.holdInHand(PlayerInv.findSlot(player.getInventory(), r.item));
+                    if (handler.act(player, adapterItem)) {
+                        successMsg = "adapter handled " + adapterRoute.get().intent();
+                        return TaskState.SUCCESS;
+                    }
+                }
+            }
+        }
         // Resolve the crosshair once we're in position, then drive the action.
         if (interaction == null) {
             if (r.item != null) {

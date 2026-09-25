@@ -19,6 +19,9 @@ public class CommonClass {
         java.nio.file.Path numenDir = NumenPaths.config();
         com.dwinovo.numen.config.ConfigMigrations.run(numenDir);
 
+        // 模组适配器:启动时从 config/numen/adapters/ 装载(纯数据、fail-soft);/numen adapter reload 热重载
+        com.dwinovo.numen.adapter.AdapterManager.init();
+
         registerTools();
         com.dwinovo.numen.cli.NumenCli.registerArgumentTypes();
         wireTaskMachine();
