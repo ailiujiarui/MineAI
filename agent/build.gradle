@@ -5,7 +5,9 @@
 // 1.21.1),所以发布坐标带分支后缀,见下方 artifactId。
 //
 // 现住户:agent.inbox(输入队列 EventQueue、类型表 EventTypes、落盘 JsonlJournal)、
-// agent.goal(长期目标 GoalState 与三段提示词 GoalPrompts)。
+// agent.goal(长期目标 GoalState 与三段提示词 GoalPrompts)、
+// agent.acceptance(验收骨骼:ActionQueue、MineAI 式机器判据 Objective/GoalPredicate、
+// CompletionGuard、白名单 Whitelist、RCON 靶场与 Harness 报告——装在工具层外面,不改工具与内核)。
 plugins {
     id 'java-library'
     id 'maven-publish'
