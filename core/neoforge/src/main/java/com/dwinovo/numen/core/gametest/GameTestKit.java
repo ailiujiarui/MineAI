@@ -93,6 +93,23 @@ public final class GameTestKit {
                 companion.getYRot(), companion.getXRot());
     }
 
+    /**
+     * 她打开的界面里,她自己背包那一段第一个装着 {@code item} 的格子号(AIR = 第一个空格)——模型从
+     * inspect_gui 读到的就是它。别拿"背包槽 + 固定偏移"去凑:假玩家的物品先落快捷栏,而快捷栏在界面的
+     * 末段,偏移随物品落在哪一段而变。
+     */
+    static int menuSlotOf(NumenPlayer companion, net.minecraft.world.item.Item item) {
+        var slots = companion.containerMenu.slots;
+        for (int i = 0; i < slots.size(); i++) {
+            var slot = slots.get(i);
+            if (slot.container == companion.getInventory()
+                    && (item == Items.AIR ? slot.getItem().isEmpty() : slot.getItem().is(item))) {
+                return i;
+            }
+        }
+        throw new IllegalStateException("no slot of hers holds " + item);
+    }
+
     static boolean carries(NumenPlayer companion, net.minecraft.world.item.Item item) {
         var inv = companion.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {

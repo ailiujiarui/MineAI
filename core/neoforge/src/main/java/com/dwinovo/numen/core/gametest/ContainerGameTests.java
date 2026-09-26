@@ -157,17 +157,4 @@ public class ContainerGameTests {
                 .thenExecute(() -> CompanionFactory.despawn(helper.getLevel().getServer(), companion))
                 .thenSucceed();
     }
-
-    /** 她打开的界面里,她自己背包那一段第一个装着 {@code item} 的格子号(AIR = 第一个空格)——模型从 inspect_gui 读到的就是它。 */
-    private static int menuSlotOf(NumenPlayer companion, net.minecraft.world.item.Item item) {
-        var slots = companion.containerMenu.slots;
-        for (int i = 0; i < slots.size(); i++) {
-            var slot = slots.get(i);
-            if (slot.container == companion.getInventory()
-                    && (item == Items.AIR ? slot.getItem().isEmpty() : slot.getItem().is(item))) {
-                return i;
-            }
-        }
-        throw new IllegalStateException("no slot of hers holds " + item);
-    }
 }
