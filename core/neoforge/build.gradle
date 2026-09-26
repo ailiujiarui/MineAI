@@ -22,6 +22,7 @@ dependencies {
     compileOnly project(':plugins:kaleidoscope')
     compileOnly project(':plugins:curios')
     compileOnly project(':plugins:mekanism')
+    compileOnly project(':plugins:jei')
     compileOnly project(':plugins:ftbquests')
     // Bundle it into core's jar (Jar-in-Jar) so players install one file and get both mods.
     jarJar(project(':api:neoforge'))
@@ -99,6 +100,7 @@ tasks.named('jar', Jar) {
     from({ project(':plugins:kaleidoscope').sourceSets.main.output })
     from({ project(':plugins:curios').sourceSets.main.output })
     from({ project(':plugins:mekanism').sourceSets.main.output })
+    from({ project(':plugins:jei').sourceSets.main.output })
     from({ project(':plugins:ftbquests').sourceSets.main.output })
 }
 
@@ -110,8 +112,13 @@ tasks.named('jar', Jar) {
 // 就 NoClassDefFoundError。这里把插件的编译产物并进本模组输出;发布路径仍由上面的 from 平铺。
 sourceSets.main.output.dir(project(':plugins:mekanism').layout.buildDirectory.dir('classes/java/main'),
         builtBy: ':plugins:mekanism:classes')
+sourceSets.main.output.dir(project(':plugins:jei').layout.buildDirectory.dir('classes/java/main'),
+        builtBy: ':plugins:jei:classes')
 processResources {
     from({ project(':plugins:mekanism').sourceSets.main.output.resourcesDir }) {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+    from({ project(':plugins:jei').sourceSets.main.output.resourcesDir }) {
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 }

@@ -1,0 +1,18 @@
+plugins { id 'numen-plugin' }
+
+// JEI 是客户端模组:对着 NeoForge + JEI 的公开 API 编译,只在客户端跑。
+neoForge { version = neoforge_version }
+
+repositories {
+    exclusiveContent {
+        forRepository { maven { name = 'BlameJared'; url = 'https://maven.blamejared.com' } }
+        filter { includeGroup 'mezz.jei' }
+    }
+}
+
+dependencies {
+    compileOnly files(project(':api:neoforge').tasks.named('apiJar'))
+    // 只对着 JEI 的公开 API 编译(官方 maven,official 映射);运行时由玩家自己装的那份提供。
+    // 版本选与项目 NeoForge(21.1.233)兼容的:19.40+ 起要求 neoforge >=21.1.238。
+    compileOnly 'mezz.jei:jei-1.21.1-neoforge:19.39.0.370'
+}
