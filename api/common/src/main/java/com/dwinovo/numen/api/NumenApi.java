@@ -1,6 +1,7 @@
 package com.dwinovo.numen.api;
 
 import com.dwinovo.numen.agent.tool.NumenTool;
+import com.dwinovo.numen.api.adapter.AdapterHandlers;
 import com.dwinovo.numen.api.gear.GearSource;
 import com.dwinovo.numen.cli.CommandGroup;
 import com.dwinovo.numen.entity.NumenPlayer;
@@ -161,6 +162,27 @@ public interface NumenApi {
      * <p>穿戴发生在服务端,所以在 {@code NumenPlugins.register} 的块里直接调,别放进 {@link #onClient}。
      */
     void registerGear(GearSource source);
+
+    /**
+     * 服务端:登记一个"物品右键意图"的处理器。适配文件里给某类物品挂了 {@code intent}
+     * (如 TaCZ 的开火),{@code interact_at} 下手前先问这里;处理器说处理了就不走原版。
+     *
+     * <p>处理器抛 {@code RuntimeException}/{@code LinkageError} 时按"没生效"处理并记进健康状态,
+     * 不打穿任务链。在 {@code NumenPlugins.register} 的块里调。
+     */
+    void registerUseHandler(String intent, AdapterHandlers.UseHandler handler);
+
+    /**
+     * 服务端:登记一个专用菜单读取处理器。适配文件里给某个 {@code menu} 指定了 {@code source},
+     * {@code inspect_gui} 按菜单 id 命中后交给它读(适合数据不在原版槽位数组里的机器)。
+     */
+    void registerGuiHandler(String source, AdapterHandlers.GuiHandler handler);
+
+    /** 服务端:登记一个方块容器读取处理器,适配文件里的 {@code containers[].access} 按名命中它。 */
+    void registerContainerHandler(String access, AdapterHandlers.ContainerHandler handler);
+
+    /** 服务端:按名字登记一处装备来源,供数据适配器的 {@code equipRoutes[].container} 路由。 */
+    void registerGearHandler(String name, GearSource source);
 
     /**
      * 登记一种事件——同伴身上会发生、她该知道的一种事(比如饰品插件的 {@code accessory_changed})。

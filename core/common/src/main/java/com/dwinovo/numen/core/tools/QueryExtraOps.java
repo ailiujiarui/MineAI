@@ -301,7 +301,7 @@ int z,
         // 数据适配器:这个方块在适配文件里指定了容器处理器,就交给它读
         var adapterRoute = com.dwinovo.numen.adapter.AdapterManager.registry().container(id);
         if (adapterRoute.isPresent()) {
-            var handler = com.dwinovo.numen.adapter.AdapterHandlers.container(adapterRoute.get().access());
+            var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.container(adapterRoute.get().access());
             if (handler != null) {
                 JsonObject read = handler.read(self, pos, adapterRoute.get().access());
                 if (read != null) {

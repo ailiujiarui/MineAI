@@ -12,28 +12,37 @@ import java.util.function.Function;
  * 一个模组适配器:纯声明式的"翻译表",不含代码。
  *
  * <p>它只回答几类问题——"这件物品该进哪个槽""这个方块/菜单怎么读""这个物品的右键是什么意思"。
- * 目标 mod 在场时由加载器装载,失败/缺字段就当这条规则不存在(fail-soft)。因为全是数据,
- * 改完重读文件即可,不用重编译、不用重启。
+ * 目标 mod 在场、schema 认得、依赖的处理器都在,才装载;否则记一条<b>带原因</b>的 skipped,
+ * 不影响其余(fail-soft)。因为全是数据,改完重读文件即可。
  *
  * <p>纯 JVM,不碰 Minecraft。
  *
  * @param id          适配器 id(文件内唯一)
  * @param targetMod   目标模组 id;不在场则整条跳过
- * @param side        跑在哪一侧
+ * @param side        跑在哪一侧;v1 只支持 {@link Side#SERVER}
+ * @param schema      声明格式版本;比引擎认得的新就跳过(否则旧 JSON 会被静默按默认值解析)
+ * @param enabled     关掉就跳过,不用删文件
+ * @param priority    多条规则命中同一物品时,分高者胜;同分按 id 字典序(确定性)
+ * @param requires    依赖的处理器名;缺一个就跳过并写明
  * @param slotMaps    槽位映射(饰品/装备栏)
  * @param equipRoutes equip_item 的路由
  * @param containers  方块容器怎么访问
  * @param guis        菜单(GUI)怎么读
  * @param useRoutes   物品右键(开火/换弹等)的意图
  */
-public record AdapterSpec(String id, String targetMod, Side side,
+public record AdapterSpec(String id, String targetMod, Side side, int schema, boolean enabled, int priority,
+                          List<String> requires,
                           List<SlotMap> slotMaps, List<EquipRoute> equipRoutes,
                           List<ContainerRoute> containers, List<GuiRoute> guis,
                           List<UseRoute> useRoutes) {
 
+    /** 引擎当前认得的声明格式版本。 */
+    public static final int CURRENT_SCHEMA = 1;
+
     public AdapterSpec {
         targetMod = targetMod == null ? "" : targetMod;
-        side = side == null ? Side.BOTH : side;
+        side = side == null ? Side.SERVER : side;
+        requires = List.copyOf(requires);
         slotMaps = List.copyOf(slotMaps);
         equipRoutes = List.copyOf(equipRoutes);
         containers = List.copyOf(containers);
@@ -72,7 +81,7 @@ public record AdapterSpec(String id, String targetMod, Side side,
         }
     }
 
-    /** 方块容器怎么访问:{@code access} 是宿主认的处理名(vanilla / curios / bd-storage …)。 */
+    /** 方块容器怎么访问:{@code access} 是宿主认的处理器名(vanilla / curios / bd-storage …)。 */
     public record ContainerRoute(String block, String access) {
         static ContainerRoute fromJson(JsonObject o) {
             return new ContainerRoute(str(o, "block"), str(o, "access"));
@@ -86,7 +95,7 @@ public record AdapterSpec(String id, String targetMod, Side side,
         }
     }
 
-    /** 菜单怎么读:跑在哪一侧、服务端索引、数据来源名。 */
+    /** 菜单怎么读:跑在哪一侧、服务端索引、处理器名。 */
     public record GuiRoute(String menu, Side readSide, int serverIndex, String source) {
         static GuiRoute fromJson(JsonObject o) {
             return new GuiRoute(str(o, "menu"), Side.from(strOr(o, "read", "server")),
@@ -122,6 +131,12 @@ public record AdapterSpec(String id, String targetMod, Side side,
         o.addProperty("id", id);
         o.addProperty("targetMod", targetMod);
         o.addProperty("side", side.name().toLowerCase());
+        o.addProperty("schema", schema);
+        o.addProperty("enabled", enabled);
+        o.addProperty("priority", priority);
+        JsonArray req = new JsonArray();
+        requires.forEach(req::add);
+        o.add("requires", req);
         addAll(o, "slotMaps", slotMaps, SlotMap::toJson);
         addAll(o, "equipRoutes", equipRoutes, EquipRoute::toJson);
         addAll(o, "containers", containers, ContainerRoute::toJson);
@@ -135,7 +150,9 @@ public record AdapterSpec(String id, String targetMod, Side side,
         if (id.isBlank()) {
             throw new IllegalArgumentException("adapter 缺少 id");
         }
-        return new AdapterSpec(id, str(o, "targetMod"), Side.from(strOr(o, "side", "both")),
+        return new AdapterSpec(id, str(o, "targetMod"), Side.from(strOr(o, "side", "server")),
+                numOr(o, "schema", CURRENT_SCHEMA), boolOr(o, "enabled", true), numOr(o, "priority", 0),
+                strings(o, "requires"),
                 list(o, "slotMaps", SlotMap::fromJson),
                 list(o, "equipRoutes", EquipRoute::fromJson),
                 list(o, "containers", ContainerRoute::fromJson),
@@ -155,7 +172,27 @@ public record AdapterSpec(String id, String targetMod, Side side,
     }
 
     private static int num(JsonObject o, String key) {
-        return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsInt() : -1;
+        return numOr(o, key, -1);
+    }
+
+    private static int numOr(JsonObject o, String key, int fallback) {
+        return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsInt() : fallback;
+    }
+
+    private static boolean boolOr(JsonObject o, String key, boolean fallback) {
+        return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsBoolean() : fallback;
+    }
+
+    private static List<String> strings(JsonObject o, String key) {
+        List<String> out = new ArrayList<>();
+        if (o.has(key) && o.get(key).isJsonArray()) {
+            for (JsonElement el : o.getAsJsonArray(key)) {
+                if (el.isJsonPrimitive()) {
+                    out.add(el.getAsString());
+                }
+            }
+        }
+        return out;
     }
 
     private static ItemSelector selector(JsonObject o, String key) {

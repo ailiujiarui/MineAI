@@ -1,6 +1,7 @@
 package com.dwinovo.numen.adapter;
 
 import com.dwinovo.numen.agent.adapter.AdapterSpec;
+import com.dwinovo.numen.api.adapter.AdapterHandlers;
 import com.dwinovo.numen.api.gear.GearSlot;
 import com.dwinovo.numen.api.gear.GearSource;
 import com.dwinovo.numen.entity.NumenPlayer;

@@ -33,7 +33,7 @@ final class ExampleAdapters {
             {
               "id": "tacz",
               "targetMod": "tacz",
-              "side": "both",
+              "side": "server",
               "useRoutes": [
                 { "item": "tacz:*", "intent": "tacz_fire" }
               ]

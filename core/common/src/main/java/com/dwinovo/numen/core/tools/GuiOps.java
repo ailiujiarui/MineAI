@@ -29,7 +29,7 @@ public final class GuiOps {
         if (adapterMenu != null) {
             var adapterRoute = com.dwinovo.numen.adapter.AdapterManager.registry().gui(adapterMenu);
             if (adapterRoute.isPresent()) {
-                var handler = com.dwinovo.numen.adapter.AdapterHandlers.gui(adapterRoute.get().source());
+                var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.gui(adapterRoute.get().source());
                 if (handler != null) {
                     com.google.gson.JsonObject read = handler.read(self, menu, adapterRoute.get().source());
                     if (read != null) {

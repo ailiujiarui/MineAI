@@ -4,6 +4,7 @@ import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.NumenPaths;
 import com.dwinovo.numen.agent.adapter.AdapterRegistry;
 import com.dwinovo.numen.agent.adapter.ReloadReport;
+import com.dwinovo.numen.api.adapter.AdapterHandlers;
 import com.dwinovo.numen.platform.Services;
 
 import java.io.IOException;
@@ -24,6 +25,8 @@ public final class AdapterManager {
 
     private static final AdapterRegistry REGISTRY = new AdapterRegistry();
     private static boolean initialised;
+    private static volatile ReloadReport lastReport = new ReloadReport(0L, 0, 0, java.util.List.of(),
+            java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of());
 
     private AdapterManager() {}
 
@@ -51,16 +54,25 @@ public final class AdapterManager {
         reload();
     }
 
-    /** 从磁盘重读并换掉当前生效集合。 */
+    /** 从磁盘重读并换掉当前生效集合。目标模组在场走平台;处理器在场走 {@link AdapterHandlers}。 */
     public static synchronized ReloadReport reload() {
-        ReloadReport report = REGISTRY.reload(dir(), Services.PLATFORM::isModLoaded);
+        ReloadReport report = REGISTRY.reload(dir(), Services.PLATFORM::isModLoaded, AdapterHandlers::has);
+        lastReport = report;
         Constants.LOG.info("[numen-adapter] reload {}: {} loaded, {} failed, {} skipped (added={}, updated={}, removed={})",
                 dir(), report.loaded(), report.failed(), report.skipped().size(),
                 report.added(), report.updated(), report.removed());
+        for (ReloadReport.Skipped skip : report.skipped()) {
+            Constants.LOG.info("[numen-adapter] skipped '{}': {}", skip.id(), skip.reason());
+        }
         for (String error : report.errors()) {
             Constants.LOG.warn("[numen-adapter] {}", error);
         }
         return report;
+    }
+
+    /** 最近一次重载的结果;还没重载过是空报告。供 {@code numen adapter list} 解释状态。 */
+    public static ReloadReport lastReport() {
+        return lastReport;
     }
 
     /** 目录里有适配文件时不再铺示例——用户删了示例就别再长回来。 */

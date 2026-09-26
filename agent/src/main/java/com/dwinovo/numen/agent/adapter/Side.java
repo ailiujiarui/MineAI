@@ -17,12 +17,12 @@ public enum Side {
 
     public static Side from(String value) {
         if (value == null) {
-            return BOTH;
+            return SERVER;
         }
         return switch (value.strip().toLowerCase(Locale.ROOT)) {
             case "client" -> CLIENT;
-            case "server" -> SERVER;
-            default -> BOTH;
+            case "both" -> BOTH;
+            default -> SERVER;
         };
     }
 

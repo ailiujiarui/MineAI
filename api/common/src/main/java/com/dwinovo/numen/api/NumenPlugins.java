@@ -4,6 +4,7 @@ import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.agent.inbox.EventTypes;
 import com.dwinovo.numen.agent.tool.NumenTool;
 import com.dwinovo.numen.agent.tool.ToolRegistry;
+import com.dwinovo.numen.api.adapter.AdapterHandlers;
 import com.dwinovo.numen.api.gear.GearSlot;
 import com.dwinovo.numen.api.gear.GearSource;
 import com.dwinovo.numen.cli.CommandGroup;
@@ -241,6 +242,26 @@ public final class NumenPlugins {
         @Override
         public void registerGear(GearSource source) {
             if (source != null) GEAR.add(source);
+        }
+
+        @Override
+        public void registerUseHandler(String intent, AdapterHandlers.UseHandler handler) {
+            AdapterHandlers.registerUse(intent, handler);
+        }
+
+        @Override
+        public void registerGuiHandler(String source, AdapterHandlers.GuiHandler handler) {
+            AdapterHandlers.registerGui(source, handler);
+        }
+
+        @Override
+        public void registerContainerHandler(String access, AdapterHandlers.ContainerHandler handler) {
+            AdapterHandlers.registerContainer(access, handler);
+        }
+
+        @Override
+        public void registerGearHandler(String name, GearSource source) {
+            AdapterHandlers.registerGear(name, source);
         }
 
         @Override

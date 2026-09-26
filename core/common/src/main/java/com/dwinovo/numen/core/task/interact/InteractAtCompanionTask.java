@@ -80,7 +80,7 @@ public final class InteractAtCompanionTask extends GoToThenDoTask<InteractAtTask
             String adapterItem = BuiltInRegistries.ITEM.getKey(r.item).toString();
             var adapterRoute = com.dwinovo.numen.adapter.AdapterManager.registry().use(adapterItem);
             if (adapterRoute.isPresent()) {
-                var handler = com.dwinovo.numen.adapter.AdapterHandlers.use(adapterRoute.get().intent());
+                var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.use(adapterRoute.get().intent());
                 if (handler != null) {
                     player.holdInHand(PlayerInv.findSlot(player.getInventory(), r.item));
                     if (handler.act(player, adapterItem)) {
