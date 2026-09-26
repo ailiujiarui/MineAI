@@ -5,31 +5,44 @@ import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.platform.Services;
 import com.dwinovo.numen.task.TaskResult;
 import mekanism.api.RelativeSide;
+import mekanism.api.chemical.ChemicalStack;
+import mekanism.api.chemical.IChemicalHandler;
+import mekanism.api.heat.IHeatHandler;
+import mekanism.common.capabilities.Capabilities;
 import mekanism.common.lib.transmitter.TransmissionType;
 import mekanism.common.tile.component.TileComponentConfig;
 import mekanism.common.tile.component.config.DataType;
 import mekanism.common.tile.interfaces.ISideConfiguration;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
- * Mekanism 适配(独立联动插件):把 Mekanism 机器的槽位、朝向、各面的输入/输出配置翻译成人能读懂的样子。
+ * Mekanism 适配(独立联动插件):把 Mekanism 机器的**完整状态**翻译成人能读懂的样子。
  *
- * <p>两条腿:
  * <ul>
- *   <li>{@code inspect_gui}(菜单):槽位的角色写在槽类名里
- *       ({@code InputInventorySlot}/{@code OutputInventorySlot}/{@code EnergyInventorySlot}/…),按类名翻译;</li>
- *   <li>{@code inspect_block_storage}(方块):走 Mekanism 的 {@link ISideConfiguration} API 读
- *       <b>朝向({@link ISideConfiguration#getDirection()})</b>和<b>每个面每种传输(物品/能量/流体/…)的输入还是输出</b>
- *       ({@link TileComponentConfig#getDataType(TransmissionType, RelativeSide)} → {@link DataType})。</li>
+ *   <li>{@code inspect_gui}(菜单):每个槽位的角色(槽类名:Input/Output/Energy/…);</li>
+ *   <li>{@code inspect_block_storage}(方块):
+ *       <b>朝向</b>({@link ISideConfiguration#getDirection()})、
+ *       <b>各面每种传输的输入/输出</b>({@link TileComponentConfig#getDataType(TransmissionType, RelativeSide)} → {@link DataType})、
+ *       <b>物品/流体/能量</b>(标准 capability)、
+ *       <b>气体储罐</b>(Mekanism {@link Capabilities#CHEMICAL})、
+ *       <b>热量</b>(Mekanism {@link Capabilities#HEAT})、
+ *       以及方块状态({@code active} 等)。</li>
  * </ul>
  *
  * <p>由 {@code Builtin} 在确认 Mekanism 在场后调用 {@link #install};注册 gui/container 两个处理器(名 {@code mekanism})
@@ -67,9 +80,10 @@ public final class MekanismAdapter {
         return TaskResult.ok(sb.toString()).toJson();
     }
 
-    /** {@code inspect_block_storage}:方块 id、方块状态、朝向、各面输入/输出配置、以及标准 capability 内容。 */
+    /** {@code inspect_block_storage}:机器的完整状态。 */
     private static String readContainer(NumenPlayer body, BlockPos pos, String access) {
-        BlockState state = body.level().getBlockState(pos);
+        Level level = body.level();
+        BlockState state = level.getBlockState(pos);
         String id = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
         StringBuilder sb = new StringBuilder(id).append(" at ")
                 .append(pos.getX()).append(',').append(pos.getY()).append(',').append(pos.getZ()).append("\n");
@@ -80,17 +94,19 @@ public final class MekanismAdapter {
         if (props.length() > 0) {
             sb.append("state: ").append(props).append("\n");
         }
-        appendSideConfig(body, pos, sb);
-        String caps = Services.CAPS.describe(body.level(), pos);
+        appendSideConfig(level, pos, sb);
+        String caps = Services.CAPS.describe(level, pos);
         if (caps != null && !caps.isBlank()) {
-            sb.append(caps);
+            sb.append(caps);   // items / fluids / energy(标准 capability)
         }
+        appendChemicals(level, pos, sb);
+        appendHeat(level, pos, sb);
         return TaskResult.ok(sb.toString()).toJson();
     }
 
     /** 朝向 + 每个面每种传输的输入/输出 —— Mekanism 的 side config(相对朝向)。 */
-    private static void appendSideConfig(NumenPlayer body, BlockPos pos, StringBuilder sb) {
-        BlockEntity be = body.level().getBlockEntity(pos);
+    private static void appendSideConfig(Level level, BlockPos pos, StringBuilder sb) {
+        BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof ISideConfiguration side)) {
             return;
         }
@@ -110,9 +126,63 @@ public final class MekanismAdapter {
                 line.append(rs.getSerializedName()).append('=').append(dt.getSerializedName()).append(' ');
             }
             if (line.length() > 0) {
-                sb.append("  ").append(type.getName().toLowerCase()).append(": ").append(line).append("\n");
+                sb.append("  ").append(type.getName().toLowerCase(Locale.ROOT)).append(": ").append(line).append("\n");
             }
         }
+    }
+
+    /** 气体储罐(Mekanism 的 chemical capability,标准 capability 读不到)。 */
+    private static void appendChemicals(Level level, BlockPos pos, StringBuilder sb) {
+        Map<IChemicalHandler, List<String>> byHandler = new IdentityHashMap<>();
+        collect(byHandler, level.getCapability(Capabilities.CHEMICAL.block(), pos, null), "all");
+        for (Direction d : Direction.values()) {
+            collect(byHandler, level.getCapability(Capabilities.CHEMICAL.block(), pos, d), d.getName());
+        }
+        if (byHandler.isEmpty()) {
+            return;
+        }
+        sb.append("chemicals:\n");
+        for (Map.Entry<IChemicalHandler, List<String>> e : byHandler.entrySet()) {
+            IChemicalHandler handler = e.getKey();
+            for (int t = 0; t < handler.getChemicalTanks(); t++) {
+                ChemicalStack stack = handler.getChemicalInTank(t);
+                sb.append("  tank ").append(t).append(" (sides: ").append(String.join(",", e.getValue())).append("): ");
+                if (stack.isEmpty()) {
+                    sb.append("empty");
+                } else {
+                    sb.append(chemicalId(stack)).append(' ').append(stack.getAmount());
+                }
+                sb.append('/').append(handler.getChemicalTankCapacity(t)).append(" mB\n");
+            }
+        }
+    }
+
+    /** 热量(Mekanism 的 heat capability)。 */
+    private static void appendHeat(Level level, BlockPos pos, StringBuilder sb) {
+        IHeatHandler heat = level.getCapability(Capabilities.HEAT, pos, null);
+        if (heat == null) {
+            for (Direction d : Direction.values()) {
+                heat = level.getCapability(Capabilities.HEAT, pos, d);
+                if (heat != null) {
+                    break;
+                }
+            }
+        }
+        if (heat != null && heat.getHeatCapacitorCount() > 0) {
+            sb.append("heat: ").append(String.format(Locale.ROOT, "%.1f", heat.getTotalTemperature()))
+                    .append(" K (ambient ~300)\n");
+        }
+    }
+
+    private static String chemicalId(ChemicalStack stack) {
+        return stack.getChemicalHolder().unwrapKey().map(key -> key.location().toString()).orElse("?");
+    }
+
+    private static <T> void collect(Map<T, List<String>> byHandler, T handler, String side) {
+        if (handler == null) {
+            return;
+        }
+        byHandler.computeIfAbsent(handler, h -> new ArrayList<>()).add(side);
     }
 
     private static <T extends Comparable<T>> String propValue(BlockState state, Property<T> property) {
