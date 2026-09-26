@@ -41,6 +41,8 @@ import java.util.stream.Stream;
 public final class AdapterRegistry {
 
     private final Map<String, AdapterSpec> active = new LinkedHashMap<>();
+    /** id → 来源文件名;priority 同级时按它字典序,保持确定性。 */
+    private final Map<String, String> sourceOf = new LinkedHashMap<>();
 
     public synchronized ReloadReport reload(Path dir) {
         return reload(dirs(dir), mod -> true, handler -> true);
@@ -70,6 +72,7 @@ public final class AdapterRegistry {
                                             Predicate<String> handlerPresent) {
         long at = System.currentTimeMillis();
         Map<String, AdapterSpec> next = new LinkedHashMap<>();
+        Map<String, String> nextSource = new LinkedHashMap<>();
         List<String> errors = new ArrayList<>();
         List<ReloadReport.Skipped> skipped = new ArrayList<>();
         int loaded = 0;
@@ -99,6 +102,7 @@ public final class AdapterRegistry {
                     continue;   // 靠前的目录已经给了同名 id,后者让位(用户覆盖 bundled)
                 }
                 next.put(spec.id(), spec);
+                nextSource.put(spec.id(), name);
                 loaded++;
             }
         }
@@ -106,6 +110,8 @@ public final class AdapterRegistry {
         Map<String, AdapterSpec> previous = new LinkedHashMap<>(active);
         active.clear();
         active.putAll(next);
+        sourceOf.clear();
+        sourceOf.putAll(nextSource);
         return ReloadReport.of(at, loaded, errors.size(), skipped, errors, previous, next);
     }
 
@@ -152,10 +158,11 @@ public final class AdapterRegistry {
         return List.copyOf(active.values());
     }
 
-    /** 生效集合,按优先顺序(priority 降序、id 升序)。 */
+    /** 生效集合,按优先顺序(priority 降序、同级按来源文件名字典序、再按 id)。 */
     public synchronized List<AdapterSpec> ordered() {
         return active.values().stream()
                 .sorted(Comparator.comparingInt(AdapterSpec::priority).reversed()
+                        .thenComparing(spec -> sourceOf.getOrDefault(spec.id(), spec.id()))
                         .thenComparing(AdapterSpec::id))
                 .toList();
     }
@@ -226,5 +233,6 @@ public final class AdapterRegistry {
 
     public synchronized void clear() {
         active.clear();
+        sourceOf.clear();
     }
 }

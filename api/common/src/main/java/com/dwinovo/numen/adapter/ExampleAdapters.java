@@ -20,11 +20,13 @@ final class ExampleAdapters {
               "id": "curios",
               "targetMod": "curios",
               "side": "server",
+              "schema": 1,
+              "requires": ["curios"],
               "equipRoutes": [
-                { "item": "curios:ring", "container": "curios", "slot": "ring" }
+                { "item": "curios:ring", "container": "curios" }
               ],
               "slotMaps": [
-                { "name": "ring", "container": "curios", "item": "curios:ring", "index": 46 }
+                { "name": "ring", "container": "curios", "item": "curios:ring" }
               ]
             }
             """;
@@ -34,6 +36,8 @@ final class ExampleAdapters {
               "id": "tacz",
               "targetMod": "tacz",
               "side": "server",
+              "schema": 1,
+              "requires": ["tacz_fire"],
               "useRoutes": [
                 { "item": "tacz:*", "intent": "tacz_fire" }
               ]
@@ -44,9 +48,11 @@ final class ExampleAdapters {
             {
               "id": "beyonddimensions",
               "targetMod": "beyonddimensions",
-              "side": "both",
+              "side": "server",
+              "schema": 1,
+              "requires": ["bd_storage"],
               "guis": [
-                { "menu": "beyonddimensions:storage", "read": "client", "serverIndex": -1, "source": "bd_storage" }
+                { "menu": "beyonddimensions:storage", "source": "bd_storage" }
               ]
             }
             """;

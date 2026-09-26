@@ -50,10 +50,10 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
         useRoutes = List.copyOf(useRoutes);
     }
 
-    /** 槽位映射:某类物品落在某个容器的第几号槽。 */
-    public record SlotMap(String name, String container, ItemSelector item, int index) {
+    /** 槽位映射:某类物品归某个容器管。第几号槽由处理器决定,不写死在数据里。 */
+    public record SlotMap(String name, String container, ItemSelector item) {
         static SlotMap fromJson(JsonObject o) {
-            return new SlotMap(str(o, "name"), str(o, "container"), selector(o, "item"), num(o, "index"));
+            return new SlotMap(str(o, "name"), str(o, "container"), selector(o, "item"));
         }
 
         JsonObject toJson() {
@@ -61,22 +61,20 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
             o.addProperty("name", name);
             o.addProperty("container", container);
             o.add("item", item.toJson());
-            o.addProperty("index", index);
             return o;
         }
     }
 
-    /** equip_item 路由:某类物品该装备到哪个容器的哪个槽。 */
-    public record EquipRoute(ItemSelector item, String container, String slot) {
+    /** equip_item 路由:某类物品归哪个容器管。具体槽位由处理器决定。 */
+    public record EquipRoute(ItemSelector item, String container) {
         static EquipRoute fromJson(JsonObject o) {
-            return new EquipRoute(selector(o, "item"), str(o, "container"), str(o, "slot"));
+            return new EquipRoute(selector(o, "item"), str(o, "container"));
         }
 
         JsonObject toJson() {
             JsonObject o = new JsonObject();
             o.add("item", item.toJson());
             o.addProperty("container", container);
-            o.addProperty("slot", slot);
             return o;
         }
     }
@@ -95,18 +93,15 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
         }
     }
 
-    /** 菜单怎么读:跑在哪一侧、服务端索引、处理器名。 */
-    public record GuiRoute(String menu, Side readSide, int serverIndex, String source) {
+    /** 菜单怎么读:菜单 id → 处理器名。v1 只走服务端侧。 */
+    public record GuiRoute(String menu, String source) {
         static GuiRoute fromJson(JsonObject o) {
-            return new GuiRoute(str(o, "menu"), Side.from(strOr(o, "read", "server")),
-                    num(o, "serverIndex"), str(o, "source"));
+            return new GuiRoute(str(o, "menu"), str(o, "source"));
         }
 
         JsonObject toJson() {
             JsonObject o = new JsonObject();
             o.addProperty("menu", menu);
-            o.addProperty("read", readSide.name().toLowerCase());
-            o.addProperty("serverIndex", serverIndex);
             o.addProperty("source", source);
             return o;
         }
@@ -169,10 +164,6 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
     private static String strOr(JsonObject o, String key, String fallback) {
         String v = str(o, key);
         return v.isBlank() ? fallback : v;
-    }
-
-    private static int num(JsonObject o, String key) {
-        return numOr(o, key, -1);
     }
 
     private static int numOr(JsonObject o, String key, int fallback) {

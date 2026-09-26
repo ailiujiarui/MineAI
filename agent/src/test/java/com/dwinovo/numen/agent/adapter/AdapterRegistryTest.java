@@ -18,20 +18,19 @@ class AdapterRegistryTest {
     Path dir;
 
     private static final String CURIOS = """
-            {"id":"curios","targetMod":"curios","side":"server",
-             "equipRoutes":[{"item":"curios:ring*","container":"curios","slot":"ring"}],
-             "slotMaps":[{"name":"ring","container":"curios","item":"curios:ring","index":46}]}
+            {"id":"curios","targetMod":"curios","side":"server","schema":1,
+             "equipRoutes":[{"item":"curios:ring*","container":"curios"}],
+             "slotMaps":[{"name":"ring","container":"curios","item":"curios:ring"}]}
             """;
 
     private static final String TACZ = """
-            {"id":"tacz","targetMod":"tacz","side":"server",
+            {"id":"tacz","targetMod":"tacz","side":"server","schema":1,
              "containers":[{"block":"tacz:ammo_crate","access":"bd-storage"}],
              "useRoutes":[{"item":"tacz:*","intent":"tacz_fire"}]}
             """;
 
-    private static final String BEYOND_DIMENSIONS = """
-            {"id":"beyonddimensions","targetMod":"beyonddimensions","side":"client",
-             "guis":[{"menu":"beyonddimensions:storage","read":"client","serverIndex":-1,"source":"bd_storage"}]}
+    private static final String CLIENT_ONE = """
+            {"id":"clientone","targetMod":"someclientmod","side":"client","schema":1}
             """;
 
     private void write(String name, String json) throws IOException {
@@ -54,7 +53,6 @@ class AdapterRegistryTest {
         assertEquals(2, report.loaded());
         assertTrue(report.errors().isEmpty());
         assertEquals("curios", registry.equip("curios:ring").orElseThrow().container());
-        assertEquals(46, registry.slots("curios").get(0).index());
         assertEquals("tacz_fire", registry.use("tacz:ak47").orElseThrow().intent());
         assertEquals("bd-storage", registry.container("tacz:ammo_crate").orElseThrow().access());
     }
@@ -73,12 +71,32 @@ class AdapterRegistryTest {
     }
 
     @Test
+    void fourBadFilesDoNotBlockOneGoodOne() throws IOException {
+        write("good.json", CURIOS);
+        write("syntax.json", "{ this is not json");
+        write("noid.json", "{\"side\":\"server\"}");
+        write("needs.json", "{\"id\":\"needs\",\"side\":\"server\",\"requires\":[\"nope\"],"
+                + "\"useRoutes\":[{\"item\":\"y\",\"intent\":\"z\"}]}");
+        write("absent.json", "{\"id\":\"absent\",\"side\":\"server\",\"targetMod\":\"no_such_mod\"}");
+
+        AdapterRegistry registry = new AdapterRegistry();
+        ReloadReport report = registry.reload(dir,
+                mod -> !mod.equals("no_such_mod"), handler -> !handler.equals("nope"));
+
+        assertEquals(1, report.loaded(), "好文件照常");
+        assertEquals(2, report.failed(), "语法错 + 缺 id");
+        assertTrue(skippedFor(report, "needs", "missing handler 'nope'"));
+        assertTrue(skippedFor(report, "absent", "not loaded"));
+        assertTrue(registry.equip("curios:ring").isPresent());
+    }
+
+    @Test
     void clientAdaptersAreSkippedInV1() throws IOException {
-        write("bd.json", BEYOND_DIMENSIONS);
+        write("client.json", CLIENT_ONE);
         AdapterRegistry registry = new AdapterRegistry();
         ReloadReport report = registry.reload(dir);
         assertEquals(0, report.loaded());
-        assertTrue(skippedFor(report, "beyonddimensions", "server only"));
+        assertTrue(skippedFor(report, "clientone", "server only"));
     }
 
     @Test
@@ -105,19 +123,23 @@ class AdapterRegistryTest {
         assertEquals(0, withoutHandler.loaded());
         assertTrue(skippedFor(withoutHandler, "needs", "missing handler 'curios'"));
 
-        ReloadReport withHandler = registry.reload(dir, mod -> true, handler -> true);
-        assertEquals(1, withHandler.loaded());
+        assertEquals(1, registry.reload(dir, mod -> true, handler -> true).loaded());
     }
 
     @Test
-    void priorityDecidesAmongOverlappingRoutes() throws IOException {
-        write("low.json", "{\"id\":\"low\",\"side\":\"server\",\"priority\":0,"
-                + "\"useRoutes\":[{\"item\":\"x\",\"intent\":\"low\"}]}");
-        write("high.json", "{\"id\":\"high\",\"side\":\"server\",\"priority\":10,"
-                + "\"useRoutes\":[{\"item\":\"x\",\"intent\":\"high\"}]}");
+    void priorityThenFileNameDecideAmongOverlappingRoutes() throws IOException {
+        write("a.json", "{\"id\":\"a\",\"side\":\"server\",\"priority\":0,"
+                + "\"useRoutes\":[{\"item\":\"x\",\"intent\":\"a\"}]}");
+        write("b.json", "{\"id\":\"b\",\"side\":\"server\",\"priority\":0,"
+                + "\"useRoutes\":[{\"item\":\"x\",\"intent\":\"b\"}]}");
         AdapterRegistry registry = new AdapterRegistry();
         registry.reload(dir);
-        assertEquals("high", registry.use("x").orElseThrow().intent(), "分高者胜,不看文件顺序");
+        assertEquals("a", registry.use("x").orElseThrow().intent(), "同分按来源文件名字典序");
+
+        write("z.json", "{\"id\":\"z\",\"side\":\"server\",\"priority\":5,"
+                + "\"useRoutes\":[{\"item\":\"x\",\"intent\":\"z\"}]}");
+        registry.reload(dir);
+        assertEquals("z", registry.use("x").orElseThrow().intent(), "priority 高者胜");
     }
 
     @Test
@@ -131,7 +153,7 @@ class AdapterRegistryTest {
         assertEquals(List.of("tacz"), second.added());
         assertTrue(second.removed().isEmpty());
 
-        write("curios.json", CURIOS.replace("\"index\":46", "\"index\":12"));
+        write("curios.json", CURIOS.replace("curios:ring*", "curios:band*"));
         assertEquals(List.of("curios"), registry.reload(dir).updated());
 
         Files.delete(dir.resolve("tacz.json"));
@@ -154,11 +176,12 @@ class AdapterRegistryTest {
         Path bundled = Files.createDirectory(dir.resolve("bundled"));
         Files.writeString(bundled.resolve("curios.json"), CURIOS, StandardCharsets.UTF_8);
         Files.writeString(user.resolve("curios.json"),
-                CURIOS.replace("\"index\":46", "\"index\":7"), StandardCharsets.UTF_8);
+                CURIOS.replace("curios:ring*", "curios:ringuser"), StandardCharsets.UTF_8);
 
         AdapterRegistry registry = new AdapterRegistry();
         registry.reload(List.of(user, bundled), mod -> true, handler -> true);
 
-        assertEquals(7, registry.slots("curios").get(0).index(), "用户目录在前,覆盖 bundled 的同名 id");
+        assertEquals("curios", registry.equip("curios:ringuser").orElseThrow().container(),
+                "用户目录在前,覆盖 bundled 的同名 id");
     }
 }
