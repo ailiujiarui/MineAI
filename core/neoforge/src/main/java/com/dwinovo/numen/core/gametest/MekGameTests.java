@@ -25,42 +25,50 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import static com.dwinovo.numen.core.gametest.GameTestKit.*;
 
 /**
- * 模组整合包能力阶梯的 <b>L9</b>:给足材料,让她自己合成一个 Mekanism 钢制机壳。
+ * 模组整合包能力阶梯(MineAI 方法论:摆题面 → 走她自己的工具链 → 读权威背包判定)。
  *
- * <p>跟着 MineAI 阶梯靶场的方法论:摆好题面(给材料)→ 走她自己的工具链({@code craft})→
- * 读权威背包判定成败(不看模型的话)。阶梯前面几级的产物在 L9 一次性给足,所以她从"合成"这一步算起。
- *
- * <p>题目里没有 Mekanism 的编译依赖:目标物品按名字查注册表,配方从配方本当场展开——给的原料是
- * 配方真实要的那几样,不是写死的猜测。Mekanism 不在场时直接成功返回(跳过),没装它的环境不会因此变红。
+ * <p>题目里没有目标模组的编译依赖:物品按名字查注册表,配方从配方本当场展开——给的原料是配方
+ * 真实要的那几样,不是写死的猜测。目标模组不在场时直接成功返回(跳过),没装它的环境不会因此变红。
  */
 @GameTestHolder(Constants.MOD_ID)
 @PrefixGameTestTemplate(false)
 public class MekGameTests {
-
-    private static final ResourceLocation STEEL_CASING = ResourceLocation.parse("mekanism:steel_casing");
 
     @BeforeBatch(batch = "numen_mek")
     public static void prepareMekBatch(ServerLevel level) {
         settleWorld(level, Difficulty.PEACEFUL, NOON);
     }
 
+    /** L9:给足材料,她自己合成一个 Mekanism 钢制机壳。 */
     @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_mek")
-    public static void l9_crafts_a_steel_casing_from_provided_materials(GameTestHelper helper) {
+    public static void l9_crafts_a_steel_casing(GameTestHelper helper) {
+        craftFromRecipe(helper, "gametest_steelsmith", "mekanism:steel_casing");
+    }
+
+    /** L10:给足材料,她自己合成一台 Mekanism Generators 风力发电机。 */
+    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_mek")
+    public static void l10_crafts_a_wind_generator(GameTestHelper helper) {
+        craftFromRecipe(helper, "gametest_windwright", "mekanismgenerators:wind_generator");
+    }
+
+    /**
+     * 摆好题面——把配方真实要的原料一次性给足——然后走她的 {@code craft} 工具,读权威背包判定。
+     * 目标物品不存在(模组没装)就成功返回,当作跳过。
+     */
+    private static void craftFromRecipe(GameTestHelper helper, String companionName, String itemId) {
         ServerLevel level = helper.getLevel();
-        Item casing = BuiltInRegistries.ITEM.getOptional(STEEL_CASING).orElse(Items.AIR);
-        if (casing == Items.AIR) {
-            helper.succeed();   // 没装 Mekanism:跳过,不算失败
+        Item target = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(itemId)).orElse(Items.AIR);
+        if (target == Items.AIR) {
+            helper.succeed();
             return;
         }
-
-        CraftingRecipe recipe = craftingRecipeFor(level, casing);
+        CraftingRecipe recipe = craftingRecipeFor(level, target);
         if (recipe == null) {
-            helper.fail("no crafting recipe produces " + STEEL_CASING);
+            helper.fail("no crafting recipe produces " + itemId);
             return;
         }
 
-        NumenPlayer companion = spawnAt(helper, "gametest_steelsmith", new BlockPos(4, 2, 4), false);
-        // L9 的题面:把配方真实要的原料一次性给足
+        NumenPlayer companion = spawnAt(helper, companionName, new BlockPos(4, 2, 4), false);
         for (Ingredient ingredient : recipe.getIngredients()) {
             ItemStack[] options = ingredient.getItems();
             if (options.length > 0) {
@@ -68,14 +76,15 @@ public class MekGameTests {
             }
         }
         // 3x3 配方要有工作台够得着;放一个在她旁边(2x2 配方用不上,无害)
-        level.setBlockAndUpdate(helper.absolutePos(new BlockPos(5, 2, 4)), Blocks.CRAFTING_TABLE.defaultBlockState());
+        level.setBlockAndUpdate(helper.absolutePos(new BlockPos(5, 2, 4)),
+                Blocks.CRAFTING_TABLE.defaultBlockState());
 
-        ToolRun run = call(companion, "craft", args("item_id", STEEL_CASING.toString(), "count", 1));
+        ToolRun run = call(companion, "craft", args("item_id", itemId, "count", 1));
 
         helper.succeedWhen(() -> {
             helper.assertTrue(run.succeeded(), "craft refused: " + run.reply());
-            helper.assertTrue(companion.getInventory().contains(new ItemStack(casing)),
-                    "no " + STEEL_CASING + " in the inventory after crafting");
+            helper.assertTrue(companion.getInventory().contains(new ItemStack(target)),
+                    "no " + itemId + " in the inventory after crafting");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
