@@ -147,4 +147,18 @@ class AdapterRegistryTest {
         assertTrue(skippedFor(report, "curios", "not loaded"));
         assertTrue(registry.active().isEmpty());
     }
+
+    @Test
+    void theEarlierDirectoryWinsSoUsersOverrideBundled() throws IOException {
+        Path user = Files.createDirectory(dir.resolve("user"));
+        Path bundled = Files.createDirectory(dir.resolve("bundled"));
+        Files.writeString(bundled.resolve("curios.json"), CURIOS, StandardCharsets.UTF_8);
+        Files.writeString(user.resolve("curios.json"),
+                CURIOS.replace("\"index\":46", "\"index\":7"), StandardCharsets.UTF_8);
+
+        AdapterRegistry registry = new AdapterRegistry();
+        registry.reload(List.of(user, bundled), mod -> true, handler -> true);
+
+        assertEquals(7, registry.slots("curios").get(0).index(), "用户目录在前,覆盖 bundled 的同名 id");
+    }
 }

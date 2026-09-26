@@ -8,10 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -41,20 +43,30 @@ public final class AdapterRegistry {
     private final Map<String, AdapterSpec> active = new LinkedHashMap<>();
 
     public synchronized ReloadReport reload(Path dir) {
-        return reload(dir, mod -> true, handler -> true);
+        return reload(dirs(dir), mod -> true, handler -> true);
     }
 
     public synchronized ReloadReport reload(Path dir, Predicate<String> modPresent) {
-        return reload(dir, modPresent, handler -> true);
+        return reload(dirs(dir), modPresent, handler -> true);
+    }
+
+    public synchronized ReloadReport reload(Path dir, Predicate<String> modPresent,
+                                            Predicate<String> handlerPresent) {
+        return reload(dirs(dir), modPresent, handlerPresent);
+    }
+
+    private static List<Path> dirs(Path dir) {
+        return dir == null ? List.of() : List.of(dir);
     }
 
     /**
-     * 重读目录。
+     * 重读若干目录,<b>顺序即优先级</b>:靠前的目录里同名 id 覆盖靠后的——调用方把用户目录放前、
+     * 插件随包附带的放后,于是用户改一份 JSON 就能盖掉插件自带的映射。
      *
      * @param modPresent     目标模组在不在场
      * @param handlerPresent 某个处理器名登记了没有(供 {@code requires} 判定)
      */
-    public synchronized ReloadReport reload(Path dir, Predicate<String> modPresent,
+    public synchronized ReloadReport reload(List<Path> dirs, Predicate<String> modPresent,
                                             Predicate<String> handlerPresent) {
         long at = System.currentTimeMillis();
         Map<String, AdapterSpec> next = new LinkedHashMap<>();
@@ -62,26 +74,33 @@ public final class AdapterRegistry {
         List<ReloadReport.Skipped> skipped = new ArrayList<>();
         int loaded = 0;
 
-        for (Path file : jsonFiles(dir, errors)) {
-            String name = file.getFileName().toString();
-            AdapterSpec spec;
-            try {
-                String json = Files.readString(file, StandardCharsets.UTF_8);
-                spec = AdapterSpec.fromJson(JsonParser.parseString(json).getAsJsonObject());
-            } catch (Exception failure) {
-                errors.add(name + ": " + failure.getMessage());
-                continue;
+        for (Path dir : dirs) {
+            Set<String> seenHere = new HashSet<>();
+            for (Path file : jsonFiles(dir, errors)) {
+                String name = file.getFileName().toString();
+                AdapterSpec spec;
+                try {
+                    String json = Files.readString(file, StandardCharsets.UTF_8);
+                    spec = AdapterSpec.fromJson(JsonParser.parseString(json).getAsJsonObject());
+                } catch (Exception failure) {
+                    errors.add(name + ": " + failure.getMessage());
+                    continue;
+                }
+                String blocked = skipReason(spec, modPresent, handlerPresent);
+                if (blocked != null) {
+                    skipped.add(new ReloadReport.Skipped(spec.id(), blocked));
+                    continue;
+                }
+                if (!seenHere.add(spec.id())) {
+                    errors.add(name + ": 适配器 id 重复 '" + spec.id() + "'");
+                    continue;
+                }
+                if (next.containsKey(spec.id())) {
+                    continue;   // 靠前的目录已经给了同名 id,后者让位(用户覆盖 bundled)
+                }
+                next.put(spec.id(), spec);
+                loaded++;
             }
-            String blocked = skipReason(spec, modPresent, handlerPresent);
-            if (blocked != null) {
-                skipped.add(new ReloadReport.Skipped(spec.id(), blocked));
-                continue;
-            }
-            if (next.putIfAbsent(spec.id(), spec) != null) {
-                errors.add(name + ": 适配器 id 重复 '" + spec.id() + "'");
-                continue;
-            }
-            loaded++;
         }
 
         Map<String, AdapterSpec> previous = new LinkedHashMap<>(active);

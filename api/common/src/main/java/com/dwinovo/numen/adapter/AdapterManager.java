@@ -10,6 +10,9 @@ import com.dwinovo.numen.platform.Services;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 /**
@@ -24,6 +27,7 @@ import java.util.stream.Stream;
 public final class AdapterManager {
 
     private static final AdapterRegistry REGISTRY = new AdapterRegistry();
+    private static final List<Path> BUNDLED = new CopyOnWriteArrayList<>();
     private static boolean initialised;
     private static volatile ReloadReport lastReport = new ReloadReport(0L, 0, 0, java.util.List.of(),
             java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of());
@@ -37,6 +41,26 @@ public final class AdapterManager {
 
     public static AdapterRegistry registry() {
         return REGISTRY;
+    }
+
+    /**
+     * 登记一个"随包附带"的适配目录——插件把自己 jar 内的 {@code /adapters} 带进来,于是它附带
+     * 的默认映射跟着插件一起发;用户在自己的 {@code config/numen/adapters/} 放同名 id 的文件即可覆盖。
+     */
+    public static void bundle(Path root) {
+        if (root != null && !BUNDLED.contains(root)) {
+            BUNDLED.add(root);
+            if (initialised) {
+                reload();
+            }
+        }
+    }
+
+    private static List<Path> roots() {
+        List<Path> all = new ArrayList<>();
+        all.add(dir());          // 用户目录在前:同名覆盖 bundled
+        all.addAll(BUNDLED);
+        return all;
     }
 
     /** 建目录、铺示例、首次装载。幂等;任何一步失败都不抛出,保证本体照常起。 */
@@ -56,7 +80,7 @@ public final class AdapterManager {
 
     /** 从磁盘重读并换掉当前生效集合。目标模组在场走平台;处理器在场走 {@link AdapterHandlers}。 */
     public static synchronized ReloadReport reload() {
-        ReloadReport report = REGISTRY.reload(dir(), Services.PLATFORM::isModLoaded, AdapterHandlers::has);
+        ReloadReport report = REGISTRY.reload(roots(), Services.PLATFORM::isModLoaded, AdapterHandlers::has);
         lastReport = report;
         Constants.LOG.info("[numen-adapter] reload {}: {} loaded, {} failed, {} skipped (added={}, updated={}, removed={})",
                 dir(), report.loaded(), report.failed(), report.skipped().size(),

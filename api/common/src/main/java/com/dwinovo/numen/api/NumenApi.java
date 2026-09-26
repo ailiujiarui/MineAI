@@ -185,6 +185,12 @@ public interface NumenApi {
     void registerGearHandler(String name, GearSource source);
 
     /**
+     * 服务端:把一个 jar 内的适配目录登记为"随包附带"的适配器——默认映射跟着插件一起发。
+     * 用户在自己的 {@code config/numen/adapters/} 放同名 id 的文件即可覆盖它。
+     */
+    void bundleAdapters(Path root);
+
+    /**
      * 登记一种事件——同伴身上会发生、她该知道的一种事(比如饰品插件的 {@code accessory_changed})。
      *
      * <p>登记的是类型表里的一行,和引擎自带的 {@code task_finished}、{@code reflex} 同一种形状:

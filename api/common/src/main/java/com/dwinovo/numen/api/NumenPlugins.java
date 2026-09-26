@@ -265,6 +265,11 @@ public final class NumenPlugins {
         }
 
         @Override
+        public void bundleAdapters(Path root) {
+            com.dwinovo.numen.adapter.AdapterManager.bundle(root);
+        }
+
+        @Override
         public Path configDir() {
             return com.dwinovo.numen.NumenPaths.config();
         }
