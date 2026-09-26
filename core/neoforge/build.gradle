@@ -21,6 +21,7 @@ dependencies {
     compileOnly project(':plugins:tlm')
     compileOnly project(':plugins:kaleidoscope')
     compileOnly project(':plugins:curios')
+    compileOnly project(':plugins:mekanism')
     compileOnly project(':plugins:ftbquests')
     // Bundle it into core's jar (Jar-in-Jar) so players install one file and get both mods.
     jarJar(project(':api:neoforge'))
@@ -97,5 +98,19 @@ tasks.named('jar', Jar) {
     from({ project(':plugins:tlm').sourceSets.main.output })
     from({ project(':plugins:kaleidoscope').sourceSets.main.output })
     from({ project(':plugins:curios').sourceSets.main.output })
+    from({ project(':plugins:mekanism').sourceSets.main.output })
     from({ project(':plugins:ftbquests').sourceSets.main.output })
+}
+
+// 开发运行不读成品 jar,而内嵌联动的类只在上面那个 jar 块里平铺——所以 runClient 里 Builtin
+// 一引用联动类就 NoClassDefFoundError、ModJar.find 也找不到它带的适配/技能。这里给开发运行
+// 补上那一半(类进运行类路径,资源并进本模组的资源输出),发布路径不变。
+tasks.matching { it.name in ['runClient', 'runServer', 'runData', 'runGameTestServer'] }.configureEach {
+    dependsOn ':plugins:mekanism:classes'
+    setClasspath(classpath + files({ project(':plugins:mekanism').sourceSets.main.output }))
+}
+processResources {
+    from({ project(':plugins:mekanism').sourceSets.main.output.resourcesDir }) {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 }

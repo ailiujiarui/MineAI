@@ -1,0 +1,10 @@
+plugins { id 'numen-plugin' }
+
+// 只写原版 MC + numen api:Mekanism 适配不引用它任何一个类——槽位角色从槽类名读
+// (InputInventorySlot/OutputInventorySlot/EnergyInventorySlot…),内容全在自带的 adapter JSON 里。
+// 与 plugins/ysm 同一套编译约束(编译期只看得见瘦 jar)。
+neoForge { neoFormVersion = neo_form_version }
+
+dependencies {
+    compileOnly files(project(':api:common').tasks.named('apiJar'))
+}

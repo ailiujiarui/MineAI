@@ -67,6 +67,26 @@ public final class Gate {
         install(modId, () -> body.get().run());
     }
 
+    /**
+     * 只带适配器的联动:给到 {@code plugins/<plugin>/adapters} 根,联动把自己附带的适配 JSON 交给
+     * {@code NumenApi.bundleAdapters}(用户目录同名 id 覆盖它)。其余同
+     * {@link #open(String, String, Function)}。
+     */
+    public void openAdapters(String modId, String plugin, Function<Path, Runnable> body) {
+        if (!modLoaded.test(modId)) return;
+        install(modId, () -> body.apply(adaptersRoot(plugin)).run());
+    }
+
+    /** 一个带适配器的联动自带的适配根:{@code plugins/<模块名>/adapters/};jar 里没有就 null。 */
+    private Path adaptersRoot(String plugin) {
+        String path = "plugins/" + plugin + "/adapters";
+        Path root = inJar.apply(path);
+        if (root == null) {
+            Constants.LOG.warn("[numen] 联动 {} 的适配目录 {} 不在 jar 里,工具照常、适配不带", plugin, path);
+        }
+        return root;
+    }
+
     private void install(String modId, Runnable run) {
         try {
             run.run();

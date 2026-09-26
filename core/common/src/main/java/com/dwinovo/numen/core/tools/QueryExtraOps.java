@@ -303,9 +303,9 @@ int z,
         if (adapterRoute.isPresent()) {
             var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.container(adapterRoute.get().access());
             if (handler != null) {
-                JsonObject read = handler.read(self, pos, adapterRoute.get().access());
+                String read = handler.read(self, pos, adapterRoute.get().access());
                 if (read != null) {
-                    return TaskResult.ok(id + " at " + coord + ":\n" + read).toJson();
+                    return read;   // 处理器拥有整份回执(完整工具结果 JSON)
                 }
             }
         }

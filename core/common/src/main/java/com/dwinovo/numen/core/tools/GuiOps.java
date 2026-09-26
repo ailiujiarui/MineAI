@@ -31,9 +31,9 @@ public final class GuiOps {
             if (adapterRoute.isPresent()) {
                 var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.gui(adapterRoute.get().source());
                 if (handler != null) {
-                    com.google.gson.JsonObject read = handler.read(self, menu, adapterRoute.get().source());
+                    String read = handler.read(self, menu, adapterRoute.get().source());
                     if (read != null) {
-                        return TaskResult.ok(read.toString()).toJson();
+                        return read;   // 处理器拥有整份回执(完整工具结果 JSON)
                     }
                 }
             }
@@ -71,7 +71,11 @@ public final class GuiOps {
             }
             // Output-only = a non-empty machine slot that won't take its own item back (result slot).
             boolean output = !playerSide && !it.isEmpty() && !slot.mayPlace(it);
-            String line = "  " + i + ": " + describe(it) + (output ? " [output]" : "") + "\n";
+            // Machine slots carry their ROLE in their class (Mekanism: InputInventorySlot / OutputInventorySlot /
+            // InfusionInventorySlot / EnergyInventorySlot …). Print it so the model can tell what each slot is for —
+            // the menu index alone says nothing. Player-side slots are all plain Slot, so skip the noise there.
+            String role = playerSide ? "" : " [" + slot.getClass().getSimpleName() + "]";
+            String line = "  " + i + ": " + describe(it) + role + (output ? " [output]" : "") + "\n";
             if (playerSide) {
                 if (!it.isEmpty()) {
                     mine.append(line);   // only your filled slots — the items you can move in

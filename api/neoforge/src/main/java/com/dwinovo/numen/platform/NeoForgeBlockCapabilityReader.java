@@ -55,7 +55,8 @@ public final class NeoForgeBlockCapabilityReader implements IBlockCapabilityRead
         for (Map.Entry<IItemHandler, List<String>> e : byHandler.entrySet()) {
             IItemHandler h = e.getKey();
             sb.append("items").append(byHandler.size() > 1 ? " #" + idx : "")
-                    .append(" (sides: ").append(String.join(",", e.getValue())).append("), ")
+                    .append(" (sides: ").append(String.join(",", e.getValue())).append(") [")
+                    .append(h.getClass().getSimpleName()).append("], ")
                     .append(h.getSlots()).append(" slots:\n");
             int shown = 0;
             boolean any = false;

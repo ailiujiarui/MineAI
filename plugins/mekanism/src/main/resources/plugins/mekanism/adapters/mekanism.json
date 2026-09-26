@@ -1,0 +1,13 @@
+{
+  "id": "mekanism",
+  "targetMod": "mekanism",
+  "side": "server",
+  "schema": 1,
+  "requires": ["mekanism"],
+  "guis": [
+    { "menu": "mekanism:*", "source": "mekanism" }
+  ],
+  "containers": [
+    { "block": "mekanism:*", "access": "mekanism" }
+  ]
+}

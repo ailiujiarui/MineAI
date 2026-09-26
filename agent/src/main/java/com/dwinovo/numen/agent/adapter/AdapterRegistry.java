@@ -200,7 +200,7 @@ public final class AdapterRegistry {
     public synchronized Optional<AdapterSpec.ContainerRoute> container(String blockId) {
         for (AdapterSpec spec : ordered()) {
             for (AdapterSpec.ContainerRoute route : spec.containers()) {
-                if (route.block().equals(blockId)) {
+                if (ItemSelector.of(route.block()).matches(blockId)) {
                     return Optional.of(route);
                 }
             }
@@ -211,7 +211,7 @@ public final class AdapterRegistry {
     public synchronized Optional<AdapterSpec.GuiRoute> gui(String menuId) {
         for (AdapterSpec spec : ordered()) {
             for (AdapterSpec.GuiRoute route : spec.guis()) {
-                if (route.menu().equals(menuId)) {
+                if (ItemSelector.of(route.menu()).matches(menuId)) {
                     return Optional.of(route);
                 }
             }

@@ -3,7 +3,6 @@ package com.dwinovo.numen.api.adapter;
 import com.dwinovo.numen.api.gear.GearSlot;
 import com.dwinovo.numen.api.gear.GearSource;
 import com.dwinovo.numen.entity.NumenPlayer;
-import com.google.gson.JsonObject;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -43,16 +42,16 @@ public final class AdapterHandlers {
         boolean act(NumenPlayer body, String itemId);
     }
 
-    /** 读一个专用菜单,返回它自己的现场 JSON(直接交给模型)。 */
+    /** 读一个专用菜单,返回**完整的工具结果 JSON**(即 {@code TaskResult.*.toJson()} 那样的一整份);null = 回落通用转储。 */
     @FunctionalInterface
     public interface GuiHandler {
-        JsonObject read(NumenPlayer body, AbstractContainerMenu menu, String source);
+        String read(NumenPlayer body, AbstractContainerMenu menu, String source);
     }
 
-    /** 读一个方块容器的内容。 */
+    /** 读一个方块容器,返回**完整的工具结果 JSON**;null = 回落。 */
     @FunctionalInterface
     public interface ContainerHandler {
-        JsonObject read(NumenPlayer body, BlockPos pos, String access);
+        String read(NumenPlayer body, BlockPos pos, String access);
     }
 
     private static final Map<String, GearSource> GEAR = new ConcurrentHashMap<>();
@@ -97,7 +96,7 @@ public final class AdapterHandlers {
         if (isName(source) && handler != null) {
             GUI.put(source, (body, menu, key) -> {
                 try {
-                    JsonObject read = handler.read(body, menu, key);
+                    String read = handler.read(body, menu, key);
                     recovered(source);
                     return read;
                 } catch (Throwable failure) {
@@ -116,7 +115,7 @@ public final class AdapterHandlers {
         if (isName(access) && handler != null) {
             CONTAINER.put(access, (body, pos, key) -> {
                 try {
-                    JsonObject read = handler.read(body, pos, key);
+                    String read = handler.read(body, pos, key);
                     recovered(access);
                     return read;
                 } catch (Throwable failure) {
