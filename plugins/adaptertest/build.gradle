@@ -1,0 +1,9 @@
+plugins { id 'numen-plugin' }
+
+// 只写原版 MC + numen api:证明第三方模组能对着**瘦 api jar** 实现并注册适配器处理器。
+// 与 plugins/ysm 同一套编译约束(编译期只看得见瘦 jar,看不见引擎内部类)。
+neoForge { neoFormVersion = neo_form_version }
+
+dependencies {
+    compileOnly files(project(':api:common').tasks.named('apiJar'))
+}
