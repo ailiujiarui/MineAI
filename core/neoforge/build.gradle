@@ -105,10 +105,11 @@ tasks.named('jar', Jar) {
 // 开发运行不读成品 jar,而内嵌联动的类只在上面那个 jar 块里平铺——所以 runClient 里 Builtin
 // 一引用联动类就 NoClassDefFoundError、ModJar.find 也找不到它带的适配/技能。这里给开发运行
 // 补上那一半(类进运行类路径,资源并进本模组的资源输出),发布路径不变。
-tasks.matching { it.name in ['runClient', 'runServer', 'runData', 'runGameTestServer'] }.configureEach {
-    dependsOn ':plugins:mekanism:classes'
-    setClasspath(classpath + files({ project(':plugins:mekanism').sourceSets.main.output }))
-}
+// 开发运行不读成品 jar,内嵌联动的类只在上面那个 jar 块里平铺。dev 的 mod 类加载器只认本模组
+// 的 sourceSet.main.output,而插件类在引擎包名下——不并进本模组输出,runClient 里 Builtin 一引用
+// 就 NoClassDefFoundError。这里把插件的编译产物并进本模组输出;发布路径仍由上面的 from 平铺。
+sourceSets.main.output.dir(project(':plugins:mekanism').layout.buildDirectory.dir('classes/java/main'),
+        builtBy: ':plugins:mekanism:classes')
 processResources {
     from({ project(':plugins:mekanism').sourceSets.main.output.resourcesDir }) {
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
