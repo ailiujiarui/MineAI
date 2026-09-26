@@ -7,6 +7,7 @@ import com.dwinovo.numen.task.TaskResult;
 import mekanism.api.RelativeSide;
 import mekanism.api.chemical.ChemicalStack;
 import mekanism.api.chemical.IChemicalHandler;
+import mekanism.api.chemical.IChemicalTank;
 import mekanism.api.heat.IHeatHandler;
 import mekanism.common.capabilities.Capabilities;
 import mekanism.common.lib.transmitter.TransmissionType;
@@ -76,8 +77,37 @@ public final class MekanismAdapter {
             sb.append("\n");
         }
         sb.append("role hints: [input] main input · [infusion]/[chemical]/[fluid]/[gas] the extra input · [output] take results · "
-                + "[energy] put power here · [upgrade]/[security] modules");
+                + "[energy] put power here · [upgrade]/[security] modules\n");
+        sb.append(dataSlots(menu));
         return TaskResult.ok(sb.toString()).toJson();
+    }
+
+    /**
+     * 菜单的 data slots —— 那排"平行于物品槽"的同步整数,真实屏幕用它画进度条/燃料/能量条。
+     * 意义随菜单而变(灌注机的那几个整数就是加工进度和灌注量),所以原样给出、不猜含义;
+     * Mekanism 不把"当前配方/进度百分比"挂在菜单上,这里是能拿到的最接近的东西。
+     * 走反射读 {@code AbstractContainerMenu.dataSlots}(游戏里是私有字段,引擎那侧有 mixin accessor,
+     * 插件只拿得到瘦 jar、够不到它)。
+     */
+    private static String dataSlots(AbstractContainerMenu menu) {
+        try {
+            java.lang.reflect.Field field = AbstractContainerMenu.class.getDeclaredField("dataSlots");
+            field.setAccessible(true);
+            Object value = field.get(menu);
+            if (!(value instanceof List<?> slots) || slots.isEmpty()) {
+                return "";
+            }
+            StringBuilder sb = new StringBuilder("data values (machine progress/fuel/energy ints — meaning is GUI-specific): [");
+            for (int i = 0; i < slots.size(); i++) {
+                if (i > 0) {
+                    sb.append(", ");
+                }
+                sb.append(((net.minecraft.world.inventory.DataSlot) slots.get(i)).get());
+            }
+            return sb.append("]\n").toString();
+        } catch (Throwable reflectionUnavailable) {
+            return "";
+        }
     }
 
     /** {@code inspect_block_storage}:机器的完整状态。 */
@@ -99,9 +129,53 @@ public final class MekanismAdapter {
         if (caps != null && !caps.isBlank()) {
             sb.append(caps);   // items / fluids / energy(标准 capability)
         }
-        appendChemicals(level, pos, sb);
+        // 命名化学罐优先(灌注机的 infusionTank 是 public 字段,标准 capability 未必暴露它);没有再看 capability
+        if (!appendNamedChemicalTanks(level, pos, sb)) {
+            appendChemicals(level, pos, sb);
+        }
         appendHeat(level, pos, sb);
         return TaskResult.ok(sb.toString()).toJson();
+    }
+
+    /**
+     * 反射读方块实体上的 {@code IChemicalTank} 公开字段(灌注机的 {@code infusionTank} 就是这样一个)。
+     * Mekanism 把"当前灌注的是哪种材料、还剩多少"放在这种字段里,标准 {@code Capabilities.CHEMICAL} 未必暴露,
+     * 只有电脑集成/内部字段能拿到——这是能读到"灌注类型 + 液体量"的现实办法。
+     *
+     * @return 读到了没有
+     */
+    private static boolean appendNamedChemicalTanks(Level level, BlockPos pos, StringBuilder sb) {
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be == null) {
+            return false;
+        }
+        boolean header = false;
+        for (java.lang.reflect.Field field : be.getClass().getFields()) {
+            if (!IChemicalTank.class.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            try {
+                IChemicalTank tank = (IChemicalTank) field.get(be);
+                if (tank == null) {
+                    continue;
+                }
+                if (!header) {
+                    sb.append("chemical tanks:\n");
+                    header = true;
+                }
+                ChemicalStack stack = tank.getStack();
+                sb.append("  ").append(field.getName()).append(": ");
+                if (stack.isEmpty()) {
+                    sb.append("empty");
+                } else {
+                    sb.append(chemicalId(stack)).append(' ').append(stack.getAmount());
+                }
+                sb.append('/').append(tank.getCapacity()).append(" mB\n");
+            } catch (Throwable ignored) {
+                // 反射不到就当这个字段没有
+            }
+        }
+        return header;
     }
 
     /** 朝向 + 每个面每种传输的输入/输出 —— Mekanism 的 side config(相对朝向)。 */
