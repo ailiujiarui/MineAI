@@ -24,13 +24,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link GuiHandler}(专用菜单读取)、{@link ContainerHandler}(方块容器读取)。
  *
  * <h2>故障隔离,不是吞异常</h2>
- * 处理器由第三方提供,一抛异常不该顺着任务链打穿本体。所以<b>包装发生在登记这一刻</b>
- * (不是四个调用点各包一层):处理器抛 {@link RuntimeException} 或 {@link LinkageError} 时,
- * 记一条日志、把这次路由当作"没生效"返回中性值(装备空集 / 右键 false / 读 null),
- * 并把原因存进 {@link #failures()} 供 {@code numen adapter list} 查询。
+ * 处理器由第三方提供,一抛异常不该顺着任务链打穿本体。隔离收口在<b>注册这一刻</b>
+ * (不是四个消费点各包一层):处理器抛异常时,把这次路由当作"没生效"返回中性值
+ * (装备空集 / 右键 false / 读 null),并记一次日志。
  *
- * <p>只兜这两类:模组 API 变更、第三方代码出错都在其中;而 {@link Error}(OOM、栈溢出)
- * 是 JVM 濒死,该往上走,不该被当成"路由失效"。
+ * <p>对齐 {@code core/plugins/Gate.install} 的 {@code catch(Throwable)}:模组 API 变更、
+ * 第三方代码出错都在其中。日志按 {@code joinFragments} 的 {@code FAILING} 语义——<b>首次失败记一条,
+ * 之后静默,恢复时再记一条</b>,避免每 tick 刷屏。{@link #failures()} 给 {@code numen adapter list}
+ * 回答"哪个处理器此刻是坏的"。
  */
 public final class AdapterHandlers {
 
@@ -58,6 +59,7 @@ public final class AdapterHandlers {
     private static final Map<String, UseHandler> USE = new ConcurrentHashMap<>();
     private static final Map<String, GuiHandler> GUI = new ConcurrentHashMap<>();
     private static final Map<String, ContainerHandler> CONTAINER = new ConcurrentHashMap<>();
+    /** 当前处于失败态的处理器名 → 最近一次失败的一句话。 */
     private static final Map<String, String> FAILURES = new ConcurrentHashMap<>();
 
     private AdapterHandlers() {}
@@ -76,9 +78,11 @@ public final class AdapterHandlers {
         if (isName(intent) && handler != null) {
             USE.put(intent, (body, itemId) -> {
                 try {
-                    return handler.act(body, itemId);
-                } catch (RuntimeException | LinkageError failure) {
-                    note(intent, failure);
+                    boolean handled = handler.act(body, itemId);
+                    recovered(intent);
+                    return handled;
+                } catch (Throwable failure) {
+                    failed(intent, failure);
                     return false;
                 }
             });
@@ -93,9 +97,11 @@ public final class AdapterHandlers {
         if (isName(source) && handler != null) {
             GUI.put(source, (body, menu, key) -> {
                 try {
-                    return handler.read(body, menu, key);
-                } catch (RuntimeException | LinkageError failure) {
-                    note(source, failure);
+                    JsonObject read = handler.read(body, menu, key);
+                    recovered(source);
+                    return read;
+                } catch (Throwable failure) {
+                    failed(source, failure);
                     return null;
                 }
             });
@@ -110,9 +116,11 @@ public final class AdapterHandlers {
         if (isName(access) && handler != null) {
             CONTAINER.put(access, (body, pos, key) -> {
                 try {
-                    return handler.read(body, pos, key);
-                } catch (RuntimeException | LinkageError failure) {
-                    note(access, failure);
+                    JsonObject read = handler.read(body, pos, key);
+                    recovered(access);
+                    return read;
+                } catch (Throwable failure) {
+                    failed(access, failure);
                     return null;
                 }
             });
@@ -123,7 +131,7 @@ public final class AdapterHandlers {
         return access == null ? null : CONTAINER.get(access);
     }
 
-    /** 处理器名 → 最近一次故障的一句话;供 {@code numen adapter list} 解释"为什么没生效"。 */
+    /** 处理器名 → 此刻失败的原因;给 {@code numen adapter list} 解释"哪个处理器坏了"。 */
     public static Map<String, String> failures() {
         return Map.copyOf(FAILURES);
     }
@@ -146,9 +154,17 @@ public final class AdapterHandlers {
         return name != null && !name.isBlank();
     }
 
-    private static void note(String name, Throwable failure) {
-        FAILURES.put(name, failure.getClass().getSimpleName() + ": " + failure.getMessage());
-        LOG.warn("[numen-adapter] handler '{}' failed: {}", name, failure.toString());
+    private static void failed(String name, Throwable failure) {
+        // 首次失败记一条,之后静默——同一次坏掉不每 tick 刷屏
+        if (FAILURES.putIfAbsent(name, failure.getClass().getSimpleName() + ": " + failure.getMessage()) == null) {
+            LOG.warn("[numen-adapter] handler '{}' failed: {}", name, failure.toString());
+        }
+    }
+
+    private static void recovered(String name) {
+        if (FAILURES.remove(name) != null) {
+            LOG.info("[numen-adapter] handler '{}' recovered", name);
+        }
     }
 
     /** 装备来源没有函数式接口,单独包一层。 */
@@ -156,9 +172,11 @@ public final class AdapterHandlers {
         @Override
         public List<GearSlot> slots(NumenPlayer body) {
             try {
-                return delegate.slots(body);
-            } catch (RuntimeException | LinkageError failure) {
-                note(name, failure);
+                List<GearSlot> slots = delegate.slots(body);
+                recovered(name);
+                return slots;
+            } catch (Throwable failure) {
+                failed(name, failure);
                 return List.of();
             }
         }
@@ -166,9 +184,11 @@ public final class AdapterHandlers {
         @Override
         public Set<String> kindsOf(NumenPlayer body, ItemStack stack) {
             try {
-                return delegate.kindsOf(body, stack);
-            } catch (RuntimeException | LinkageError failure) {
-                note(name, failure);
+                Set<String> kinds = delegate.kindsOf(body, stack);
+                recovered(name);
+                return kinds;
+            } catch (Throwable failure) {
+                failed(name, failure);
                 return Set.of();
             }
         }

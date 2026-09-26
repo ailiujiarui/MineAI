@@ -72,4 +72,21 @@ class AdapterHandlersTest {
         AdapterHandlers.registerContainer("c", (body, pos, access) -> new JsonObject());
         assertTrue(AdapterHandlers.has("c"));
     }
+
+    @Test
+    void aRecoveredHandlerClearsItsFailureState() {
+        boolean[] boom = {true};
+        AdapterHandlers.registerUse("flaky", (body, item) -> {
+            if (boom[0]) {
+                throw new IllegalStateException("x");
+            }
+            return true;
+        });
+        assertFalse(AdapterHandlers.use("flaky").act(null, "i"));
+        assertTrue(AdapterHandlers.failures().containsKey("flaky"));
+
+        boom[0] = false;
+        assertTrue(AdapterHandlers.use("flaky").act(null, "i"));
+        assertFalse(AdapterHandlers.failures().containsKey("flaky"), "恢复后清掉失败态,不刷屏");
+    }
 }
