@@ -58,6 +58,42 @@ public record DecisionConfig(boolean enabled, String baseUrl, String apiKey, Str
         return new DecisionConfig(enabled, base, key == null ? "" : key, model, minConfidence, timeout);
     }
 
+    /**
+     * 从 JSON 文件读(给客户端用)。兼容两种形状:顶层直接是字段,或像 MineAI 那样包在
+     * {@code "decision"} 对象里。读不到/解析失败一律回 {@link #disabled()},不抛。
+     */
+    public static DecisionConfig fromFile(java.nio.file.Path file) {
+        if (file == null || !java.nio.file.Files.isRegularFile(file)) {
+            return disabled();
+        }
+        try {
+            String json = java.nio.file.Files.readString(file, java.nio.charset.StandardCharsets.UTF_8);
+            com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+            if (o.has("decision") && o.get("decision").isJsonObject()) {
+                o = o.getAsJsonObject("decision");
+            }
+            boolean enabled = o.has("enabled") && o.get("enabled").isJsonPrimitive() && o.get("enabled").getAsBoolean();
+            String base = string(o, "base_url", DEFAULT_BASE);
+            String key = string(o, "api_key", "");
+            if (key.isBlank()) {
+                String env = System.getenv(ENV_API_KEY);
+                key = env == null ? "" : env;
+            }
+            String model = string(o, "model", DEFAULT_MODEL);
+            double minConfidence = o.has("min_confidence") && o.get("min_confidence").isJsonPrimitive()
+                    ? o.get("min_confidence").getAsDouble() : 0.5D;
+            int timeout = o.has("timeout") && o.get("timeout").isJsonPrimitive()
+                    ? o.get("timeout").getAsInt() : 45;
+            return new DecisionConfig(enabled, base, key, model, minConfidence, timeout);
+        } catch (Exception notUsable) {
+            return disabled();
+        }
+    }
+
+    private static String string(com.google.gson.JsonObject o, String key, String fallback) {
+        return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsString() : fallback;
+    }
+
     private static double readDouble(String value, double fallback) {
         try {
             return value == null ? fallback : Double.parseDouble(value.strip());

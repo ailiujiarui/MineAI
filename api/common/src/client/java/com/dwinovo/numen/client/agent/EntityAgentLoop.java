@@ -1,9 +1,13 @@
 package com.dwinovo.numen.client.agent;
 
 import com.dwinovo.numen.Constants;
+import com.dwinovo.numen.NumenPaths;
+import com.dwinovo.numen.agent.decision.DecisionConfig;
+import com.dwinovo.numen.agent.decision.JevDecisionProvider;
 import com.dwinovo.numen.agent.goal.GoalPrompts;
 import com.dwinovo.numen.agent.goal.GoalState;
 import com.dwinovo.numen.agent.goal.GoalSteward;
+import com.dwinovo.numen.agent.goal.JevGoalJudge;
 import com.dwinovo.numen.agent.http.CancelToken;
 import com.dwinovo.numen.agent.llm.NumenLlmClient;
 import com.dwinovo.numen.agent.llm.ConvoLog;
@@ -149,6 +153,8 @@ public final class EntityAgentLoop {
     private final AgentLoop loop;
     /** 上一个 tick 驾驶席在不在外接模型手里——只用来找"翻转成外接"的那一下。 */
     private boolean wasDriving;
+    /** JEV 判卷开着没有:开了就把主人每句话自动立成目标,收尾由 JEV 判卷(见 {@link #enqueueOwnerWords})。 */
+    private final boolean jevGoal;
 
     EntityAgentLoop(UUID entityUuid) {
         this.entityUuid = entityUuid;
@@ -165,8 +171,12 @@ public final class EntityAgentLoop {
         this.compactor = new Compactor(entityUuid.toString(), convo, log, this::modelWindow);
         this.loop = new AgentLoop(entityUuid.toString(), model, dispatcher, convo, queue, compactor, new Host());
         // 目标跨重进游戏活着 —— 长期目标就该是长期的,重启不该把它弄丢。
+        // 判官:配了 JEV(config/numen/decision.json)就让它当"系统一",否则退回另开一次模型调用(LlmGoalJudge)。
+        DecisionConfig decision = DecisionConfig.fromFile(NumenPaths.config().resolve("decision.json"));
+        this.jevGoal = decision.usable();
         this.goals = new GoalSteward(entityUuid.toString(), loop, convo, queue, runtime::xml,
-                runtime::bodyOnFiniteTask, g -> CompanionHome.setGoal(entityUuid, g), CompanionHome.goal(entityUuid));
+                runtime::bodyOnFiniteTask, g -> CompanionHome.setGoal(entityUuid, g), CompanionHome.goal(entityUuid),
+                jevGoal ? new JevGoalJudge(new JevDecisionProvider(decision), decision.minConfidence()) : null);
         this.wasDriving = McpMode.instance().driving();
         // 内核只发事件,各管一摊的各自订阅:界面、台账、整理、目标、札记的重贴、她手上那件活的镜像
         loop.subscribe(presenter::on);
@@ -343,8 +353,19 @@ public final class EntityAgentLoop {
         }
         // Wrap the owner's words in <query> so the model can always tell real user input apart from
         // anything else numen injects into the same user turn (events, and future world-state/reminders).
-        return deliver(new EventQueue.Entry(EventTypes.QUERY, wire + audienceLine(),
+        boolean held = deliver(new EventQueue.Entry(EventTypes.QUERY, wire + audienceLine(),
                 System.currentTimeMillis(), false));
+        // 自动目标:主人一开口、还没有目标、且 JEV 判卷开着,就把这句话立成目标。
+        // 之后每轮 run 收尾由 JEV 判"办完没有"——不用 /goal,也不再叫大模型当判官(快得多)。
+        if (jevGoal && goals.goal() == null && logged != null && !logged.isBlank()) {
+            GoalState auto = GoalState.of(logged, System.currentTimeMillis());
+            if (goals.set(auto)) {
+                // 只补"这是长期目标、不许自称完成"的规矩,不复述主人那句话(聊天里已经有气泡)
+                deliver(new EventQueue.Entry(EventTypes.QUERY, GoalPrompts.initialDirective(auto),
+                        System.currentTimeMillis(), false));
+            }
+        }
+        return held;
     }
 
     /**
