@@ -1,0 +1,13 @@
+{
+  "id": "ae2",
+  "targetMod": "ae2",
+  "side": "server",
+  "schema": 2,
+  "requires": ["ae2"],
+  "guis": [
+    { "menu": "ae2:*", "source": "ae2" }
+  ],
+  "containers": [
+    { "block": "ae2:*", "access": "ae2" }
+  ]
+}

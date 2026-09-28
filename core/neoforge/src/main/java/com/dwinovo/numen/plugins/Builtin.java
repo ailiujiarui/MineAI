@@ -39,6 +39,9 @@ public final class Builtin {
         gate.open("curios", () -> com.dwinovo.numen.plugins.curios.NumenCurios::install);
         gate.openAdapters("mekanism", "mekanism",
                 adapters -> () -> com.dwinovo.numen.plugins.mekanism.MekanismAdapter.install(adapters));
+        gate.openAdapters("ae2", "ae2",
+                adapters -> () -> com.dwinovo.numen.plugins.ae2.Ae2Adapter.install(
+                        adapters, ModJar.find("plugins/ae2/skills")));
         gate.open("jei", () -> com.dwinovo.numen.plugins.jei.NumenJei::install);
         gate.open("ftbquests", "ftbquests",
                 skills -> () -> com.dwinovo.numen.plugins.ftbquests.NumenFtbQuests.install(skills));
