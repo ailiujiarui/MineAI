@@ -110,6 +110,25 @@ public final class GameTestKit {
         throw new IllegalStateException("no slot of hers holds " + item);
     }
 
+    /**
+     * 干净测试环境里的模组:Mekanism 系列只是被测目标,不动这四条钉的原版语义。
+     */
+    private static final java.util.Set<String> VANILLA_TEST_MODS = java.util.Set.of(
+            "minecraft", "neoforge", "numen", "numen_api", "mekanism", "mekanismgenerators");
+
+    /**
+     * 环境有没有被改动原版语义。整合包会改掉"末影珍珠没有配方""床太远/旁边有怪不能睡""手持物照报"
+     * 这类结论——钉原版语义的用例在那种环境里不再成立,按跳过处理,而不是判红(不是这些用例要测的东西变了)。
+     */
+    static boolean vanillaSemanticsIntact() {
+        for (var mod : net.neoforged.fml.ModList.get().getMods()) {
+            if (!VANILLA_TEST_MODS.contains(mod.getModId())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     static boolean carries(NumenPlayer companion, net.minecraft.world.item.Item item) {
         var inv = companion.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {
