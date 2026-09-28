@@ -32,7 +32,9 @@ import java.util.Map;
  * {@link Recorder}:采集叶子按物品归并成"还差的原料",craft / 备工作站按调用顺序记成产线步骤,
  * 不真动世界——这个工具只出计划,执行仍走 gather/mine、craft 与各工作站的工具。
  *
- * <p>库存扣减、成环、多条做法分不清都交规划层判;算不出来就如实回执,绝不拿"做完了"糊弄。
+ * <p>库存扣减、成环、多条做法分不清都交规划层判。成环不再硬失败:规划层把成环处当采集叶子,
+ * 这里就把已经算通的部分当部分计划交出去,并在 {@code unresolved} 里点名没算通的节点;真的
+ * 一步都算不出才如实回执。绝不拿"做完了"糊弄。
  */
 public final class PlanOps {
 
@@ -48,8 +50,11 @@ public final class PlanOps {
         RecipeBook book = ServerRecipeBook.forLevel(level, have);
         Recorder recorder = new Recorder();
         Compiled compiled = Compiler.compile(GoalTask.obtain(id, want), have, book, recorder);
+        List<String> unresolved = compiled.unresolved();
 
-        if (!compiled.ok()) {
+        // 什么都没记下、又没编译成功,才是真的算不出来(比如目标本身就有多条做法分不清)。
+        // 只要记下了哪怕一步,就把它当部分计划交出去,别拿 bare "cannot plan" 埋掉已经算出的部分。
+        if (!compiled.ok() && recorder.steps.isEmpty()) {
             Missing.Unresolved unmet = compiled.unmet();
             String options = unmet.options().isEmpty() ? ""
                     : " Options: " + String.join(" | ", unmet.options()) + ".";
@@ -71,8 +76,12 @@ public final class PlanOps {
         data.put("satisfied", false);
         data.put("gather", gather);
         data.put("steps", recorder.steps);
+        if (!unresolved.isEmpty()) {
+            data.put("unresolved", unresolved);
+        }
 
-        StringBuilder msg = new StringBuilder("plan for ").append(want).append("x ").append(id)
+        StringBuilder msg = new StringBuilder(unresolved.isEmpty() ? "plan for " : "partial plan for ")
+                .append(want).append("x ").append(id)
                 .append(" — not all in your inventory yet.");
         if (gather.isEmpty()) {
             msg.append("\nGather: nothing missing; the materials you carry cover the steps below.");
@@ -86,6 +95,12 @@ public final class PlanOps {
         int n = 1;
         for (String step : recorder.steps) {
             msg.append("\n  ").append(n++).append(". ").append(step);
+        }
+        if (!unresolved.isEmpty()) {
+            msg.append("\nUnresolved (cyclic or ambiguous; cannot be planned through):");
+            for (String item : unresolved) {
+                msg.append("\n  - ").append(item);
+            }
         }
         msg.append("\nThis only plans; nothing has been gathered or made yet.");
         return TaskResult.ok(msg.toString(), data).toJson();

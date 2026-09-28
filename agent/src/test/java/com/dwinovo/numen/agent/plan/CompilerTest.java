@@ -85,4 +85,14 @@ class CompilerTest {
         assertTrue(compiled.ok());
         assertEquals(Node.Status.SUCCESS, tickOne(compiled));
     }
+
+    @Test
+    void aCyclicGoalCompilesToAPartialPlan() {
+        // a -> a 成环:不该硬失败,把成环处当采集叶子,整份计划标出 unresolved。
+        RecipeBook book = book(new Recipe("a", 1, List.of(ItemStack.of("a", 1)), null));
+        Compiled compiled = Compiler.compile(GoalTask.obtain("a", 1), Counts.empty(), book, ACTIONS);
+        assertTrue(compiled.ok(), "成环只让计划变成部分计划");
+        assertTrue(compiled.unresolved().contains("a"), "成环节点要能报出名字");
+        assertEquals(Node.Status.SUCCESS, tickOne(compiled));
+    }
 }

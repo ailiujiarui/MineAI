@@ -20,6 +20,7 @@ import net.minecraft.world.item.crafting.StonecutterRecipe;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,27 +89,29 @@ public final class ServerRecipeBook implements RecipeBook {
     }
 
     /**
-     * 同一产物有多条做法时,只留最该用的那几条:手里的原料能直接喂的优先,再比单次产出
-     * (原版木棍有木板和竹子两条,选能接着用的那条)。不分上下的并列原样留着,让规划层照旧把
-     * "多条做法分不清"如实回报,而不是替模型硬选。
+     * 同一产物有多条做法时,只留最该用的那几条,按这层次序比:
+     * <ol>
+     *   <li>手里的原料能直接喂的优先(原版木棍有木板和竹子两条,选能接着用的那条);</li>
+     *   <li>不重新引入产物同族物品的优先——压缩方块(如 {@code allthecompressed:iron_block_8x})
+     *       的压缩/解压配方都拿同族物品当原料,并排在一起会互相指向;</li>
+     *   <li>不是同族压缩/解压的优先,免得把 {@code 8x} 一路解到 {@code 9x} 再压回 {@code 8x};</li>
+     *   <li>单次产出大的优先。</li>
+     * </ol>
+     * 各层都不分上下的并列原样留着,让规划层照旧把"多条做法分不清"如实回报,而不是替模型硬选。
      */
     private static List<Raw> canonical(List<Raw> raws, Counts have) {
         if (raws.size() <= 1) {
             return raws;
         }
-        int bestHeld = -1;
-        int bestOut = -1;
-        for (Raw r : raws) {
-            int held = r.heldIngredients(have);
-            int out = r.outputCount();
-            if (held > bestHeld || (held == bestHeld && out > bestOut)) {
-                bestHeld = held;
-                bestOut = out;
-            }
-        }
+        Comparator<Raw> preference = Comparator
+                .comparingInt((Raw r) -> r.heldIngredients(have)).reversed()
+                .thenComparing(Raw::reintroducesOwnFamily)
+                .thenComparing(Raw::compression)
+                .thenComparing(Comparator.comparingInt(Raw::outputCount).reversed());
+        Raw best = raws.stream().min(preference).orElseThrow();
         List<Raw> kept = new ArrayList<>();
         for (Raw r : raws) {
-            if (r.heldIngredients(have) == bestHeld && r.outputCount() == bestOut) {
+            if (preference.compare(r, best) == 0) {
                 kept.add(r);
             }
         }
@@ -248,6 +251,33 @@ public final class ServerRecipeBook implements RecipeBook {
             }
             return held;
         }
+
+        /** 原料里有没有同族物品。压缩链(iron_block_8x ⇄ _9x)与可逆配方会这样互相指向,不该优先。 */
+        boolean reintroducesOwnFamily() {
+            String own = family(output);
+            for (Ingredient ing : ingredients) {
+                for (ItemStack s : ing.getItems()) {
+                    if (s != null && family(itemId(s.getItem())).equals(own)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /** 同族之间的压缩/解压:进料格数与单次产出对不上(如 9 块压 1 块、1 块解 9 块)。 */
+        boolean compression() {
+            if (!reintroducesOwnFamily()) {
+                return false;
+            }
+            int intake = 0;
+            for (Ingredient ing : ingredients) {
+                if (!ing.isEmpty()) {
+                    intake++;
+                }
+            }
+            return intake != outputCount;
+        }
     }
 
     /** 标签里挑一个代表:手里最多的优先,都不要就取第一个。 */
@@ -288,5 +318,19 @@ public final class ServerRecipeBook implements RecipeBook {
 
     private static String itemId(Item item) {
         return BuiltInRegistries.ITEM.getKey(item).toString();
+    }
+
+    /**
+     * 物品的"族":剥掉命名空间与末尾的压缩档位后缀。{@code allthecompressed:iron_block_8x}、
+     * {@code minecraft:iron_block} 同族;{@code compressed_iron_block_8x} 归
+     * {@code compressed_iron_block}。只用来判"这条配方有没有动自己这一族",不碰物品本体。
+     */
+    private static String family(String itemId) {
+        String path = itemId;
+        int colon = path.indexOf(':');
+        if (colon >= 0) {
+            path = path.substring(colon + 1);
+        }
+        return path.replaceFirst("_\\d+x$", "");
     }
 }

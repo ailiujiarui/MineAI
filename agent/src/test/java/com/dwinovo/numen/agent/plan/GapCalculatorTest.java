@@ -73,12 +73,12 @@ class GapCalculatorTest {
     }
 
     @Test
-    void aRecipeThatDependsOnItselfIsUnresolved() {
+    void aRecipeThatDependsOnItselfBecomesACycleLeaf() {
         RecipeBook book = book(new Recipe("a", 1, List.of(ItemStack.of("a", 1)), null));
         Missing missing = GapCalculator.missing(GoalTask.obtain("a", 1), Counts.empty(), book);
         assertTrue(missing instanceof Missing.Craft);
-        assertTrue(((Missing.Craft) missing).inputs().get(0) instanceof Missing.Unresolved cycle
-                && cycle.reason().contains("cycle"));
+        assertTrue(((Missing.Craft) missing).inputs().get(0) instanceof Missing.Cycle cycle
+                && cycle.item().equals("a"), "撞回自己应落成环叶子,不再整棵树失败");
     }
 
     @Test

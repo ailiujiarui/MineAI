@@ -12,8 +12,9 @@ import java.util.Objects;
  * 依赖计算:递归展开配方,扣掉真实库存,算出"要拿到这个,还差哪些原料"。
  *
  * <p>这就是 MineAI {@code GapCalculator} 的纯 JVM 版。三件事:没有配方的物品落成
- * {@link Missing.Gather};有配方的先展开原料;算不出来(成环 / 多条做法分不清)落成
- * {@link Missing.Unresolved},把选择权交回上层。
+ * {@link Missing.Gather};有配方的先展开原料;多条做法分不清落成 {@link Missing.Unresolved}。
+ * 展开时撞回依赖链上已经有的物品(压缩方块互指、可逆配方等)则落成 {@link Missing.Cycle} 叶子,
+ * 不再往下钻,也不让整棵树失败——上层拿到的是"其余部分照计划"的部分计划。
  *
  * <p>库存不是每次全量重算:展开时用一份"已计划"账本记下每个物品已经排进去多少,兄弟分支
  * 之间不再重复吃同一份库存——否则"两个成品都要铁"会各按全量库存算一遍,少采。
@@ -45,7 +46,8 @@ public final class GapCalculator {
             return null;   // 库存就够
         }
         if (stack.contains(item)) {
-            return new Missing.Unresolved(item, need, "dependency cycle", List.of());
+            // 这条链又绕回自己:当成叶子,别再无谓地往下展开(压缩方块一类的可逆配方会无限互指)。
+            return new Missing.Cycle(item, need);
         }
         List<Recipe> recipes = book.recipesFor(item);
         if (recipes.isEmpty()) {
