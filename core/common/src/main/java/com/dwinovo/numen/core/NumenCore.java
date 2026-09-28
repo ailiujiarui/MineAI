@@ -153,6 +153,8 @@ public final class NumenCore {
         ToolRegistry.register(new com.dwinovo.numen.core.tools.agent.RecallTool());      // raw NumenTool
         ToolRegistry.register(new com.dwinovo.numen.core.tools.agent.ForgetTool());      // raw NumenTool
         ToolRegistry.register(new com.dwinovo.numen.core.tools.work.PlanRouteTool());
+        ToolRegistry.register(new com.dwinovo.numen.core.tools.kb.KbQueryTool());
+        ToolRegistry.register(new com.dwinovo.numen.core.tools.block.MachineConfigTool());
     }
 
 
