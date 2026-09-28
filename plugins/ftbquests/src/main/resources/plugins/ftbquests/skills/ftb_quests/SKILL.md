@@ -1,6 +1,6 @@
 ---
 name: ftb_quests
-description: 主人提到任务书、FTB 任务、还差什么、交任务、组队/入队、任务奖励,或者你收到 quest_completed、quest_reward_auto、team_invite 事件时看这个。
+description: 主人提到任务书、FTB 任务、还差什么、交任务、领奖励、组队/入队、任务奖励,或者你收到 quest_completed、quest_reward_auto、team_invite 事件时看这个。
 ---
 
 # FTB 任务与队伍
@@ -70,6 +70,24 @@ FTB 的自动领取奖励对你和对真人一样:
 奖励记到你名下时你会收到一条 `quest_reward_auto`,写着领了哪些奖励,以及同一刻你背包和经验实际变了什么。
 **拿到东西要如实告诉主人**:拿了什么、几个。背包满了的时候,放不下的会掉在你脚边,记得捡。
 没有问过主人,别把奖励当成自己的随便用掉或扔掉。
+
+## 领取奖励
+
+有些整合包把奖励设成**要在任务书里手动领取**(`show` 里那种会写 `claimed by hand in the book`)。这种奖励
+FTB 不会自动发,而你自己点不了任务书,所以用 `claim` 替你按那个"领取"按钮:
+
+```
+numen ftbquests claim
+numen ftbquests claim --quest 15CDF6A098B95FDA
+numen ftbquests claim --quest "Getting Started"
+```
+
+不带 `--quest` 领此刻你和你队伍能领的全部,带上只领那一个任务(编号,或标题;标题带空格要加引号)。
+它走的就是书里"领取"按钮背后那条服务端处理,东西直接进**你的背包**。回执写清每件领到了什么,以及领完你背包
+经验实际变了什么;没有可领的会直说。要你到选择屏/开箱屏上挑的奖励它不领,会点名说只能在书里点。
+
+**团队奖励**全队只有一份,谁先领就归谁,所以不带 `--quest` 一起领之前先想清楚主人愿不愿意;问过主人再领。
+任务刚完成时,属于你个人的手动奖励会当场自动替你领掉,并照常作为 `quest_reward_auto` 告诉你。
 
 ## 任务完成
 

@@ -6,7 +6,9 @@ import dev.ftb.mods.ftbquests.api.FTBQuestsAPI;
 import dev.ftb.mods.ftbquests.events.ObjectCompletedEvent;
 import dev.ftb.mods.ftbquests.quest.BaseQuestFile;
 import dev.ftb.mods.ftbquests.quest.Chapter;
+import dev.ftb.mods.ftbquests.quest.Quest;
 import dev.ftb.mods.ftbquests.quest.QuestObject;
+import dev.ftb.mods.ftbquests.quest.QuestObjectBase;
 import dev.ftb.mods.ftbquests.quest.ServerQuestFile;
 import dev.ftb.mods.ftbquests.quest.TeamData;
 import dev.ftb.mods.ftbquests.quest.reward.Reward;
@@ -41,6 +43,9 @@ import java.util.UUID;
  * <p>什么东西进了她的背包,另从她身上读:每刻结束记下她背包里每格是什么、几个,以及经验;报奖励时和上一刻结束时
  * (她刚进世界那一刻则是入场时)比。这是她身上在同一刻里实际的变化,不是从奖励配置推算的——物品奖励可能带
  * 随机加量、战利品表每次抽的不一样、背包满了会掉在脚边,推算都会说错。
+ *
+ * <p>整合包把奖励设成"要在任务书里手动领取"时 FTB 不会自动发,这里替她领:刚完成的任务里属于她个人、能在服务端
+ * 直接发的那些,在翻记录之前先领掉,于是也进了这一轮的报告。团队奖励与要选择屏的不动,见 {@link QuestClaim}。
  *
  * <p>只在这一刻里 FTB 可能替她结算过的时候才去翻记录:她的队伍完成了东西、她刚进世界、她换了队伍。
  * 管理员用命令或编辑器强行改进度不发完成事件,那时发的奖励这里不报——和别的管理命令(比如 {@code /give})一样。
@@ -101,9 +106,16 @@ final class QuestWatch {
             }
             UUID id = her.getUUID();
             List<Completion> done = COMPLETED.remove(id);
+            List<Quest> finished = new ArrayList<>();
             if (done != null) {
                 for (Completion c : done) {
                     FtbqEvents.completed(her, c.object(), c.id(), c.title(), c.team(), c.by());
+                    if (c.object().equals("quest")) {
+                        Quest quest = ServerQuestFile.INSTANCE.getQuest(QuestObjectBase.parseCodeString(c.id()));
+                        if (quest != null) {
+                            finished.add(quest);
+                        }
+                    }
                 }
             }
             Ledger ledger = LEDGERS.get(id);
@@ -111,7 +123,7 @@ final class QuestWatch {
                 // 账随身体建、随身体销:这是正在离开世界的那具
                 continue;
             }
-            Set<Long> toldNow = TO_CHECK.contains(id) ? reportClaims(her, ledger, now) : Set.of();
+            Set<Long> toldNow = TO_CHECK.contains(id) ? reportClaims(her, ledger, now, finished) : Set.of();
             ledger.remember(her, now, toldNow);
         }
         // 刻中途离开的同伴:她们的那几条随身体一起作废
@@ -119,14 +131,25 @@ final class QuestWatch {
         TO_CHECK.clear();
     }
 
-    /** @return 领取时刻恰好是 {@code now} 这一毫秒、这次已经说过的奖励——下一刻的账从 now 开始,别再说一遍 */
-    private static Set<Long> reportClaims(NumenPlayer her, Ledger ledger, long now) {
+    /**
+     * 这一刻里 FTB 可能替她结算过奖励:先把刚刚完成的任务里、FTB 不会自动发的手动个人奖励替她领掉
+     * ({@link QuestClaim#autoClaimPersonal},领奖时刻就记这一毫秒),再照常翻领奖记录,
+     * 于是这些代领的奖励和 FTB 自动发的走同一条事件报给她。
+     *
+     * @return 领取时刻恰好是 {@code now} 这一毫秒、这次已经说过的奖励——下一刻的账从 now 开始,别再说一遍
+     */
+    private static Set<Long> reportClaims(NumenPlayer her, Ledger ledger, long now, List<Quest> finished) {
         BaseQuestFile file = FTBQuestsAPI.api().getQuestFile(false);
         Optional<TeamData> maybe = file.getTeamData(her);
         if (maybe.isEmpty()) {
             return Set.of();
         }
         TeamData data = maybe.get();
+        if (!data.isLocked()) {
+            for (Quest quest : finished) {
+                QuestClaim.autoClaimPersonal(her, data, quest, now);
+            }
+        }
         List<String> mine = new ArrayList<>();
         List<String> team = new ArrayList<>();
         Set<Long> toldNow = new HashSet<>();
