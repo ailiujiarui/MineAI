@@ -37,6 +37,10 @@ public final class GapCalculator {
                                   Deque<String> stack, Map<String, Integer> reserved) {
         int available = Math.max(0, have.count(item) - reserved.getOrDefault(item, 0));
         int need = count - available;
+        // 这一分支要占住 count 个:库存里能拿的也先算在它头上,兄弟分支再要同一种物品时看到的是
+        // 扣完的库存。要是只在 need>0 时才记账,一份库存会被每个"刚好够"的兄弟分支反复复用——
+        // 目标要 5 块木板、手里 1 根原木,却算成不用再采原木。
+        reserved.merge(item, count, Integer::sum);
         if (need <= 0) {
             return null;   // 库存就够
         }
@@ -45,16 +49,13 @@ public final class GapCalculator {
         }
         List<Recipe> recipes = book.recipesFor(item);
         if (recipes.isEmpty()) {
-            reserved.merge(item, need, Integer::sum);
             return new Missing.Gather(item, need);
         }
         Recipe recipe = choose(recipes, prefer);
         if (recipe == null) {
-            reserved.merge(item, need, Integer::sum);
             return new Missing.Unresolved(item, need, "ambiguous recipe",
                     recipes.stream().map(Recipe::signature).toList());
         }
-        reserved.merge(item, need, Integer::sum);
         int times = (need + recipe.outputCount() - 1) / recipe.outputCount();
 
         stack.push(item);

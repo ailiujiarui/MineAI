@@ -95,6 +95,7 @@ sourceSets.configureEach {
 // 联动模组的类与资源平铺进发行 jar——它们本质是独立模组,只是跟车一起发。
 // 目标模组不在时它们一个类都不会被加载,见 com.dwinovo.numen.plugins.Builtin。
 tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from({ project(':plugins:ysm').sourceSets.main.output })
     from({ project(':plugins:tlm').sourceSets.main.output })
     from({ project(':plugins:kaleidoscope').sourceSets.main.output })

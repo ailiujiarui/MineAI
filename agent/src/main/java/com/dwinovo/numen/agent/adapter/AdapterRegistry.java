@@ -231,6 +231,39 @@ public final class AdapterRegistry {
         return out;
     }
 
+    /** 全部生效的机器契约,按优先顺序。 */
+    public synchronized List<AdapterSpec.MachineSpec> machines() {
+        List<AdapterSpec.MachineSpec> out = new ArrayList<>();
+        for (AdapterSpec spec : ordered()) {
+            out.addAll(spec.machines());
+        }
+        return out;
+    }
+
+    /** 认这个菜单 id 的第一台机器;没有为 null。 */
+    public synchronized Optional<AdapterSpec.MachineSpec> machineForMenu(String menuId) {
+        for (AdapterSpec spec : ordered()) {
+            for (AdapterSpec.MachineSpec machine : spec.machines()) {
+                if (ItemSelector.of(machine.menu()).matches(menuId)) {
+                    return Optional.of(machine);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** 认这个方块 id 的第一台机器;没有为 null。 */
+    public synchronized Optional<AdapterSpec.MachineSpec> machineForBlock(String blockId) {
+        for (AdapterSpec spec : ordered()) {
+            for (AdapterSpec.MachineSpec machine : spec.machines()) {
+                if (ItemSelector.of(machine.block()).matches(blockId)) {
+                    return Optional.of(machine);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     public synchronized void clear() {
         active.clear();
         sourceOf.clear();

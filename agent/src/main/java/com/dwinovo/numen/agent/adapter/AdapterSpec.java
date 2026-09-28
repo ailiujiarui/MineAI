@@ -5,7 +5,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -29,15 +31,19 @@ import java.util.function.Function;
  * @param containers  方块容器怎么访问
  * @param guis        菜单(GUI)怎么读
  * @param useRoutes   物品右键(开火/换弹等)的意图
+ * @param machines    机器配方契约:某个 {@code RecipeType} 由哪台机器的哪个菜单槽吃/产
  */
 public record AdapterSpec(String id, String targetMod, Side side, int schema, boolean enabled, int priority,
                           List<String> requires,
                           List<SlotMap> slotMaps, List<EquipRoute> equipRoutes,
                           List<ContainerRoute> containers, List<GuiRoute> guis,
-                          List<UseRoute> useRoutes) {
+                          List<UseRoute> useRoutes,
+                          List<MachineSpec> machines) {
 
-    /** 引擎当前认得的声明格式版本。 */
-    public static final int CURRENT_SCHEMA = 1;
+    /**
+     * 引擎当前认得的声明格式版本。v2 起多出 {@code machines};v1 文件没有这个键,照旧解析。
+     */
+    public static final int CURRENT_SCHEMA = 2;
 
     public AdapterSpec {
         targetMod = targetMod == null ? "" : targetMod;
@@ -48,6 +54,7 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
         containers = List.copyOf(containers);
         guis = List.copyOf(guis);
         useRoutes = List.copyOf(useRoutes);
+        machines = List.copyOf(machines);
     }
 
     /** 槽位映射:某类物品归某个容器管。第几号槽由处理器决定,不写死在数据里。 */
@@ -121,6 +128,59 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
         }
     }
 
+    /**
+     * 机器配方契约:把"某台机器按某个 {@code RecipeType} 吃/产什么、在哪个菜单槽"写成数据。
+     * 引擎据此查服务端配方本:输入槽、输出槽由 {@code slots} 的角色表声明,不写死在代码里。
+     *
+     * @param id         机器 id(适配器内唯一)
+     * @param block      方块 id;可空(只按菜单认的机器就不写)
+     * @param menu       菜单 id;可空(只按方块认的机器就不写)
+     * @param recipeType 服务端 {@code RecipeType} 的 id,如 {@code minecraft:smelting}
+     * @param slots      角色 → 菜单槽号表,如 {@code input/output/fuel/energy}
+     * @param note       给模型看的一句话说明;可空
+     */
+    public record MachineSpec(String id, String block, String menu, String recipeType,
+                              Map<String, List<Integer>> slots, String note) {
+
+        public MachineSpec {
+            id = id == null ? "" : id;
+            block = block == null ? "" : block;
+            menu = menu == null ? "" : menu;
+            recipeType = recipeType == null ? "" : recipeType;
+            slots = copySlots(slots);
+            note = note == null ? "" : note;
+        }
+
+        /** 某个角色的槽位表(如 {@code input}/{@code output});这个角色没声明就给空表。 */
+        public List<Integer> slots(String role) {
+            return slots.getOrDefault(role, List.of());
+        }
+
+        static MachineSpec fromJson(JsonObject o) {
+            return new MachineSpec(str(o, "id"), str(o, "block"), str(o, "menu"), str(o, "recipeType"),
+                    parseSlots(o, "slots"), str(o, "note"));
+        }
+
+        JsonObject toJson() {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", id);
+            o.addProperty("block", block);
+            o.addProperty("menu", menu);
+            o.addProperty("recipeType", recipeType);
+            JsonObject roles = new JsonObject();
+            for (Map.Entry<String, List<Integer>> role : slots.entrySet()) {
+                JsonArray arr = new JsonArray();
+                for (int index : role.getValue()) {
+                    arr.add(index);
+                }
+                roles.add(role.getKey(), arr);
+            }
+            o.add("slots", roles);
+            o.addProperty("note", note);
+            return o;
+        }
+    }
+
     public JsonObject toJson() {
         JsonObject o = new JsonObject();
         o.addProperty("id", id);
@@ -137,6 +197,7 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
         addAll(o, "containers", containers, ContainerRoute::toJson);
         addAll(o, "guis", guis, GuiRoute::toJson);
         addAll(o, "useRoutes", useRoutes, UseRoute::toJson);
+        addAll(o, "machines", machines, MachineSpec::toJson);
         return o;
     }
 
@@ -152,7 +213,8 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
                 list(o, "equipRoutes", EquipRoute::fromJson),
                 list(o, "containers", ContainerRoute::fromJson),
                 list(o, "guis", GuiRoute::fromJson),
-                list(o, "useRoutes", UseRoute::fromJson));
+                list(o, "useRoutes", UseRoute::fromJson),
+                list(o, "machines", MachineSpec::fromJson));
     }
 
     // ---- 小工具 ----
@@ -184,6 +246,36 @@ public record AdapterSpec(String id, String targetMod, Side side, int schema, bo
             }
         }
         return out;
+    }
+
+    /** 角色 → 槽号表;缺键/不是对象给空表,非数字的槽号丢掉。 */
+    private static Map<String, List<Integer>> parseSlots(JsonObject o, String key) {
+        Map<String, List<Integer>> out = new LinkedHashMap<>();
+        if (o.has(key) && o.get(key).isJsonObject()) {
+            for (Map.Entry<String, JsonElement> role : o.getAsJsonObject(key).entrySet()) {
+                List<Integer> indices = new ArrayList<>();
+                JsonElement value = role.getValue();
+                if (value.isJsonArray()) {
+                    for (JsonElement el : value.getAsJsonArray()) {
+                        if (el.isJsonPrimitive()) {
+                            indices.add(el.getAsInt());
+                        }
+                    }
+                } else if (value.isJsonPrimitive()) {
+                    indices.add(value.getAsInt());
+                }
+                out.put(role.getKey(), indices);
+            }
+        }
+        return out;
+    }
+
+    private static Map<String, List<Integer>> copySlots(Map<String, List<Integer>> slots) {
+        Map<String, List<Integer>> out = new LinkedHashMap<>();
+        if (slots != null) {
+            slots.forEach((role, indices) -> out.put(role, List.copyOf(indices)));
+        }
+        return Map.copyOf(out);
     }
 
     private static ItemSelector selector(JsonObject o, String key) {

@@ -24,8 +24,11 @@ public final class JeiRecipeTool implements NumenTool {
     public String description() {
         return "Ask JEI (Just Enough Items) the recipe for an item: what makes it, and what it is used in. "
                 + "Runs on the owner's client against JEI's own registry, so it also covers mod-added recipes "
-                + "and custom machine categories that the server recipe book does not expose. Use it when "
-                + "`lookup_recipe` finds nothing or the recipe comes from a mod machine.";
+                + "and custom machine categories that the server recipe book does not expose. Each recipe is "
+                + "grouped by its JEI category and names the machine/catalyst (the block or item you use), plus "
+                + "the inputs and outputs as JEI sees them — including chemical/gas categories and machines "
+                + "whose server-side recipe has no readable result (EnderIO). Use it when `lookup_recipe` or "
+                + "`machine_recipe` cannot resolve the recipe.";
     }
 
     @Override
@@ -44,6 +47,6 @@ public final class JeiRecipeTool implements NumenTool {
             call.complete(TaskResult.fail("item_id is required").toJson());
             return;
         }
-        call.complete(NumenJei.lookup(itemId));
+        call.complete(NumenJei.recipesByCategory(itemId));
     }
 }

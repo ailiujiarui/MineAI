@@ -57,6 +57,46 @@ final class ExampleAdapters {
             }
             """;
 
+    /** 无目标模组(targetMod 空)即"原版"适配:机器契约的参考,不依赖任何模组,照常装载。 */
+    private static final String FURNACE = """
+            {
+              "id": "furnace",
+              "targetMod": "",
+              "side": "server",
+              "schema": 2,
+              "machines": [
+                {
+                  "id": "furnace",
+                  "block": "minecraft:furnace",
+                  "menu": "minecraft:furnace",
+                  "recipeType": "minecraft:smelting",
+                  "slots": { "input": [0], "fuel": [1], "output": [2] },
+                  "note": "Vanilla furnace: one input, one fuel, one output."
+                }
+              ]
+            }
+            """;
+
+    /** AE2 没有独立的插件模块,机器契约随示例铺开。槽位取自真实菜单:四个受限输入 + 一个输出。 */
+    private static final String AE2 = """
+            {
+              "id": "ae2",
+              "targetMod": "ae2",
+              "side": "server",
+              "schema": 2,
+              "machines": [
+                {
+                  "id": "inscriber",
+                  "block": "ae2:inscriber",
+                  "menu": "ae2:inscriber",
+                  "recipeType": "ae2:inscriber",
+                  "slots": { "input": [0, 1, 2, 3], "output": [43] },
+                  "note": "AE2 inscriber: four restricted input slots, the printed item comes out slot 43."
+                }
+              ]
+            }
+            """;
+
     static void seedIfEmpty(Path dir) throws IOException {
         if (AdapterManager.hasAnyAdapter(dir)) {
             return;
@@ -64,6 +104,8 @@ final class ExampleAdapters {
         write(dir.resolve("example-curios.json"), CURIOS);
         write(dir.resolve("example-tacz.json"), TACZ);
         write(dir.resolve("example-beyonddimensions.json"), BEYOND_DIMENSIONS);
+        write(dir.resolve("example-furnace.json"), FURNACE);
+        write(dir.resolve("example-ae2.json"), AE2);
     }
 
     private static void write(Path file, String json) throws IOException {

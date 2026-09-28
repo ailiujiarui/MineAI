@@ -1,6 +1,7 @@
 package com.dwinovo.numen.core.tools;
 
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.core.adapter.SlotRoles;
 import com.dwinovo.numen.task.TaskResult;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -71,11 +72,13 @@ public final class GuiOps {
             }
             // Output-only = a non-empty machine slot that won't take its own item back (result slot).
             boolean output = !playerSide && !it.isEmpty() && !slot.mayPlace(it);
-            // Machine slots carry their ROLE in their class (Mekanism: InputInventorySlot / OutputInventorySlot /
-            // InfusionInventorySlot / EnergyInventorySlot …). Print it so the model can tell what each slot is for —
-            // the menu index alone says nothing. Player-side slots are all plain Slot, so skip the noise there.
-            String role = playerSide ? "" : " [" + slot.getClass().getSimpleName() + "]";
-            String line = "  " + i + ": " + describe(it) + role + (output ? " [output]" : "") + "\n";
+            // 机器槽的角色由通用分类器问出来(原版 ResultSlot/FurnaceFuelSlot、Mekanism 的 getSlotType()、
+            // 其余按类名),这样任何模组的机器都带上 [input]/[output]/[energy]/… —— 没有专门 GUI 处理器的
+            // 菜单也读得懂。玩家自己那一段全是普通 Slot,不打这个标。
+            String role = playerSide ? "" : roleTag(slot, self);
+            // 分类器没认出 output、但槽的表现就是个产出槽(非空且放不回自己的物品)时,补一个 [output]。
+            String outputTag = output && !"[output]".equals(role) ? " [output]" : "";
+            String line = "  " + i + ": " + describe(it) + role + outputTag + "\n";
             if (playerSide) {
                 if (!it.isEmpty()) {
                     mine.append(line);   // only your filled slots — the items you can move in
@@ -141,6 +144,12 @@ public final class GuiOps {
         var type = menu.getType();
         var key = BuiltInRegistries.MENU.getKey(type);
         return key == null ? null : key.toString();
+    }
+
+    /** 通用槽位角色标注;玩家自己的槽或认不出的槽给空串。 */
+    private static String roleTag(Slot slot, NumenPlayer self) {
+        String role = SlotRoles.roleOf(slot, self.getInventory());
+        return role == null || SlotRoles.PLAYER.equals(role) ? "" : " [" + role + "]";
     }
 
     private static String describe(ItemStack stack) {

@@ -9,10 +9,13 @@ import dev.ftb.mods.ftbquests.quest.QuestObjectBase;
 import dev.ftb.mods.ftbquests.quest.TeamData;
 import dev.ftb.mods.ftbquests.quest.reward.Reward;
 import dev.ftb.mods.ftbquests.quest.reward.RewardAutoClaim;
+import dev.ftb.mods.ftbquests.quest.task.ItemTask;
 import dev.ftb.mods.ftbquests.quest.task.Task;
 import dev.ftb.mods.ftbquests.util.TextUtils;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -137,8 +140,13 @@ final class QuestBook {
         List<Task> shown = shownTasks(quest);
         sb.append(shown.isEmpty() ? "\nTasks: none." : "\nTasks:");
         for (Task task : shown) {
-            sb.append("\n  ").append(text(task.getTitle()))
-                    .append(" — ").append(team.isCompleted(task) ? "done" : progress(task))
+            sb.append("\n  ").append(text(task.getTitle()));
+            ItemStack needed = neededItem(task);
+            if (needed != null) {
+                sb.append(" (").append(BuiltInRegistries.ITEM.getKey(needed.getItem()))
+                        .append(" x").append(needed.getCount()).append(")");
+            }
+            sb.append(" — ").append(team.isCompleted(task) ? "done" : progress(task))
                     .append(" — ").append(TaskRole.of(task).label());
         }
         if (shown.size() < quest.getTasks().size()) {
@@ -187,6 +195,18 @@ final class QuestBook {
             }
         }
         return out;
+    }
+
+    /** 物品条件要的东西与数量(其它条件回 null):把 id 讲清楚,plan_make 才知道该做什么。 */
+    private static ItemStack neededItem(Task task) {
+        if (task instanceof ItemTask item) {
+            ItemStack stack = item.getItemStack();
+            if (!stack.isEmpty()) {
+                long count = item.getMaxProgress();
+                return stack.copyWithCount((int) Math.min(Integer.MAX_VALUE, Math.max(1, count)));
+            }
+        }
+        return null;
     }
 
     /** 进度数,按条件自己的格式;只有"做没做"两态的条件不写数。 */

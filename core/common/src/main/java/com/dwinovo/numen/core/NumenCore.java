@@ -131,11 +131,14 @@ public final class NumenCore {
         ToolRegistry.register(new com.dwinovo.numen.core.tools.inventory.DropItemsTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.inventory.TakeItemsTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.interact.InspectGuiTool());
+        ToolRegistry.register(new com.dwinovo.numen.core.tools.interact.LearnMachineTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.inventory.TransferTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.interact.CloseGuiTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.perception.GetSelfStatusTool());   // SAMPLE: raw NumenTool
         ToolRegistry.register(new com.dwinovo.numen.core.tools.perception.GetOwnerStatusTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.inventory.LookupRecipeTool());
+        ToolRegistry.register(new com.dwinovo.numen.core.tools.inventory.MachineRecipeTool());
+        ToolRegistry.register(new com.dwinovo.numen.core.tools.inventory.PlanMakeTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.inventory.CraftTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.perception.ScanNearbyEntitiesTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.perception.ScanBlocksTool());
