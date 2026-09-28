@@ -20,6 +20,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -104,9 +105,10 @@ public final class NumenJeiPlugin implements IModPlugin {
                     sb.append("  ");
                     sb.append(describe(supplier.getIngredients(RecipeIngredientRole.INPUT))).append(" -> ")
                             .append(describe(supplier.getIngredients(RecipeIngredientRole.OUTPUT)));
-                    List<ITypedIngredient<?>> station = supplier.getIngredients(RecipeIngredientRole.CATALYST);
+                    String station = RecipeSummary.primary(describeEach(
+                            supplier.getIngredients(RecipeIngredientRole.CATALYST)));
                     if (!station.isEmpty()) {
-                        sb.append("   station: ").append(describe(station));
+                        sb.append("   station: ").append(station);
                     }
                     sb.append("\n");
                     count++;
@@ -118,11 +120,16 @@ public final class NumenJeiPlugin implements IModPlugin {
             return count;
         }
 
-        /** 类别的机器/催化剂物品 id;JEI 还没注册或查询失败就给空串(整段照报,不因它中断)。 */
+        /**
+         * 类别的主要机器/催化剂:JEI 把"这台机器能做这类配方"注册在这里。一个类别可能挂着一长串
+         * (原版工作台加各模组终端),这里只留主要的一到三个,见 {@link RecipeSummary}。
+         * JEI 还没注册或查询失败就给空串(整段照报,不因它中断)。
+         */
         private static String catalysts(IRecipeManager manager, IRecipeCategory<?> category) {
             try {
-                return describeStacks(manager.createRecipeCatalystLookup(category.getRecipeType())
-                        .getItemStack().toList());
+                List<ItemStack> stacks = manager.createRecipeCatalystLookup(category.getRecipeType())
+                        .getItemStack().toList();
+                return RecipeSummary.primary(stackIds(stacks));
             } catch (RuntimeException unavailable) {
                 return "";
             }
@@ -130,44 +137,46 @@ public final class NumenJeiPlugin implements IModPlugin {
 
         /** 把一组原料/产物渲染成 "id xN + id2 xM";非物品的按 toString 兜底。 */
         private static String describe(List<ITypedIngredient<?>> ingredients) {
-            if (ingredients == null || ingredients.isEmpty()) {
-                return "-";
+            List<String> each = describeEach(ingredients);
+            return each.isEmpty() ? "-" : String.join(" + ", each);
+        }
+
+        /** 每个原料/产物一个短串;非物品的按 toString 兜底。 */
+        private static List<String> describeEach(List<ITypedIngredient<?>> ingredients) {
+            List<String> each = new ArrayList<>();
+            if (ingredients == null) {
+                return each;
             }
-            StringBuilder sb = new StringBuilder();
             for (ITypedIngredient<?> typed : ingredients) {
-                if (sb.length() > 0) {
-                    sb.append(" + ");
-                }
                 Optional<ItemStack> stack = typed.getItemStack();
                 if (stack.isPresent()) {
                     ItemStack st = stack.get();
-                    sb.append(BuiltInRegistries.ITEM.getKey(st.getItem()).toString());
+                    String id = BuiltInRegistries.ITEM.getKey(st.getItem()).toString();
                     if (st.getCount() > 1) {
-                        sb.append(" x").append(st.getCount());
+                        id += " x" + st.getCount();
                     }
+                    each.add(id);
                 } else {
-                    sb.append(typed.getIngredient());
+                    each.add(String.valueOf(typed.getIngredient()));
                 }
             }
-            return sb.toString();
+            return each;
         }
 
-        /** 催化剂 ItemStack 列表 → "id xN + …";空表给空串(不占位)。 */
-        private static String describeStacks(List<ItemStack> stacks) {
-            StringBuilder sb = new StringBuilder();
+        /** 催化剂 ItemStack 列表 → id 列表;空/空气丢弃。 */
+        private static List<String> stackIds(List<ItemStack> stacks) {
+            List<String> ids = new ArrayList<>();
             for (ItemStack stack : stacks) {
                 if (stack == null || stack.isEmpty()) {
                     continue;
                 }
-                if (sb.length() > 0) {
-                    sb.append(" + ");
-                }
-                sb.append(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+                String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
                 if (stack.getCount() > 1) {
-                    sb.append(" x").append(stack.getCount());
+                    id += " x" + stack.getCount();
                 }
+                ids.add(id);
             }
-            return sb.toString();
+            return ids;
         }
     }
 }
