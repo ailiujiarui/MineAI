@@ -3,7 +3,6 @@ package com.dwinovo.numen.api.adapter;
 import com.dwinovo.numen.api.gear.GearSlot;
 import com.dwinovo.numen.api.gear.GearSource;
 import com.dwinovo.numen.entity.NumenPlayer;
-import com.google.gson.JsonObject;
 import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -69,7 +68,7 @@ class AdapterHandlersTest {
     @Test
     void hasReportsRegisteredNames() {
         assertFalse(AdapterHandlers.has("c"));
-        AdapterHandlers.registerContainer("c", (body, pos, access) -> new JsonObject());
+        AdapterHandlers.registerContainer("c", (body, pos, access) -> "");
         assertTrue(AdapterHandlers.has("c"));
     }
 
