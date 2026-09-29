@@ -32,9 +32,9 @@ import java.util.Locale;
  * AE2 适配(独立联动插件):把 Applied Energistics 2 机器的**配置与状态**翻译成人能读懂的样子。
  *
  * <ul>
- *   <li>{@code inspect_gui}(菜单):逐个槽位标出角色(AE2 的 Input/Output/Pattern/Config 等),
+ *   <li>{@code use gui}(菜单):逐个槽位标出角色(AE2 的 Input/Output/Pattern/Config 等),
  *       并从菜单的 target 读出这台机器的配置/升级/AE 电量;</li>
- *   <li>{@code inspect_block_storage}(方块):方块状态、
+ *   <li>{@code scan_storage}(方块):方块状态、
  *       <b>配置管理器</b>({@link IConfigurableObject#getConfigManager()} → {@link IConfigManager},
  *       逐项 {@link Setting#getName()} / {@link Setting#getValue(IConfigManager)}:I/O 方向、访问限制、
  *       阻挡模式等)、
@@ -71,7 +71,7 @@ public final class Ae2Adapter {
         });
     }
 
-    /** {@code inspect_gui}:逐个槽位标出角色,并附上菜单 target 这台机器的配置/升级/电量。 */
+    /** {@code use gui}:逐个槽位标出角色,并附上菜单 target 这台机器的配置/升级/电量。 */
     private static String readGui(NumenPlayer body, AbstractContainerMenu menu, String source) {
         StringBuilder sb = new StringBuilder("GUI: ").append(menu.getClass().getSimpleName()).append(" (AE2)\n");
         Inventory playerInv = body.getInventory();
@@ -101,7 +101,7 @@ public final class Ae2Adapter {
         return TaskResult.ok(sb.toString()).toJson();
     }
 
-    /** {@code inspect_block_storage}:机器的完整状态。 */
+    /** {@code scan_storage}:机器的完整状态。 */
     private static String readContainer(NumenPlayer body, BlockPos pos, String access) {
         Level level = body.level();
         BlockState state = level.getBlockState(pos);

@@ -27,7 +27,7 @@ import java.util.Map;
 /**
  * 学习型适配:同伴"开一次机器"就把这个菜单连同槽位角色记下来,写进
  * {@code config/numen/adapters/auto-learned.json},再热重载适配器。下次
- * {@code machine_recipe} / {@code inspect_gui} 就认得这台机器,不用谁先写一份适配文件。
+ * {@code machine_recipe} / {@code use gui} 就认得这台机器,不用谁先写一份适配文件。
  *
  * <p>角色由 {@link SlotRoles} 从槽类本身问出来,不依赖任何具体模组;玩家自己的槽位排除在外。
  * 和声明式适配同一份目录、同一份 schema,所以学到的机器与手写的机器一视同仁。

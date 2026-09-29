@@ -38,7 +38,7 @@ import static com.dwinovo.numen.core.gametest.GameTestKit.*;
  * <ul>
  *   <li>L1-L2 / L5:放资源块再走 {@code mine}(异步任务);</li>
  *   <li>L3-L4 / L6 / L8:给材料再走 {@code craft}(同步);</li>
- *   <li>L7:熔炼不是合成——走 {@code interact_at} 开熔炉 + {@code transfer} 放料/取料。</li>
+ *   <li>L7:熔炼不是合成——走 {@code use block} 开熔炉 + {@code use transfer} 放料/取料。</li>
  * </ul>
  *
  * <p>L8 需要 Mekanism;不在场就跳过(与 L9/L10 同一口径)。原清单见 MineAI 的 {@code tools/task-harness.ps1}。

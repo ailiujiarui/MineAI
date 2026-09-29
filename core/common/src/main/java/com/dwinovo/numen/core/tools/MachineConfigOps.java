@@ -77,7 +77,7 @@ public final class MachineConfigOps {
         BlockEntity be = level.getBlockEntity(pos);
         if (be == null) {
             return TaskResult.fail(id + " at " + coord + " is not a block entity — it exposes no server-side "
-                    + "config. If it has a GUI, open it with interact_at then inspect_gui.").toJson();
+                    + "config. If it has a GUI, open it with use block then use gui.").toJson();
         }
         boolean writing = setting != null && !setting.isBlank();
         if (writing && value == null) {

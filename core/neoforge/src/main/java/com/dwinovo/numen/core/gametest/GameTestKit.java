@@ -113,7 +113,7 @@ public final class GameTestKit {
 
     /**
      * 她打开的界面里,她自己背包那一段第一个装着 {@code item} 的格子号(AIR = 第一个空格)——模型从
-     * inspect_gui 读到的就是它。别拿"背包槽 + 固定偏移"去凑:假玩家的物品先落快捷栏,而快捷栏在界面的
+     * use gui 读到的就是它。别拿"背包槽 + 固定偏移"去凑:假玩家的物品先落快捷栏,而快捷栏在界面的
      * 末段,偏移随物品落在哪一段而变。
      */
     static int menuSlotOf(NumenPlayer companion, net.minecraft.world.item.Item item) {

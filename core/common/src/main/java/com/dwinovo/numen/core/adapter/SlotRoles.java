@@ -12,7 +12,7 @@ import java.util.Locale;
  * 通用槽位角色分类:把一个菜单槽翻成 {@code input/output/fuel/energy/extra/upgrade/security/
  * fluid/gas/chemical} 之一,翻不出来给 null。机器槽的角色藏在槽类里(原版熔炉的
  * {@link FurnaceFuelSlot}、Mekanism 的 {@code getSlotType()}、各种模组按类名命名),这里按
- * 先具体后笼统的顺序问一遍——所以 {@code inspect_gui} 和自学习适配都不必认识某个具体模组。
+ * 先具体后笼统的顺序问一遍——所以 {@code use gui} 和自学习适配都不必认识某个具体模组。
  *
  * <p>玩家自己的背包/快捷栏槽位返回 {@link #PLAYER} 这个哨兵值;调用方问机器时应当把它们排除。
  *

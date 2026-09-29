@@ -32,7 +32,7 @@ public final class MachineRecipeTool implements NumenTool {
                 + "output. A machine whose adapter left recipeType blank still works: it searches every "
                 + "registered recipe type. Set role=input to go the other way — which machines consume an "
                 + "item — which surfaces chemical-output machines (\"eats X → yields gas Y\"). If it says no "
-                + "registered machine makes the item, fall back to lookup_recipe (vanilla crafting/smelting) "
+                + "registered machine makes the item, fall back to inv_recipe (vanilla crafting/smelting) "
                 + "or jei_recipe (client-side JEI, covers more mod recipes).";
     }
 

@@ -23,7 +23,7 @@ import static com.dwinovo.numen.core.gametest.GameTestKit.*;
 
 /**
  * 学习型适配:开一次机器就把这个菜单连同槽位角色学到 {@code auto-learned.json},并让
- * {@code inspect_gui} 对任何菜单都带上角色标注。
+ * {@code use gui} 对任何菜单都带上角色标注。
  *
  * <p>题面用的是整合包里真实存在、能无头打开的机器:Mekanism 的某台没被声明过的机器验证"学到了",
  * AE2 的压印器(没有专门的 GUI 处理器)验证"通用标注读得出 [input]/[output]"。目标模组不在场时
@@ -60,7 +60,7 @@ public class PackLearnGameTests {
 
         helper.succeedWhen(() -> {
             helper.assertTrue(open.done() && open.succeeded(),
-                    "interact_at did not open the machine: " + open.outcome());
+                    "use block did not open the machine: " + open.outcome());
             AdapterSpec.MachineSpec learned = AdapterManager.registry()
                     .machineForMenu("mekanism:osmium_compressor").orElse(null);
             helper.assertTrue(learned != null,
@@ -73,10 +73,10 @@ public class PackLearnGameTests {
 
     /**
      * 铁熔炉没有专门的 GUI 处理器,槽类名自带语义({@code SlotIronFurnaceInput/Fuel/...}),所以
-     * {@code inspect_gui} 走通用路径时,通用分类器要把它标成 [input]/[fuel]。
+     * {@code use gui} 走通用路径时,通用分类器要把它标成 [input]/[fuel]。
      */
     @GameTest(template = "floor16", timeoutTicks = 300, batch = "numen_pack_learn")
-    public static void inspect_gui_marks_slot_roles_for_any_machine(GameTestHelper helper) {
+    public static void use_gui_marks_slot_roles_for_any_machine(GameTestHelper helper) {
         Block machine = BuiltInRegistries.BLOCK
                 .getOptional(ResourceLocation.parse("ironfurnaces:iron_furnace")).orElse(null);
         if (machine == null) {
@@ -98,7 +98,7 @@ public class PackLearnGameTests {
                 .thenExecute(() -> step.set(command(companion, "use gui")))
                 .thenWaitUntil(() -> helper.assertTrue(step.get().reply().contains("[input]")
                                 && step.get().reply().contains("[fuel]"),
-                        "inspect_gui shows no generic slot roles: " + step.get().reply()))
+                        "use gui shows no generic slot roles: " + step.get().reply()))
                 .thenExecute(() -> CompanionFactory.despawn(helper.getLevel().getServer(), companion))
                 .thenSucceed();
     }

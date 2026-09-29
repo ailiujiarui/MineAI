@@ -34,9 +34,9 @@ public final class LearnMachineTool implements NumenTool {
     public String description() {
         return "Remember the machine whose GUI is open right now: learn its menu id and the role of "
                 + "each slot (input / output / fuel / energy / upgrade / …) into an adapter file, so "
-                + "machine_recipe and inspect_gui recognise it later. Machines are usually learned "
-                + "automatically when you interact_at them; call this to be sure, or to re-check. "
-                + "Requires a block GUI to already be open (open one with interact_at first). No arguments.";
+                + "machine_recipe and use gui recognise it later. Machines are usually learned "
+                + "automatically when you interact with them (use block); call this to be sure, or to re-check. "
+                + "Requires a block GUI to already be open (open one with use block first). No arguments.";
     }
 
     @Override
@@ -48,7 +48,7 @@ public final class LearnMachineTool implements NumenTool {
     public void onServerCall(String toolCallId, JsonObject args, NumenPlayer self, Consumer<String> reply) {
         AbstractContainerMenu menu = self.containerMenu;
         if (menu == null || menu == self.inventoryMenu) {
-            reply.accept(TaskResult.fail("no machine GUI open — interact_at the machine first, "
+            reply.accept(TaskResult.fail("no machine GUI open — use block the machine first, "
                     + "then call learn_machine.").toJson());
             return;
         }

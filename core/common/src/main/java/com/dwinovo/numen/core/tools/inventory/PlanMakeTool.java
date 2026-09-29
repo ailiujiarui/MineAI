@@ -31,7 +31,7 @@ public final class PlanMakeTool implements NumenTool {
                 + "smelting / blasting / smoking, stonecutting and smithing. It only plans: nothing is "
                 + "gathered or crafted. Use it before a multi-step job instead of guessing; if a recipe "
                 + "is ambiguous or cyclic it says so and claims nothing. Then follow the steps with "
-                + "mine/gather, craft, and the station tools (interact_at + transfer).";
+                + "work_mine/gather, inv craft, and the station tools (use block + use transfer).";
     }
 
     @Override

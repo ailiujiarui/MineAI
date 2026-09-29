@@ -36,8 +36,8 @@ import java.util.Map;
  * Mekanism 适配(独立联动插件):把 Mekanism 机器的**完整状态**翻译成人能读懂的样子。
  *
  * <ul>
- *   <li>{@code inspect_gui}(菜单):每个槽位的角色(槽类名:Input/Output/Energy/…);</li>
- *   <li>{@code inspect_block_storage}(方块):
+ *   <li>{@code use gui}(菜单):每个槽位的角色(槽类名:Input/Output/Energy/…);</li>
+ *   <li>{@code scan_storage}(方块):
  *       <b>朝向</b>({@link ISideConfiguration#getDirection()})、
  *       <b>各面每种传输的输入/输出</b>({@link TileComponentConfig#getDataType(TransmissionType, RelativeSide)} → {@link DataType})、
  *       <b>物品/流体/能量</b>(标准 capability)、
@@ -64,7 +64,7 @@ public final class MekanismAdapter {
         });
     }
 
-    /** {@code inspect_gui}:逐个槽位标出角色。处理器拥有整份回执,所以这里直接回一个工具结果 JSON。 */
+    /** {@code use gui}:逐个槽位标出角色。处理器拥有整份回执,所以这里直接回一个工具结果 JSON。 */
     private static String readGui(NumenPlayer body, AbstractContainerMenu menu, String source) {
         StringBuilder sb = new StringBuilder("GUI: ").append(menu.getClass().getSimpleName()).append(" (Mekanism)\n");
         for (int i = 0; i < menu.slots.size(); i++) {
@@ -110,7 +110,7 @@ public final class MekanismAdapter {
         }
     }
 
-    /** {@code inspect_block_storage}:机器的完整状态。 */
+    /** {@code scan_storage}:机器的完整状态。 */
     private static String readContainer(NumenPlayer body, BlockPos pos, String access) {
         Level level = body.level();
         BlockState state = level.getBlockState(pos);
