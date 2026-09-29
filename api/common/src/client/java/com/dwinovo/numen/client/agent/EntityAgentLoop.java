@@ -615,6 +615,15 @@ public final class EntityAgentLoop {
      * <p>死着也照收:每条都盖着真实时间戳,复活后模型看得出哪些发生在死亡之前。
      */
     public void pushEvents(List<EventQueue.Entry> entries) {
+        // 失败收尾顺手写一条 lesson 札记(Reflexion):写在入队之前,这一轮她就能在 <memory> 里看见。
+        // 单条兜住:反思写不成不该把这一批事件卡在外面。
+        for (EventQueue.Entry entry : entries) {
+            try {
+                ReflectionRecorder.record(notes, entry);
+            } catch (RuntimeException e) {
+                Constants.LOG.warn("[numen-entity#{}] 失败反思没写成: {}", entityUuid, e.toString());
+            }
+        }
         loop.push(entries);
     }
 
