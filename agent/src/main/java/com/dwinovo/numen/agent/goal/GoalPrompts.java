@@ -70,6 +70,8 @@ public final class GoalPrompts {
     public static final String NOT_MET = "NOT_MET";
     /** 没达成,而且跟上一轮比毫无实质进展——她在原地打转。 */
     public static final String STUCK = "STUCK";
+    /** 达成时附加的机检宣称那一行的前缀;读出来交给宿主拿 {@code verify} 去量真实世界。 */
+    public static final String VERIFY = "VERIFY";
 
     public static String evaluatorSystem() {
         return """
@@ -77,7 +79,7 @@ public final class GoalPrompts {
                 companion's measured physical state, everything that has happened since the goal \
                 was set, and the reason you gave last time.
 
-                Reply with exactly one line, nothing else:
+                Reply with exactly one of these lines, nothing else:
                 %s: <one short sentence naming the evidence that proves it>
                 %s: <one short sentence naming what is still missing>
                 %s: <one short sentence naming what she is stuck on>
@@ -92,8 +94,18 @@ public final class GoalPrompts {
 
                 Use %s instead of %s when this round changed nothing that matters: same obstacle \
                 as last time, same counts, tasks failing the same way. The owner would rather be \
-                told she cannot get there than watch her circle for another twenty rounds."""
-                .formatted(MET, NOT_MET, STUCK, NOT_MET, STUCK, NOT_MET);
+                told she cannot get there than watch her circle for another twenty rounds.
+
+                When and only when you answer %s, add a second line naming the concrete, \
+                machine-checkable end state. It must be exactly one of these forms, one per line:
+                %s: have <item> [count]
+                %s: block <block> <x> <y> <z>
+                %s: machine <x> <y> <z> <setting> <value> [side]
+                Derive the claim from the condition and the measured facts — never invent one the \
+                facts do not show. If the end state cannot be machine-checked, write `%s: none`. \
+                Do not write a %s line when you answer %s or %s."""
+                .formatted(MET, NOT_MET, STUCK, NOT_MET, STUCK, NOT_MET,
+                        MET, VERIFY, VERIFY, VERIFY, VERIFY, VERIFY, NOT_MET, STUCK);
     }
 
     /**
@@ -125,14 +137,32 @@ public final class GoalPrompts {
                         last);
     }
 
-    /** 评估器的一句话回复。{@code stuck} 蕴含没达成。 */
-    public record Verdict(boolean met, boolean stuck, String reason) {}
+    /**
+     * 评估器的一句话回复。{@code stuck} 蕴含没达成。
+     *
+     * @param verify 判定成立时附带的机检宣称(见 {@link #VERIFY});{@code null} = 没给或不可机检
+     */
+    public record Verdict(boolean met, boolean stuck, String reason, String verify) {
+
+        /** 不带机检宣称的判词(JEV 和旧调用点用)。 */
+        public Verdict(boolean met, boolean stuck, String reason) {
+            this(met, stuck, reason, null);
+        }
+
+        public Verdict {
+            // "none" 和空串都当作"没有宣称"——省得下游各自再判一次
+            if (verify != null) {
+                String v = verify.strip();
+                verify = v.isEmpty() || v.equalsIgnoreCase("none") ? null : v;
+            }
+        }
+    }
 
     /**
      * 读评估器的回复。
      *
      * <p>读不懂就当<b>没达成</b>:多跑一轮只是费点 token,提前收工是把没做完的活儿当成
-     * 做完了。两种错的代价不对等。
+     * 做完了。两种错的代价不对等。达成时再独立扫一遍 {@link #VERIFY} 行,拿它当机检宣称。
      */
     public static Verdict readVerdict(String reply) {
         String text = reply == null ? "" : reply.strip();
@@ -146,10 +176,25 @@ public final class GoalPrompts {
                 return new Verdict(false, true, tail(t, STUCK));
             }
             if (t.regionMatches(true, 0, MET, 0, MET.length())) {
-                return new Verdict(true, false, tail(t, MET));
+                return new Verdict(true, false, tail(t, MET), readVerify(text));
             }
         }
         return new Verdict(false, false, text.isEmpty() ? "判不出来(评估器没回话)" : text);
+    }
+
+    /** 从回复里取 {@link #VERIFY} 那一行;没有、空、或 {@code none} 都回 {@code null}。 */
+    private static String readVerify(String text) {
+        for (String line : text.split("\n")) {
+            String t = line.strip();
+            if (t.regionMatches(true, 0, VERIFY, 0, VERIFY.length())) {
+                String rest = t.substring(VERIFY.length()).strip();
+                if (rest.startsWith(":") || rest.startsWith("：")) {
+                    rest = rest.substring(1).strip();
+                }
+                return rest;
+            }
+        }
+        return null;
     }
 
     /** 去掉前缀和它后面的冒号/空白。 */

@@ -39,12 +39,30 @@ class GoalStewardTest extends LoopHarness {
 
     /** 主人定了目标,她答了一句——一次 run 就这么说完了。 */
     private GoalState goalSetAndFirstRunDone(String objective) {
+        return goalSetAndFirstRunDone(goals, objective);
+    }
+
+    private GoalState goalSetAndFirstRunDone(GoalSteward steward, String objective) {
         GoalState goal = GoalState.of(objective, T0);
-        assertTrue(goals.set(goal), "活着、没被外接驾驶:当场交给她");
+        assertTrue(steward.set(goal), "活着、没被外接驾驶:当场交给她");
         loop.push(List.of(new EventQueue.Entry(EventTypes.QUERY,
                 "<query>/goal " + objective + "</query>\n" + GoalPrompts.initialDirective(goal), 0, false)));
         model.last().say("好,这就去");
         return goal;
+    }
+
+    /** 另起一个挂了假判官/假验证者的目标管家;默认那个 goal 为 null,不受影响。 */
+    private GoalSteward stewardWith(GoalJudge judge, GoalVerifier verifier) {
+        GoalSteward steward = new GoalSteward("test", loop, transcript, inbox, () -> "<runtime_state/>",
+                () -> bodyBusy, persisted::add, null, judge, verifier);
+        loop.subscribe(steward::on);
+        return steward;
+    }
+
+    /** 一个永远判"达成"、并附带这条机检宣称的判官。 */
+    private static GoalJudge claimMet(String claim) {
+        return (goal, facts, since, cancel, onDone) -> onDone.accept(GoalJudge.Outcome.of(
+                new GoalPrompts.Verdict(true, false, "看起来做完了", claim), 5L));
     }
 
     private boolean isEvaluation(Call call) {
@@ -90,6 +108,34 @@ class GoalStewardTest extends LoopHarness {
         assertNull(goals.goal());
         assertNull(persisted.get(persisted.size() - 1), "收工也落盘");
         assertEquals(callsBefore, model.calls.size(), "收工不再开 run");
+    }
+
+    @Test
+    void aMetVerdictWhoseClaimTheWorldDeniesIsNotCleared() {
+        GoalVerifier denies = (goal, claim, onDone) -> onDone.accept(new GoalVerifier.Result(
+                false, "expected 3 x minecraft:iron_ingot, actual 1 x minecraft:iron_ingot"));
+        GoalSteward steward = stewardWith(claimMet("have minecraft:iron_ingot 3"), denies);
+
+        GoalState goal = goalSetAndFirstRunDone(steward, "挖 3 个铁");
+
+        assertEquals(goal, steward.goal(), "世界不认,就不能收工");
+        assertTrue(goal.lastReason().contains("world does not confirm"), goal.lastReason());
+        assertEquals(2, goal.turnsExecuted(), "没核对过也算一轮,推她接着做");
+        assertEquals(goal, persisted.get(persisted.size() - 1), "不收工也要落盘");
+        assertTrue(model.last().lastUser().contains("expected 3 x minecraft:iron_ingot"),
+                "下一轮得让她看见世界实际长什么样");
+    }
+
+    @Test
+    void aMetVerdictTheWorldConfirmsIsCleared() {
+        GoalVerifier confirms = (goal, claim, onDone) ->
+                onDone.accept(new GoalVerifier.Result(true, "expected/actual match"));
+        GoalSteward steward = stewardWith(claimMet("have minecraft:iron_ingot 3"), confirms);
+
+        goalSetAndFirstRunDone(steward, "挖 3 个铁");
+
+        assertNull(steward.goal(), "世界认了才收工");
+        assertNull(persisted.get(persisted.size() - 1), "收工也落盘");
     }
 
     @Test
@@ -210,5 +256,24 @@ class GoalStewardTest extends LoopHarness {
         assertTrue(GoalPrompts.isDirective(GoalPrompts.initialDirective(goal)));
         assertFalse(GoalPrompts.isDirective(GoalPrompts.progress("还差", goal, T0)));
         assertFalse(GoalPrompts.isDirective(new ConvoState.Msg.User("挖 64 个铁").content()));
+    }
+
+    @Test
+    void aMetVerdictCanCarryAMachineCheckableClaim() {
+        var v = GoalPrompts.readVerdict("MET: 背包里有 3 个铁锭\nVERIFY: have minecraft:iron_ingot 3");
+        assertTrue(v.met());
+        assertEquals("背包里有 3 个铁锭", v.reason());
+        assertEquals("have minecraft:iron_ingot 3", v.verify());
+    }
+
+    @Test
+    void verifyNoneOrAbsentMeansThereIsNoClaim() {
+        assertNull(GoalPrompts.readVerdict("MET: 有了\nVERIFY: none").verify());
+        assertNull(GoalPrompts.readVerdict("MET: 有了\nVERIFY:").verify());
+        assertNull(GoalPrompts.readVerdict("MET: 有了").verify());
+        assertNull(GoalPrompts.readVerdict("NOT_MET: 还差\nVERIFY: have minecraft:iron_ingot 3").verify(),
+                "没达成的判词不附带宣称");
+        assertEquals("block minecraft:torch 120 64 -3",
+                GoalPrompts.readVerdict("MET: 放好了\nverify: block minecraft:torch 120 64 -3").verify());
     }
 }

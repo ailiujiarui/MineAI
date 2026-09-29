@@ -73,6 +73,69 @@ public final class VerifyOps {
         };
     }
 
+    /**
+     * 自由文本宣称入口:宿主拿着目标判官给出的那一行原样送进来,一次到位。
+     *
+     * <p>语法就是判官被要求写的那几种(见 {@code GoalPrompts#evaluatorSystem}):
+     * <pre>
+     * have &lt;item&gt; [count]
+     * block &lt;block&gt; &lt;x&gt; &lt;y&gt; &lt;z&gt;
+     * machine &lt;x&gt; &lt;y&gt; &lt;z&gt; &lt;setting&gt; &lt;value&gt; [side]
+     * </pre>
+     * 读不懂一律 {@code verified:false}("could not parse claim")——判官给的东西解析不出来,
+     * 就不能当核对通过。
+     */
+    public String verify(String rawClaim, NumenPlayer self) {
+        try {
+            return verify(parseClaim(rawClaim), self);
+        } catch (RuntimeException bad) {
+            return cannotCheck(rawClaim == null ? "" : rawClaim.strip(),
+                    "could not parse claim: " + bad.getMessage());
+        }
+    }
+
+    /** 把判官那行自由文本拆成 {@link Claim};形状不对、数字不是数字都抛 {@link IllegalArgumentException}。 */
+    public static Claim parseClaim(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("claim is empty");
+        }
+        String[] parts = raw.strip().split("\\s+");
+        return switch (parts[0].toLowerCase(Locale.ROOT)) {
+            case "have" -> {
+                if (parts.length < 2 || parts.length > 3) {
+                    throw new IllegalArgumentException("have takes: have <item> [count]");
+                }
+                yield new Claim("have", parts[1], parts.length == 3 ? intToken(parts[2], "count") : null,
+                        null, null, null, null, null, null, null, null);
+            }
+            case "block" -> {
+                if (parts.length != 5) {
+                    throw new IllegalArgumentException("block takes: block <block> <x> <y> <z>");
+                }
+                yield new Claim("block", null, null, parts[1], intToken(parts[2], "x"),
+                        intToken(parts[3], "y"), intToken(parts[4], "z"), null, null, null, null);
+            }
+            case "machine" -> {
+                if (parts.length < 6 || parts.length > 7) {
+                    throw new IllegalArgumentException(
+                            "machine takes: machine <x> <y> <z> <setting> <value> [side]");
+                }
+                yield new Claim("machine", null, null, null, intToken(parts[1], "x"),
+                        intToken(parts[2], "y"), intToken(parts[3], "z"), null, parts[4], parts[5],
+                        parts.length == 7 ? parts[6] : null);
+            }
+            default -> throw new IllegalArgumentException("unknown kind: " + parts[0]);
+        };
+    }
+
+    private static int intToken(String token, String what) {
+        try {
+            return Integer.parseInt(token);
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(what + " is not a number: " + token);
+        }
+    }
+
     // ---- have ----
 
     private String have(Claim c, NumenPlayer self) {

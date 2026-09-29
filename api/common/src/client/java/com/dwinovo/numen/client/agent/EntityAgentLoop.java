@@ -8,6 +8,7 @@ import com.dwinovo.numen.agent.decision.JevDecisionProvider;
 import com.dwinovo.numen.agent.goal.GoalPrompts;
 import com.dwinovo.numen.agent.goal.GoalState;
 import com.dwinovo.numen.agent.goal.GoalSteward;
+import com.dwinovo.numen.agent.goal.GoalVerifier;
 import com.dwinovo.numen.agent.goal.JevGoalJudge;
 import com.dwinovo.numen.agent.http.CancelToken;
 import com.dwinovo.numen.agent.llm.NumenLlmClient;
@@ -27,10 +28,14 @@ import com.dwinovo.numen.agent.loop.ModelPort;
 import com.dwinovo.numen.agent.loop.ModelRequest;
 import com.dwinovo.numen.agent.loop.Phase;
 import com.dwinovo.numen.agent.provider.Usage;
+import com.dwinovo.numen.agent.tool.ClientToolContext;
 import com.dwinovo.numen.agent.tool.NumenTool;
+import com.dwinovo.numen.agent.tool.ToolCall;
 import com.dwinovo.numen.agent.tool.ToolRegistry;
 import com.dwinovo.numen.data.ModLanguageData;
 import com.dwinovo.numen.mcp.server.McpMode;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.language.I18n;
@@ -40,6 +45,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -72,8 +79,11 @@ import java.util.function.Consumer;
  */
 public final class EntityAgentLoop {
 
-
-
+    /**
+     * 目标核对(判官说达成时拿宣称去量真实世界)的兜底时限。核对是一次查询,本该秒回;
+     * 到这个点还没回就当服务端/连接出了问题,<b>放行</b>——一个会抽风的检查不该把已完成的目标卡死。
+     */
+    private static final long VERIFY_TIMEOUT_MS = 30_000L;
 
     private final UUID entityUuid;
     /** JSONL persistence under {@code config/numen/conversations/<uuid>.jsonl}. */
@@ -173,11 +183,18 @@ public final class EntityAgentLoop {
         this.loop = new AgentLoop(entityUuid.toString(), model, dispatcher, convo, queue, compactor, new Host());
         // 目标跨重进游戏活着 —— 长期目标就该是长期的,重启不该把它弄丢。
         // 判官:配了 JEV(config/numen/decision.json)就让它当"系统一",否则退回另开一次模型调用(LlmGoalJudge)。
-        DecisionConfig decision = DecisionConfig.fromFile(NumenPaths.config().resolve("decision.json"));
-        this.jevGoal = decision.usable();
+        // 配置目录要经平台服务;单测这类没有平台的 JVM 里 NumenPaths 初始化会失败,那种环境退回 LLM 判官即可。
+        DecisionConfig jevDecision = null;
+        try {
+            jevDecision = DecisionConfig.fromFile(NumenPaths.config().resolve("decision.json"));
+        } catch (Throwable noPlatform) {
+            // 没有平台服务/配置目录:退回 LLM 判官
+        }
+        this.jevGoal = jevDecision != null && jevDecision.usable();
         this.goals = new GoalSteward(entityUuid.toString(), loop, convo, queue, runtime::xml,
                 runtime::bodyOnFiniteTask, g -> CompanionHome.setGoal(entityUuid, g), CompanionHome.goal(entityUuid),
-                jevGoal ? new JevGoalJudge(new JevDecisionProvider(decision), decision.minConfidence()) : null);
+                jevGoal ? new JevGoalJudge(new JevDecisionProvider(jevDecision), jevDecision.minConfidence()) : null,
+                this::verifyGoalClaim);
         this.wasDriving = McpMode.instance().driving();
         // 内核只发事件,各管一摊的各自订阅:界面、台账、整理、目标、札记的重贴、她手上那件活的镜像
         loop.subscribe(presenter::on);
@@ -469,6 +486,76 @@ public final class EntityAgentLoop {
     /** 收工(见 {@link GoalSteward#clear})。 */
     public void clearGoal(String why) {
         goals.clear(why);
+    }
+
+    /**
+     * 目标判官说达成、并给了机检宣称时,拿宣称去量一遍真实世界(见 {@link GoalVerifier})。
+     *
+     * <p>派发一个一次性的 {@code verify} 调用,读回执里的 {@code verified}。走 {@link ClientToolContext}
+     * 直发,不占循环那个串行工具队列——这一步发生在一次 run 收尾之后、下一次 run 开始之前。
+     *
+     * <p>放行优先:工具不在册、派发抛错、超时,都当已验证并把原因写进 detail。只有世界明确回
+     * {@code verified:false} 才拦。
+     */
+    private void verifyGoalClaim(GoalState goal, String claim, Consumer<GoalVerifier.Result> onDone) {
+        NumenTool tool = ToolRegistry.resolve("verify");
+        if (tool == null) {
+            Constants.LOG.warn("[numen-entity#{}] verify 工具不在册,目标核对放行:{}", entityUuid, claim);
+            onDone.accept(new GoalVerifier.Result(true, "verify tool not registered"));
+            return;
+        }
+        CompletableFuture<GoalVerifier.Result> result = new CompletableFuture<>();
+        JsonObject args = new JsonObject();
+        args.addProperty("claim", claim);
+        ToolCall handle = new ToolCall("goal-verify-" + UUID.randomUUID(), tool.name(), args.toString(),
+                new ClientToolContext(resolveEntity(), entityUuid),
+                json -> result.complete(readVerifyResult(json)));
+        try {
+            tool.invoke(handle);
+        } catch (RuntimeException ex) {
+            Constants.LOG.warn("[numen-entity#{}] 目标核对派发失败,放行:{} ({})", entityUuid, claim, ex.getMessage());
+            onDone.accept(new GoalVerifier.Result(true, "dispatch failed: " + ex.getMessage()));
+            return;
+        }
+        result.orTimeout(VERIFY_TIMEOUT_MS, TimeUnit.MILLISECONDS).whenComplete((r, err) -> {
+            if (err == null) {
+                onDone.accept(r);   // 回执从服务端经主线程回来
+                return;
+            }
+            Constants.LOG.warn("[numen-entity#{}] 目标核对超时/出错,放行:{} ({})", entityUuid, claim, err.getMessage());
+            GoalVerifier.Result giveUp = new GoalVerifier.Result(true, "verify timed out");
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null) {
+                return;
+            }
+            mc.execute(() -> onDone.accept(giveUp));   // 超时回调在定时线程上,切回主线程再动目标
+        });
+    }
+
+    /** 从 {@code verify} 的回执里读 {@code data.verified} 和 expected/actual;读不动就当放行。 */
+    private static GoalVerifier.Result readVerifyResult(String json) {
+        try {
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            JsonObject data = root.has("data") && root.get("data").isJsonObject()
+                    ? root.getAsJsonObject("data") : null;
+            if (data == null || !data.has("verified")) {
+                return new GoalVerifier.Result(true, "verify returned no verdict");
+            }
+            boolean verified = data.get("verified").getAsBoolean();
+            String expected = stringOf(data, "expected");
+            String actual = stringOf(data, "actual");
+            String message = stringOf(root, "message");
+            String detail = (actual == null || actual.isBlank() || "unknown".equals(actual))
+                    ? (message == null || message.isBlank() ? expected : message)
+                    : "expected " + expected + ", actual " + actual;
+            return new GoalVerifier.Result(verified, detail == null ? "" : detail);
+        } catch (RuntimeException ex) {
+            return new GoalVerifier.Result(true, "unreadable verify result: " + ex.getMessage());
+        }
+    }
+
+    private static String stringOf(JsonObject o, String key) {
+        return o != null && o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : null;
     }
 
     /**

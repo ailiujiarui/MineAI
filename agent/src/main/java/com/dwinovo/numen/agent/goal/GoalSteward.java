@@ -42,6 +42,8 @@ public final class GoalSteward {
     private final Consumer<GoalState> persist;
     /** 判官:默认另开一次模型调用({@link LlmGoalJudge}),可换成 JEV。 */
     private final GoalJudge judge;
+    /** 判官说达成、又给了机检宣称时,拿宣称去量真实世界的那一关;没给验证者的走放行。 */
+    private final GoalVerifier verifier;
 
     /** 当前的长期目标;{@code null} = 没有。 */
     private GoalState goal;
@@ -63,10 +65,19 @@ public final class GoalSteward {
                 new LlmGoalJudge(loop));
     }
 
-    /** 换一个判官(比如 JEV);其余不变。 */
+    /** 换一个判官(比如 JEV);其余不变。核对仍是放行。 */
     public GoalSteward(String name, AgentLoop loop, ConvoState convo, EventQueue inbox,
                        Supplier<String> runtimeState, BooleanSupplier bodyOnFiniteTask,
                        Consumer<GoalState> persist, GoalState restored, GoalJudge judge) {
+        this(name, loop, convo, inbox, runtimeState, bodyOnFiniteTask, persist, restored, judge,
+                GoalVerifier.PASS_THROUGH);
+    }
+
+    /** 换一个判官,再接一个确定性核对的关卡(判官说达成且给了宣称时先量真实世界)。 */
+    public GoalSteward(String name, AgentLoop loop, ConvoState convo, EventQueue inbox,
+                       Supplier<String> runtimeState, BooleanSupplier bodyOnFiniteTask,
+                       Consumer<GoalState> persist, GoalState restored, GoalJudge judge,
+                       GoalVerifier verifier) {
         this.name = name;
         this.loop = loop;
         this.convo = convo;
@@ -76,6 +87,7 @@ public final class GoalSteward {
         this.persist = persist;
         this.goal = restored;
         this.judge = judge == null ? new LlmGoalJudge(loop) : judge;
+        this.verifier = verifier == null ? GoalVerifier.PASS_THROUGH : verifier;
     }
 
     /** 当前的长期目标;{@code null} = 没有。 */
@@ -220,7 +232,12 @@ public final class GoalSteward {
                 verdict.met() ? "达成" : verdict.stuck() ? "打转 x" + goal.stuckStreak() : "还差",
                 verdict.reason());
         if (verdict.met()) {
-            clear("目标达成:" + verdict.reason());
+            if (verdict.verify() == null) {
+                clear("目标达成:" + verdict.reason());
+                return;
+            }
+            // 判官说达成,但它还给了可机检的宣称:先拿宣称去量真实世界,量过了才收工。
+            confirm(judged, verdict, verdict.verify());
             return;
         }
         if (giveUp) {
@@ -242,6 +259,42 @@ public final class GoalSteward {
         // goal 在类型表里恒为急件、投递方式是接续,发送方不另标。
         loop.push(List.of(new EventQueue.Entry(EventTypes.GOAL,
                 GoalPrompts.progress(verdict.reason(), goal, now), now, false)));
+    }
+
+    /**
+     * 判官说达成、还给了可机检的宣称:拿宣称去量真实世界,量过了才收工。
+     *
+     * <p>世界不认时<b>不能</b>收工——这正是"执行与判定分开"要堵的最后一个口子:判的人也是句话。
+     * 把 {@code verify} 量出的差异(expected vs actual)当作"还差什么"写回 lastReason 并推一轮续跑,
+     * 下一轮判官(它读 lastReason)和她就都知道了。轮次与额度照旧,连着量不过也会到顶收工。
+     *
+     * <p>回调整可能在别的线程上;这里只在 {@code goal} 还是被量的那个时才动它。
+     */
+    private void confirm(GoalState judged, GoalPrompts.Verdict verdict, String claim) {
+        AiLog.LOG.info("[numen-entity#{}] 目标判定达成,拿宣称去核对:{}", name, claim);
+        verifier.verify(judged, claim, result -> {
+            // 核对期间目标可能换了、被主人清了 —— 这次结果作废。
+            if (goal == null || goal != judged) {
+                return;
+            }
+            if (result.verified()) {
+                clear("目标达成(已核对 " + claim + "):" + verdict.reason());
+                return;
+            }
+            String why = "judge said met, but the world does not confirm (" + result.detail() + ")";
+            judged.setLastReason(why);
+            AiLog.LOG.warn("[numen-entity#{}] 目标宣称没被世界认下,这轮先不收工:{}", name, why);
+            if (!judged.hasTurnsLeft()) {
+                clear("跑够 " + GoalState.MAX_GOAL_TURNS
+                        + " 轮还没完,先收工了(还差:" + why + ")—— 想接着做再说一次 /goal");
+                return;
+            }
+            judged.countTurn();
+            persist.accept(judged);
+            long now = System.currentTimeMillis();
+            loop.push(List.of(new EventQueue.Entry(EventTypes.GOAL,
+                    GoalPrompts.progress(why, judged, now), now, false)));
+        });
     }
 
     /**

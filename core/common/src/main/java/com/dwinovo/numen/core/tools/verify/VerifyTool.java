@@ -23,7 +23,7 @@ public final class VerifyTool implements NumenTool {
 
     private record Args(String kind, String item, Integer count, String block,
                         Integer x, Integer y, Integer z, Integer radius,
-                        String setting, String value, String side) {}
+                        String setting, String value, String side, String claim) {}
 
     @Override
     public String name() {
@@ -65,12 +65,20 @@ public final class VerifyTool implements NumenTool {
                 .optionalString("value", "kind=machine: the setting value the claim says is set.")
                 .optionalString("side", "kind=machine: the face an AE2 part is on (up/down/north/south/"
                         + "east/west) when the cable hosts several configurable parts.")
+                .optionalString("claim", "One-shot free-text claim instead of the structured fields, in the "
+                        + "same syntax the long-term goal judge emits: 'have <item> [count]', "
+                        + "'block <block> <x> <y> <z>', or 'machine <x> <y> <z> <setting> <value> [side]'.")
                 .build();
     }
 
     @Override
     public void onServerCall(String toolCallId, JsonObject args, NumenPlayer self, Consumer<String> reply) {
         Args a = GSON.fromJson(args, Args.class);
+        if (a.claim() != null && !a.claim().isBlank()) {
+            // 判官给的那行原样量:宿主不必自己拆再拼成结构化字段。
+            reply.accept(impl.verify(a.claim(), self));
+            return;
+        }
         reply.accept(impl.verify(new VerifyOps.Claim(a.kind(), a.item(), a.count(), a.block(),
                 a.x(), a.y(), a.z(), a.radius(), a.setting(), a.value(), a.side()), self));
     }
