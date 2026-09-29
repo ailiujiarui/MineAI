@@ -30,6 +30,11 @@ class ActionQueueTest {
             return List.of();
         }
 
+        @Override
+        public void arrived(com.dwinovo.numen.agent.inbox.EventQueue.Entry entry, boolean urgent) {
+            // 这份桩不关心入队事件;接口要求实现,记下就够
+        }
+
         void finish(String id) {
             sink.finished(new LlmToolCall(id, "mine", "{}"), "{\"success\":true}");
             sink.settled();
