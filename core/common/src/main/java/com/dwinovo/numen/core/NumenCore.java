@@ -133,6 +133,9 @@ public final class NumenCore {
         ToolRegistry.register(new com.dwinovo.numen.core.tools.interact.LearnMachineTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.kb.KbQueryTool());
         ToolRegistry.register(new com.dwinovo.numen.core.tools.block.MachineConfigTool());
+        // 自验证与例行程序:声称完成前先核实;验证过的多步流程存下来复用
+        ToolRegistry.register(new com.dwinovo.numen.core.tools.verify.VerifyTool());
+        ToolRegistry.register(new com.dwinovo.numen.core.tools.routine.RoutineTool());
     }
 
 
