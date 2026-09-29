@@ -103,7 +103,9 @@ AE2 把存储与物流包成一张 **ME 网络**:线缆和机器连成一张网,
 
 1. **处理器(所有 AE2 机器的原料)**:找陨石、挖中间的神秘方块拿到 4 个压印模具。**压印器(inscriber)** 分面工作:顶/底槽从顶/底进,中间槽从四个侧面进,产物从四个侧面抽;用扳手可转向。充能器把赛特斯水晶充能;硅→印硅,金/赛特斯/钻石→三种印电路,再 + 印硅 + 红石 → 逻辑/计算/工程处理器。这本身就是第一条自动化产线(见 §7)。
 2. **编码模式(patterns)**:用模式编码终端加**空白模式**:
-   - **合成模式(crafting pattern)**:工作台配方,放进供应器并配**分子装配室**自动做;供应器会把模式随原料一起送进装配室。锻造台/切石机模式同理,可共用一套装配室。
+   - **编码格是鬼影格**:那些槽只收"设置"、不收真实物品,`use transfer` 往里放会被拒。手上先拿一张 `ae2:blank_pattern`,`use block` 打开模式**编码**终端(模式**访问**终端只能插模式、编不了),再用 `encode_pattern` 编码。
+   - **`encode_pattern {inputs:[{item,count}…], outputs:[{item,count}…], mode:"processing"}`**:它替你放好空白模式、把料写进编码格并按下编码,编好的模式自动收进你背包。`inputs` 是机器要吃的、`outputs` 是它产出的;未知物品会当场拒绝。
+   - **合成模式(crafting pattern)**:工作台配方,放进供应器并配**分子装配室**自动做;供应器会把模式随原料一起送进装配室。锻造台/切石机模式同理,可共用一套装配室。用 `mode:"crafting"` 编码(输出只写配方产物那一件,输入按配方摆)。
    - **处理模式(processing pattern)**:最通用——"供应器把这些原料推出去,网络以后会收到这个产物"。任何机器、炉子、整条产线都能用,网络不关心中间过程。
        - 用 `inv_recipe`/`jei_recipe` 查配方,但**别照抄 JEI 的 + 按钮**:多步配方要自己编码成"从原料到成品"的一条(例如处理器模式里**不该**包含模具,因为模具已放好在压印器里)。
 3. **合成 CPU 多方块**:`1k…256k 合成存储`(至少一个,存中间产物)+ 可选`并行处理单元`(加快推送、让多步并行)+ 可选`合成监控器`(显示进度)+ `合成单元`(补空)。必须是**实心长方体**、无空洞。每个 CPU 同一时间只接一个请求,所以给大任务和小任务各留一个。
@@ -133,7 +135,8 @@ AE2 把存储与物流包成一张 **ME 网络**:线缆和机器连成一张网,
 - **`build {ops:[...]}`**:砌底座、墙、整方块机器。`block_id` 用 `/setblock` 语法,带状态(如 `ae2:pattern_provider[push_direction=up]`);只写方块名=按物品原生落位(朝向随视线)。整座一次交;生存下缺料会**拒绝开工**,不会盖一半。
 - **`move goto x z` / `move goto --block ae2:drive`**:走到机器/箱子旁(`use block` 要求已在 ~4.5 格内)。
 - **`use block right <x> <y> <z> --item ae2:fluix_glass_cable`**:把线缆/部件/机器放到指定面(带 `--item` 就用该物品右键),也用来开机器 GUI;扳手转向同样走它(`--item ae2:certus_quartz_wrench`)。
-- **`use transfer <from> <to>` / `use shift <slot>`**:把物品放进过滤/模式/升级/输入槽,或从输出/接口取物;先 `use gui` 看清槽号与角色。
+- **`use transfer <from> <to>` / `use shift <slot>`**:把物品放进过滤/模式/升级/输入槽,或从输出/接口取物;先 `use gui` 看清槽号与角色。模式**编码**终端的编码格是鬼影格,`use transfer` 放不进——那一步走 `encode_pattern`。
+- **`encode_pattern {inputs:[{item,count}], outputs:[{item,count}], mode:"processing"|"crafting"}`**:在打开的模式**编码**终端里编模式。手上先拿一张 `ae2:blank_pattern`;工具代放空白模式、写编码格并编码,编好的模式自动收进背包。
 - **`machine_config {x,y,z[,setting,value]}`**:读/写 AE2 整方块机器的服务端设置(见 §4);读回执里的 `allowed` 就是合法取值。
 - **`use gui` / `scan_storage`**:前者看开着的菜单槽位与角色(AE2 机器还带配置/升级/电量),后者读方块状态 + AE 电量 + 升级。
 - **`inv craft` / `work_mine` / `inv_recipe` / `jei_recipe`**:备料与查配方(`jei_recipe` 需装了 JEI)。

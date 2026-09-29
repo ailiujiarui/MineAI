@@ -55,6 +55,9 @@ import java.util.Locale;
  *       这一面通不通、邻居是什么方块;</li>
  *   <li>{@code ae2_network}:从一格出发走整张 ME 网格,报本节点状态(node_active 等)、频道用量、
  *       控制器状态、电量与设备清单(见 {@link Ae2NetworkOps})。</li>
+ *   <li>{@code encode_pattern}:在打开的模式编码终端里把配方编成 AE2 模式——编码格是鬼影格,
+ *       {@code use transfer} 放不进去,这里走服务端的 {@code PatternEncodingTermMenu.encode()}(见
+ *       {@link Ae2EncodePatternTool})。</li>
  * </ul>
  *
  * <p>由 {@code Builtin} 在确认 AE2 在场后调用 {@link #install};注册 gui/container 两个处理器(名 {@code ae2})、
@@ -74,6 +77,7 @@ public final class Ae2Adapter {
             numen.registerGuiHandler("ae2", Ae2Adapter::readGui);
             numen.registerContainerHandler("ae2", Ae2Adapter::readContainer);
             numen.registerTool(new Ae2NetworkTool());
+            numen.registerTool(new Ae2EncodePatternTool());
             if (adaptersRoot != null) {
                 numen.bundleAdapters(adaptersRoot);
             }
