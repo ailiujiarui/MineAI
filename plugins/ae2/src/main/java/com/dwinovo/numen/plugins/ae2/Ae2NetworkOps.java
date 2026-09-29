@@ -16,6 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -71,7 +72,7 @@ final class Ae2NetworkOps {
     }
 
     /** 先把中心节点试出来(裸线缆/机器),没有再逐面试(面上的 part)。 */
-    private static IGridNode resolveNode(ServerLevel level, BlockPos pos) {
+    private static IGridNode resolveNode(Level level, BlockPos pos) {
         IInWorldGridNodeHost host = GridHelper.getNodeHost(level, pos);
         if (host == null) {
             return null;
@@ -95,6 +96,82 @@ final class Ae2NetworkOps {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    /**
+     * 这一格自己的节点状态,不涉及整张网:{@code scan_storage} 与 {@code ae2_network} 共用这一份。
+     * 拿到就报 {@code on_grid/node_active/node_channels_used/node_channels_max/grid_powered};
+     * 没有节点只有 {@code on_grid=false}。
+     */
+    private static Map<String, Object> nodeStatus(IGridNode node) {
+        Map<String, Object> status = new LinkedHashMap<>();
+        if (node == null) {
+            status.put("on_grid", false);
+            return status;
+        }
+        status.put("on_grid", true);
+        status.put("node_active", nodeActive(node));
+        status.put("node_channels_used", nodeChannels(node, true));
+        status.put("node_channels_max", nodeChannels(node, false));
+        status.put("grid_powered", gridPowered(node));
+        return status;
+    }
+
+    /** 从坐标解析节点再取状态;解析不出来就是 off-grid。给 {@code scan_storage} 用。 */
+    private static Map<String, Object> blockNodeStatus(Level level, BlockPos pos) {
+        try {
+            return nodeStatus(resolveNode(level, pos));
+        } catch (Throwable broken) {
+            return nodeStatus(null);
+        }
+    }
+
+    /**
+     * {@code scan_storage} 里的一行网格状态:这一格自己的节点在不在网上、活没活、用了几条频道、整张网有没有电。
+     * 离线时给一句人话提示。整份取数与 {@code ae2_network} 同一套,不重复实现。
+     */
+    static String gridStatusLine(Level level, BlockPos pos) {
+        Map<String, Object> status = blockNodeStatus(level, pos);
+        if (!Boolean.TRUE.equals(status.get("on_grid"))) {
+            return "grid: on_grid=no — not connected to an ME network; "
+                    + "check cable contact / the side it connects on";
+        }
+        return "grid: on_grid=yes node_active=" + yesNo(status.get("node_active"))
+                + " node_channels=" + status.get("node_channels_used") + "/" + status.get("node_channels_max")
+                + " grid_powered=" + yesNo(status.get("grid_powered"));
+    }
+
+    private static boolean nodeActive(IGridNode node) {
+        try {
+            return node.isActive();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static int nodeChannels(IGridNode node, boolean used) {
+        try {
+            return used ? node.getUsedChannels() : node.getMaxChannels();
+        } catch (Throwable ignored) {
+            return -1;
+        }
+    }
+
+    private static boolean gridPowered(IGridNode node) {
+        try {
+            IGrid grid = node.getGrid();
+            if (grid == null) {
+                return false;
+            }
+            IEnergyService energy = grid.getEnergyService();
+            return energy != null && energy.isNetworkPowered();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static String yesNo(Object flag) {
+        return Boolean.TRUE.equals(flag) ? "yes" : "no";
     }
 
     private static String describe(String id, BlockPos pos, IGridNode node, IGrid grid) {
@@ -124,7 +201,8 @@ final class Ae2NetworkOps {
         data.put("x", pos.getX());
         data.put("y", pos.getY());
         data.put("z", pos.getZ());
-        data.put("on_grid", true);
+        // 这一格自己的节点状态与 scan_storage 共用同一套取数(on_grid / node_active / 频道 / grid_powered)。
+        data.putAll(nodeStatus(node));
         String controllerName = controller == null ? "UNKNOWN" : controller.name();
         data.put("controller_state", controllerName);
         // CONFLICT 也是有控制器但摆错了,所以"存在"是"不是 NO_CONTROLLER"。
@@ -139,8 +217,6 @@ final class Ae2NetworkOps {
         if (noController) {
             data.put("channels_limit", adHocLimit);
         }
-        data.put("node_channels_used", node.getUsedChannels());
-        data.put("node_channels_max", node.getMaxChannels());
         data.put("device_count", grid.size());
         data.put("devices", deviceList(devices));
 

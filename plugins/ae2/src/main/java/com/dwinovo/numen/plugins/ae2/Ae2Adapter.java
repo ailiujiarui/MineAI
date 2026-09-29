@@ -1,11 +1,17 @@
 package com.dwinovo.numen.plugins.ae2;
 
 import appeng.api.config.Setting;
+import appeng.api.networking.GridHelper;
+import appeng.api.networking.IGridNode;
 import appeng.api.networking.energy.IAEPowerStorage;
+import appeng.api.orientation.BlockOrientation;
+import appeng.api.orientation.IOrientationStrategy;
+import appeng.api.orientation.RelativeSide;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.util.AEColor;
 import appeng.api.util.IConfigManager;
 import appeng.api.util.IConfigurableObject;
 import appeng.menu.AEBaseMenu;
@@ -23,6 +29,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
 
 import java.nio.file.Path;
@@ -35,14 +42,19 @@ import java.util.Locale;
  *   <li>{@code use gui}(菜单):逐个槽位标出角色(AE2 的 Input/Output/Pattern/Config 等),
  *       并从菜单的 target 读出这台机器的配置/升级/AE 电量;</li>
  *   <li>{@code scan_storage}(方块):方块状态、
+ *       <b>朝向</b>({@link IOrientationStrategy}/{@link BlockOrientation},报 front 与机器自身坐标系里的
+ *       back/left/right/up/down)、
  *       <b>配置管理器</b>({@link IConfigurableObject#getConfigManager()} → {@link IConfigManager},
  *       逐项 {@link Setting#getName()} / {@link Setting#getValue(IConfigManager)}:I/O 方向、访问限制、
  *       阻挡模式等)、
  *       <b>升级卡</b>({@link IUpgradeableObject#getUpgrades()} → {@link IUpgradeInventory})、
  *       <b>AE 电量</b>({@link IAEPowerStorage},AE2 自己的能量单位,标准 FE capability 读不到)、
- *       以及标准物品/流体/能量 capability;线缆方块再逐面列出插着的 part({@link IPartHost#getPart})及其配置;</li>
- *   <li>{@code ae2_network}:从一格出发走整张 ME 网格,报频道用量、控制器状态、电量与设备清单
- *       (见 {@link Ae2NetworkOps})。</li>
+ *       <b>这一格自己的节点状态</b>(在不在网上、活没活、用了几条频道、整张网有没有电,
+ *       与 {@link Ae2NetworkOps} 同一套取数)、
+ *       以及标准物品/流体/能量 capability;线缆方块再逐面列出插着的 part({@link IPartHost#getPart})、
+ *       这一面通不通、邻居是什么方块;</li>
+ *   <li>{@code ae2_network}:从一格出发走整张 ME 网格,报本节点状态(node_active 等)、频道用量、
+ *       控制器状态、电量与设备清单(见 {@link Ae2NetworkOps})。</li>
  * </ul>
  *
  * <p>由 {@code Builtin} 在确认 AE2 在场后调用 {@link #install};注册 gui/container 两个处理器(名 {@code ae2})、
@@ -115,6 +127,8 @@ public final class Ae2Adapter {
         if (props.length() > 0) {
             sb.append("state: ").append(props).append("\n");
         }
+        // 朝向:AE2 的机器不都用方块状态 facing,统一走它自己的 orientation 策略。
+        appendOrientation(state, sb);
         // 标准 capability:AE2 的多数方块实体把内部库存经 NeoForge item handler 暴露出来,
         // 物品/流体/能量这一段先读它。
         java.util.List<String> caps = Services.CAPS.describe(level, pos);
@@ -126,24 +140,66 @@ public final class Ae2Adapter {
         BlockEntity be = level.getBlockEntity(pos);
         if (be != null) {
             appendMachine(be, sb);
+            // 这一格自己的网格状态:和 ae2_network 共用一套取数,不必再发一次 ae2_network。
+            try {
+                sb.append(Ae2NetworkOps.gridStatusLine(level, pos)).append('\n');
+            } catch (Throwable ignored) {
+                // 网格状态读不出来不影响其余回执
+            }
             // 线缆/总线方块自己的配置不在方块实体上,在某一面插着的 part 里。
             if (be instanceof IPartHost host) {
-                appendParts(host, sb);
+                appendParts(host, level, pos, sb);
             }
         }
         return TaskResult.ok(sb.toString()).toJson();
     }
 
+    /**
+     * 机器朝向的人话总结:{@code front} 是机器正面,其余是机器自身坐标系里的
+     * back/left/right/up/down。AE2 的 {@code io_direction} 取值 LEFT/RIGHT/UP/DOWN 就是相对这个正面。
+     * 没有朝向属性的方块(策略的 property 表为空)跳过这一行。
+     */
+    private static void appendOrientation(BlockState state, StringBuilder sb) {
+        try {
+            IOrientationStrategy strategy = IOrientationStrategy.get(state);
+            if (strategy.getProperties().isEmpty()) {
+                return;
+            }
+            BlockOrientation o = BlockOrientation.get(strategy, state);
+            // 只有水平朝向前,up/down 才是世界绝对方向;带 spin 的整朝向下,up/down 也是相对的。
+            String abs = state.hasProperty(BlockStateProperties.HORIZONTAL_FACING) ? " (absolute)" : "";
+            sb.append("facing: ").append(o.getSide(RelativeSide.FRONT).getName()).append(" (front)")
+                    .append(" — back=").append(o.getSide(RelativeSide.BACK).getName())
+                    .append(" left=").append(o.getSide(RelativeSide.LEFT).getName())
+                    .append(" right=").append(o.getSide(RelativeSide.RIGHT).getName())
+                    .append(" up=").append(o.getSide(RelativeSide.TOP).getName()).append(abs)
+                    .append(" down=").append(o.getSide(RelativeSide.BOTTOM).getName()).append(abs)
+                    .append('\n');
+            sb.append("  (AE2 setting io_direction LEFT/RIGHT/UP/DOWN is relative to this front)\n");
+        } catch (Throwable ignored) {
+            // 朝向读不出来就不写这一行
+        }
+    }
+
     /** 逐面列出线缆上的 part,每段带它在哪个面,再给这一面上的配置/升级。 */
-    private static void appendParts(IPartHost host, StringBuilder sb) {
+    private static void appendParts(IPartHost host, Level level, BlockPos pos, StringBuilder sb) {
+        sb.append("cable faces:\n");
         for (Direction side : Direction.values()) {
             try {
                 IPart part = host.getPart(side);
-                if (part == null) {
-                    continue;
+                BlockState neighbour = level.getBlockState(pos.relative(side));
+                sb.append("  face ").append(side.getName()).append(": ");
+                if (part != null) {
+                    String partId = partItemId(part);
+                    sb.append("part=").append(partId);
+                    String role = partRole(partId);
+                    if (role != null) {
+                        sb.append(" [").append(role).append("]");
+                    }
+                    sb.append(" | ");
                 }
-                sb.append("part on ").append(side.getName()).append(": ")
-                        .append(partItem(part)).append("\n");
+                sb.append("connected=").append(faceConnected(level, pos, side, part, neighbour) ? "yes" : "no")
+                        .append(" | neighbour=").append(neighbourName(neighbour)).append("\n");
                 if (part instanceof IConfigurableObject configurable) {
                     appendConfig(configurable.getConfigManager(), sb);
                 }
@@ -156,12 +212,78 @@ public final class Ae2Adapter {
         }
     }
 
-    private static String partItem(IPart part) {
+    /**
+     * 这一面通不通。没有"查询邻居连接状态"的单一公开 API,这里按 AE2 内部建连接的两条规则近似:
+     * <ul>
+     *   <li><b>网格连接</b>:本格在 {@code side} 暴露了 AE2 节点,邻居在对面也暴露了节点且颜色相容
+     *       ({@link GridHelper#getExposedNode} —— AE2 的 {@code InWorldGridNode} 就是用这一对来 {@code createConnection} 的);</li>
+     *   <li><b>part 面向</b>:这一面插着 part、part 已在网格上、邻居不是空气
+     *       (总线/面板对着的容器或机器就是它的工作面)。</li>
+     * </ul>
+     * 非 AE2 邻居(箱子、石头)没有节点,只有上面第二条能认出来。这是公开 API 能给到的最接近的答案。
+     */
+    private static boolean faceConnected(Level level, BlockPos pos, Direction side, IPart part, BlockState neighbour) {
+        try {
+            IGridNode here = GridHelper.getExposedNode(level, pos, side);
+            if (here != null) {
+                IGridNode there = GridHelper.getExposedNode(level, pos.relative(side), side.getOpposite());
+                if (there != null && colorsCompatible(here, there)) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {
+            // 节点查询失败就退回 part 面向判断
+        }
+        try {
+            return part != null && part.getGridNode() != null && !neighbour.isAir();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** 同色或透明(fluix)才连,与 AE2 {@code InWorldGridNode.hasCompatibleColor} 一致。 */
+    private static boolean colorsCompatible(IGridNode a, IGridNode b) {
+        try {
+            AEColor ca = a.getGridColor();
+            AEColor cb = b.getGridColor();
+            return ca == AEColor.TRANSPARENT || cb == AEColor.TRANSPARENT || ca == cb;
+        } catch (Throwable ignored) {
+            return true;
+        }
+    }
+
+    private static String neighbourName(BlockState neighbour) {
+        if (neighbour.isAir()) {
+            return "air";
+        }
+        String id = BuiltInRegistries.BLOCK.getKey(neighbour.getBlock()).toString();
+        return id.startsWith("ae2:") ? id : id + " (not AE2)";
+    }
+
+    private static String partItemId(IPart part) {
         try {
             return BuiltInRegistries.ITEM.getKey(part.getPartItem().asItem()).toString();
         } catch (Throwable ignored) {
             return "part";
         }
+    }
+
+    /** 电缆部件按功能给个角色标签,认不出就不标。 */
+    private static String partRole(String partId) {
+        if (partId == null) {
+            return null;
+        }
+        String path = partId.contains(":") ? partId.substring(partId.indexOf(':') + 1) : partId;
+        return switch (path) {
+            case "import_bus", "annihilation_plane" -> "input";
+            case "export_bus", "formation_plane" -> "output";
+            case "storage_bus" -> "storage";
+            case "level_emitter" -> "level emitter";
+            case "toggle_bus" -> "toggle";
+            case "cable_anchor" -> "anchor";
+            case "quartz_fiber" -> "power only";
+            default -> path.contains("terminal") ? "terminal" : (path.contains("p2p") ? "p2p" : null);
+        };
     }
 
     /**

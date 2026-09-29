@@ -53,6 +53,14 @@ AE2 把存储与物流包成一张 **ME 网络**:线缆和机器连成一张网,
 
 ## 4. 面与设置怎么读、怎么写
 
+**先读朝向与连接,再动手。** 对任意 AE2 方块 `scan_storage {x,y,z}` 一次给出三件事:
+
+- **朝向**:`facing: north (front)` 加机器自身坐标系里的 `back/left/right/up/down`。`machine_config` 的 `io_direction=LEFT/RIGHT/UP/DOWN` 相对这个 front,别按世界方向猜;水平朝向时 `up/down` 标 `(absolute)`。
+- **这一格的网格状态**:`grid: on_grid=… node_active=… node_channels=used/max grid_powered=…`。离线会附一句提示;`node_active=no` 或频道用满就知道该查线缆接触还是加频道,不必另发命令。
+- **线缆逐面**:`cable faces:` 下每面一行 `part=… [角色] | connected=yes/no | neighbour=<方块>`。`connected=no` = 这一面没接上(线缆锚点/颜色不同/邻居不在网上);邻居带 `(not AE2)` 的是普通容器/机器,靠这一面插着的总线或面板工作。
+
+要看**整张网**的频道总量、控制器、电量与设备清单,再用 `ae2_network {x,y,z}`;它顺带报本节点 `node_active`。
+
 - **能读就先读**:对机器方块坐标调 `machine_config {x,y,z}`(不带 setting),回执列出每项 `name=value` 和 `allowed`。写:`machine_config {x,y,z,setting:"名字",value:"值"}`,名字/取值大小写不敏感。
 - AE2 整方块机器上常见的设置名(实际以读回来的 `allowed` 为准):
 
