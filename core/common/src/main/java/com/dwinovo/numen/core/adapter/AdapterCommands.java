@@ -29,14 +29,14 @@ public final class AdapterCommands {
     private static void actions(CommandGroup adapter) {
         adapter.server("reload", "Re-read config/numen/adapters/ and swap the active set.",
                 AdapterCommands::reload)
-                .example("numen adapter reload")
+                .example("adapter reload")
                 .note("Instant; no restart or rebuild. A bad file is reported and skipped, never fatal.")
                 .note("Affects the NEXT lookup only: an in-flight task keeps the rule it already took, "
                         + "gear already worn is not unequipped, and code handlers are not reloaded "
                         + "(changing one needs a restart).");
         adapter.server("list", "List every adapter and why it is or isn't active.",
                 AdapterCommands::list)
-                .example("numen adapter list");
+                .example("adapter list");
     }
 
     private static void reload(ServerSource source, CommandArgs args) {

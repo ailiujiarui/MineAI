@@ -79,7 +79,7 @@ public class PackMachineGameTests {
         helper.succeedWhen(() -> {
             helper.assertTrue(!run.succeeded(), "a machine was claimed for bedrock: " + run.reply());
             helper.assertTrue(run.reply().contains("no registered machine makes minecraft:bedrock")
-                            && run.reply().contains("lookup_recipe"),
+                            && run.reply().contains("inv_recipe"),
                     "the failure does not point at the fallback: " + run.reply());
             CompanionFactory.despawn(helper.getLevel().getServer(), companion);
         });
