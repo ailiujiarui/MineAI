@@ -153,9 +153,10 @@ public final class Ae2EncodePatternTool implements NumenTool {
             if (!encodedSlot.getItem().isEmpty()) {
                 menu.clicked(encodedSlot.index, 0, ClickType.QUICK_MOVE, self);
             }
-            if (!isBlankPattern(blankSlot.getItem()) && !moveOneBlank(menu, self, blankSlot)) {
-                return TaskResult.fail("no blank pattern — put down / get an ae2:blank_pattern first "
-                        + "(craft it, or take one from the ME network), then call again.").toJson();
+            if (!isBlankPattern(blankSlot.getItem()) && !supplyBlank(menu, self, blankSlot)) {
+                return TaskResult.fail("no blank pattern — I looked in my inventory (main hand included) and the "
+                        + "terminal's network slots but found no ae2:blank_pattern ready to encode with; get one "
+                        + "(craft it, or pull it from the ME network) and call again.").toJson();
             }
 
             setMode(menu, crafting ? EncodingMode.CRAFTING : EncodingMode.PROCESSING, a.substitute());
@@ -330,28 +331,64 @@ public final class Ae2EncodePatternTool implements NumenTool {
         return -1;
     }
 
-    /** 把背包里的一张空白模式移进终端的空白模式槽(真实槽,走正常菜单点击)。 */
-    private static boolean moveOneBlank(PatternEncodingTermMenu menu, NumenPlayer self, Slot dest) {
+    /**
+     * 把一张空白模式放进终端的空白模式槽。
+     *
+     * <p>先从她背包里<b>直接</b>取一张(主手也算),再直接写进空白槽——{@code menu.setItem} 就是服务端往槽里
+     * 落料那条路,绕开"抓起—放下"的菜单点击链:假玩家的那条链不稳,搬不进去就会误判成"没有空白模式"。
+     * 背包没有,就试终端界面里属于<b>网络</b>的空白模式(shift 一张进背包),再搬。
+     */
+    private static boolean supplyBlank(PatternEncodingTermMenu menu, NumenPlayer self, Slot blankSlot) {
+        if (placeOneBlank(menu, self, blankSlot, takeBlankFromInventory(self))) {
+            return true;
+        }
         for (int i = 0; i < menu.slots.size(); i++) {
             Slot src = menu.slots.get(i);
-            if (src == dest || src.container != self.getInventory() || !isBlankPattern(src.getItem())) {
+            if (src.container == self.getInventory() || !isBlankPattern(src.getItem())) {
                 continue;
             }
-            menu.clicked(i, 0, ClickType.PICKUP, self);            // 抓起整叠
-            if (!isBlankPattern(menu.getCarried())) {              // 没抓起来就放回去
-                if (!menu.getCarried().isEmpty()) {
-                    menu.clicked(i, 0, ClickType.PICKUP, self);
-                }
-                continue;
+            try {
+                menu.clicked(i, 0, ClickType.QUICK_MOVE, self);   // 网络里的空白模式先整叠 shift 进背包
+            } catch (Throwable ignored) {
+                // 这一格挪不动就试下一格
             }
-            menu.clicked(dest.index, 1, ClickType.PICKUP, self);   // 右键放一张
-            if (!menu.getCarried().isEmpty()) {
-                menu.clicked(i, 0, ClickType.PICKUP, self);        // 余数放回原格
-            }
-            if (isBlankPattern(dest.getItem())) {
+            if (placeOneBlank(menu, self, blankSlot, takeBlankFromInventory(self))) {
                 return true;
             }
         }
+        return false;
+    }
+
+    /** 从她背包(含主手)拿走一张空白模式;没有返回空。 */
+    private static ItemStack takeBlankFromInventory(NumenPlayer self) {
+        var inv = self.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack stack = inv.getItem(i);
+            if (isBlankPattern(stack)) {
+                ItemStack one = stack.copyWithCount(1);
+                stack.shrink(1);
+                inv.setChanged();
+                return one;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /** 把这一张直接写进空白槽;落不进去就还回背包,别丢。 */
+    private static boolean placeOneBlank(PatternEncodingTermMenu menu, NumenPlayer self, Slot blankSlot,
+                                         ItemStack one) {
+        if (one == null || one.isEmpty()) {
+            return false;
+        }
+        try {
+            menu.setItem(blankSlot.index, menu.getStateId(), one);
+            if (isBlankPattern(blankSlot.getItem())) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+            // 落到还料
+        }
+        self.getInventory().add(one);
         return false;
     }
 

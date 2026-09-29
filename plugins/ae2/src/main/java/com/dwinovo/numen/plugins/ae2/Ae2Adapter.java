@@ -104,6 +104,18 @@ public final class Ae2Adapter {
         }
         sb.append("role hints: [input] feed the machine · [output] take results · [pattern] encoded pattern · "
                 + "[crafting] crafting grid · [config] filter/partition slot · [upgrade] upgrades\n");
+        // 模式编码终端:那些 [input]/[output]/[crafting] 格是幽灵槽(FakeSlot),use transfer 放不进真实物品,
+        // 也不需要客户端点按——在这里直接指路,免得模型对着槽位反复撞墙、误判成"只能主人上客户端"。
+        if (menu instanceof appeng.menu.me.items.PatternEncodingTermMenu) {
+            sb.append("PATTERN ENCODING TERMINAL — the [input]/[output]/[crafting] cells above are GHOST slots: "
+                    + "`use transfer` cannot put real items in them, and no client click is needed. To encode a "
+                    + "pattern: hold a blank pattern (ae2:blank_pattern), then call "
+                    + "`encode_pattern {inputs:[{\"item\":\"<id>\",\"count\":1},...], "
+                    + "outputs:[{\"item\":\"<id>\",\"count\":1},...], mode:\"processing\"}` "
+                    + "(use mode:\"crafting\" and the exact 3x3/2x2 layout for a crafting-table recipe). It writes "
+                    + "the ghosts, encodes, and puts the encoded pattern into your inventory; then `use shift` it "
+                    + "into the pattern provider. Do NOT keep trying `use transfer` on these cells.\n");
+        }
         // AE2 的菜单把被操作的方块实体挂在 target 上;机器配置/升级/电量从这里读,而不是从槽位猜。
         if (menu instanceof AEBaseMenu ae) {
             try {
