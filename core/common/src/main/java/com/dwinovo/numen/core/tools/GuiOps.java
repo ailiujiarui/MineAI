@@ -1,5 +1,7 @@
 package com.dwinovo.numen.core.tools;
 
+import com.dwinovo.numen.cli.CommandArgs;
+import com.dwinovo.numen.cli.Listing;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.core.adapter.SlotRoles;
 import com.dwinovo.numen.task.TaskResult;
@@ -11,15 +13,22 @@ import net.minecraft.world.inventory.ResultSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * GUI tool implementations — the business half of {@code InspectGuiTool} and
- * {@code CloseGuiTool}: read the open container menu and close it.
+ * GUI tool implementations — the business half of {@code use gui} and
+ * {@code use close} ({@code UseCommands}): read the open container menu and close it.
  */
 public final class GuiOps {
 
-    public String inspectGui(NumenPlayer self) {
+    /**
+     * 打开的界面:抬头是界面名与合成格的图,每个槽一条(界面这一侧的全列,空的也列;她自己那一侧只列有东西的),结尾是光标、
+     * 机器的数值与提示。槽多的模组界面按输出预算分页({@link Listing})。
+     *
+     * @param again 这一行本身(不带 {@code --page}):翻页时写它
+     */
+    public String inspectGui(NumenPlayer self, CommandArgs args, String again) {
         AbstractContainerMenu menu = self.containerMenu;
         if (menu == null) {
             return TaskResult.fail("no GUI open.").toJson();
@@ -42,8 +51,8 @@ public final class GuiOps {
         // With no block menu open, containerMenu IS your own InventoryMenu — which carries the 2x2
         // crafting grid. Surface it so the model can craft small recipes without a table.
         boolean ownInventory = menu == self.inventoryMenu;
-        StringBuilder container = new StringBuilder();
-        StringBuilder mine = new StringBuilder();
+        List<String> container = new ArrayList<>();
+        List<String> mine = new ArrayList<>();
         // Crafting grid (if any). Detect generically: a slot backed by a CraftingContainer IS a grid
         // cell (vanilla 2x2/3x3 AND modded NxM), the ResultSlot IS the output. We lay the cells out in
         // 2D with their click-able slot numbers so the model can drop the recipe ascii straight onto it
@@ -81,10 +90,10 @@ public final class GuiOps {
             String line = "  " + i + ": " + describe(it) + role + outputTag + "\n";
             if (playerSide) {
                 if (!it.isEmpty()) {
-                    mine.append(line);   // only your filled slots — the items you can move in
+                    mine.add(line);   // only your filled slots — the items you can move in
                 }
             } else {
-                container.append(line);  // all container slots, empty included (placement targets)
+                container.add(line);  // all container slots, empty included (placement targets)
             }
         }
         // Data slots = the menu's OTHER synced channel, parallel to the item slots: the ints a real
@@ -104,7 +113,7 @@ public final class GuiOps {
         }
 
         // Render the crafting grid as a 2D map of click-able slot numbers, so the recipe ascii from
-        // lookup_recipe overlays cell-for-cell (a smaller recipe goes in the TOP-LEFT — same as here).
+        // inv recipe overlays cell-for-cell (a smaller recipe goes in the TOP-LEFT — same as here).
         String gridSection = "";
         if (gridCells != null) {
             StringBuilder g = new StringBuilder("crafting grid " + gridW + "x" + gridH
@@ -130,14 +139,14 @@ public final class GuiOps {
         String header = ownInventory
                 ? "GUI: InventoryMenu (YOUR own inventory — includes the 2x2 crafting grid below)\n"
                 : "GUI: " + menu.getClass().getSimpleName() + "\n";
-        return TaskResult.ok(header
-                + gridSection
-                + "container slots:\n" + (container.length() == 0 ? "  (none)\n" : container)
-                + "your inventory (non-empty):\n" + (mine.length() == 0 ? "  (empty)\n" : mine)
-                + "cursor: " + describe(menu.getCarried()) + "\n"
-                + dataLine
-                + "tip: transfer {from} (no `to`) routes a whole stack to the other section; add `to`"
-                + " + `count` for an exact move into a specific slot.").toJson();
+        List<String> slots = new ArrayList<>(container.isEmpty() ? List.of("  (none)") : container);
+        slots.add("your inventory (non-empty):");
+        slots.addAll(mine.isEmpty() ? List.of("  (empty)") : mine);
+        return new Listing(header + gridSection + "container slots:", slots,
+                "cursor: " + describe(menu.getCarried()) + "\n"
+                        + dataLine
+                        + "tip: `use shift <slot>` sends a whole stack to the other section; `use transfer <from> <to>`"
+                        + " (with --count N for part of it) puts it into a specific slot.", again).result(args).toJson();
     }
 
     private static String menuId(AbstractContainerMenu menu) {
@@ -162,7 +171,7 @@ public final class GuiOps {
         AbstractContainerMenu menu = self.containerMenu;
         if (menu == null || menu == self.inventoryMenu) {
             // The InventoryMenu (your own 2x2 grid + inventory) is always open — nothing to close.
-            // If you left items in the 2x2 crafting grid, transfer them back out.
+            // If you left items in the 2x2 crafting grid, shift them back out.
             return TaskResult.ok("no block GUI was open (your own inventory menu is always available).").toJson();
         }
         self.closeContainer();

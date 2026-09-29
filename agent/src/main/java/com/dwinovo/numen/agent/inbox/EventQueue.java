@@ -18,17 +18,21 @@ import java.util.List;
  * <p>没有第三条。她当时在干嘛、消费者此刻方不方便——一律不看;急不急在入队那一刻就定了
  * (类型表说恒急的就急,否则听发送方的),之后只认条目上的标记。
  * 消费者能不能来取(她死了?驾驶席在外接大脑手里?)是<b>消费者自己的停牌</b>,
- * 不在这里:队列没有锁,取件口({@link #takeWhile}/{@link #takeAhead}/{@link #takeIf}/{@link #takeEntries})
+ * 不在这里:队列没有锁,取件口({@link #takeForCall}/{@link #takeControls}/{@link #takeText}/{@link #takeEntries})
  * 永远敞着,谁来取、什么时候取,由持有队列的人决定。
+ *
+ * <h2>条目怎么取只看投递档的声明</h2>
+ * 哪些条目算叫醒她、随哪一次模型调用交出去、哪些是循环自己执行的控制命令,都读
+ * {@link EventTypes.Delivery} 的声明;这里没有一处按档名判断。
  *
  * <h2>急件叫醒:脉冲可以丢,电平不会骗</h2>
  * 急件落地时同步通知{@link #addUrgentListener 登记过的等待者}——叫的内容只是
- * "来问吧",不递事件。正确性从不依赖叫醒:{@link #hasUrgent}/{@link #shouldDrain}
+ * "来问吧",不递事件。正确性从不依赖叫醒:{@link #hasUrgent}/{@link #ripeness}
  * 是随时可问、答案一致的状态;丢一次叫醒,消费者按自己的节律(内脑的 tick 心跳、
  * 外脑的下一次长轮询)一问就发现。
  *
  * <h2>"排空"是"到点就走",不是"立刻发出"</h2>
- * {@link #shouldDrain} 只读状态,可以反复问、答案一致。上层因为协议原因(不能往
+ * {@link #ripeness} 只读状态,可以反复问、答案一致。上层因为协议原因(不能往
  * assistant 的 tool_calls 中间插 user 消息)排不成,下一 tick 再问就是了——
  * <b>不存在"错过的排空"</b>,也就不需要记住"我刚才想排空"这种会出错的状态。
  *
@@ -78,16 +82,17 @@ public final class EventQueue {
     public EventQueue(Journal journal, int cap) {
         this.journal = journal == null ? Journal.NONE : journal;
         this.cap = Math.max(1, cap);
-        entries.addAll(this.journal.load());
+        // 读回来的条目同样过急件规则:盘上的标记是写下它的那一版定的,生效与否以现在的类型表为准
+        for (Entry e : this.journal.load()) {
+            entries.add(new Entry(e.type(), e.text(), e.ts(), urgent(EventTypes.get(e.type()), e.urgent())));
+        }
     }
 
     // ---- 进 ----
 
     /**
-     * 收一条。满了丢最老的并记账。
-     *
-     * <p>急不急:类型表说这类恒为急件({@link EventTypes.Type#alwaysUrgent})就是急件,否则听发送方的
-     * {@code urgent}。条目记下的是生效后的结果,落盘、转发、熟度判断都只认它。
+     * 收一条。满了丢最老的并记账。急不急按 {@link #urgent} 生效,条目记下的是生效后的结果,
+     * 落盘、转发、熟度判断都只认它。
      *
      * @return 这条是否作为急件入队;空白输入不入队,返回 {@code false}
      */
@@ -95,11 +100,7 @@ public final class EventQueue {
         if (text == null || text.isBlank()) {
             return false;
         }
-        EventTypes.Type kind = EventTypes.get(type);
-        // 捎带的条目永不为急件。"旁听不唤醒"是群聊的不变量,靠发送方自觉守不住——
-        // 一处写死,发送方怎么标都一样。
-        boolean effective = kind.delivery() != EventTypes.Delivery.AMBIENT
-                && (kind.alwaysUrgent() || urgent);
+        boolean effective = urgent(EventTypes.get(type), urgent);
         entries.add(new Entry(type, text, now, effective));
         while (entries.size() > cap) {
             entries.remove(0);
@@ -114,6 +115,16 @@ public final class EventQueue {
             }
         }
         return effective;
+    }
+
+    /**
+     * 条目生效后的急不急。急件的意思是"立刻叫醒她",所以只有投递档声明会叫醒她的条目
+     * ({@link EventTypes.Delivery#wakes})才可能急——旁听的话不唤醒是群聊的不变量,控制命令由循环闲时自己执行,
+     * 两者靠发送方自觉守不住,发送方怎么标都一样。其余:类型表说恒急就急,否则听发送方的。
+     * 入队与读盘都只过这一处。
+     */
+    private static boolean urgent(EventTypes.Type kind, boolean asSent) {
+        return kind.delivery().wakes() && (kind.alwaysUrgent() || asSent);
     }
 
     // ---- 急件叫醒 ----
@@ -131,36 +142,6 @@ public final class EventQueue {
     }
 
     // ---- 出 ----
-
-    /**
-     * 现在该不该排空。
-     *
-     * @param now   真实时间(墙上时钟——游戏刻在单机退出时是冻结的,拿它算"躺了多久"
-     *              会以为什么都没老)
-     * @param level 主动性档位 1~10,见 {@link #thresholdOf} / {@link #maxWaitMsOf}
-     */
-    public boolean shouldDrain(long now, int level) {
-        int waiting = 0;
-        long oldest = Long.MAX_VALUE;
-        for (Entry e : entries) {
-            if (e.urgent()) {
-                return true;
-            }
-            // 捎带的不算数:它自己不值得开一轮。躺着等下次别的事叫醒她,跟着那一轮一起走。
-            if (EventTypes.get(e.type()).delivery() == EventTypes.Delivery.AMBIENT) {
-                continue;
-            }
-            waiting++;
-            if (e.ts() > 0 && e.ts() < oldest) {
-                oldest = e.ts();
-            }
-        }
-        if (waiting == 0) {
-            return false;
-        }
-        long age = oldest == Long.MAX_VALUE ? 0L : Math.max(0L, now - oldest);
-        return waiting >= thresholdOf(level) || age >= maxWaitMsOf(level);
-    }
 
     /**
      * 取走全部<b>原始条目</b>并清空——转发用(服务端暂存 → 客户端队列)。
@@ -194,7 +175,7 @@ public final class EventQueue {
     /**
      * 把已经取出来的条目拼成给模型看的几段。
      *
-     * <p>与"取"分开,是因为按顺序排空时只会取走开头一段({@link #takeWhile}),而渲染规则
+     * <p>与"取"分开,是因为一次调模型只取墙之前那一段里该走的({@link #takeForCall}),而渲染规则
      * 对取多少无关——两边共用这一份,不会说不到一块儿去。
      *
      * <p>{@code toModel} 回 null/空的条目在这里消失:那是类型表说"这条不是给模型看的文本"。
@@ -225,46 +206,189 @@ public final class EventQueue {
         return "<event kind=\"" + EventTypes.DROPPED + "\">期间还发生了约 " + n + " 件事,没能记下来</event>";
     }
 
+    // ---- 一次模型调用带走什么:只按投递档的声明取 ----
+
     /**
-     * 按入队顺序取走<b>开头那一段</b>——一直取到第一条不满足 {@code keep} 的为止;
-     * 那一条及其之后的原样留在队里。
-     *
-     * <p>队列因此能<b>按顺序</b>排空:遇到一条不该当文本处理的(比如整理记忆),前面的先
-     * 走完,它留在队首等下一个安全点。没有插队,也就不用为以后每种新类型回答"它插不插队"。
-     *
-     * @return 取走的条目,按入队顺序;队首就不满足则空列表
+     * 墙:第一条控制条目的位置,没有则是队尾。墙之前那一段是模型调用能取的全部;墙和墙之后的等控制在闲时
+     * 执行完——没有插队,也就不用为以后每种新类型回答"它插不插队"。
      */
-    public List<Entry> takeWhile(java.util.function.Predicate<Entry> keep, long now) {
-        if (keep == null) {
+    private int wall() {
+        for (int i = 0; i < entries.size(); i++) {
+            if (delivery(entries.get(i)).control()) {
+                return i;
+            }
+        }
+        return entries.size();
+    }
+
+    /**
+     * 墙之前那一段里本身要她回应的条目({@link EventTypes.Delivery#wakes})。闲时熟没熟({@link #ripeness})、
+     * 本来要停时还调不调模型({@link #wantsAnswer})、这次调用带走什么({@link #takeForCall})都从它算——
+     * 三处看的是同一段、同一份声明,所以熟了开出来的 run 一定取得到东西。
+     */
+    private List<Entry> wakers() {
+        int wall = wall();
+        List<Entry> out = new ArrayList<>();
+        for (int i = 0; i < wall; i++) {
+            if (delivery(entries.get(i)).wakes()) {
+                out.add(entries.get(i));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 熟度:闲着的时候,墙之前那一段该不该开一次 run。有急件就熟;否则按主动性档位,叫醒她的条目攒够条数、
+     * 或者最老的一条等够时长。不叫醒她的条目(捎带的话)不算数,墙后面的等墙执行完再说。
+     *
+     * @param now   真实时间(墙上时钟——游戏刻在单机退出时是冻结的,拿它算"躺了多久"
+     *              会以为什么都没老)
+     * @param level 主动性档位 1~10,见 {@link #thresholdOf} / {@link #maxWaitMsOf}
+     */
+    public Ripeness ripeness(long now, int level) {
+        List<Entry> wakers = wakers();
+        boolean urgent = false;
+        long oldest = Long.MAX_VALUE;
+        for (Entry e : wakers) {
+            urgent |= e.urgent();
+            if (e.ts() > 0 && e.ts() < oldest) {
+                oldest = e.ts();
+            }
+        }
+        long age = oldest == Long.MAX_VALUE ? 0L : Math.max(0L, now - oldest);
+        Ripeness.Why why = urgent ? Ripeness.Why.URGENT
+                : wakers.isEmpty() ? null
+                : wakers.size() >= thresholdOf(level) ? Ripeness.Why.ENOUGH
+                : age >= maxWaitMsOf(level) ? Ripeness.Why.LONG_ENOUGH
+                : null;
+        return new Ripeness(why, wakers.size(), age);
+    }
+
+    /**
+     * 熟度的答案,连同算它用的数(日志照着说为什么开了这一轮,不另算一遍)。
+     *
+     * @param why       为什么熟了;{@code null} = 没熟
+     * @param waiting   墙之前叫醒她的条目有几条
+     * @param oldestAge 其中最老那条躺了多久;一条都没有是 0
+     */
+    public record Ripeness(Why why, int waiting, long oldestAge) {
+        public enum Why { URGENT, ENOUGH, LONG_ENOUGH }
+
+        public boolean ripe() {
+            return why != null;
+        }
+    }
+
+    /**
+     * 本来要停的时候(没有待回应的东西),墙之前有没有本身要她回应的条目。有,就该再调一次模型,
+     * 而那一次的 {@link #takeForCall} 一定取得到它。
+     */
+    public boolean wantsAnswer() {
+        return !wakers().isEmpty();
+    }
+
+    /**
+     * 取走这一次调模型要带上的条目:只看墙之前那一段,按每条的 {@link EventTypes.Delivery#joins} 取——
+     * {@code ANY_CALL} 的总是带上;{@code OWN_CALL} 的只在这次调用是它自己引起的时候带上(没有待回应的东西,
+     * 墙之前也没有别的会叫醒她的 {@code ANY_CALL} 条目);墙和墙之后的原样留着,先后不变。
+     *
+     * <p>不叫醒她的条目(捎带)只随别人引起的调用走:{@code answerDue} 为假、墙之前又没有要她回应的条目时,
+     * 这次根本不调模型,一条都不取。
+     *
+     * @param answerDue 已经有待模型回应的东西(工具结果、失败重试的那次输入):这次调用无论如何都会发生
+     * @return 取走的条目,按入队顺序;{@code answerDue} 为假时非空当且仅当 {@link #wantsAnswer}
+     */
+    public List<Entry> takeForCall(boolean answerDue, long now) {
+        List<Entry> wakers = wakers();
+        if (!answerDue && wakers.isEmpty()) {
             return List.of();
         }
+        boolean othersCall = answerDue
+                || wakers.stream().anyMatch(e -> delivery(e).joins() == EventTypes.Delivery.Joins.ANY_CALL);
+        int wall = wall();
+        List<Entry> taken = new ArrayList<>();
+        java.util.Iterator<Entry> it = entries.iterator();
+        for (int i = 0; i < wall; i++) {
+            Entry e = it.next();
+            EventTypes.Delivery.Joins joins = delivery(e).joins();
+            if (joins == EventTypes.Delivery.Joins.ANY_CALL
+                    || (joins == EventTypes.Delivery.Joins.OWN_CALL && !othersCall)) {
+                taken.add(e);
+                it.remove();
+            }
+        }
+        if (taken.isEmpty()) {
+            return List.of();
+        }
+        flushDropped(taken, now);
+        journal.save(entries);
+        return taken;
+    }
+
+    // ---- 控制条目 ----
+
+    /** 下一批控制条目:墙上那一条,连同紧跟着它的几条(连着按的几次)。只看不取;没有则空。 */
+    public List<Entry> nextControls() {
+        List<Entry> out = new ArrayList<>();
+        for (int i = wall(); i < entries.size() && delivery(entries.get(i)).control(); i++) {
+            out.add(entries.get(i));
+        }
+        return out;
+    }
+
+    /**
+     * 取走 {@link #nextControls} 那一批。它们不是给模型的文本,溢出丢弃的那句说明不跟着它们走,
+     * 留给下一次给模型的取件。
+     */
+    public List<Entry> takeControls() {
+        int from = wall();
+        int to = from;
+        while (to < entries.size() && delivery(entries.get(to)).control()) {
+            to++;
+        }
+        List<Entry> taken = new ArrayList<>(entries.subList(from, to));
+        if (!taken.isEmpty()) {
+            entries.subList(from, to).clear();
+            journal.save(entries);
+        }
+        return taken;
+    }
+
+    /**
+     * 丢掉墙之前那一段里不叫醒她的条目(捎带的旁听)。清空上下文时用:它们是她在清空之前听见的,属于被清掉的
+     * 那段上下文;要她回应的条目留着,清完进新的上下文。
+     *
+     * @return 丢掉几条
+     */
+    public int discardQuietAhead() {
+        int wall = wall();
         int n = 0;
-        while (n < entries.size() && keep.test(entries.get(n))) {
-            n++;
+        java.util.Iterator<Entry> it = entries.iterator();
+        for (int i = 0; i < wall; i++) {
+            if (!delivery(it.next()).wakes()) {
+                it.remove();
+                n++;
+            }
         }
-        if (n == 0) {
-            return List.of();
+        if (n > 0) {
+            journal.save(entries);
         }
-        List<Entry> taken = new ArrayList<>(entries.subList(0, n));
-        entries.subList(0, n).clear();
-        flushDropped(taken, now);
-        journal.save(entries);
-        return taken;
+        return n;
     }
 
+    // ---- 外接大脑 ----
+
     /**
-     * 取走<b>所有</b>满足 {@code take} 的条目;不满足的原样留在队里,先后不变。
+     * 取走所有给模型看的文本,不管排在哪;控制条目原样留着,先后不变。外接大脑取件用:控制条目是对内脑说的,
+     * 留着等内脑,但不能挡住排在它后面的话。
      *
-     * <p>与 {@link #takeWhile} 的区别就在"跳过":取件人只要其中一类、又不该被别的类挡住时用它
-     * ——外接模型取文本,整理/清空这类控制条目是对内脑说的,留着等内脑,但不能挡住排在它后面的话。
-     *
-     * @return 取走的条目,按入队顺序;一条都不满足则空列表
+     * @return 取走的条目,按入队顺序;一条都没有则空列表
      */
-    public List<Entry> takeIf(java.util.function.Predicate<Entry> take, long now) {
+    public List<Entry> takeText(long now) {
         List<Entry> taken = new ArrayList<>();
         for (java.util.Iterator<Entry> it = entries.iterator(); it.hasNext(); ) {
             Entry e = it.next();
-            if (take.test(e)) {
+            if (!delivery(e).control()) {
                 taken.add(e);
                 it.remove();
             }
@@ -277,34 +401,8 @@ public final class EventQueue {
         return taken;
     }
 
-    /**
-     * 取走排在第一条 {@code barrier} <b>之前</b>、满足 {@code take} 的条目;{@code barrier} 那条和它之后的原样留着,
-     * 前段里不满足 {@code take} 的也留着,先后不变。
-     *
-     * <p>循环在一次 run 的边界上这样取件:排在控制条目(整理/清空)前面的插话照取,接续条目按需要留着;
-     * 控制条目后面的等它在闲时执行完再说。不插队,也不被同一段里另一种投递方式挡住。
-     *
-     * @return 取走的条目,按入队顺序;一条都没取则空列表
-     */
-    public List<Entry> takeAhead(java.util.function.Predicate<Entry> barrier,
-                                 java.util.function.Predicate<Entry> take, long now) {
-        List<Entry> taken = new ArrayList<>();
-        for (java.util.Iterator<Entry> it = entries.iterator(); it.hasNext(); ) {
-            Entry e = it.next();
-            if (barrier.test(e)) {
-                break;
-            }
-            if (take.test(e)) {
-                taken.add(e);
-                it.remove();
-            }
-        }
-        if (taken.isEmpty()) {
-            return List.of();
-        }
-        flushDropped(taken, now);
-        journal.save(entries);
-        return taken;
+    private static EventTypes.Delivery delivery(Entry e) {
+        return EventTypes.get(e.type()).delivery();
     }
 
     /** 因为满了丢掉、还没报告过的条数变成一条普通事件——丢弃可以,无声消失不行。 */
@@ -351,13 +449,15 @@ public final class EventQueue {
         return false;
     }
 
-    /** 最老那条躺了多久;空队列返回 0。 */
-    public long oldestAgeMs(long now) {
-        long oldest = Long.MAX_VALUE;
+    /**
+     * 队里有没有本身会叫醒她的条目({@link EventTypes.Delivery#wakes}),不管排在哪——排在控制条目后面的,
+     * 控制执行完同样会叫醒她。旁听的话、控制命令都不算:它们开不起一次 run。
+     */
+    public boolean hasWaking() {
         for (Entry e : entries) {
-            if (e.ts() > 0 && e.ts() < oldest) oldest = e.ts();
+            if (delivery(e).wakes()) return true;
         }
-        return oldest == Long.MAX_VALUE ? 0L : Math.max(0L, now - oldest);
+        return false;
     }
 
     /** 因为满了被丢掉、还没报告过的条数。 */

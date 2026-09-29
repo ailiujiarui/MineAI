@@ -68,6 +68,23 @@ public final class CompanionTickDispatcher {
         return brainFor(companionUuid).current;
     }
 
+    /** 换掉她现在在做的事(首次使用时建脑),见 {@link CompanionBrain#assign}。 */
+    static void assign(NumenPlayer companion, TaskRecord record) {
+        brainFor(companion.getUUID()).assign(companion, record);
+    }
+
+    /**
+     * 身体进了世界:这一刻落盘记录里的那件活是重启前留下的,交给它的大脑,第一次 tick 时重放。此刻之后派下的活
+     * 会改写记录,所以只能在这一刻读(见 {@link TaskPersistence})。同一 UUID 还有另一具身体在世界里时这具是重影,
+     * 不接手,tick 时照旧跳过它。
+     */
+    public static void onCompanionSpawned(NumenPlayer body) {
+        CompanionBrain brain = brainFor(body.getUUID());
+        if (brain.boundTo(body)) {
+            brain.inherit(TaskPersistence.leftOver(body));
+        }
+    }
+
     /** 一次性心跳日志:证明排程机器的 tick 钩子真的接上了(排查"闲时链不触发"时先看它)。 */
     private static boolean heartbeatLogged;
 
@@ -144,10 +161,10 @@ public final class CompanionTickDispatcher {
                     BRAINS.remove(ap.getUUID());
                     brain = brainFor(ap.getUUID());
                 }
-                if (!brain.restored) {
-                    // 首次见到这具身体:把重启前她手上的活接回来(见 TaskPersistence)。
-                    brain.restored = true;
-                    TaskPersistence.restore(ap);
+                // 首次见到这具身体:把重启前她手上、进世界时接手的那件活接回来(见 TaskPersistence)。
+                TaskPersistence.LeftOver left = brain.takeLeftOver();
+                if (left != null) {
+                    TaskPersistence.replay(ap, left);
                 }
                 brain.tick(ap);
             }
@@ -165,7 +182,7 @@ public final class CompanionTickDispatcher {
         com.dwinovo.numen.cli.PendingCommands.drop(player);
     }
 
-    /** 她现在在做的那件事,null = 槽空(她站着)。task_status 用。 */
+    /** 她现在在做的那件事,null = 槽空(她站着)。task status 用。 */
     public static TaskRecord currentTaskFor(UUID companionUuid) {
         CompanionBrain brain = BRAINS.get(companionUuid);
         return brain == null ? null : brain.current.record();
@@ -179,18 +196,6 @@ public final class CompanionTickDispatcher {
     public static TaskRecord taskOf(UUID companionUuid, String toolCallId) {
         CompanionBrain brain = BRAINS.get(companionUuid);
         return brain == null ? null : brain.recordOf(toolCallId);
-    }
-
-    /**
-     * 槽里那个刚受理、一刻都还没跑过。
-     *
-     * <p>用来分开两种"再派一个活":同一批工具调用里的第二个(模型在做计划,该拒绝
-     * ——让它拿到第一个的结果再决定下一步),和新回合里派的(主人/模型改主意了,
-     * 该直接替换)。判据本地可判,不用把回合 id 穿到服务端。
-     */
-    public static boolean currentFreshlyAccepted(NumenPlayer companion) {
-        CompanionBrain brain = BRAINS.get(companion.getUUID());
-        return brain != null && brain.current.freshlyAccepted(companion);
     }
 
     /**

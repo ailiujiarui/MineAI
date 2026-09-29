@@ -2,7 +2,7 @@ package com.dwinovo.numen.entity;
 
 import com.dwinovo.numen.network.payload.NumenStatePayload;
 import com.dwinovo.numen.network.payload.RequestStatePayload;
-import com.dwinovo.numen.platform.Services;
+import com.dwinovo.numen.network.NumenNetwork;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -15,7 +15,7 @@ import java.util.UUID;
 
 /**
  * 同伴身上的状态一变就推一份给主人的客户端,让 agent 循环不必花一整轮
- * {@code get_self_status} 去重新发现自己带着什么、身上有什么效果。
+ * {@code status_self} 去重新发现自己带着什么、身上有什么效果。
  *
  * <h2>为什么非推不可</h2>
  * 渲染那块提示词的代码在<b>客户端</b>,而 companion 的 36 格从不同步给客户端——原版只同步
@@ -35,7 +35,7 @@ import java.util.UUID;
  *
  * <h2>只认"什么物品、几个"</h2>
  * 耐久、附魔、其它组件一概不进比较。否则她每挥一镐都算变了。模型读的是"我有什么、几个",
- * 要精确到槽位和附魔时才调 {@code inspect_gui}。
+ * 要精确到槽位和附魔时才用 {@code use gui}。
  *
  * <h2>效果同理:只认"有哪些、几级"</h2>
  * <b>剩余时间不进比较</b> —— 它每 tick 都在减,拿它当变化判据就是每 tick 推一个包。
@@ -118,7 +118,7 @@ public final class CompanionStateWatch {
         boolean first = !everSent;
         everSent = true;
         NumenStatePayload payload = RequestStatePayload.snapshot(companion);
-        Services.NETWORK.sendToPlayer(owner, payload);
+        NumenNetwork.sendToPlayer(owner, payload);
         // 一次推送一行。链路是"服务端推 → 客户端缓存 → 渲染进请求",出问题时得能一眼看出
         // 断在哪一节;只记开始不记结果的日志已经害过我们一次。
         com.dwinovo.numen.Constants.LOG.info(

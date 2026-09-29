@@ -1,29 +1,28 @@
 package com.dwinovo.numen.cli;
 
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * 一个动作:{@code numen <组> <动作> …} 的那一格。它持有这件事<b>唯一的处理函数</b>、参数表与说明,
+ * 一个动作:{@code <组> <动作> …} 的那一格。它持有这件事<b>唯一的处理函数</b>、参数表与说明,
  * 命令行、帮助、快捷工具都从这里取。
  *
  * <p>执行侧由登记时给的处理函数决定:{@link CommandGroup#server} 给的是服务端函数,{@link CommandGroup#client}
  * 给的是客户端函数,二者只有一个。声明在两侧都登记(公共代码在每个进程里各跑一遍),每一侧的树由
- * {@link CommandTree} 长出来:两侧都有这个动作的名字与帮助,参数与可执行的那一格只在执行它的那一侧——
- * 服务端动作在 MC 的指令树上,客户端动作在主人客户端的小表里。专用服务器上客户端动作照样登记(帮助要它的说明),
- * 它的处理函数永远不会在那里被调用。
+ * {@link CommandTree} 长出来:两侧都有这个动作的名字与帮助,参数与可执行的那一格只在执行它的那一侧。专用服务器上
+ * 客户端动作照样登记(帮助要它的说明),它的处理函数永远不会在那里被调用。
  *
  * <h2>帮助正文也登记在这里</h2>
  * 动作的帮助除了用法、说明、参数,还有三块,都接在登记处返回的这个动作上写:
  * <pre>{@code
  * quests.server("submit", "Hand in a quest's items from your own inventory.", QuestSubmit::submit, QUEST_ID)
- *       .example("numen ftbquests submit 15CDF6A098B95FDA")
+ *       .example("ftbquests submit 15CDF6A098B95FDA")
  *       .note("Takes the items from YOUR inventory; FTB decides what counts.")
- *       .seeAlso("numen ftbquests list", "numen ftbquests show");
+ *       .seeAlso("ftbquests list", "ftbquests show");
  * }</pre>
  * <ul>
  *   <li>{@link #example}:至少一个,可以多个。模型照着例子写,比读语法可靠,所以缺了在登记那一刻抛出,
@@ -31,8 +30,17 @@ import java.util.regex.Pattern;
  *       例子与语法不会走样。</li>
  *   <li>{@link #note}:可选,多条。写会不会问主人、是不是长活、会动她的什么、不会做什么。</li>
  *   <li>{@link #seeAlso}:可选。做完这件事下一步通常用的动作,同组别组都行,写整条路径。引用在全部组到齐之后
- *       一次查全(服务器建指令树、或命令树第一次被读时),理由见 {@link NumenCli}。</li>
+ *       一次查全(任一侧的树第一次被读时),理由见 {@link NumenCli}。</li>
  * </ul>
+ *
+ * <h2>以谁的权威执行</h2>
+ * 默认是她自己的({@link Authority#HERS})。包装模组管理指令的服务端动作可以声明借服务器的权威,作用对象写死为她
+ * ({@link #authority},见 {@link Authority}):
+ * <pre>{@code
+ * group.server("switch", "Switch to another model.", this::switchModel, MODEL)
+ *      .authority(Authority.SERVER_ON_HER)
+ *      .example("ysm switch misc/1_alex");
+ * }</pre>
  */
 public final class Action {
 
@@ -60,8 +68,9 @@ public final class Action {
     private final List<String> examples = new ArrayList<>();
     private final List<String> notes = new ArrayList<>();
     private final List<String> seeAlso = new ArrayList<>();
-    private String toolName;
+    /** 提升时写的工具描述;没提升是 null。 */
     private String toolDescription;
+    private Authority authority = Authority.HERS;
 
     Action(CommandGroup group, String name, String summary, List<Param<?>> params,
            OnServer onServer, OnClient onClient) {
@@ -74,19 +83,59 @@ public final class Action {
     }
 
     /**
-     * 提升为快捷工具:模型的工具表里多一个 {@code toolName},描述是 {@code description},参数 schema 由这个
-     * 动作的参数表生成。调用它就是执行这个动作——同一个处理函数,同一份回执。
+     * 提升为快捷工具:模型的工具表里多一个工具,名字由路径生成({@link #toolNameOf}),描述是 {@code description},
+     * 参数 schema 由这个动作的参数表生成。调用它就是执行这个动作——同一个处理函数,同一份回执。
      */
-    public Action promote(String toolName, String description) {
+    public Action promote(String description) {
         group.requireOpen();
-        if (this.toolName != null) {
-            throw new IllegalStateException(path() + " 已经提升为 " + this.toolName + ",一个动作只提升一次");
+        if (toolDescription != null) {
+            throw new IllegalStateException(path() + " 已经提升为 " + toolName() + ",一个动作只提升一次");
         }
         if (description == null || description.isBlank()) {
-            throw new IllegalArgumentException(path() + " 提升为 " + toolName + " 却没写工具描述");
+            throw new IllegalArgumentException(path() + " 提升为快捷工具却没写工具描述");
         }
-        this.toolName = toolName;
+        if (params.stream().anyMatch(p -> p.type().readsInTree())) {
+            throw new IllegalArgumentException(path() + " 有一个参数是本组的另一行命令,只在命令行上读得了,不能提升为快捷工具");
+        }
         this.toolDescription = description;
+        return this;
+    }
+
+    /**
+     * 快捷工具名的唯一写法:{@code 组_动作}({@code move goto} 是 {@code move_goto})。一个能力只有一个名字,工具名与命令
+     * 两种写法可以机械地互推——反推是 {@link #promotedAs},和这里写在一起。
+     */
+    static String toolNameOf(String group, String action) {
+        return group + "_" + action;
+    }
+
+    /**
+     * 按 {@link #toolNameOf} 反推:{@code word} 是 {@code groups} 里哪个提升过的动作的工具名;不是任何一个的是 null。
+     * 模型把工具名写进 {@code command} 时,报错据此直接指给她两种写法。
+     */
+    static Action promotedAs(String word, Collection<CommandGroup> groups) {
+        for (CommandGroup group : groups) {
+            for (Action action : group.actions()) {
+                if (word.equals(action.toolName())) {
+                    return action;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 以谁的权威执行,不调就是她自己的。只有服务端动作能借服务器的权威:客户端动作不在服务端执行。
+     */
+    public Action authority(Authority authority) {
+        group.requireOpen();
+        if (authority == null) {
+            throw new IllegalArgumentException(path() + " 的权威没给");
+        }
+        if (authority == Authority.SERVER_ON_HER && !runsOnServer()) {
+            throw new IllegalArgumentException(path() + " 在主人客户端执行,借不了服务器的权威");
+        }
+        this.authority = authority;
         return this;
     }
 
@@ -102,7 +151,7 @@ public final class Action {
         return this;
     }
 
-    /** 相关命令:下一步通常用的动作,写整条路径,如 {@code numen ftbquests list}。可以调多次。 */
+    /** 相关命令:下一步通常用的动作,写整条路径,如 {@code ftbquests list}。可以调多次。 */
     public Action seeAlso(String... paths) {
         for (String path : paths) {
             seeAlso.add(requireText(path, "相关命令"));
@@ -123,13 +172,13 @@ public final class Action {
      * {@link CommandGroup#close})上整行解析通过,走到可执行的一格,而且那一格属于这个动作。这棵树的节点不设
      * {@code requires},解析用不到来源,源给 null。
      */
-    void checkExamples(CommandDispatcher<Object> tree) {
+    void checkExamples(CommandTree<CommandSource> tree) {
         if (examples.isEmpty()) {
             throw new IllegalArgumentException(path() + " 没写例子——模型照着例子写,每个动作至少一个");
         }
-        List<String> here = List.of(NumenCli.ROOT, group.name(), name);
+        List<String> here = List.of(group.name(), name);
         for (String example : examples) {
-            ParseResults<Object> parse = tree.parse(example, null);
+            ParseResults<CommandSource> parse = tree.parse(example, null);
             if (parse.getReader().canRead() || !parse.getExceptions().isEmpty()
                     || parse.getContext().getCommand() == null || !NumenCli.literalPath(parse).equals(here)) {
                 throw new IllegalArgumentException(path() + " 的例子写不通,或者落在别的动作上: " + example);
@@ -157,6 +206,10 @@ public final class Action {
         return params;
     }
 
+    CommandGroup group() {
+        return group;
+    }
+
     String name() {
         return name;
     }
@@ -178,26 +231,37 @@ public final class Action {
         return seeAlso;
     }
 
-    /** {@code numen <组> <动作>}。 */
+    /** {@code <组> <动作>}:整条路径,帮助与报错里这样写它;从命令派下的活也叫这个名字。 */
     String path() {
-        return NumenCli.ROOT + " " + label();
-    }
-
-    /** {@code <组> <动作>}:从命令派下的活就叫这个名字。 */
-    String label() {
         return group.name() + " " + name;
     }
 
-    /** 整行用法:路径 + 必填参数 + 标志。 */
+    /**
+     * 整行用法:路径 + 必填参数 + 标志。归了组的标志整组写成一格 {@code [组名]},排在组里第一个标志的位置;
+     * 组里有哪些标志由动作自己的帮助列全({@link CommandHelp#action})。
+     */
     String usage() {
         StringBuilder sb = new StringBuilder(path());
         for (Param<?> p : params) {
             if (p.required()) sb.append(' ').append(p.usage());
         }
+        List<String> groups = new ArrayList<>();
         for (Param<?> p : params) {
-            if (!p.required()) sb.append(' ').append(p.usage());
+            if (p.required()) {
+                continue;
+            }
+            if (p.group() == null) {
+                sb.append(' ').append(p.usage());
+            } else if (!groups.contains(p.group())) {
+                groups.add(p.group());
+                sb.append(" [").append(p.group()).append(']');
+            }
         }
         return sb.toString();
+    }
+
+    Authority authority() {
+        return authority;
     }
 
     /** 服务端执行?(否则在主人客户端执行。) */
@@ -207,7 +271,7 @@ public final class Action {
 
     /** 提升成的工具名;没提升是 {@code null}。 */
     String toolName() {
-        return toolName;
+        return toolDescription == null ? null : toolNameOf(group.name(), name);
     }
 
     String toolDescription() {

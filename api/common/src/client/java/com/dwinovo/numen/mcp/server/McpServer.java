@@ -1,6 +1,7 @@
 package com.dwinovo.numen.mcp.server;
 
 import com.dwinovo.numen.Constants;
+import com.dwinovo.numen.agent.prompt.NumenPrompts;
 import com.dwinovo.numen.agent.tool.NumenTool;
 import com.dwinovo.numen.agent.tool.ToolRegistry;
 import com.dwinovo.numen.api.NumenActuator;
@@ -60,6 +61,14 @@ public final class McpServer {
     private static final int SUMMARY_LIMIT = 90;
 
     /**
+     * 外接大脑读的那条身体规则:内脑读的同一句({@link NumenPrompts#ONE_BODY}),接上这一侧怎么把几件活排开——外接大脑的
+     * 调用没有"同一轮",每一条当场执行,要一件做完再派下一件就自己等身体空闲。说明与接入提示词({@link McpAccessPrompt})
+     * 都用这一句。
+     */
+    static final String ONE_BODY = NumenPrompts.ONE_BODY + " To do jobs one after another, wait until the command "
+            + "`task status` shows the body idle before starting the next.";
+
+    /**
      * Sent to the connecting agent in the {@code initialize} handshake (MCP's
      * {@code instructions} field) — what Numen is and how to drive it, so any
      * client gets the essentials without a separately-installed skill.
@@ -72,26 +81,29 @@ public final class McpServer {
             of it. Drive the body directly — there is no 'take control' handshake.
 
             Loop: (1) list_companions to see who is live — create_companion by name to summon a new one, \
-            delete_companion to dismiss one for good; (2) perceive with get_self_status / scan_blocks / \
-            scan_nearby_entities; (3) act with goto / mine / build / craft / equip_item / \
-            attack / etc. Action tools return a task_id at once — poll task_status until the body is idle, \
-            then perceive to confirm. Every action tool takes a 'companion' argument (name or id), so each \
-            call targets one companion; just drive it, there is no take-control step.
+            delete_companion to dismiss one for good; (2) perceive with status_self / scan_blocks / \
+            scan_entities; (3) act with move_goto / work_mine, and the command tool for everything else \
+            (build at, fight attack, work fish, inv craft, gear wear, …). Long actions return a task_id at \
+            once and their end does not arrive in get_events — run the command 'task status' until the body \
+            is idle, then perceive to confirm. Every action tool takes a 'companion' argument (name or id), \
+            so each call targets one companion; just drive it, there is no take-control step.
 
             Rules: survival mode — the tools do only what a real player can (mine to get stone; there is no \
-            give or setblock). You are blind between calls, so perceive before and after acting. Action \
-            tools return only when the task finishes or times out. You can drive several companions in \
-            parallel. Modded blocks, items, and GUIs (Create, AE2, Mekanism) work natively.
+            give or setblock). You are blind between calls, so perceive before and after acting. Short \
+            actions (inv craft, gear wear, use block, …) return when they are done; long ones return at \
+            once, as above. %s You can drive several \
+            companions in parallel. Modded blocks, items, and GUIs (Create, AE2, Mekanism) work natively.
 
             You also carry the companion's conversation: call get_events(companion) about every 2 \
             seconds while you drive it. It waits 2 seconds by default and returns instantly the moment \
             something urgent lands, so you get the wheel back every couple of seconds and can act on \
             your own initiative instead of only reacting. The owner speaking to the companion (in-game \
-            chat or voice) arrives as a <query>; world happenings arrive as <event>s. Reply with \
+            chat or voice) arrives as a <query>; world happenings arrive as <event>s (the end of a task \
+            you started is not among them). Reply with \
             say(companion, text): the words appear in-game as the companion's chat line, speech bubble, \
             and voice. Keep your own conversation history — the game stores none for you; between \
             get_events calls nothing is lost (events queue up). Raise wait_seconds (up to 50) only when \
-            you deliberately want to park and wait for the owner to speak.""";
+            you deliberately want to park and wait for the owner to speak.""".formatted(ONE_BODY);
 
     private final McpConfig config;
     private final Gson gson = new Gson();
@@ -258,7 +270,8 @@ public final class McpServer {
                 requiredStringSchema("name",
                         "The new companion's name (3–16 letters, digits, or underscore).")));
         tools.add(toolDef("delete_companion",
-                "Permanently dismiss a companion — it drops its inventory and is gone for good. Takes its name or id.",
+                "Permanently dismiss a companion — it drops its inventory, armor and accessories and is gone for good. "
+                        + "Takes its name or id.",
                 requiredStringSchema("companion",
                         "Which companion to dismiss — its name or id (see list_companions).")));
         tools.add(toolDef("get_events",
@@ -483,7 +496,7 @@ public final class McpServer {
             return content("no such companion — call list_companions to see valid names/ids", true);
         }
         boolean ok = NumenActuator.delete(target).get(CONTROL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        return content(ok ? "dismissed " + target + " — it dropped its inventory and is gone for good"
+        return content(ok ? "dismissed " + target + " — it drops its inventory, armor and accessories and is gone for good"
                 : "could not dismiss " + target, !ok);
     }
 

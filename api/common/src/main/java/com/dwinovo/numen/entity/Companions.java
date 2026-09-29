@@ -1,13 +1,16 @@
 package com.dwinovo.numen.entity;
 
 import com.dwinovo.numen.api.CompanionEvent;
+import com.dwinovo.numen.api.NumenPlugins;
+import com.dwinovo.numen.api.gear.GearSlot;
 import com.dwinovo.numen.network.payload.NumenDeathPayload;
 import com.dwinovo.numen.network.payload.NumenRespawnPayload;
 import com.dwinovo.numen.network.payload.CompanionListPayload;
-import com.dwinovo.numen.platform.Services;
+import com.dwinovo.numen.network.NumenNetwork;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -204,7 +207,7 @@ public final class Companions {
         }
         for (com.dwinovo.numen.network.payload.NumenEventPayload p
                 : outboxPayloads(EventOutbox.get(server), companions, System.currentTimeMillis())) {
-            Services.NETWORK.sendToPlayer(owner, p);
+            NumenNetwork.sendToPlayer(owner, p);
             com.dwinovo.numen.Constants.LOG.info("[numen-outbox] {} 补发 {} 条离线输入",
                     p.entityUuid(), p.entries().size());
         }
@@ -257,7 +260,7 @@ public final class Companions {
         // 死亡消息又把那一轮整个作废——白烧一次请求,还多一条没人看的对话。
         ServerPlayer owner = body.resolveOwnerPlayer();
         if (owner != null) {   // immediate, same-session
-            Services.NETWORK.sendToPlayer(owner, new NumenDeathPayload(uuid, cause));
+            NumenNetwork.sendToPlayer(owner, new NumenDeathPayload(uuid, cause));
         }
         CompanionEvents.fire(CompanionEvent.DEATH, body);   // 不发工具结果:那条 tool_call 已由死因结算
         // Persist the death (cause + game-time) in the world-saved registry so it survives a logout during
@@ -310,7 +313,7 @@ public final class Companions {
         body.clearFire();
         CompanionRegistry.get(server).markAlive(uuid);
         syncRosterToOwner(server, owner);
-        Services.NETWORK.sendToPlayer(owner, new NumenRespawnPayload(uuid, entry.deathCause()));
+        NumenNetwork.sendToPlayer(owner, new NumenRespawnPayload(uuid, entry.deathCause()));
         return true;
     }
 
@@ -334,7 +337,7 @@ public final class Companions {
             list.add(new CompanionListPayload.Entry(l.uuid(), l.name(), l.respawnInMs(),
                     body != null && body.isCreative()));
         }
-        Services.NETWORK.sendToPlayer(owner, new CompanionListPayload(reg.worldId(), list));
+        NumenNetwork.sendToPlayer(owner, new CompanionListPayload(reg.worldId(), list));
     }
 
     /**
@@ -345,8 +348,8 @@ public final class Companions {
     public static void applyGameMode(ServerPlayer owner, NumenPlayer body, boolean creative) {
         if (body == null) return;
         if (creative && !owner.hasPermissions(2) && !owner.isCreative()) {
-            owner.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "[Numen] 创造档需要作弊/OP 权限,已按生存"));
+            owner.sendSystemMessage(net.minecraft.network.chat.Component.translatable(
+                    com.dwinovo.numen.data.ModLanguageData.Keys.NOTICE_CREATIVE_NEEDS_OP));
             creative = false;
         }
         body.setGameMode(creative ? net.minecraft.world.level.GameType.CREATIVE
@@ -418,24 +421,41 @@ public final class Companions {
         CompanionFactory.despawn(server, body);
     }
 
-    /** 遣散一只活体:身体离场 + 永久除名。 */
+    /** 遣散这一只活体,见 {@link #dismiss(MinecraftServer, UUID, Collection)}。 */
     public static void dismiss(MinecraftServer server, NumenPlayer body) {
-        UUID ownerUuid = body.getOwnerUuid();
-        UUID uuid = body.getUUID();
-        CompanionFactory.despawn(server, body);
-        forget(server, ownerUuid, List.of(uuid));
+        dismiss(server, body.getOwnerUuid(), List.of(body.getUUID()));
     }
 
     /**
-     * <b>永久除名的唯一出口</b>。删注册表条目 = 这只同伴不再存在,再把新名册推给主人
-     * ——客户端据此把她的家目录一并删掉。
-     *
-     * <p>遣散的三条路(面板 ✕、{@code /numen despawn}、休眠体)都从这儿走:一个动作
-     * 一个出口,才不会出现"删了条目却忘了通知"或者"通知了却没删干净"的半截状态。
-     * 主人不在线就只删条目——他下次登录收到的名册照样是对的,对账是<b>状态同步</b>
-     * 不是事件通知,漏不掉。
+     * <b>遣散的唯一入口</b>:面板 ✕ 与 {@code /numen player despawn} 都走这里,调用方只管验归属、挑出是哪几只。
+     * 活着的身体像死亡一样把身上的一切掉在脚下再离场;休眠的没有身体可掉,{@code .dat} 留着东西但再没人重建它。
+     * 最后一次除名、一次推送。
      */
-    public static void forget(MinecraftServer server, UUID ownerUuid, Collection<UUID> uuids) {
+    public static void dismiss(MinecraftServer server, UUID ownerUuid, Collection<UUID> uuids) {
+        for (UUID uuid : uuids) {
+            NumenPlayer live = NumenPlayer.findByUuid(server, uuid);
+            if (live == null) continue;
+            dropEverything(live);
+            CompanionFactory.despawn(server, live);
+        }
+        forget(server, ownerUuid, uuids);
+    }
+
+    /** 穿戴的经各穿戴来源摘下再掉:模组的饰品栏不在原版物品栏里,只 dropAll 的话它们会跟着身体一起消失。 */
+    private static void dropEverything(NumenPlayer body) {
+        for (GearSlot slot : NumenPlugins.gearSlots(body)) {
+            ItemStack worn = slot.swap(ItemStack.EMPTY);
+            if (!worn.isEmpty()) body.drop(worn, true, false);
+        }
+        body.getInventory().dropAll();
+    }
+
+    /**
+     * 永久除名:删注册表条目 = 这只同伴不再存在,再把新名册推给主人——客户端据此把她的家目录一并删掉。
+     * 除名和通知是同一件事的两半,放在一处才不会出现"删了条目却忘了通知"或者"通知了却没删干净"的半截状态。
+     * 主人不在线就只删条目——他下次登录收到的名册照样是对的,对账是<b>状态同步</b>不是事件通知,漏不掉。
+     */
+    private static void forget(MinecraftServer server, UUID ownerUuid, Collection<UUID> uuids) {
         CompanionRegistry reg = CompanionRegistry.get(server);
         EventOutbox outbox = EventOutbox.get(server);
         for (UUID uuid : uuids) {
@@ -450,30 +470,19 @@ public final class Companions {
     }
 
     /**
-     * Permanently dismiss EVERY companion of {@code ownerUuid} named {@code name} — gone for good, it
-     * will NOT come back on login. Removes both live bodies and registry entries, so it also cleans up
-     * any same-name duplicates that the old non-idempotent summon left behind. Returns how many it
-     * dismissed. (The {@code .dat} files orphan harmlessly — with no registry entry nothing respawns
-     * them.)
+     * Permanently dismiss every registry entry of {@code ownerUuid} named {@code name} — gone for good, it
+     * will NOT come back on login — through {@link #dismiss(MinecraftServer, UUID, Collection)}, which
+     * also pushes the roster. Returns how many it dismissed. The registry is the whole answer: every body
+     * is spawned from an entry and its entry is removed only after the body leaves ({@link #forget}), so a
+     * live body always has one. (The {@code .dat} files orphan harmlessly — with no registry entry nothing
+     * respawns them.)
      */
     public static int dismissByName(MinecraftServer server, UUID ownerUuid, String name) {
-        CompanionRegistry reg = CompanionRegistry.get(server);
         List<UUID> ids = new ArrayList<>();
-        for (Map.Entry<UUID, CompanionRegistry.Entry> e : reg.ownedBy(ownerUuid)) {
+        for (Map.Entry<UUID, CompanionRegistry.Entry> e : CompanionRegistry.get(server).ownedBy(ownerUuid)) {
             if (e.getValue().name().equals(name)) ids.add(e.getKey());
         }
-        // Defensive: also catch a live body of that name somehow missing from the registry.
-        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            if (p instanceof NumenPlayer a && a.isOwnedByPlayer(ownerUuid)
-                    && a.getName().getString().equals(name) && !ids.contains(a.getUUID())) {
-                ids.add(a.getUUID());
-            }
-        }
-        for (UUID id : ids) {
-            NumenPlayer live = NumenPlayer.findByUuid(server, id);
-            if (live != null) CompanionFactory.despawn(server, live);
-        }
-        forget(server, ownerUuid, ids);   // 一次除名、一次推送
+        dismiss(server, ownerUuid, ids);
         return ids.size();
     }
 }

@@ -75,13 +75,13 @@ class CompanionRegistryTest {
         // 命令派的活名字是"组 动作",重放用的工具是 numen:两样都得活过读档,接不回来时才说得出她受理的是什么
         CompanionRegistry reg = new CompanionRegistry();
         reg.put(A, entry("小焰", OWNER).doing("kaleidoscope cook", "numen",
-                "{\"command\":\"numen kaleidoscope cook 1 2 3 x\"}"));
+                "{\"command\":\"kaleidoscope cook 1 2 3 x\"}"));
 
         CompanionRegistry.Entry back = roundTrip(reg).find(A);
 
         assertEquals("kaleidoscope cook", back.taskName());
         assertEquals("numen", back.taskTool());
-        assertEquals("{\"command\":\"numen kaleidoscope cook 1 2 3 x\"}", back.taskArgs());
+        assertEquals("{\"command\":\"kaleidoscope cook 1 2 3 x\"}", back.taskArgs());
     }
 
     @Test
@@ -166,6 +166,31 @@ class CompanionRegistryTest {
     }
 
     @Test
+    void herThrowawayListSurvivesAndAnOldSaveUnderTheScaffoldKeyIsReadOnce() {
+        CompanionRegistry reg = new CompanionRegistry();
+        reg.put(A, entry("小焰", OWNER).withThrowaway(java.util.List.of()));
+        reg.put(B, entry("阿岩", OTHER_OWNER));
+        CompanionRegistry back = roundTrip(reg);
+        assertEquals(java.util.List.of(), back.find(A).throwaway(), "清空是她的决定,读档后还是空的");
+        assertEquals(CompanionRegistry.DEFAULT_THROWAWAY, back.find(B).throwaway());
+
+        // 改名 throwaway 之前的存档:清单在 "scaffold" 键下,出厂标签还叫 #numen:scaffolds
+        CompoundTag tag = reg.save(new CompoundTag(), null);
+        CompoundTag old = tag.getCompound("companions").getCompound(A.toString());
+        old.remove("throwaway");
+        net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
+        list.add(net.minecraft.nbt.StringTag.valueOf("minecraft:dirt"));
+        list.add(net.minecraft.nbt.StringTag.valueOf("#numen:scaffolds"));
+        old.put("scaffold", list);
+        CompanionRegistry migrated = CompanionRegistry.load(tag, null);
+        assertEquals(java.util.List.of("minecraft:dirt", "#numen:throwaway"), migrated.find(A).throwaway(),
+                "旧键下她定过的清单照样读出来,出厂标签换成现在的名字");
+        CompoundTag saved = migrated.save(new CompoundTag(), null).getCompound("companions").getCompound(A.toString());
+        assertFalse(saved.contains("scaffold"), "存档只写新键");
+        assertTrue(saved.contains("throwaway"));
+    }
+
+        @Test
     void deathStateOfAnUnknownCompanionIsANoOp() {
         CompanionRegistry reg = new CompanionRegistry();
         reg.markDead(UUID.randomUUID(), "x", 1L);

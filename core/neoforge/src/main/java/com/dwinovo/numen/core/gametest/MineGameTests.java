@@ -64,12 +64,12 @@ public class MineGameTests {
 
         NumenPlayer companion = spawnAt(helper, "gametest_tunneler", new BlockPos(3, 2, 3), false);
         companion.getInventory().add(new ItemStack(Items.IRON_PICKAXE));
-        TaskRecord record = call(companion, "mine", args(
+        TaskRecord record = call(companion, "work_mine", args(
                 "block_ids", List.of("minecraft:gold_ore"),
                 "count", 2)).task();
 
         BlockPos wallProbe = helper.absolutePos(new BlockPos(1, 3, 3));
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(companion.getInventory().countItem(Items.RAW_GOLD) >= 2,
                     "companion has not mined the gold outside the door");
             helper.assertTrue(level.getBlockState(wallProbe).is(Blocks.OBSIDIAN),
@@ -104,11 +104,11 @@ public class MineGameTests {
         }
         NumenPlayer companion = spawnAt(helper, "gametest_canopy", new BlockPos(4, 2, 8), false);
         companion.getInventory().add(new ItemStack(Items.IRON_AXE));
-        TaskRecord record = call(companion, "mine", args(
+        TaskRecord record = call(companion, "work_mine", args(
                 "block_ids", List.of("minecraft:acacia_log"),
                 "count", 2)).task();
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             String reply = record.getResult() == null ? null : record.getResult().message();
             helper.assertTrue(reply != null, "mine has not finished");
             helper.assertTrue(record.getResult().success() && companion.getInventory().countItem(Items.ACACIA_LOG) >= 2,
@@ -135,11 +135,11 @@ public class MineGameTests {
         level.setBlockAndUpdate(helper.absolutePos(logRel), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_skyward", new BlockPos(7, 2, 8), false);
         companion.getInventory().add(new ItemStack(Items.IRON_AXE));
-        TaskRecord record = call(companion, "mine", args(
+        TaskRecord record = call(companion, "work_mine", args(
                 "block_ids", List.of("minecraft:stripped_birch_log"),
                 "count", 1)).task();
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             String reply = record.getResult() == null ? null : record.getResult().message();
             helper.assertTrue(reply != null, "mine has not finished");
             helper.assertTrue(!record.getResult().success() && reply.contains("could not reach"),
@@ -179,13 +179,59 @@ public class MineGameTests {
                 new Vec3(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5));
         companion.getInventory().add(new ItemStack(Items.IRON_AXE));
 
-        TaskRecord record = call(companion, "mine", args(
+        TaskRecord record = call(companion, "work_mine", args(
                 "block_ids", List.of("minecraft:spruce_log"),
                 "count", 8)).task();
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(companion.getInventory().countItem(Items.SPRUCE_LOG) >= 8,
                     "companion has not gathered 8 spruce logs");
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
+     * 够数靠的那一件躺在远处:砍下的第一根原木已经算进数里,掉落物却落在二十来格外(云杉林里是弹到了隔壁
+     * 的树叶上、她走开去捡另一件),而她站的地方手边还够得着下一根。该做的是走过去捡,不是再砍一根,
+     * 也不是站着不动。
+     *
+     * <p>钉的是"到了没有"只有一个判据:导航问的"站在这儿有没有可挖的"和任务真去挖的必须是同一个——
+     * 够数之后手边那根不是该挖的,导航就不能拿它当"到了"。两边各说各的时,导航报到了、任务不挖,
+     * 她钉在原地直到卡死判定把那件掉落物当成走不到的出账,再多砍一根。用场地里独一种的去皮橡木,
+     * 免得看见别的用例的原木。
+     */
+    @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_mine")
+    public static void mine_fetches_the_counted_drop_instead_of_freezing(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos first = helper.absolutePos(new BlockPos(2, 2, 4));
+        BlockPos second = helper.absolutePos(new BlockPos(2, 2, 6));
+        level.setBlockAndUpdate(first, Blocks.STRIPPED_OAK_LOG.defaultBlockState());
+        level.setBlockAndUpdate(second, Blocks.STRIPPED_OAK_LOG.defaultBlockState());
+        NumenPlayer companion = spawnAt(helper, "gametest_fetcher", new BlockPos(2, 2, 2), false);
+        companion.getInventory().add(new ItemStack(Items.IRON_AXE));
+        // 第一根的掉落物一露面就挪到远处:她站着的地方离它远到"走过去"比"再砍一根"估价还高
+        Vec3 far = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(16, 2, 16)));
+        boolean[] thrown = {false};
+        helper.onEachTick(() -> {
+            if (!thrown[0] && level.getBlockState(first).isAir()) {
+                for (net.minecraft.world.entity.item.ItemEntity drop : level.getEntitiesOfClass(
+                        net.minecraft.world.entity.item.ItemEntity.class, new net.minecraft.world.phys.AABB(first).inflate(2),
+                        ie -> ie.getItem().is(Items.STRIPPED_OAK_LOG))) {
+                    drop.teleportTo(far.x, far.y, far.z);
+                    drop.setDeltaMovement(Vec3.ZERO);
+                    thrown[0] = true;
+                }
+            }
+            if (level.getBlockState(second).isAir()) {
+                helper.fail("she cut a second log instead of fetching the one she had already cut");
+            }
+        });
+        ToolRun mine = call(companion, "work_mine", args("block_ids", List.of("minecraft:stripped_oak_log"), "count", 1));
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(mine.done(), "mine has not finished");
+            helper.assertTrue(mine.succeeded() && companion.getInventory().countItem(Items.STRIPPED_OAK_LOG) == 1,
+                    "the counted log was not fetched: " + mine.outcome());
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
@@ -215,11 +261,11 @@ public class MineGameTests {
                 new Vec3(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5));
         companion.getInventory().add(new ItemStack(Items.IRON_PICKAXE));
 
-        TaskRecord record = call(companion, "mine", args(
+        TaskRecord record = call(companion, "work_mine", args(
                 "block_ids", List.of("minecraft:deepslate_diamond_ore"),
                 "count", 2)).task();
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(companion.getInventory().countItem(Items.DIAMOND) >= 2,
                     "companion has not gathered 2 diamonds");
             CompanionFactory.despawn(level.getServer(), companion);
@@ -243,9 +289,9 @@ public class MineGameTests {
         level.setBlockAndUpdate(lava, Blocks.LAVA.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_careful", new BlockPos(3, 2, 4), false);
         companion.getInventory().add(new ItemStack(Items.IRON_PICKAXE));
-        ToolRun mine = call(companion, "mine", args("block_ids", List.of("minecraft:iron_ore"), "count", 1));
+        ToolRun mine = call(companion, "work_mine", args("block_ids", List.of("minecraft:iron_ore"), "count", 1));
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(mine.done(), "mine has not finished");
             helper.assertTrue(!mine.succeeded() && mine.outcome().contains("none of them can be broken here"),
                     "the reply does not say the ore by the lava cannot be broken: " + mine.outcome());
@@ -292,9 +338,9 @@ public class MineGameTests {
         helper.getLevel().setBlockAndUpdate(ore, Blocks.DIAMOND_ORE.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_underequipped", new BlockPos(3, 2, 4), false);
         companion.getInventory().add(new ItemStack(Items.WOODEN_PICKAXE));
-        ToolRun mine = call(companion, "mine", args("block_ids", List.of("minecraft:diamond_ore"), "count", 1));
+        ToolRun mine = call(companion, "work_mine", args("block_ids", List.of("minecraft:diamond_ore"), "count", 1));
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(mine.done(), "mine has not finished");
             helper.assertTrue(!mine.succeeded() && mine.outcome().contains("current tools"),
                     "the failure does not say the tool is short: " + mine.outcome());
@@ -309,9 +355,9 @@ public class MineGameTests {
         NumenPlayer companion = spawnAt(helper, "gametest_prospector", new BlockPos(3, 2, 4), false);
         companion.getInventory().add(new ItemStack(Items.IRON_PICKAXE));
         BlockPos start = helper.absolutePos(new BlockPos(3, 2, 4));
-        ToolRun mine = call(companion, "mine", args("block_ids", List.of("minecraft:emerald_ore"), "count", 1));
+        ToolRun mine = call(companion, "work_mine", args("block_ids", List.of("minecraft:emerald_ore"), "count", 1));
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(mine.done(), "mine has not finished");
             helper.assertTrue(!mine.succeeded() && mine.outcome().contains("no reachable"),
                     "the failure does not say nothing was found: " + mine.outcome());
@@ -327,9 +373,9 @@ public class MineGameTests {
         helper.getLevel().setBlockAndUpdate(block, Blocks.OBSIDIAN.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_interrupted", new BlockPos(3, 2, 4), false);
         companion.getInventory().add(new ItemStack(Items.DIAMOND_PICKAXE));
-        ToolRun mine = call(companion, "mine", args("block_ids", List.of("minecraft:obsidian"), "count", 1));
+        ToolRun mine = call(companion, "work_mine", args("block_ids", List.of("minecraft:obsidian"), "count", 1));
 
-        helper.startSequence()
+        steps(helper)
                 .thenWaitUntil(() -> helper.assertTrue(digging(companion),
                         "she has not started digging the obsidian"))
                 .thenExecute(() -> com.dwinovo.numen.task.CompanionTickDispatcher.cancelFor(companion))
@@ -371,9 +417,9 @@ public class MineGameTests {
         final int stones = field;
         NumenPlayer companion = spawnAt(helper, "gametest_counter", new BlockPos(2, 2, 8), false);
         companion.getInventory().add(new ItemStack(Items.IRON_PICKAXE));
-        ToolRun mine = call(companion, "mine", args("block_ids", List.of("minecraft:gold_block"), "count", 12));
+        ToolRun mine = call(companion, "work_mine", args("block_ids", List.of("minecraft:gold_block"), "count", 12));
 
-        helper.startSequence()
+        steps(helper)
                 .thenWaitUntil(() -> helper.assertTrue(mine.done(), "mine has not finished"))
                 .thenWaitUntil(() -> {
                     helper.assertTrue(mine.succeeded(), "mine failed: " + mine.outcome());
@@ -400,5 +446,45 @@ public class MineGameTests {
                 })
                 .thenExecute(() -> CompanionFactory.despawn(level.getServer(), companion))
                 .thenSucceed();
+    }
+
+    /**
+     * 同源:快捷工具 mine 与命令 work mine 是同一个处理函数。两块干海带块,先用工具挖一块、再用命令挖一块:两次都挖成、
+     * 各自到手一块,回执除了数字一字不差;派下的活一个叫工具名、一个叫"组 动作"。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_mine")
+    public static void mine_from_the_tool_and_the_command_is_the_same_work(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        level.setBlockAndUpdate(helper.absolutePos(new BlockPos(8, 2, 6)), Blocks.DRIED_KELP_BLOCK.defaultBlockState());
+        level.setBlockAndUpdate(helper.absolutePos(new BlockPos(8, 2, 10)), Blocks.DRIED_KELP_BLOCK.defaultBlockState());
+        NumenPlayer companion = spawnAt(helper, "gametest_twin_digger", new BlockPos(3, 2, 8), false);
+        ToolRun viaTool = call(companion, "work_mine", args("block_ids", List.of("minecraft:dried_kelp_block"), "count", 1));
+        java.util.concurrent.atomic.AtomicReference<ToolRun> viaCommand = new java.util.concurrent.atomic.AtomicReference<>();
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(viaTool.done(), "mine has not finished"))
+                .thenExecute(() -> viaCommand.set(command(companion,
+                        "work mine --block_ids minecraft:dried_kelp_block --count 1")))
+                .thenWaitUntil(() -> helper.assertTrue(viaCommand.get().done(), "work mine has not finished"))
+                .thenExecute(() -> {
+                    helper.assertTrue(viaTool.succeeded() && viaCommand.get().succeeded(),
+                            "one of the two failed: " + viaTool.outcome() + " / " + viaCommand.get().outcome());
+                    helper.assertTrue(companion.getInventory().countItem(Items.DRIED_KELP_BLOCK) == 2,
+                            "the two calls did not gather one block each");
+                    helper.assertTrue(viaTool.task().getToolName().equals("work_mine")
+                                    && viaCommand.get().task().getToolName().equals("work mine"),
+                            "the work is not named after the call: " + viaTool.task().getToolName() + " / "
+                                    + viaCommand.get().task().getToolName());
+                    helper.assertTrue(withoutNumbers(viaTool.outcome()).equals(withoutNumbers(viaCommand.get().outcome())),
+                            "mine and work mine report differently: " + viaTool.outcome() + " / "
+                                    + viaCommand.get().outcome());
+                })
+                .thenExecute(() -> CompanionFactory.despawn(level.getServer(), companion))
+                .thenSucceed();
+    }
+
+    /** 数字(坐标、件数、刻数)抹掉,比两份回执的措辞。 */
+    private static String withoutNumbers(String reply) {
+        return reply.replaceAll("-?\\d+", "#");
     }
 }

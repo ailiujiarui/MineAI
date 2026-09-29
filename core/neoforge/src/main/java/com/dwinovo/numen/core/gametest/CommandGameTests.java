@@ -2,11 +2,13 @@ package com.dwinovo.numen.core.gametest;
 
 import com.dwinovo.numen.api.NumenPlugins;
 import com.dwinovo.numen.cli.ArgType;
-import com.dwinovo.numen.cli.NumenCli;
+import com.dwinovo.numen.cli.Authority;
+import com.dwinovo.numen.cli.OnHer;
 import com.dwinovo.numen.cli.Param;
 import com.dwinovo.numen.cli.ServerSource;
 import com.dwinovo.numen.core.Constants;
 import com.dwinovo.numen.entity.CompanionFactory;
+import com.dwinovo.numen.entity.NumenCommands;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.entity.EventOutbox;
 import com.dwinovo.numen.permission.Action;
@@ -25,6 +27,7 @@ import com.dwinovo.numen.task.TaskResult;
 import com.dwinovo.numen.task.TaskState;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
 import com.mojang.brigadier.tree.CommandNode;
 import java.util.ArrayList;
@@ -36,9 +39,10 @@ import java.util.stream.Collectors;
 import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -55,18 +59,19 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import static com.dwinovo.numen.core.gametest.GameTestKit.*;
 
 /**
- * {@code command} 工具:她执行一行游戏指令,Numen 自己的、原版的、模组的都从服务端同一个执行入口过——先按她的来源
- * 解析(写不通当场失败、附用法),再过权限层({@code command(根名)}),再以她的身份执行,回显就是回执。
+ * {@code command} 工具:她执行一行命令,两层都从服务端同一个执行入口过。行首带 {@code /} 的是第 0 层(MC 的指令树,
+ * 原版与模组的指令):先按她的来源解析(写不通当场失败、附用法),再过权限层({@code command(根名)}),再以她的身份执行,
+ * 回显就是回执。不带 {@code /} 的是第 1 层(Numen 给她的命令层),在 Numen 自己的调度器上执行。
  *
  * <ul>
- *   <li>能用哪些是服务器按她的权限等级定的(测试里直接把她记进 OP 表,等级 2);主人的允许与拒绝规则直接生效,没有规则
- *       说到的问主人;出厂规则放行只读与只说话的指令。</li>
- *   <li>{@code /numen} 下两种观众:她的命令组只给她,管理同伴的指令只给玩家;两边互相看不见。她的指令树造得出包
- *       (Numen 自己的参数类型登记过了)。</li>
+ *   <li>第 0 层能用哪些是服务器按她的权限等级定的(测试里直接把她记进 OP 表,等级 2);主人的允许与拒绝规则直接生效,
+ *       没有规则说到的问主人;出厂规则放行只读与只说话的指令。</li>
+ *   <li>她的第 1 层命令不在 MC 的指令树上;{@code /numen} 只剩管理同伴的指令,只给玩家——她经第 0 层敲不到。</li>
+ *   <li>同一个名字两层都有也不冲突(夹具组 {@code gt_twin} 与一条同名的原生指令)。</li>
  *   <li>长活从 {@code command} 派出,受理与收尾都对着这次调用的 id 与"组 动作"这个名字。</li>
- *   <li>{@code /numen drive} 与 {@code command} 是同一个入口,结果一样;同步短活的最终回执也回到 drive 的发令人
- *       (夹具组 {@code gt_sync} 的 {@code hold} 是一件 runSync 的短活)。</li>
- *   <li>{@code help <指令>} 在原版用法之后接上从 Brigadier 挖出的参数类型、例子与候选;写错了接上最接近的候选。</li>
+ *   <li>{@code /numen drive} 与 {@code command} 是同一个入口,两层的结果都一样;同步短活的最终回执、主人点过头的原生
+ *       指令的回执也回到 drive 的发令人(夹具组 {@code gt_sync} 的 {@code hold} 是一件 runSync 的短活)。</li>
+ *   <li>{@code /help <指令>} 在原版用法之后接上从 Brigadier 挖出的参数类型、例子与候选;写错了接上最接近的候选。</li>
  * </ul>
  */
 @GameTestHolder(Constants.MOD_ID)
@@ -75,6 +80,8 @@ public class CommandGameTests {
 
     private static final Param<Integer> TICKS = Param.required("ticks", ArgType.integer(1, 100),
             "How long to hold still, in ticks.");
+    /** 夹具组与同名原生指令共用的名字。 */
+    private static final String TWIN = "gt_twin";
 
     static {
         NumenPlugins.register(numen -> numen.registerCommands("gt_sync",
@@ -83,7 +90,29 @@ public class CommandGameTests {
                                 (src, args) -> TaskDispatch.runSync(src.companion(),
                                         new HoldRecord(src, args.get(TICKS)), src::reply),
                                 TICKS)
-                                .example("numen gt_sync hold 5")));
+                                .example("gt_sync hold 5")));
+        NumenPlugins.register(numen -> numen.registerCommands(TWIN,
+                "Test fixture: a group that shares its name with a native command.", g -> {
+                    g.server("ping", "Say which layer answered.",
+                                    (src, args) -> src.reply(TaskResult.ok("layer one").toJson()))
+                            .example(TWIN + " ping");
+                    g.server("mark", "Mark yourself through the native admin command.", (src, args) -> {
+                                OnHer her = src.onHer();
+                                List<String> words = her.next(TWIN + " mark");
+                                List<String> said = her.run(TWIN + " mark", words.get(0));
+                                src.reply(TaskResult.ok(String.join(",", words) + " | " + String.join(" ", said))
+                                        .toJson());
+                            })
+                            .authority(Authority.SERVER_ON_HER)
+                            .example(TWIN + " mark");
+                }));
+        // 一个不守输出预算的动作:回执比一个下行包还大,测网络层接得住
+        NumenPlugins.register(numen -> numen.registerCommands("gt_wire",
+                "Test fixture: an action whose reply is bigger than one payload to the client.", g ->
+                        g.server("flood", "Reply with more text than one payload carries.",
+                                (src, args) -> src.reply(TaskResult.ok(
+                                        "x".repeat(com.dwinovo.numen.network.Wire.TO_CLIENT.bytes() + 1)).toJson()))
+                                .example("gt_wire flood")));
         TaskFactory.register(HoldRecord.class, (body, record) -> new Hold(record));
     }
 
@@ -164,13 +193,47 @@ public class CommandGameTests {
     }
 
     /** 服务器不让她用:没有 OP 时 give 当场如实失败,说清是服务器不让;不问主人,背包不变。 */
+    /**
+     * 真机事故那一类:回执比一个下行包大。从网络入口进来({@code ExecuteToolPayload.handle},和主人的客户端发来的一样),
+     * 回执经 {@code NumenNetwork} 送主人:整条路不抛异常、不断开;送出去的是同一次调用的一条失败回执,说清多大、上限多少、
+     * 怎么要少一点,而且编得进一个包。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_command")
+    public static void an_oversized_result_reaches_the_owner_as_a_failure_not_a_disconnect(GameTestHelper helper) {
+        NumenPlayer companion = spawnAt(helper, "gametest_flooder", new BlockPos(2, 2, 2), false);
+        NumenPlayer owner = presentOwner(helper, companion, "gametest_flood_owner");
+        ServerLevel level = helper.getLevel();
+
+        com.dwinovo.numen.network.payload.ExecuteToolPayload.handle(
+                new com.dwinovo.numen.network.payload.ExecuteToolPayload(companion.getUUID(), "gt-flood",
+                        com.dwinovo.numen.cli.CommandTool.NAME, "{\"command\":\"gt_wire flood\"}"), owner);
+
+        ToolRun run = command(companion, "gt_wire flood");
+        var sent = com.dwinovo.numen.network.Wire.TO_CLIENT.fit(
+                com.dwinovo.numen.network.payload.TaskResultPayload.STREAM_CODEC,
+                new com.dwinovo.numen.network.payload.TaskResultPayload(companion.getUUID(), "gt-flood", run.reply()),
+                () -> new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),
+                        level.registryAccess()));
+        JsonObject result = JsonParser.parseString(sent.resultJson()).getAsJsonObject();
+        helper.assertTrue("gt-flood".equals(sent.toolCallId()) && !result.get("success").getAsBoolean()
+                        && result.get("message").getAsString().startsWith("The result of this call came to ")
+                        && result.get("message").getAsString().contains("--page"),
+                "the oversized result is not replaced by a failure that says so: " + sent.resultJson());
+        helper.assertTrue(result.getAsJsonObject("data").get("limit_bytes").getAsInt()
+                        == com.dwinovo.numen.network.Wire.TO_CLIENT.bytes(),
+                "the failure does not name the limit: " + sent.resultJson());
+        CompanionFactory.despawn(level.getServer(), companion);
+        CompanionFactory.despawn(level.getServer(), owner);
+        helper.succeed();
+    }
+
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_command")
     public static void command_without_op_is_refused_by_the_server(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_mc_guest", new BlockPos(4, 2, 4), false);
         NumenPlayer owner = presentOwner(helper, companion, "gametest_mc_host");
         ToolRun give = command(companion, "/give @s minecraft:diamond");
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(give.task() == null, "a command the server refuses must not reach the task slot");
             helper.assertTrue(give.reply() != null && !give.succeeded()
                             && give.reply().contains("the server does not let you use /give"),
@@ -193,10 +256,10 @@ public class CommandGameTests {
         storeOf(owner).add(Verdict.Kind.ALLOW, Rule.parse("command(give)"));
         boolean[] asked = new boolean[1];
         helper.onEachTick(() -> asked[0] |= ConsentDesk.of(companion).pending() != null);
-        ToolRun give = command(companion, "give @s minecraft:diamond 2");
-        ToolRun typo = command(companion, "give @s minecraft:not_an_item");
+        ToolRun give = command(companion, "/give @s minecraft:diamond 2");
+        ToolRun typo = command(companion, "/give @s minecraft:not_an_item");
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(give.done(), "give has not finished");
             helper.assertTrue(give.succeeded(), "give failed: " + give.outcome());
             helper.assertTrue(give.task() == null, "a game command occupied the task slot: " + give.task());
@@ -223,10 +286,10 @@ public class CommandGameTests {
         NumenPlayer owner = presentOwner(helper, companion, "gametest_mc_landlord");
         grantOp(companion);
         String line = setblock(helper, target);
-        ToolRun run = command(companion, line);
+        ToolRun run = command(companion, "/" + line);
         int[] waited = new int[1];
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             if (waited[0] < 10) {
                 ConsentRequest pending = ConsentDesk.of(companion).pending();
                 helper.assertTrue(pending != null, "setblock did not ask: " + run.outcome());
@@ -254,7 +317,7 @@ public class CommandGameTests {
     }
 
     /**
-     * 主人一行规则都没写:出厂层放行只读与只说话的指令,{@code help} 与私信的别名 {@code tell} 不弹卡、直接执行;
+     * 主人一行规则都没写:出厂层放行只读与只说话的指令,{@code /help} 与私信的别名 {@code /tell} 不弹卡、直接执行;
      * 没有规则说到的 setblock 照旧问,见 {@link #command_setblock_without_a_rule_asks_the_owner_first}。
      */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_command")
@@ -263,10 +326,10 @@ public class CommandGameTests {
         NumenPlayer owner = presentOwner(helper, companion, "gt_mc_listener");
         boolean[] asked = new boolean[1];
         helper.onEachTick(() -> asked[0] |= ConsentDesk.of(companion).pending() != null);
-        ToolRun help = command(companion, "help");
-        ToolRun tell = command(companion, "tell gt_mc_listener on my way");
+        ToolRun help = command(companion, "/help");
+        ToolRun tell = command(companion, "/tell gt_mc_listener on my way");
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(help.done() && help.succeeded(), "help did not run: " + help.outcome());
             helper.assertTrue(tell.done() && tell.succeeded(), "tell did not run: " + tell.outcome());
             helper.assertTrue(!asked[0], "a factory-allowed command asked the owner");
@@ -285,9 +348,9 @@ public class CommandGameTests {
         storeOf(owner).add(Verdict.Kind.DENY, Rule.parse("command(setblock)"));
         boolean[] asked = new boolean[1];
         helper.onEachTick(() -> asked[0] |= ConsentDesk.of(companion).pending() != null);
-        ToolRun run = command(companion, setblock(helper, target));
+        ToolRun run = command(companion, "/" + setblock(helper, target));
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(run.done(), "setblock has not settled");
             helper.assertTrue(!run.succeeded() && run.outcome().contains("denied by rule command(setblock)"),
                     "the refusal does not quote the rule: " + run.outcome());
@@ -298,87 +361,154 @@ public class CommandGameTests {
     }
 
     /**
-     * 原版 {@code help} 按她的来源过滤,列的就是她此刻能执行的:没有 OP 时有 msg、没有 give,有她自己的
-     * {@code /numen} 命令组、没有玩家的管理指令;有 OP 后 give 也在。
+     * 原版 {@code /help} 按她的来源过滤,列的就是她此刻能执行的:没有 OP 时有 msg、没有 give,也没有 {@code /numen}
+     * (那是玩家的管理指令);有 OP 后 give 也在。
      */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_command")
     public static void command_help_lists_only_what_the_server_lets_her_run(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_mc_reader", new BlockPos(4, 2, 4), false);
-        String guest = message(command(companion, "help").reply());
+        String guest = message(command(companion, "/help").reply());
         helper.assertTrue(guest.contains("/msg <targets> <message>") && !guest.contains("/give "),
                 "the no-op help lists the wrong commands: " + guest);
-        helper.assertTrue(guest.contains("/numen ") && !guest.contains("permission") && !guest.contains("summon"),
-                "her help does not show her own /numen, or shows a player's verbs: " + guest);
+        helper.assertTrue(!guest.contains("/numen"), "her help shows the players' /numen: " + guest);
 
         grantOp(companion);
-        String op = message(command(companion, "help").reply());
+        String op = message(command(companion, "/help").reply());
         helper.assertTrue(op.contains("/give <targets> <item> [<count>]"), "the op help never lists /give: " + op);
+        helper.assertTrue(!op.contains("/numen"), "her op help shows the players' /numen: " + op);
         cleanUp(helper, companion, null);
         helper.succeed();
     }
 
     /**
-     * 可见性:{@code /numen} 下她看得见的只有她的命令组与帮助,玩家看得见的只有管理同伴的指令,两边不相交;玩家那一侧
-     * 连一种 Numen 自己的参数类型都碰不到,装不装 Numen 客户端都不受影响。服务器给她造的指令树包造得出来——她的
-     * 参数类型都登记过了。
+     * 她的第 1 层命令不在 MC 的指令树上:树根下没有她的命令组,{@code /numen} 下只有管理同伴的指令,玩家(哪怕是 OP)
+     * 看得见的里面没有一格是她的,整棵树上也没有一种 Numen 自己的参数类型,发给玩家的指令树包造得出来。{@code /numen}
+     * 整个根她都用不了:经第 0 层敲玩家的管理指令,当场如实失败,不问主人,什么都没发生。
      */
     @GameTest(template = "floor16", timeoutTicks = 100, batch = "numen_command")
-    public static void command_numen_nodes_are_hers_and_the_verbs_are_the_players(GameTestHelper helper) {
+    public static void command_her_commands_are_off_the_mc_tree_and_numen_is_the_players(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_mc_viewer", new BlockPos(4, 2, 4), false);
-        Commands commands = helper.getLevel().getServer().getCommands();
-        CommandNode<CommandSourceStack> numen = commands.getDispatcher().getRoot().getChild(NumenCli.ROOT);
-        CommandSourceStack player = helper.getLevel().getServer().createCommandSourceStack()
-                .withEntity(helper.makeMockPlayer(GameType.SURVIVAL)).withPermission(0);
+        NumenPlayer owner = presentOwner(helper, companion, "gametest_mc_viewed");
+        var server = helper.getLevel().getServer();
+        CommandNode<CommandSourceStack> root = server.getCommands().getDispatcher().getRoot();
+        CommandNode<CommandSourceStack> numen = root.getChild(NumenCommands.ROOT);
+        CommandSourceStack player = server.createCommandSourceStack()
+                .withEntity(helper.makeMockPlayer(GameType.SURVIVAL)).withPermission(4);
+        List<String> hers = List.of("task", "gt_long", "gt_sync", "help", "--help");
 
-        Set<String> hers = usable(numen, companion.createCommandSourceStack());
-        Set<String> players = usable(numen, player);
-        helper.assertTrue(hers.containsAll(List.of("help", "--help", "task", "gt_long")),
-                "her /numen lacks her groups: " + hers);
-        helper.assertTrue(players.containsAll(List.of("player", "settings", "reset", "permission", "consent")),
-                "a player's /numen lacks the verbs: " + players);
-        Set<String> both = new HashSet<>(hers);
-        both.retainAll(players);
-        helper.assertTrue(both.isEmpty(), "seen by both her and a player: " + both);
-        helper.assertTrue(!usable(numen, player.withPermission(2)).contains("task"),
-                "an op player sees her groups");
+        helper.assertTrue(List.of("task", "gt_long", "gt_sync").stream().noneMatch(g -> root.getChild(g) != null),
+                "a Numen command group is a root of the MC tree");
+        Set<String> verbs = usable(numen, player);
+        helper.assertTrue(verbs.containsAll(List.of("player", "settings", "reset", "permission", "consent", "drive")),
+                "a player's /numen lacks the verbs: " + verbs);
+        helper.assertTrue(hers.stream().noneMatch(verbs::contains), "a player's /numen carries her commands: " + verbs);
+        helper.assertTrue(!numen.canUse(companion.createCommandSourceStack()), "she can use /numen");
+        Set<Class<?>> types = new HashSet<>();
+        argumentTypes(root, player, types);
+        helper.assertTrue(types.stream().allMatch(ArgumentTypeInfos::isClassRecognized),
+                "the MC tree carries an argument type the registry does not know: " + types);
+        server.getCommands().sendCommands(companion);
 
-        Set<String> playerTypes = new HashSet<>();
-        argumentTypes(numen, player.withPermission(4), playerTypes);
-        helper.assertTrue(playerTypes.stream().allMatch(CommandGameTests::vanillaArgumentType),
-                "a player's tree carries a Numen argument type: " + playerTypes);
-        Set<String> herTypes = new HashSet<>();
-        argumentTypes(numen, companion.createCommandSourceStack(), herTypes);
-        helper.assertTrue(herTypes.stream().anyMatch(t -> !vanillaArgumentType(t)),
-                "her tree carries none of Numen's argument types: " + herTypes);
-
-        commands.sendCommands(companion);
-        CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+        ToolRun summon = command(companion, "/numen player summon gametest_mc_twin");
+        ToolRun drive = command(companion, "/numen drive gametest_mc_viewer /help");
+        for (ToolRun refused : List.of(summon, drive)) {
+            helper.assertTrue(!refused.succeeded() && refused.task() == null
+                            && refused.reply().contains("the server does not let you use /numen"),
+                    "a player's verb was not refused on layer 0: " + refused.reply());
+        }
+        helper.assertTrue(ConsentDesk.of(companion).pending() == null, "asked the owner about a player's verb");
+        helper.assertTrue(server.getPlayerList().getPlayerByName("gametest_mc_twin") == null,
+                "she summoned a companion");
+        cleanUp(helper, companion, owner);
         helper.succeed();
     }
 
-    /** {@code /numen} 下这个来源用得了的那些格。 */
-    private static Set<String> usable(CommandNode<CommandSourceStack> numen, CommandSourceStack source) {
-        return numen.getChildren().stream().filter(c -> c.canUse(source)).map(CommandNode::getName)
+    /** 这个来源用得了的那些格。 */
+    private static Set<String> usable(CommandNode<CommandSourceStack> node, CommandSourceStack source) {
+        return node.getChildren().stream().filter(c -> c.canUse(source)).map(CommandNode::getName)
                 .collect(Collectors.toSet());
     }
 
-    /** 这个来源用得了的节点上,每种参数类型在注册表里的名字(发指令树包时写进包里的就是它)。 */
+    /** 这个来源用得了的节点上的每种参数类型(发指令树包时要按类在注册表里查到它)。 */
     private static void argumentTypes(CommandNode<CommandSourceStack> node, CommandSourceStack source,
-                                      Set<String> found) {
+                                      Set<Class<?>> found) {
         for (CommandNode<CommandSourceStack> child : node.getChildren()) {
             if (!child.canUse(source)) {
                 continue;
             }
             if (child instanceof ArgumentCommandNode<CommandSourceStack, ?> argument) {
-                found.add(String.valueOf(BuiltInRegistries.COMMAND_ARGUMENT_TYPE.getKey(
-                        ArgumentTypeInfos.byClass(argument.getType()))));
+                found.add(argument.getType().getClass());
             }
             argumentTypes(child, source, found);
         }
     }
 
-    private static boolean vanillaArgumentType(String id) {
-        return id.startsWith("minecraft:") || id.startsWith("brigadier:");
+    /**
+     * 同一个名字两层都有,互不干扰:不带 {@code /} 的是她的第 1 层命令组,带 {@code /} 的是同名的原生指令,各答各的。
+     * 原生那条照第 0 层的规矩过权限层(主人允许了 {@code command(gt_twin)})。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100, batch = "numen_command")
+    public static void command_one_name_on_both_layers_does_not_collide(GameTestHelper helper) {
+        NumenPlayer companion = spawnAt(helper, "gametest_mc_twin_caller", new BlockPos(4, 2, 4), false);
+        NumenPlayer owner = presentOwner(helper, companion, "gametest_mc_twin_owner");
+        registerNativeTwin(helper.getLevel().getServer());
+        storeOf(owner).add(Verdict.Kind.ALLOW, Rule.parse("command(" + TWIN + ")"));
+        ToolRun one = command(companion, TWIN + " ping");
+        ToolRun zero = command(companion, "/" + TWIN + " ping");
+
+        helper.assertTrue(one.succeeded() && message(one.reply()).equals("layer one"),
+                "layer 1 did not answer its own line: " + one.reply());
+        helper.assertTrue(zero.succeeded() && message(zero.reply()).equals("ran /" + TWIN + " ping: layer zero"),
+                "layer 0 did not answer the native line: " + zero.reply());
+        cleanUp(helper, companion, owner);
+        helper.succeed();
+    }
+
+    /**
+     * 与夹具组同名的原生指令:{@code ping} 谁都能用;{@code mark <玩家> <词>} 是一条要 OP 2 级的管理指令,能对任何玩家
+     * 用,词的补全是 alpha、beta。
+     */
+    private static void registerNativeTwin(net.minecraft.server.MinecraftServer server) {
+        server.getCommands().getDispatcher().register(Commands.literal(TWIN)
+                .then(Commands.literal("ping").executes(ctx -> {
+                    ctx.getSource().sendSuccess(() -> Component.literal("layer zero"), false);
+                    return 1;
+                }))
+                .then(Commands.literal("mark").requires(source -> source.hasPermission(2))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .then(Commands.argument("word", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                                List.of("alpha", "beta"), builder))
+                                        .executes(ctx -> {
+                                            String target = EntityArgument.getPlayer(ctx, "target").getName()
+                                                    .getString();
+                                            String word = StringArgumentType.getString(ctx, "word");
+                                            ctx.getSource().sendSuccess(
+                                                    () -> Component.literal("marked " + target + " " + word), false);
+                                            return 1;
+                                        })))));
+    }
+
+    /**
+     * 借服务器的权威:夹具组的 {@code mark} 声明了 {@link Authority#SERVER_ON_HER},她没有 OP 也执行得了那条要 OP 的原生
+     * 管理指令,补全也读得到;作用对象是她自己,不问主人。她自己在第 0 层敲同一条,服务器不让。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100, batch = "numen_command")
+    public static void command_a_wrapper_borrows_the_servers_authority_only_on_her(GameTestHelper helper) {
+        NumenPlayer companion = spawnAt(helper, "gt_mc_marked", new BlockPos(4, 2, 4), false);
+        NumenPlayer owner = presentOwner(helper, companion, "gt_mc_marker");
+        registerNativeTwin(helper.getLevel().getServer());
+        ToolRun wrapped = command(companion, TWIN + " mark");
+        ToolRun herself = command(companion, "/" + TWIN + " mark gt_mc_marked alpha");
+
+        helper.assertTrue(wrapped.succeeded()
+                        && message(wrapped.reply()).equals("alpha,beta | marked gt_mc_marked alpha"),
+                "the wrapper did not run on her with the server's authority: " + wrapped.reply());
+        helper.assertTrue(!herself.succeeded() && herself.task() == null,
+                "she ran the admin command with her own authority: " + herself.reply());
+        helper.assertTrue(ConsentDesk.of(companion).pending() == null, "the wrapper asked the owner");
+        cleanUp(helper, companion, owner);
+        helper.succeed();
     }
 
     /**
@@ -388,10 +518,10 @@ public class CommandGameTests {
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_command")
     public static void command_long_work_is_accepted_and_finished_under_one_id(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_mc_worker", new BlockPos(4, 2, 4), false);
-        ToolRun run = command(companion, "numen gt_long linger 10");
+        ToolRun run = command(companion, "gt_long linger 10");
         EventOutbox outbox = EventOutbox.get(helper.getLevel().getServer());
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(run.task() != null, "the long work was not found under the call's id: " + run.reply());
             JsonObject data = JsonParser.parseString(run.reply()).getAsJsonObject().getAsJsonObject("data");
             String id = data.get("task_id").getAsString();
@@ -407,27 +537,32 @@ public class CommandGameTests {
     }
 
     /**
-     * {@code /numen drive <同伴> <一行指令>} 与 {@code command} 是同一个入口:同一行,回执一样;写不通的说法也一样。
-     * 回执说给发 drive 的人听(这里是控制台)。
+     * {@code /numen drive <同伴> <一行指令>} 与 {@code command} 是同一个入口,两层都一样:同一行,回执一样;写不通的说法
+     * 也一样。回执说给发 drive 的人听(这里是控制台)。
      */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_command")
     public static void command_drive_runs_a_line_through_her_entry(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_mc_driven", new BlockPos(4, 2, 4), false);
         var server = helper.getLevel().getServer();
-        ToolRun status = command(companion, "numen task status");
-        ToolRun typo = command(companion, "numen task stauts");
+        List<String> lines = List.of("task status", "task stauts", "/help help", "/gvie @s stone");
+        List<ToolRun> viaCommand = lines.stream().map(line -> command(companion, line)).toList();
         List<String> heard = new ArrayList<>();
         CommandSourceStack console = console(server, heard);
-        server.getCommands().performPrefixedCommand(console, "numen drive gametest_mc_driven numen task status");
-        server.getCommands().performPrefixedCommand(console, "/numen drive gametest_mc_driven /numen task stauts");
+        for (String line : lines) {
+            server.getCommands().performPrefixedCommand(console, "/numen drive gametest_mc_driven " + line);
+        }
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             String name = companion.getName().getString();
-            helper.assertTrue(heard.size() == 2, "drive did not answer both lines: " + heard);
-            helper.assertTrue(heard.get(0).equals(name + ": " + message(status.reply())),
-                    "drive and command differ: " + heard.get(0) + " / " + status.reply());
-            helper.assertTrue(heard.get(1).equals(name + ": " + message(typo.reply())),
-                    "a mistake reads differently through drive: " + heard.get(1) + " / " + typo.reply());
+            helper.assertTrue(heard.size() == lines.size(), "drive did not answer every line: " + heard);
+            for (int i = 0; i < lines.size(); i++) {
+                helper.assertTrue(heard.get(i).equals(name + ": " + message(viaCommand.get(i).reply())),
+                        "drive and command differ on " + lines.get(i) + ": " + heard.get(i) + " / "
+                                + viaCommand.get(i).reply());
+            }
+            helper.assertTrue(viaCommand.get(0).succeeded() && !viaCommand.get(1).succeeded()
+                            && viaCommand.get(2).succeeded() && !viaCommand.get(3).succeeded(),
+                    "the lines did not come out as written: " + viaCommand);
             CompanionFactory.despawn(server, companion);
         });
     }
@@ -458,53 +593,82 @@ public class CommandGameTests {
     }
 
     /**
-     * 经 drive 放行、又要主人点头的同步短活:主人允许后活才开始,结算后的最终回执回到 drive 的发令人那里,恰好一条,
-     * 末尾交代主人允许了什么——结果只有派它的那次调用这一个去处。
+     * 经 drive 派的同步短活:结算后的最终回执回到 drive 的发令人那里,恰好一条——结果只有派它的那次调用这一个去处。
      */
-    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_command")
-    public static void command_drive_hears_the_final_result_of_a_sync_action_the_owner_allowed(GameTestHelper helper) {
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_command")
+    public static void command_drive_hears_the_final_result_of_a_sync_action(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_mc_held", new BlockPos(4, 2, 4), false);
-        NumenPlayer owner = presentOwner(helper, companion, "gametest_mc_holder");
-        storeOf(owner).add(Verdict.Kind.ASK, Rule.parse("command(numen)"));
         var server = helper.getLevel().getServer();
         List<String> heard = new ArrayList<>();
         server.getCommands().performPrefixedCommand(console(server, heard),
-                "numen drive gametest_mc_held numen gt_sync hold 5");
+                "numen drive gametest_mc_held gt_sync hold 5");
+
+        succeedWhen(helper, () -> {
+            String name = companion.getName().getString();
+            helper.assertTrue(heard.size() == 1, "drive did not hear exactly one final result: " + heard);
+            helper.assertTrue(heard.get(0).equals(name + ": held for 5 ticks"),
+                    "drive heard another result: " + heard.get(0));
+            CompanionFactory.despawn(server, companion);
+        });
+    }
+
+    /**
+     * 经 drive 执行、要主人点头的原生指令:主人答复之前发令人什么都没听到;允许后才执行,回执回到 drive 的发令人那里,
+     * 恰好一条,末尾交代主人允许了什么。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_command")
+    public static void command_drive_hears_a_native_line_the_owner_allowed(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos target = new BlockPos(8, 3, 8);
+        NumenPlayer companion = spawnAt(helper, "gametest_mc_placer", new BlockPos(4, 2, 4), false);
+        NumenPlayer owner = presentOwner(helper, companion, "gametest_mc_placer_owner");
+        grantOp(companion);
+        var server = level.getServer();
+        List<String> heard = new ArrayList<>();
+        server.getCommands().performPrefixedCommand(console(server, heard),
+                "numen drive gametest_mc_placer /" + setblock(helper, target));
         boolean[] allowed = new boolean[1];
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             if (!allowed[0]) {
                 ConsentRequest pending = ConsentDesk.of(companion).pending();
                 helper.assertTrue(pending != null, "the driven line did not ask the owner: " + heard);
                 helper.assertTrue(heard.isEmpty(), "drive heard something before the owner answered: " + heard);
                 ConsentDesk.of(companion).answer(pending.id(), ConsentAnswer.Decision.ALLOW_ONCE, "");
                 allowed[0] = true;
-                helper.fail("allowed; waiting for the action to finish");
+                helper.fail("allowed; waiting for the line to run");
             }
             String name = companion.getName().getString();
-            helper.assertTrue(heard.size() == 1, "drive did not hear exactly one final result: " + heard);
-            helper.assertTrue(heard.get(0).startsWith(name + ": held for 5 ticks")
+            helper.assertTrue(heard.size() == 1, "drive did not hear exactly one result: " + heard);
+            helper.assertTrue(heard.get(0).startsWith(name + ": ran /setblock")
                             && heard.get(0).contains("the owner allowed"),
                     "drive heard another result, or it lacks the owner's allowance: " + heard.get(0));
+            helper.assertTrue(level.getBlockState(helper.absolutePos(target)).is(Blocks.STONE), "no stone was set");
             cleanUp(helper, companion, owner);
         });
     }
 
     /**
-     * {@code help give}:原版那一行用法之后,是从 Brigadier 挖出的参数类型与类型自带的例子,再是此刻接下来能写的
+     * {@code /help give}:原版那一行用法之后,是从 Brigadier 挖出的参数类型与类型自带的例子,再是此刻接下来能写的
      * (她自己、选择器);写了半截的物品 id 只列以它开头的。
      */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_command")
     public static void command_help_give_mines_types_examples_and_candidates(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_mc_learner", new BlockPos(4, 2, 4), false);
         grantOp(companion);
-        ToolRun give = command(companion, "help give");
-        ToolRun item = command(companion, "help give @s minecraft:diamond_");
+        ToolRun give = command(companion, "/help give");
+        ToolRun item = command(companion, "/help give @s minecraft:diamond_");
+        ToolRun groups = command(companion, "help");
         String said = message(give.reply());
         String items = message(item.reply());
-        Constants.LOG.info("[numen-cli] help give -> {}", said);
-        Constants.LOG.info("[numen-cli] help give @s minecraft:diamond_ -> {}", items);
+        String listed = message(groups.reply());
+        Constants.LOG.info("[numen-cli] /help give -> {}", said);
+        Constants.LOG.info("[numen-cli] /help give @s minecraft:diamond_ -> {}", items);
+        Constants.LOG.info("[numen-cli] help -> {}", listed);
 
+        helper.assertTrue(groups.succeeded() && listed.startsWith("<group> <action> [arguments]. Command groups:\n")
+                        && listed.contains("\n  task — "),
+                "help without the / is not layer 1's own listing: " + listed);
         helper.assertTrue(give.succeeded() && said.startsWith("ran /help give: /give <targets> <item> [<count>]\n"),
                 "the vanilla usage does not come first: " + said);
         helper.assertTrue(said.contains("\n  <targets> minecraft:entity (amount multiple, type players) — e.g. Player, ")
@@ -530,12 +694,12 @@ public class CommandGameTests {
     public static void command_a_typo_ends_with_the_nearest_candidate(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_mc_typist", new BlockPos(4, 2, 4), false);
         grantOp(companion);
-        ToolRun item = command(companion, "give @s minecraft:dimond");
-        ToolRun action = command(companion, "numen gt_long lingre 40");
+        ToolRun item = command(companion, "/give @s minecraft:dimond");
+        ToolRun action = command(companion, "gt_long lingre 40");
         String itemSaid = message(item.reply());
         String actionSaid = message(action.reply());
-        Constants.LOG.info("[numen-cli] give @s minecraft:dimond -> {}", itemSaid);
-        Constants.LOG.info("[numen-cli] numen gt_long lingre 40 -> {}", actionSaid);
+        Constants.LOG.info("[numen-cli] /give @s minecraft:dimond -> {}", itemSaid);
+        Constants.LOG.info("[numen-cli] gt_long lingre 40 -> {}", actionSaid);
 
         helper.assertTrue(!item.succeeded() && item.task() == null
                         && itemSaid.contains("minecraft:dimond") && itemSaid.contains("<--[HERE]")
@@ -543,7 +707,7 @@ public class CommandGameTests {
                         && itemSaid.endsWith("\nDid you mean: minecraft:diamond?"),
                 "the item typo does not end with the nearest item: " + itemSaid);
         helper.assertTrue(!action.succeeded() && action.task() == null
-                        && actionSaid.contains("<--[HERE]") && actionSaid.contains("numen gt_long linger <ticks>")
+                        && actionSaid.contains("<--[HERE]") && actionSaid.contains("gt_long linger <ticks>")
                         && actionSaid.endsWith("\nDid you mean: linger?"),
                 "the action typo does not end with the nearest action: " + actionSaid);
         cleanUp(helper, companion, null);

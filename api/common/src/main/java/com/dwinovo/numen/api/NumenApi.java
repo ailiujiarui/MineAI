@@ -51,15 +51,16 @@ public interface NumenApi {
     void registerTool(NumenTool tool);
 
     /**
-     * 登记一组命令:{@code numen <namespace> <action> …}。模型经 {@code command} 工具写这一行调用它们,不必为每个动作
-     * 多花一个工具定义;常用的动作可以 {@link com.dwinovo.numen.cli.Action#promote 提升}成快捷工具。服务端的动作
-     * 真实注册在 MC 指令树的 {@code /numen} 下,只给她看见;客户端的动作留在主人客户端。
+     * 登记一组命令:{@code <namespace> <action> …},组名就是 Numen 命令层(第 1 层)的一级命令。模型经 {@code command}
+     * 工具写这一行调用它们,不必为每个动作多花一个工具定义;常用的动作可以
+     * {@link com.dwinovo.numen.cli.Action#promote 提升}成快捷工具,工具名就是 {@code <namespace>_<action>}。第 1 层是 Numen 自己的调度器,不挂进 MC 的指令树,
+     * 玩家看不到;服务端的动作在服务端执行,客户端的动作留在主人客户端。
      *
      * <pre>{@code
      * numen.registerCommands("mymod", "What your mod lets her do, in one sentence.", cmds -> {
      *     cmds.server("status", "Read the machine she is looking at.", MyCommands::status);
      *     cmds.server("start", "Start a machine by its id.", MyCommands::start, MACHINE_ID)
-     *         .promote("start_machine", "Start one of your mod's machines …");
+     *         .promote("Start one of your mod's machines …");   // 工具名 mymod_start
      *     cmds.client("recipes", "List recipes in the owner's language.", MyCommands::recipes);
      * });
      * }</pre>
@@ -67,10 +68,11 @@ public interface NumenApi {
      * <p>{@code namespace} 用你的 mod id。一个组名只能登记一次,你只能往自己的组里加动作——引擎自带的组和
      * 别的插件的组都够不着。每个动作选一侧执行:{@code server}(动身体、读世界)或 {@code client}(只有主人
      * 客户端才有的数据)。命令树在两侧都登记,所以<b>在 {@code NumenPlugins.register} 的块里直接调</b>,别放进
-     * {@link #onClient}。
+     * {@link #onClient}。动作默认以她自己的权威执行;包装你的模组管理指令的服务端动作可以声明
+     * {@code .authority(Authority.SERVER_ON_HER)},借服务器的权威、只对她执行(见 {@link com.dwinovo.numen.cli.Authority})。
      *
      * @param namespace 一级命令名,小写英文,用你的 mod id
-     * @param summary   一句话说明,进系统提示里的命令索引和 {@code numen help}
+     * @param summary   一句话说明,进系统提示里的命令索引和 {@code help}
      * @param actions   往这一组里加动作;它返回后这一组就封口
      * @throws IllegalArgumentException 组名已被占、名字不合规、动作或参数写错
      * @throws IllegalStateException    提升成的工具名已被占
@@ -135,7 +137,7 @@ public interface NumenApi {
     void contributeState(Function<UUID, String> fragment);
 
     /**
-     * 服务端:从身体上读一段她此刻的状态,挂进 {@code <runtime_state>},也写进 {@code get_self_status}。
+     * 服务端:从身体上读一段她此刻的状态,挂进 {@code <runtime_state>},也写进 {@code status self}。
      *
      * <p>给身体上的事实用——模组给她身上加的、背包和穿戴之外的东西。穿戴位置上戴着什么不走这里,
      * 用 {@link #registerGear}:引擎把它渲染成 {@code <worn>},排在所有片段的最前面。它和背包、状态效果同一条路:
@@ -154,7 +156,7 @@ public interface NumenApi {
     /**
      * 服务端:登记一处能把东西穿戴在身上的来源——比如一个饰品栏模组的那些槽。
      *
-     * <p>登记之后,{@code equip_item} 的穿、脱、自动选位就认得这些位置,每轮挂给模型的 {@code <worn>}
+     * <p>登记之后,{@code gear wear} / {@code gear remove} 的穿、脱、自动选位就认得这些位置,每轮挂给模型的 {@code <worn>}
      * 里也会列出它们(空位也列,那是她知道自己有哪些槽名的唯一来源)。原版四件甲也是这样登记的一处,
      * 和你走同一扇门;登记顺序就是自动选位的优先级,原版在最前。穿戴的状态不必再用
      * {@link #contributeBodyState} 报一遍——那就是同一个事实的两个来源。

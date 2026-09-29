@@ -1,6 +1,7 @@
 package com.dwinovo.numen.core.task.mine;
 
-import com.dwinovo.numen.core.pathing.spec.RouteSpec;
+import com.dwinovo.numen.cli.ServerSource;
+import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.task.TaskRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -9,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Typed task descriptor for the intent-level {@code mine} tool, in one of two forms:
+ * Typed task descriptor for {@code work mine} (shortcut {@code mine}), in one of two forms:
  * <ul>
  *   <li><b>block_ids</b> — "gather {@code count} of these block types, find them yourself": the task
  *       searches the loaded area around the body, walks to the nearest with the terrain-modifying
@@ -24,13 +25,11 @@ import java.util.Set;
  */
 public final class MineBlockTaskRecord extends TaskRecord {
 
-    public static final String TOOL_NAME = "mine";
-
     /**
      * mine 的默认规格:可以改地形,需要主人同意的格也算进去、按价排在后面(挖不挖由动手前的权限裁决定)。
      * 模型给的 {@code spec} 叠在它上面,没给的字段保持这里的值。
      */
-    public static final RouteSpec DEFAULT_SPEC = RouteSpec.defaults().withAlter(RouteSpec.Alter.ANY);
+    public static final RouteSpec DEFAULT_SPEC = RouteSpec.defaults().edit().alter(RouteSpec.Alter.ANY).build();
 
     /** {@link #count} 取这个值:groups 用法没给 count,挖完这些团为止。 */
     public static final int UNTIL_GONE = 0;
@@ -56,9 +55,9 @@ public final class MineBlockTaskRecord extends TaskRecord {
      *  overlay text. */
     private int mined = 0;
 
-    public MineBlockTaskRecord(String toolCallId, long deadlineGameTime, Set<Block> targets,
+    public MineBlockTaskRecord(ServerSource source, long deadlineGameTime, Set<Block> targets,
                                Map<BlockPos, Block> named, int count, String label, RouteSpec spec) {
-        super(TOOL_NAME, toolCallId, deadlineGameTime);
+        super(source, deadlineGameTime);
         this.targets = Set.copyOf(targets);
         this.named = Map.copyOf(named);
         this.count = count;
@@ -87,7 +86,7 @@ public final class MineBlockTaskRecord extends TaskRecord {
 
     @Override
     /**
-     * 一行人话 —— 这是<b>给主人看的</b>:头顶气泡、面板、task_status 印的都是它。
+     * 一行人话 —— 这是<b>给主人看的</b>:头顶气泡、面板、task status 印的都是它。
      * 工具 id 不写进来,需要它的地方(运行时状态的 tool 属性、派发回执)本来就有。
      */
     public String describe() {

@@ -30,6 +30,13 @@ public final class CommandArgs {
         return (T) values.get(param.name());
     }
 
+    /** 同一份参数,{@code param} 换成 {@code value}:受理时把一个值换成它稳定的写法再写回一行(见 {@link #write})。 */
+    public <T> CommandArgs with(Param<T> param, T value) {
+        Map<String, Object> out = new LinkedHashMap<>(values);
+        out.put(param.name(), value);
+        return new CommandArgs(out);
+    }
+
     /**
      * 命令行这一侧:位置参数按名字从 Brigadier 的上下文里取,标志是 {@link FlagsArgument} 已经读好的那张表
      * (这一行没写标志就是空表)。
@@ -72,6 +79,36 @@ public final class CommandArgs {
             }
         }
         return new CommandArgs(out);
+    }
+
+    /**
+     * 这些参数写回一行命令:{@code path} 之后是写了值的位置参数,再是写了值的标志 {@code --name value},都按
+     * {@code params} 的顺序,值写成它在命令行上的样子({@link ArgType} 的写法)。这一行交给同一棵树读回来,得到的是相等的
+     * 一份参数——读与写是同一张参数表的两个方向。{@code params} 里没列的参数(比如只管这次调用落到哪儿的标志)不写。
+     *
+     * @param path 这一行的动作路径,如 {@code build layer}
+     */
+    public String write(String path, List<Param<?>> params) {
+        StringBuilder line = new StringBuilder(path);
+        for (Param<?> p : params) {
+            if (p.required()) {
+                line.append(' ').append(written(p));
+            }
+        }
+        for (Param<?> p : params) {
+            if (!p.required() && values.containsKey(p.name())) {
+                line.append(' ').append(FlagsArgument.PREFIX).append(p.name()).append(' ').append(written(p));
+            }
+        }
+        return line.toString();
+    }
+
+    private <T> String written(Param<T> param) {
+        T value = get(param);
+        if (value == null) {
+            throw new IllegalArgumentException("参数 " + param.name() + " 没有值,写不回命令行");
+        }
+        return param.type().write(value);
     }
 
     @Override

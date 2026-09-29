@@ -4,11 +4,10 @@ import com.dwinovo.numen.api.NumenApi;
 import com.dwinovo.numen.cli.ArgType;
 import com.dwinovo.numen.cli.CommandGroup;
 import com.dwinovo.numen.cli.Listing;
-import com.dwinovo.numen.cli.NumenCli;
 import com.dwinovo.numen.cli.Param;
 
 /**
- * {@code numen ftbquests}:她自己点不了的任务书与组队按钮,在这里有一个入口。
+ * {@code ftbquests}:她自己点不了的任务书与组队按钮,在这里有一个入口。
  *
  * <p>读任务书({@code list}、{@code show})在主人的客户端上执行,见 {@link ClientBook};提交任务({@code submit})、
  * 领奖({@code claim})与接受邀请({@code join})在服务端执行,动的是她的背包与队伍。五个都是长尾,不提升为快捷工具——
@@ -17,10 +16,10 @@ import com.dwinovo.numen.cli.Param;
 final class FtbqCommands {
 
     static final String GROUP = "ftbquests";
-    static final String LIST = NumenCli.ROOT + " " + GROUP + " list";
-    static final String SHOW = NumenCli.ROOT + " " + GROUP + " show";
-    static final String SUBMIT = NumenCli.ROOT + " " + GROUP + " submit";
-    static final String CLAIM = NumenCli.ROOT + " " + GROUP + " claim";
+    static final String LIST = GROUP + " list";
+    static final String SHOW = GROUP + " show";
+    static final String SUBMIT = GROUP + " submit";
+    static final String CLAIM = GROUP + " claim";
 
     /** 客户端按主人的语言认标题,所以 show 编号、标题都收;标题可以带空格,吃掉余下整行。 */
     private static final Param<String> QUEST_NAMED = Param.required("quest", ArgType.text(),
@@ -91,8 +90,8 @@ final class FtbqCommands {
                         + "owner is fine with you taking it.")
                 .seeAlso(LIST, SHOW, SUBMIT);
         quests.server("join", "Accept a party invitation you have pending.", PartyJoin::join, TEAM)
-                .example(NumenCli.ROOT + " " + GROUP + " join")
-                .example(NumenCli.ROOT + " " + GROUP + " join --team Dwin_Party#1a2b3c4d")
+                .example(GROUP + " join")
+                .example(GROUP + " join --team Dwin_Party#1a2b3c4d")
                 .note("It does not ask your owner: join only when they agree. You cannot join while you are "
                         + "in another party.")
                 .note("Your quest progress merges into the party's; from then on what you do counts for it.")

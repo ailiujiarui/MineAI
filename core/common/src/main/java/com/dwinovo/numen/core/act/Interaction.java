@@ -9,21 +9,17 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.FireChargeItem;
 import net.minecraft.world.item.FlintAndSteelItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 
 /**
  * The most-native interaction primitive for a fake-player body:
@@ -41,9 +37,10 @@ import net.minecraft.world.phys.Vec3;
  *   <li>USE + air       → {@code gameMode.useItem} (+ a hold for food / bow)</li>
  * </ul>
  *
- * <p>准星语义的 USE({@link #forHit} 建的)另有一步收尾:方块/实体没吃掉点击时落到
- * 物品自用——真客户端的完整右键顺序,见 {@link #fallthroughUse}。指定命中面的外科
- * 原语({@link #useBlock(NumenPlayer, BlockHitResult, InteractionHand)})没有这一步。
+ * <p>右键方块总是按一个已经解析好的命中按:准星落点({@link #forHit},准星由寻路模块的
+ * {@code Crosshair} 拾取),或调用方指定的那一面({@link #useBlock}),这里不另打射线。
+ * 准星语义的 USE 另有一步收尾:方块/实体没吃掉点击时落到物品自用——真客户端的完整右键
+ * 顺序,见 {@link #fallthroughUse}。指定命中面的外科原语没有这一步。
  *
  * <h2>Timing</h2>
  * {@link Timing#once()} taps once; {@link Timing#repeat} taps N times spaced by an
@@ -110,7 +107,9 @@ public final class Interaction {
     private final Timing timing;
 
     private final BlockDigger digger; // only for ATTACK + block
-    private BlockHitResult presetHit; // USE+block: an exact hit the caller already resolved (placement)
+    /** 左键挖方块时身体为这一下做的动作(把工具拿到手上)交给它,由任务记进回执;别的按法不动手上的东西,为 null。 */
+    private final java.util.function.Consumer<com.dwinovo.numen.pathing.body.BodyAction> told;
+    private BlockHitResult presetHit; // USE+block: the hit already resolved (crosshair, or the face the caller chose)
     /**
      * 准星语义的 USE 才有的兜底:方块/实体没吃掉点击时,同一次按键落到物品自用
      * ({@code gameMode.useItem})——真客户端就是这个顺序(useItemOn 不消费就发
@@ -130,7 +129,14 @@ public final class Interaction {
 
     private Interaction(NumenPlayer player, Button button, BlockPos block, Entity entity,
                         InteractionHand hand, Timing timing) {
+        this(player, button, block, entity, hand, timing, null);
+    }
+
+    private Interaction(NumenPlayer player, Button button, BlockPos block, Entity entity,
+                        InteractionHand hand, Timing timing,
+                        java.util.function.Consumer<com.dwinovo.numen.pathing.body.BodyAction> told) {
         this.player = player;
+        this.told = told;
         this.button = button;
         this.block = block == null ? null : block.immutable();
         this.entity = entity;
@@ -141,9 +147,13 @@ public final class Interaction {
 
     // ---- factories (default timings; overloads take an explicit Timing) ----
 
-    /** Left-click a block: break it (held until gone; creative insta / survival timed). */
-    public static Interaction attackBlock(NumenPlayer p, BlockPos pos) {
-        return new Interaction(p, Button.ATTACK, pos, null, InteractionHand.MAIN_HAND, Timing.hold());
+    /**
+     * Left-click a block: break it (held until gone; creative insta / survival timed). {@code told} hears what the
+     * body did for it (the best tool taken into hand), for the task's reply.
+     */
+    public static Interaction attackBlock(NumenPlayer p, BlockPos pos,
+                                          java.util.function.Consumer<com.dwinovo.numen.pathing.body.BodyAction> told) {
+        return new Interaction(p, Button.ATTACK, pos, null, InteractionHand.MAIN_HAND, Timing.hold(), told);
     }
 
     /** Left-click an entity once (cooldown-gated native attack). */
@@ -155,13 +165,8 @@ public final class Interaction {
         return new Interaction(p, Button.ATTACK, null, target, InteractionHand.MAIN_HAND, timing);
     }
 
-    /** Right-click a block: place / activate with the held item (raycasts to {@code pos}). */
-    public static Interaction useBlock(NumenPlayer p, BlockPos pos, InteractionHand hand) {
-        return new Interaction(p, Button.USE, pos, null, hand, Timing.once());
-    }
-
     /** Right-click a pre-resolved block hit — placement / precise activation supplies
-     *  the exact support face, so this skips the raycast and presses against {@code hit}. */
+     *  the exact support face, and this presses against {@code hit}. */
     public static Interaction useBlock(NumenPlayer p, BlockHitResult hit, InteractionHand hand) {
         Interaction i = new Interaction(p, Button.USE, hit.getBlockPos(), null, hand, Timing.once());
         i.presetHit = hit;
@@ -171,7 +176,7 @@ public final class Interaction {
     /**
      * 右键落在 {@code hit} 这一面、手里是 {@code stack} 时,会不会往世界里放东西、放在哪:方块物品贴着
      * 命中面放进可替换的格,桶倒出或舀起液体,打火石与火焰弹点起火——都是一次放置,交权限层裁决。
-     * 不往世界里放东西时为 null。按下右键的各处(导航执行、interact_at)都按这一份判。
+     * 不往世界里放东西时为 null。按下右键的各处(导航执行、use block)都按这一份判。
      */
     public static Action placementOf(Level level, BlockHitResult hit, ItemStack stack) {
         BlockPos placeAt = hit.getBlockPos().relative(hit.getDirection());
@@ -196,27 +201,6 @@ public final class Interaction {
     private static final int CONTINUOUS = 1_000_000;
 
     /**
-     * The vanilla crosshair pick: one ray from the eyes along the CURRENT
-     * look, resolving the CLOSER of a block or an entity (else MISS). A wall occludes a mob behind
-     * it (entities are searched only as near as the block hit). {@code reach} is the caller's vanilla
-     * interaction range ({@code blockInteractionRange} / {@code entityInteractionRange}).
-     */
-    public static HitResult nativeRaytrace(NumenPlayer player, double reach) {
-        Level level = player.level();
-        Vec3 eye = player.getEyePosition();
-        Vec3 reachVec = player.getViewVector(1.0f).scale(reach);
-        Vec3 end = eye.add(reachVec);
-        BlockHitResult block = level.clip(new ClipContext(
-                eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
-        double maxSq = block.getType() == HitResult.Type.MISS
-                ? reach * reach : block.getLocation().distanceToSqr(eye);
-        AABB box = player.getBoundingBox().expandTowards(reachVec).inflate(1.0);
-        EntityHitResult ent = ProjectileUtil.getEntityHitResult(
-                player, eye, end, box, e -> !e.isSpectator() && e.isPickable(), maxSq);
-        return ent != null ? ent : block;   // entity (closer than the block) wins, else the block/miss
-    }
-
-    /**
      * Build the native action for a resolved crosshair {@code hit} + {@code button}, mapping
      * {@code holdTicks} to the cell's natural cadence — a 6-cell (button × target) dispatch:
      * <ul>
@@ -236,13 +220,14 @@ public final class Interaction {
      *                        手里是食物/末影珍珠时传 false,免得点了块石头把自己喂了。
      */
     public static Interaction forHit(NumenPlayer p, HitResult hit, Button button, int holdTicks,
-                                     boolean itemFallthrough) {
+                                     boolean itemFallthrough,
+                                     java.util.function.Consumer<com.dwinovo.numen.pathing.body.BodyAction> told) {
         boolean hold = holdTicks != 0;
         switch (hit.getType()) {
             case BLOCK -> {
                 BlockHitResult bh = (BlockHitResult) hit;
                 if (button == Button.ATTACK) {
-                    return attackBlock(p, bh.getBlockPos());
+                    return attackBlock(p, bh.getBlockPos(), told);
                 }
                 Interaction i = new Interaction(p, Button.USE, bh.getBlockPos(), null,
                         InteractionHand.MAIN_HAND,
@@ -294,7 +279,7 @@ public final class Interaction {
 
     private Status breakBlock() {
         if (player.level().getBlockState(block).isAir()) return Status.DONE;
-        BlockDigger.DigResult result = digger.digStep(block);
+        BlockDigger.DigResult result = digger.digStep(block, told);
         if (result == BlockDigger.DigResult.REFUSED) {
             // 权限层在挖掘落点把门;这里只转述,不换法子
             failReason = "cannot break that block: " + digger.refusal().reason();
@@ -308,7 +293,7 @@ public final class Interaction {
     // ---- USE + air: tap or hold (food / bow) ----
 
     private Status useAir() {
-        InputDriver.halt(player);
+        player.controls().stop();
         if (!started) {
             started = true;
             player.gameMode.useItem(player, player.level(), player.getItemInHand(hand), hand);
@@ -351,7 +336,7 @@ public final class Interaction {
             hardFail = true;
             return false;
         }
-        InputDriver.halt(player);
+        player.controls().stop();
         InputDriver.lookAt(player, entity.getEyePosition());
         boolean recovering = entity instanceof net.minecraft.world.entity.LivingEntity living
                 && living.hurtTime > 0;
@@ -367,22 +352,10 @@ public final class Interaction {
     }
 
     private boolean fireUseBlock() {
-        InputDriver.halt(player);
+        player.controls().stop();
         net.minecraft.world.inventory.AbstractContainerMenu menuBefore = player.containerMenu;
-        BlockHitResult hit;
-        if (presetHit != null) {
-            hit = presetHit;                                  // caller already resolved the support face
-            InputDriver.lookAt(player, hit.getLocation());
-        } else {
-            InputDriver.lookAt(player, Vec3.atCenterOf(block));
-            hit = raycastBlock();
-            if (hit == null) {
-                failReason = "can't see the block to use (out of reach or line of sight blocked)";
-                failType = FailureType.OCCLUDED;
-                hardFail = true;
-                return false;
-            }
-        }
+        BlockHitResult hit = presetHit;
+        InputDriver.lookAt(player, hit.getLocation());
         StringBuilder outcome = new StringBuilder();
         for (InteractionHand h : HANDS) {
             InteractionResult res = player.gameMode.useItemOn(
@@ -447,7 +420,7 @@ public final class Interaction {
             hardFail = true;
             return false;
         }
-        InputDriver.halt(player);
+        player.controls().stop();
         InputDriver.lookAt(player, entity.getEyePosition());
         net.minecraft.world.inventory.AbstractContainerMenu menuBefore = player.containerMenu;
         for (InteractionHand h : HANDS) {
@@ -464,23 +437,10 @@ public final class Interaction {
         return true;               // a press with no effect is still a press
     }
 
-    /** Raycast from the eyes along the current look; the hit must be the target block. */
-    private BlockHitResult raycastBlock() {
-        Level level = player.level();
-        Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getViewVector(1.0f).scale(player.blockInteractionRange()));
-        BlockHitResult hit = level.clip(new ClipContext(
-                eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
-        if (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(block)) {
-            return hit;
-        }
-        return null;
-    }
-
     /** Abandon any in-progress interaction (clears a dig overlay / releases a held use). */
     public void stop() {
         if (digger != null) digger.cancel();
         if (player.isUsingItem()) player.releaseUsingItem();
-        InputDriver.halt(player);
+        player.controls().stop();
     }
 }

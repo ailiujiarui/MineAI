@@ -10,10 +10,14 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.ArrayList;
@@ -24,11 +28,12 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 每维度一份:玩家放过方块的格子,和是谁放的。{@code placed} 信号的来源,也是"这东西是谁的"这个概念在
+ * 每维度一份:玩家放过方块的格子,和是谁放的。{@code placed}、{@code self_placed} 信号的来源,也是"这东西是谁的"这个概念在
  * 全仓唯一的落点。
  *
- * <p>记:{@code BlockItem.place} 返回处的 mixin,谁放的就记谁——真玩家、同伴都一样;建造任务收工把成果格
- * 改记到主人名下。这里只记事实,"算不算别人的东西"由 {@code placed} 信号对着要动手的同伴判。
+ * <p>记:放的人只在 {@link #placedBy} 一处认——谁放的就记谁,真玩家、同伴都一样,双格方块连它带出来的另一半一起记。
+ * 经物品落位的({@code BlockItem.place} 返回处的 mixin)与建造照图直写的都走它。这里只记事实,"算不算别人的东西"
+ * 由信号对着要动手的同伴判。
  * 查:格子已是空气视为无记号并顺手清掉——不另挂方块变化钩子,谁挖的都一样。
  *
  * <p>线程:按区块存"格子 → 放的人",每份发布后不再改,改就整个换一份(写时复制,经
@@ -101,6 +106,40 @@ public final class PlacedBlocks extends SavedData {
         CODEC.encodeStart(NbtOps.INSTANCE, this).result()
                 .ifPresent(t -> { if (t instanceof CompoundTag c) tag.merge(c); });
         return tag;
+    }
+
+    /**
+     * {@code by} 在 {@code pos} 放下了方块(主线程):记下这一格和放的人,双格方块连它带出来的另一半(门上半、床头)。
+     * 放的人只在这里认,名字取放的那一刻的。
+     */
+    public static void placedBy(ServerLevel level, BlockPos pos, ServerPlayer by) {
+        PlacedBlocks placed = of(level);
+        Placer placer = new Placer(by.getUUID(), by.getGameProfile().getName());
+        placed.record(pos, placer);
+        BlockPos other = otherHalfOf(pos, level.getBlockState(pos));
+        if (other != null && !level.getBlockState(other).isAir()) {
+            placed.record(other, placer);
+        }
+    }
+
+    /**
+     * 双格方块的主半(门的下半、床脚)带出来的另一半在哪;不是双格方块的主半为 null。放置记录、建造判"放一扇门
+     * 还要清哪一格"与画设计时"门盖掉哪两格"共用这一处。
+     */
+    public static BlockPos otherHalfOf(BlockPos pos, BlockState state) {
+        if (state == null) {
+            return null;
+        }
+        if (state.hasProperty(BlockStateProperties.BED_PART)
+                && state.getValue(BlockStateProperties.BED_PART) == BedPart.FOOT
+                && state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+            return pos.relative(state.getValue(BlockStateProperties.HORIZONTAL_FACING));
+        }
+        if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
+                && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER) {
+            return pos.above();
+        }
+        return null;
     }
 
     /** 记一格和放它的人(主线程)。 */

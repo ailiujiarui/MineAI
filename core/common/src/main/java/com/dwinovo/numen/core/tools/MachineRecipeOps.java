@@ -95,7 +95,7 @@ public final class MachineRecipeOps {
 
         if (machines.isEmpty()) {
             return TaskResult.fail("no registered machine " + (byInput ? "consumes " : "makes ") + itemId
-                    + " — fall back to lookup_recipe/jei_recipe").toJson();
+                    + " — fall back to inv_recipe/jei_recipe").toJson();
         }
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("item", itemId);

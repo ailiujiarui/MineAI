@@ -1,5 +1,6 @@
 package com.dwinovo.numen.client.agent;
 
+import com.dwinovo.numen.data.ModLanguageData.Keys;
 import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.NumenPaths;
 import com.dwinovo.numen.agent.decision.DecisionConfig;
@@ -122,9 +123,9 @@ public final class EntityAgentLoop {
     private String providerEntryId;
 
     /**
-     * Runs a model reply's tool calls one at a time and reports each result back to the kernel — the
-     * kernel's {@link com.dwinovo.numen.agent.loop.ToolPort}. All the tool-execution plumbing (serial
-     * queue, ship-to-server, completion, timeout) lives in there, not here.
+     * Runs a model reply's tool calls in order and reports each result back to the kernel — the
+     * kernel's {@link com.dwinovo.numen.agent.loop.ToolPort}. All the tool-execution plumbing (the order and
+     * waiting for a body job, ship-to-server, completion, timeout) lives in there, not here.
      */
 
     private final ToolDispatcher dispatcher;
@@ -478,11 +479,11 @@ public final class EntityAgentLoop {
      */
     public String compactProblem() {
         Hold hold = loop.hold();
-        if (hold == Hold.DEAD) return "她已经不在了";
+        if (hold == Hold.DEAD) return I18n.get(Keys.LOOP_GONE);
         // 整理是对内脑说的:驾驶席在外接模型手里时内脑不开工,排上了也只会一直躺着。
-        if (hold == Hold.EXTERNAL) return "外接模型正在驾驶她,整理记忆要等交还给内置大脑之后";
-        if (loop.status().phase() == Phase.COMPACT) return "已经在整理了";
-        if (queue.count(EventTypes.COMPACT) > 0) return "整理已经排上了";
+        if (hold == Hold.EXTERNAL) return I18n.get(Keys.LOOP_EXTERNAL_COMPACT);
+        if (loop.status().phase() == Phase.COMPACT) return I18n.get(Keys.LOOP_COMPACTING);
+        if (queue.count(EventTypes.COMPACT) > 0) return I18n.get(Keys.LOOP_COMPACT_QUEUED);
         // 不看忙不忙:整理进队列排着,闲下来自己执行。按了就一定会发生,主人不必盯着什么时候能按。
         // 也不看记录长短:整理多少、什么时候整理是主人的事。条数门槛只属于自动整理
         // ——那是替他省一次没意义的请求,不是替他做决定。
@@ -493,15 +494,15 @@ public final class EntityAgentLoop {
     /** {@code /clear} 现在按不按得下。同 {@link #compactProblem} 的形状,但不查端点:清空不发请求。 */
     public String clearProblem() {
         Hold hold = loop.hold();
-        if (hold == Hold.DEAD) return "她已经不在了";
+        if (hold == Hold.DEAD) return I18n.get(Keys.LOOP_GONE);
         // 同整理:清空的是内脑的上下文,外接模型驾驶时内脑不开工,排上了也执行不了。
-        if (hold == Hold.EXTERNAL) return "外接模型正在驾驶她,清空上下文要等交还给内置大脑之后";
-        if (queue.count(EventTypes.CLEAR) > 0) return "清空已经排上了";
+        if (hold == Hold.EXTERNAL) return I18n.get(Keys.LOOP_EXTERNAL_CLEAR);
+        if (queue.count(EventTypes.CLEAR) > 0) return I18n.get(Keys.LOOP_CLEAR_QUEUED);
         return null;
     }
 
     /**
-     * 主人要求清空上下文。与 {@link #requestCompact} 同一走法:急件进队列,闲时执行,
+     * 主人要求清空上下文。与 {@link #requestCompact} 同一走法:进队列,闲时执行,
      * 忙的时候也按得下。空闲时当场发生,调用返回时已经清完。
      *
      * @return 拒绝的理由;{@code null} = 已排上(空闲时当场清完)
@@ -512,8 +513,10 @@ public final class EntityAgentLoop {
             Constants.LOG.info("[numen-entity#{}] manual clear refused: {}", entityUuid, problem);
             return problem;
         }
-        // clear 在类型表里恒为急件,发送方不另标。
-        loop.push(List.of(new EventQueue.Entry(EventTypes.CLEAR, "清空上下文", System.currentTimeMillis(), false)));
+        // 清空是控制命令:不叫醒她、不走熟度,循环闲下来自己执行。
+        // 条目的字进聊天流给主人看(不进模型),按主人此刻的语言写下
+        loop.push(List.of(new EventQueue.Entry(EventTypes.CLEAR, I18n.get(Keys.LOOP_CLEAR), System.currentTimeMillis(),
+                false)));
         return null;
     }
 
@@ -541,11 +544,10 @@ public final class EntityAgentLoop {
      * @return 取走的事件拼段;这次没取到返回 null(继续等或如实说没有)
      */
     public String takeEventsForExternal(boolean urgentOnly) {
-        java.util.function.Predicate<EventQueue.Entry> text =
-                e -> EventTypes.get(e.type()).delivery() != EventTypes.Delivery.CONTROL;
-        if (urgentOnly && queue.entries().stream().noneMatch(e -> e.urgent() && text.test(e))) return null;
+        // 急件只可能是文本:控制命令在队列的急件规则里就不急
+        if (urgentOnly && !queue.hasUrgent()) return null;
         long now = System.currentTimeMillis();
-        List<EventQueue.Entry> taken = queue.takeIf(text, now);
+        List<EventQueue.Entry> taken = queue.takeText(now);
         if (taken.isEmpty()) return null;
         List<String> parts = EventQueue.render(taken, now);
         return parts.isEmpty() ? null : String.join("\n\n", parts);
@@ -719,8 +721,10 @@ public final class EntityAgentLoop {
             Constants.LOG.info("[numen-entity#{}] manual compact refused: {}", entityUuid, problem);
             return problem;
         }
-        // compact 在类型表里恒为急件,发送方不另标。
-        loop.push(List.of(new EventQueue.Entry(EventTypes.COMPACT, "整理记忆", System.currentTimeMillis(), false)));
+        // 整理是控制命令:不叫醒她、不走熟度,循环闲下来自己执行。
+        // 条目的字进聊天流给主人看(不进模型),按主人此刻的语言写下
+        loop.push(List.of(new EventQueue.Entry(EventTypes.COMPACT, I18n.get(Keys.LOOP_COMPACT),
+                System.currentTimeMillis(), false)));
         return null;
     }
 

@@ -52,7 +52,7 @@ public class CombatGameTests {
         float startHealth = zombie.getHealth();
 
         int[] insideBand = {0};
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(companion.isAlive(), "companion died to a single zombie");
             double d = companion.distanceTo(zombie);
             if (d >= inner && d <= outer) {
@@ -72,6 +72,38 @@ public class CombatGameTests {
     }
 
     /**
+     * 够得比她还远的怪(原版里是十四号往上的史莱姆:它的击打范围随身宽按对角放大,她的够到距离只加半个身宽):打得着
+     * 又挨不着的那条带不存在,走位环的内沿归零,她照样走进够得着的地方砍它,而不是在编走位目标时出错收场。史莱姆不动
+     * 不还手,测的只是她走不走过去打。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_combat")
+    public static void attack_walks_in_on_a_creature_that_outreaches_her(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(2, 2, 2));
+        var slime = EntityType.SLIME.create(level);
+        helper.assertTrue(slime != null, "slime did not spawn");
+        slime.setSize(14, true);
+        BlockPos at = helper.absolutePos(new BlockPos(11, 2, 11));
+        slime.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0.0f, 0.0f);
+        slime.setNoAi(true);
+        level.addFreshEntity(slime);
+        helper.assertTrue(Menace.rawDangerRadius(slime, companion) >= Swing.reachTo(
+                        companion.getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE), slime.getBbWidth()),
+                "this slime does not outreach her, the scene tests nothing");
+        float startHealth = slime.getHealth();
+        TaskRecord record = command(companion, "fight attack --entity_ids " + slime.getId()).task();
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(record.getResult() == null || !record.getResult().message().contains("internal error"),
+                    "the attack broke down: " + record.getResult());
+            helper.assertTrue(slime.getHealth() < startHealth && slime.getLastHurtByMob() == companion,
+                    "she never walked in to hit the slime");
+            slime.discard();
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
      * 点名打不敌对的东西:一头猪,附近一只怪都没有。她必须走过去把它打掉——走位目标由
      * "有没有目标"决定,不由"附近有没有怪"决定;后者只是躲避场。
      */
@@ -85,12 +117,46 @@ public class CombatGameTests {
         pig.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0.0f, 0.0f);
         pig.setNoAi(true);   // 站着别跑,这条测的是她走不走过去,不是追逐
         level.addFreshEntity(pig);
-        TaskRecord record = call(companion, "attack", args("entity_ids", List.of(pig.getId()))).task();
+        TaskRecord record = command(companion, "fight attack --entity_ids " + pig.getId()).task();
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(pig.isDeadOrDying() && pig.getLastHurtByMob() == companion,
                     "the pig is still alive — she never walked over to hit it");
             CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
+     * 点名攻击落盘重放的那一行写的是目标的 UUID:运行期编号重启后会发给别的东西,照旧号重放可能打到毫不相干的一只。
+     * 受理时找不到的编号不写进去(任务照旧记它丢失);一只都找不到就当场失败,不留一行会变成不点名清场的重放。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_combat")
+    public static void attack_is_replayed_by_uuid_not_by_runtime_id(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var server = level.getServer();
+        var pig = EntityType.PIG.create(level);
+        helper.assertTrue(pig != null, "pig did not spawn");
+        BlockPos at = helper.absolutePos(new BlockPos(13, 2, 13));
+        pig.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0.0f, 0.0f);
+        pig.setNoAi(true);
+        level.addFreshEntity(pig);
+        BlockPos spawn = helper.absolutePos(new BlockPos(2, 2, 2));
+        NumenPlayer companion = com.dwinovo.numen.entity.Companions.summon(server, java.util.UUID.randomUUID(),
+                "gametest_uuid_hunter", level, new net.minecraft.world.phys.Vec3(spawn.getX() + 0.5, spawn.getY(),
+                        spawn.getZ() + 0.5));
+        ToolRun nobody = command(companion, "fight attack --entity_ids 999998");
+        ToolRun attack = command(companion, "fight attack --entity_ids " + pig.getId() + " 999999");
+        String recorded = com.dwinovo.numen.entity.CompanionRegistry.get(server).find(companion.getUUID()).taskArgs();
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(nobody.done() && !nobody.succeeded() && nobody.outcome().contains("999998"),
+                    "naming only missing entities did not fail on the spot: " + nobody.reply());
+            helper.assertTrue(attack.task() != null, "the attack was not accepted: " + attack.reply());
+            helper.assertTrue(recorded.contains("--entity_ids " + pig.getUUID() + "\"")
+                            && !recorded.contains("999999"),
+                    "the replay recipe does not name exactly the pig by its UUID: " + recorded);
+            com.dwinovo.numen.entity.Companions.dismiss(server, companion);
+            pig.discard();
         });
     }
 

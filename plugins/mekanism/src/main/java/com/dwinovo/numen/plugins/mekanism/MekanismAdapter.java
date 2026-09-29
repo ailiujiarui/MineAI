@@ -125,9 +125,11 @@ public final class MekanismAdapter {
             sb.append("state: ").append(props).append("\n");
         }
         appendSideConfig(level, pos, sb);
-        String caps = Services.CAPS.describe(level, pos);
-        if (caps != null && !caps.isBlank()) {
-            sb.append(caps);   // items / fluids / energy(标准 capability)
+        java.util.List<String> caps = Services.CAPS.describe(level, pos);
+        if (caps != null && !caps.isEmpty()) {
+            for (String line : caps) {   // items / fluids / energy(标准 capability)
+                sb.append(line).append('\n');
+            }
         }
         // 命名化学罐优先(灌注机的 infusionTank 是 public 字段,标准 capability 未必暴露它);没有再看 capability
         if (!appendNamedChemicalTanks(level, pos, sb)) {

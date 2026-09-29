@@ -35,7 +35,9 @@ public enum FailureType {
     /** No free inventory slot to stow into (unequipped gear, picked-up loot). Kick to
      *  LLM: dropping or depositing something first is a strategic call. */
     NO_SPACE,
-    /** Nothing solid to place against at/around the target. In-ladder: try another support face. */
+    /** Nothing solid to place against at/around the target, or nothing vanilla lets the block stand on there (a
+     *  flower on stone, a torch on air): the block will not hold at that spot. In-ladder when another support face
+     *  exists; when the spot itself cannot hold the block, kick to LLM — only changing the plan or the ground helps. */
     NO_SUPPORT,
     /** A living/building-blocking entity occupies the target cell — vanilla refuses every
      *  press until it moves. Kick to LLM: waiting, luring it away, or picking another cell
@@ -52,15 +54,10 @@ public enum FailureType {
      *  or place (they sit in the body's route book). Approach tasks treat it in-ladder like
      *  NO_PATH (a looser stance may still avoid it); goto does not loosen its goal on it — the
      *  candidates are the answer. The final verdict hands the list to the LLM, which picks one
-     *  ({@code goto route:<id>}) or another destination. */
+     *  ({@code move_goto route:<id>}) or another destination. */
     TERRAIN_BLOCKED,
     /** Never got within interaction reach of the target. In-ladder: reposition. */
     OUT_OF_REACH,
-    /** The search's goal membership IS satisfied at the feet, but the task's richer
-     *  arrival (reach / line of sight / on-ground) still isn't — the stance the graph
-     *  chose is a dud for the actual work. In-ladder: reposition, or blacklist the
-     *  composite member that produced it. */
-    STANCE_DUD,
     /** Can't harvest/attack effectively with the current inventory. Prerequisite — kick to LLM. */
     WRONG_TOOL,
     /** The entity/block target is gone, dead, or moved out of the bounded search. Kick to LLM. */
@@ -70,6 +67,12 @@ public enum FailureType {
     /** The permission layer refused the action (owner's rule, observe mode, or a consent that was
      *  not given). Kick to LLM: the model must not route around it — the owner decides. */
     REFUSED,
+    /** The block went in but did not stay, or the world would not take it: another mod cancelled the placement, the
+     *  game refused the write, or something outside the job kept breaking the finished work. Not the permission
+     *  layer ({@link #REFUSED}), not a spot that cannot hold it ({@link #NO_SUPPORT}), not a body in the way
+     *  ({@link #ENTITY_BLOCKED}) — each of those has its own remedy. Kick to LLM: trying again the same way changes
+     *  nothing; what keeps undoing it has to be found first. */
+    NOT_KEPT,
     /** A fluid/lava/void hazard blocks the safe execution. In-ladder: route around, else give up. */
     HAZARD,
     /** Pre-empted or cancelled (owner stop, death). Not a real failure — terminal housekeeping. */

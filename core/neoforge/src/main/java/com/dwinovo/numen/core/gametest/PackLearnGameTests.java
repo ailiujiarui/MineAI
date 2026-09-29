@@ -55,8 +55,8 @@ public class PackLearnGameTests {
         level.setBlockAndUpdate(at, machine.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_learner", new BlockPos(3, 2, 4), false);
 
-        ToolRun open = call(companion, "interact_at",
-                args("button", "right", "x", at.getX(), "y", at.getY(), "z", at.getZ()));
+        ToolRun open = command(companion, "use block right "
+                + at.getX() + " " + at.getY() + " " + at.getZ());
 
         helper.succeedWhen(() -> {
             helper.assertTrue(open.done() && open.succeeded(),
@@ -90,12 +90,12 @@ public class PackLearnGameTests {
         AtomicReference<ToolRun> step = new AtomicReference<>();
 
         helper.startSequence()
-                .thenExecute(() -> step.set(call(companion, "interact_at",
-                        args("button", "right", "x", at.getX(), "y", at.getY(), "z", at.getZ()))))
+                .thenExecute(() -> step.set(command(companion, "use block right "
+                        + at.getX() + " " + at.getY() + " " + at.getZ())))
                 .thenWaitUntil(() -> helper.assertTrue(step.get().done() && step.get().succeeded()
                                 && companion.containerMenu != companion.inventoryMenu,
                         "the machine did not open: " + step.get().outcome()))
-                .thenExecute(() -> step.set(call(companion, "inspect_gui", args())))
+                .thenExecute(() -> step.set(command(companion, "use gui")))
                 .thenWaitUntil(() -> helper.assertTrue(step.get().reply().contains("[input]")
                                 && step.get().reply().contains("[fuel]"),
                         "inspect_gui shows no generic slot roles: " + step.get().reply()))

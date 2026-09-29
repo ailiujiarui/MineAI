@@ -72,7 +72,7 @@ public abstract class TaskRecord {
     private StopCause stopCause;
     /** 异步派发的记录:受理时已经回执过 tool_call,收尾改走 task_finished 事件。 */
     private boolean async;
-    /** 首次进入 RUNNING 的游戏刻;task_status 用它报已耗时。-1 = 还没开跑。 */
+    /** 首次进入 RUNNING 的游戏刻;task status 用它报已耗时。-1 = 还没开跑。 */
     private long startedGameTime = -1;
     /**
      * 同步动作的回信口:派它的那次调用给的({@link TaskDispatch#runSync} 绑上),结算后的结果只从这里回——模型的调用、
@@ -118,7 +118,7 @@ public abstract class TaskRecord {
      * Prefix of the synthetic tool-call ids NumenActuator mints for external (MCP)
      * invocations — disjoint from the LLM's ids. The async wind-down keys off this
      * to route completion: internal tasks fire a task_finished event to the built-in
-     * brain; external ones don't (their driver polls task_status instead).
+     * brain; external ones don't (their driver polls task status instead).
      */
     public static final String EXTERNAL_CALL_PREFIX = "mcp-";
 
@@ -132,20 +132,6 @@ public abstract class TaskRecord {
         if (startedGameTime < 0) startedGameTime = gameTime;
     }
     public final long getStartedGameTime() { return startedGameTime; }
-
-    /**
-     * 受理它的那一刻还没过去。
-     *
-     * <p>用来分开两种"再派一个活":同一批工具调用里的第二个(模型在做计划,该拒绝
-     * ——让它拿到第一个的结果再决定),和新回合里派的(改主意了,该直接替换)。
-     *
-     * <p><b>问的是记录多老,不是任务跑了多少刻。</b>任务会休眠:{@code follow} 在主人
-     * 身边时不占身体,槽轮不到 tick,"跑过几刻"就一直是 0——拿它当判据的话,一个跟了你
-     * 十分钟的跟随任务会始终自称"刚受理",你让她顺手捡个掉落物都会被拒。
-     */
-    public final boolean acceptedThisTick(long gameTime) {
-        return startedGameTime >= 0 && gameTime <= startedGameTime;
-    }
 
     /** Called by {@code CompanionTickDispatcher} as the record transitions through lifecycle. */
     public final void setState(TaskState state) { this.state = state; }

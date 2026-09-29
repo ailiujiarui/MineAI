@@ -77,6 +77,8 @@ public abstract class LoopHarness {
     public final class FakeModel implements ModelPort {
         public String unavailable;
         public int turnRequests;
+        /** 非空时每次调用当场就用这句话答完,回调同步回到内核里——模拟回得比调用栈退得还快的端口。 */
+        public String replyAtOnce;
         public final List<Call> calls = new ArrayList<>();
 
         @Override
@@ -93,7 +95,11 @@ public abstract class LoopHarness {
         @Override
         public void call(ModelRequest request, CancelToken cancel, Consumer<Delta> onDelta,
                          Consumer<ModelOutcome> onDone) {
-            calls.add(new Call(request, cancel, onDelta, onDone));
+            Call call = new Call(request, cancel, onDelta, onDone);
+            calls.add(call);
+            if (replyAtOnce != null) {
+                call.say(replyAtOnce);
+            }
         }
 
         public Call last() {
@@ -110,6 +116,8 @@ public abstract class LoopHarness {
         public final Set<String> parked = new LinkedHashSet<>(Set.of(EXTERNAL_CALL));
         public final List<LlmToolCall> batch = new ArrayList<>();
         public final List<Boolean> cancels = new ArrayList<>();
+        /** 转来的输入,依次:条目类型与它急不急。 */
+        public final List<String> arrivals = new ArrayList<>();
         public Sink sink;
 
         @Override
@@ -120,6 +128,11 @@ public abstract class LoopHarness {
                 parked.add(call.id());
                 sink.started(call);
             }
+        }
+
+        @Override
+        public void arrived(EventQueue.Entry entry, boolean urgent) {
+            arrivals.add(entry.type() + (urgent ? " urgent" : ""));
         }
 
         @Override
@@ -243,6 +256,11 @@ public abstract class LoopHarness {
 
     protected void worldEvent(String text, boolean urgent) {
         loop.push(List.of(new EventQueue.Entry(EventTypes.TASK_FINISHED, "<event>" + text + "</event>", 0, urgent)));
+    }
+
+    /** 群聊里旁听到别人说的一句(捎带投递)。发送方标急也没用——测试照标,钉住这一点。 */
+    protected void overhears(String text) {
+        loop.push(List.of(new EventQueue.Entry(EventTypes.TALK, "<event kind=\"talk\">" + text + "</event>", 0, true)));
     }
 
     protected void goalContinues(String text) {

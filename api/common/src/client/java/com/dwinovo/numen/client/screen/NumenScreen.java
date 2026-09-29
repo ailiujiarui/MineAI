@@ -31,6 +31,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import com.dwinovo.numen.client.skin.CompanionFace;
+import com.dwinovo.numen.network.NumenNetwork;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.DefaultPlayerSkin;
@@ -771,7 +772,7 @@ public final class NumenScreen extends Screen {
         }
 
         private void sendSummon(SummonPanel.Draft d, String skinValue, String skinSig) {
-            Services.NETWORK.sendToServer(
+            NumenNetwork.sendToServer(
                     new com.dwinovo.numen.network.payload.SummonRequestPayload(
                             d.name, skinValue, skinSig, d.creative));
             // 查皮肤那一两秒里卡可能已被收掉、换成了别的卡:只收召唤卡自己。
@@ -918,7 +919,7 @@ public final class NumenScreen extends Screen {
         }
 
         @Override public void setCreative(boolean creative) {
-            Services.NETWORK.sendToServer(
+            NumenNetwork.sendToServer(
                     new com.dwinovo.numen.network.payload.SetGameModePayload(editTarget, creative));
         }
 
@@ -945,7 +946,7 @@ public final class NumenScreen extends Screen {
         }
 
         private void sendSkin(UUID target, String value, String sig) {
-            Services.NETWORK.sendToServer(
+            NumenNetwork.sendToServer(
                     new com.dwinovo.numen.network.payload.ChangeSkinPayload(target, value, sig));
         }
     }
@@ -964,7 +965,7 @@ public final class NumenScreen extends Screen {
                 I18n.get("numen.dismiss.warning"),
                 I18n.get("numen.gui.settings.cancel"), I18n.get("numen.dismiss.delete"),
                 () -> {
-                    Services.NETWORK.sendToServer(
+                    NumenNetwork.sendToServer(
                             new com.dwinovo.numen.network.payload.DismissRequestPayload(target));
                     if (target.equals(solo())) {   // 走的是当前这只:跳到另一个会话/回空屏
                         Conversation next = firstOther(conv);
@@ -1511,7 +1512,7 @@ public final class NumenScreen extends Screen {
         UUID her = tab == Tab.ITEMS ? profileOf : solo();
         if (her == null) return;
         if (Minecraft.getInstance().getConnection() != null) {
-            Services.NETWORK.sendToServer(new RequestStatePayload(her));
+            NumenNetwork.sendToServer(new RequestStatePayload(her));
         }
     }
 
@@ -1982,7 +1983,7 @@ public final class NumenScreen extends Screen {
         // 崩溃护栏:面板渲染的任何异常都不许带走游戏——降级成一行红字
         if (!com.dwinovo.numen.client.ui.SafeUi.run("panel-render",
                 () -> renderInner(g, mouseX, mouseY, partial))) {
-            g.drawString(font, "Numen 面板渲染出错,已兜底——详情见 latest.log",
+            g.drawString(font, I18n.get(ModLanguageData.Keys.SCREEN_RENDER_FAILED),
                     left + 10, top + 10, 0xFFFF6B6B, true);
         }
     }
@@ -2867,7 +2868,7 @@ public final class NumenScreen extends Screen {
             double p = lp.status().compactProgress();
             int bw = panelW - PAD * 2;
             int by = top + panelH - inputH() - PAD - 8;
-            txt(g, Component.literal("整理记忆… " + Math.round(p * 100) + "%"),
+            txt(g, Component.literal(I18n.get(ModLanguageData.Keys.LOOP_COMPACT_PROGRESS, Math.round(p * 100))),
                     left + PAD, by - 11, TXT_MUTED);
             g.fill(left + PAD, by, left + PAD + bw, by + 3, FIELD);
             g.fill(left + PAD, by, left + PAD + (int) Math.round(bw * p), by + 3, ACCENT);

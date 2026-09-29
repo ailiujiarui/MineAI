@@ -1,0 +1,122 @@
+package com.dwinovo.numen.core.tools.work;
+
+import com.dwinovo.numen.agent.tool.NumenTool;
+import com.dwinovo.numen.agent.tool.ToolRegistry;
+import com.dwinovo.numen.cli.CommandTool;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * {@code move}、{@code work}、{@code fight}、{@code build} 四组登记得上:每个动作的例子按组的树读得通、相关命令都指得到
+ * (登记与第一次读树时查;core 的各组照 NumenCore 同一份登记一起装),提升的两个快捷工具叫原来的名字、参数表是动作的参数表
+ * 摊平后的样子,帮助从 {@code command} 入口答得出。动作的执行要身体,在 GameTest 里验。
+ */
+class WorkCommandGroupsTest {
+
+    @BeforeAll
+    static void install() {
+        com.dwinovo.numen.core.CoreCommandsFixture.install();
+    }
+
+    private static JsonObject run(String line) {
+        JsonObject args = new JsonObject();
+        args.addProperty("command", line);
+        List<String> replies = new ArrayList<>();
+        new CommandTool().serve("test-call", args, null, replies::add);
+        assertEquals(1, replies.size(), "恰好一次回执: " + replies);
+        return JsonParser.parseString(replies.get(0)).getAsJsonObject();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> fields(String tool) {
+        NumenTool t = ToolRegistry.get(tool);
+        Map<String, Object> props = (Map<String, Object>) t.parameterSchema().get("properties");
+        return List.copyOf(props.keySet());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> required(String tool) {
+        return (List<String>) ToolRegistry.get(tool).parameterSchema().get("required");
+    }
+
+    @Test
+    void moveGotoAndWorkMineLayTheRouteFieldsFlat() {
+        List<String> route = List.of("alter", "avoid", "allow", "penalty_place", "penalty_break", "penalty_jump",
+                "penalty_wade", "avoid_break", "avoid_place", "avoid_step", "parkour", "max_fall", "alter_budget");
+        List<String> gotoFields = new ArrayList<>(List.of("x", "y", "z", "block", "route", "near"));
+        gotoFields.addAll(route);
+        assertEquals(gotoFields, fields("move_goto"));
+        assertEquals(List.of(), required("move_goto"));
+        List<String> mineFields = new ArrayList<>(List.of("block_ids", "groups", "count"));
+        mineFields.addAll(route);
+        assertEquals(mineFields, fields("work_mine"));
+        assertEquals(List.of(), required("work_mine"));
+        for (String gone : List.of("follow", "plan_route", "collect_items", "fish", "attack", "blueprint",
+                "blueprint_read", "scaffold_materials", "build", "transfer")) {
+            assertNull(ToolRegistry.get(gone), gone + " 已经是命令,不再是工具");
+        }
+    }
+
+    /**
+     * build 组只剩原语、设计与 at/built 十六个动作,一页放得下;她赶路时愿意消耗的方块是自己的一组 throwaway,四个动作只改
+     * 清单,没有"看清单"的动作(现状在身体状态里)。
+     */
+    @Test
+    void buildFitsOnOnePageAndThrowawayIsItsOwnGroup() {
+        String build = run("build --help").get("message").getAsString();
+        List<String> actions = build.lines().filter(l -> l.startsWith("  build ")).map(l -> l.split(" ")[3]).toList();
+        assertEquals(List.of("set", "place", "line", "layer", "cylinder", "sphere", "copy", "new", "show", "step",
+                "insert", "drop", "designs", "delete", "at", "built"), actions, build);
+        assertTrue(!build.contains("(page 1 of") && !build.contains("scaffold") && !build.contains("throwaway"), build);
+        String throwaway = run("throwaway --help").get("message").getAsString();
+        assertEquals(List.of("add", "remove", "set", "clear"), throwaway.lines()
+                .filter(l -> l.startsWith("  throwaway ")).map(l -> l.split(" ")[3]).toList(), throwaway);
+        assertTrue(throwaway.startsWith("throwaway: Your own setting: "), throwaway);
+        JsonObject gone = run("build scaffold_add minecraft:dirt");
+        assertTrue(!gone.get("success").getAsBoolean(), "build 组里不再有垫路料的动作: " + gone);
+    }
+
+    @Test
+    void movingItemsInAGuiIsOneStepPerLine() {
+        String use = run("use --help").get("message").getAsString();
+        assertTrue(use.contains("\n  use transfer <from> <to> [--count <integer>] — ")
+                && use.contains("\n  use shift <from> — "), use);
+        JsonObject noGui = run("use transfer 1");
+        assertTrue(!noGui.get("success").getAsBoolean()
+                        && noGui.get("message").getAsString().contains("use transfer <from> <to>"),
+                "少写一格目标就附上这个动作的用法: " + noGui);
+    }
+
+    @Test
+    void eachGroupAnswersItsHelp() {
+        for (String group : List.of("move", "work", "fight", "build", "throwaway")) {
+            JsonObject help = run(group + " --help");
+            assertTrue(help.get("success").getAsBoolean(), help.toString());
+            assertTrue(help.get("message").getAsString().startsWith(group + ": "), help.toString());
+        }
+        String moveHelp = run("move --help").get("message").getAsString();
+        assertTrue(moveHelp.contains("\n  move goto [--x <integer>] [--y <integer>] [--z <integer>] [--block <id>] "
+                + "[--route <word>] [--near <integer>] [route flags] — "), "组帮助里路线标志整组写成一格: " + moveHelp);
+        assertTrue(!moveHelp.contains("--avoid_break"), moveHelp);
+        String gotoHelp = run("move goto --help").get("message").getAsString();
+        assertTrue(gotoHelp.startsWith("move goto [--x <integer>] [--y <integer>] [--z <integer>] [--block <id>] "
+                + "[--route <word>] [--near <integer>] [route flags]\n"), gotoHelp);
+        assertTrue(gotoHelp.contains("\n  Route flags:\n    --alter <none|natural|any> "), gotoHelp);
+        assertTrue(gotoHelp.contains("--avoid_break <block|cell...>"), gotoHelp);
+        assertTrue(gotoHelp.endsWith("Shortcut tool: move_goto."), gotoHelp);
+        String mineHelp = run("work mine --help").get("message").getAsString();
+        assertTrue(mineHelp.startsWith("work mine [--block_ids <id...>] [--groups <word...>] [--count <integer>]"),
+                mineHelp);
+        assertTrue(mineHelp.endsWith("Shortcut tool: work_mine."), mineHelp);
+    }
+}

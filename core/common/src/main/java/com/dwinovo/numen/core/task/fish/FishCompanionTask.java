@@ -3,15 +3,17 @@ import com.dwinovo.numen.core.FailureType;
 
 import com.dwinovo.numen.core.Constants;
 import com.dwinovo.numen.core.mixin.FishingHookAccessor;
-import com.dwinovo.numen.core.pathing.calc.NavGoal;
-import com.dwinovo.numen.core.pathing.execute.PlayerNav;
-import com.dwinovo.numen.core.pathing.spec.CellClass;
-import com.dwinovo.numen.core.pathing.spec.RouteSpec;
-import com.dwinovo.numen.core.pathing.util.BlockHelper;
+import com.dwinovo.numen.core.nav.Feet;
+import com.dwinovo.numen.core.nav.Terrain;
+import com.dwinovo.numen.core.nav.Trip;
 import com.dwinovo.numen.core.task.base.AbstractCompanionTask;
 import com.dwinovo.numen.core.task.base.Precondition;
 import com.dwinovo.numen.entity.InputDriver;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.pathing.body.Hotbar;
+import com.dwinovo.numen.pathing.search.Goal;
+import com.dwinovo.numen.pathing.search.Goals;
+import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.task.TaskState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -46,7 +48,8 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
     private static final int STANCE_SEARCH_Y = 4;
     private static final int MAX_STANCE_CHECKS = 256;
     private static final int MAX_POSITION_FAILURES = 3;
-    private static final double NAV_SPEED = 1.0;
+    /** 走去捡战果时走到离它这么近(格):原版拾取框横向外扩一格。 */
+    private static final double PICKUP_RADIUS = 1.0;
 
     private static final int CAST_SEARCH_RADIUS = 10;
     private static final int CAST_SEARCH_Y = 4;
@@ -89,6 +92,8 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
     private int positionFailures;
     private ItemEntity lootTarget;
     private int lootCloseTicks;
+    /** 走去捡的那一趟朝着的那一格;战果滑走了就换目标。 */
+    private BlockPos lootHeading;
     private int unreachableLoot;
     /** 开始收这一竿战果时的 {@link #workTicks()}。 */
     private long lootSince;
@@ -108,7 +113,7 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
     protected TaskState onTick() {
         if (player.isDeadOrDying()) return TaskState.CANCELLED;
 
-        InputDriver.halt(player);
+        player.controls().stop();
         if (phase == Phase.POSITION) return positionForFishing();
         if (phase == Phase.COLLECT) return collectCaughtLoot();
         // requested == 0 = 主人没说钓几条 —— 这一行永远不成立,任务就是常驻的:
@@ -121,7 +126,7 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
             fail("fishing stopped because there is no fishing rod left", FailureType.WRONG_TOOL);
             return TaskState.FAILED;
         }
-        player.holdInHand(rodSlot);
+        Hotbar.hold(player, rodSlot);
         if (!player.getMainHandItem().is(Items.FISHING_ROD)) return TaskState.RUNNING;
 
         return switch (phase) {
@@ -138,7 +143,7 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
         if (stance == null || target == null) {
             FishingSetup setup = findFishingSetup();
             if (setup == null) {
-                fail("no safe dry fishing stance with reachable water nearby; move close to a shoreline and try fish again",
+                fail("no safe dry fishing stance with reachable water nearby; move close to a shoreline and try work fish again",
                         FailureType.OUT_OF_REACH);
                 return TaskState.FAILED;
             }
@@ -152,7 +157,7 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
             return TaskState.RUNNING;
         }
         if (nav == null) {
-            nav = PlayerNav.toGoal(player, () -> NavGoal.exact(stance), NAV_SPEED, this::atStance);
+            nav = Trip.to(player, Goals.at(stance), RouteSpec.defaults(), stance);
         }
         return switch (nav.tick()) {
             case RUNNING -> TaskState.RUNNING;
@@ -167,7 +172,7 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
                 stance = null;
                 target = null;
                 if (++positionFailures >= MAX_POSITION_FAILURES) {
-                    fail("nearby dry fishing stances were unreachable; move onto a clear shoreline and try fish again",
+                    fail("nearby dry fishing stances were unreachable; move onto a clear shoreline and try work fish again",
                             FailureType.NO_PATH);
                     yield TaskState.FAILED;
                 }
@@ -341,15 +346,25 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
                 if (++lootCloseTicks >= LOOT_CLOSE_WAIT_TICKS) abandonLootTarget();
                 return TaskState.RUNNING;
             } else {
-                lootCloseTicks = 0;
+                BlockPos at = lootTarget.blockPosition();
                 if (nav == null) {
-                    nav = new PlayerNav(player, lootTarget::blockPosition, NAV_SPEED,
-                            () -> lootTarget == null || lootTarget.isRemoved()
-                                    || player.distanceToSqr(lootTarget) <= PICKUP_REACH_SQR);
+                    lootHeading = at;
+                    nav = Trip.to(player, lootGoal(at), RouteSpec.defaults(), at);
+                } else if (!at.equals(lootHeading)) {
+                    // 战果滑走了、被水冲开了:目标跟着它挪
+                    lootHeading = at;
+                    nav.retarget(lootGoal(at), at);
                 }
                 switch (nav.tick()) {
-                    case RUNNING -> { return TaskState.RUNNING; }
-                    case ARRIVED -> { return TaskState.RUNNING; }
+                    case RUNNING -> {
+                        lootCloseTicks = 0;
+                        return TaskState.RUNNING;
+                    }
+                    case ARRIVED -> {
+                        // 站到了它旁边还没进包:和挨着它一样,给原版拾取一点时间,捡不起来就放弃
+                        if (++lootCloseTicks >= LOOT_CLOSE_WAIT_TICKS) abandonLootTarget();
+                        return TaskState.RUNNING;
+                    }
                     case FAILED -> {
                         abandonLootTarget();
                         return TaskState.RUNNING;
@@ -439,7 +454,7 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
         if (rejectTarget && failedTarget != null) rejectedTargets.add(failedTarget);
         if (++failedCasts >= MAX_FAILED_CASTS) {
             fail(reason + " after " + failedCasts
-                    + " attempts; move to a clearer shoreline and try fish again", FailureType.OUT_OF_REACH);
+                    + " attempts; move to a clearer shoreline and try work fish again", FailureType.OUT_OF_REACH);
             return TaskState.FAILED;
         }
         phase = Phase.PREPARE;
@@ -530,12 +545,13 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
                 .getCollisionShape(player.level(), pos.above()).isEmpty();
     }
 
+    /**
+     * 能站着钓鱼的干地方:出厂规格的路线会让她在这儿站着({@link Terrain#standingSpot}),脚与头所在的两格没有液体。
+     */
     private boolean isDryStance(BlockPos pos) {
-        return player.level().getFluidState(pos).isEmpty()
-                && player.level().getFluidState(pos.above()).isEmpty()
-                && CellClass.canWalkThrough(player.level(), pos, RouteSpec.defaults())
-                && CellClass.canWalkThrough(player.level(), pos.above(), RouteSpec.defaults())
-                && CellClass.canWalkOn(player.level(), pos.below(), RouteSpec.defaults());
+        Terrain terrain = Terrain.of(player);
+        return terrain.state(pos).getFluidState().isEmpty() && terrain.state(pos.above()).getFluidState().isEmpty()
+                && terrain.standingSpot(pos, RouteSpec.defaults());
     }
 
     private boolean atStance() {
@@ -543,7 +559,12 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
     }
 
     private BlockPos feet() {
-        return BlockHelper.playerFeet(player.level(), player.getX(), player.getY(), player.getZ());
+        return Feet.cell(player);
+    }
+
+    /** 走到离战果所在那一格 {@link #PICKUP_RADIUS} 格以内。 */
+    private static Goal lootGoal(BlockPos item) {
+        return Goals.near(item, PICKUP_RADIUS);
     }
 
     private void aimAtTarget() {
@@ -675,7 +696,7 @@ public final class FishCompanionTask extends AbstractCompanionTask<FishTaskRecor
 
     @Override
     protected void cleanup() {
-        InputDriver.halt(player);
+        player.controls().stop();
         discardHook();
         clearLootTracking();
         super.cleanup();

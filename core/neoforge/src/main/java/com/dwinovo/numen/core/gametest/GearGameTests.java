@@ -27,7 +27,7 @@ import static com.dwinovo.numen.core.gametest.GameTestKit.*;
 
 /**
  * 穿戴扩展点:测试经 {@code NumenApi.registerGear} 那扇门登记一处假的穿戴来源(两格 {@code gametest:ring}、
- * 一格封死的 {@code gametest:charm}),只对本测试的同伴生效。{@code equip_item} 的自动选位、被拒、缺槽、
+ * 一格封死的 {@code gametest:charm}),只对本测试的同伴生效。{@code gear wear} / {@code gear remove} 的自动选位、被拒、缺槽、
  * 槽名写错、卸下、满包、摘不下,以及 {@code <worn>},都经这一处来源走和原版同一条路。
  */
 @GameTestHolder(Constants.MOD_ID)
@@ -119,16 +119,16 @@ public class GearGameTests {
         return gear;
     }
 
-    /** 不给 slot:紫水晶碎片归 gametest:ring,进第一格空的,回执写出槽名,背包里少了它。 */
+    /** 不给 --slot:紫水晶碎片归 gametest:ring,进第一格空的,回执写出槽名,背包里少了它。 */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_gear")
     public static void gear_auto_choice_names_the_slot(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_ringbearer", new BlockPos(4, 2, 4), false);
         FakeGear gear = dress(companion);
         companion.getInventory().add(new ItemStack(Items.AMETHYST_SHARD));
-        ToolRun equip = call(companion, "equip_item", args("item_id", "minecraft:amethyst_shard"));
+        ToolRun equip = command(companion, "gear wear minecraft:amethyst_shard");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(equip.done(), "equip_item has not finished");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(equip.done(), "gear wear has not finished");
             helper.assertTrue(equip.succeeded() && equip.outcome().contains("gametest:ring"),
                     "the reply does not name the ring slot: " + equip.outcome());
             helper.assertTrue(gear.ring(0).worn.is(Items.AMETHYST_SHARD), "the shard is not in the first ring slot");
@@ -145,10 +145,10 @@ public class GearGameTests {
         FakeGear gear = dress(companion);
         companion.getInventory().add(new ItemStack(Items.EMERALD));
         companion.getInventory().selected = 5;   // 主手是空的那格,绿宝石在第 0 格
-        ToolRun equip = call(companion, "equip_item", args("item_id", "minecraft:emerald"));
+        ToolRun equip = command(companion, "gear wear minecraft:emerald");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(equip.done(), "equip_item has not finished");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(equip.done(), "gear wear has not finished");
             helper.assertTrue(!equip.succeeded() && equip.outcome().contains("sealed"),
                     "the failure does not carry the slot's reason: " + equip.outcome());
             helper.assertTrue(companion.getMainHandItem().isEmpty(), "her main hand changed");
@@ -165,10 +165,10 @@ public class GearGameTests {
         dress(companion);
         companion.getInventory().add(new ItemStack(Items.DIAMOND));
         companion.getInventory().selected = 5;
-        ToolRun equip = call(companion, "equip_item", args("item_id", "minecraft:diamond"));
+        ToolRun equip = command(companion, "gear wear minecraft:diamond");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(equip.done(), "equip_item has not finished");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(equip.done(), "gear wear has not finished");
             helper.assertTrue(!equip.succeeded() && equip.outcome().contains("gametest:belt"),
                     "the failure does not name the missing kind of slot: " + equip.outcome());
             helper.assertTrue(companion.getMainHandItem().isEmpty(), "the diamond went into her hand instead");
@@ -182,11 +182,10 @@ public class GearGameTests {
         NumenPlayer companion = spawnAt(helper, "gametest_crownless", new BlockPos(4, 2, 4), false);
         dress(companion);
         companion.getInventory().add(new ItemStack(Items.AMETHYST_SHARD));
-        ToolRun equip = call(companion, "equip_item",
-                args("item_id", "minecraft:amethyst_shard", "slot", "gametest:crown"));
+        ToolRun equip = command(companion, "gear wear minecraft:amethyst_shard --slot gametest:crown");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(equip.done(), "equip_item has not finished");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(equip.done(), "gear wear has not finished");
             String said = equip.outcome();
             helper.assertTrue(!equip.succeeded() && said.contains("gametest:crown") && said.contains("mainhand")
                             && said.contains("head") && said.contains("gametest:ring")
@@ -197,17 +196,17 @@ public class GearGameTests {
         });
     }
 
-    /** 按槽名卸下:两格 ring 都戴着,unequip slot=gametest:ring 两件都回背包。 */
+    /** 按槽名卸下:两格 ring 都戴着,gear remove --slot gametest:ring 两件都回背包。 */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_gear")
     public static void gear_unequip_by_slot_name(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_unringed", new BlockPos(4, 2, 4), false);
         FakeGear gear = dress(companion);
         gear.ring(0).worn = new ItemStack(Items.AMETHYST_SHARD);
         gear.ring(1).worn = new ItemStack(Items.IRON_NUGGET);
-        ToolRun unequip = call(companion, "equip_item", args("action", "unequip", "slot", "gametest:ring"));
+        ToolRun unequip = command(companion, "gear remove --slot gametest:ring");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(unequip.done(), "unequip has not finished");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(unequip.done(), "gear remove has not finished");
             helper.assertTrue(unequip.succeeded() && unequip.outcome().contains("amethyst_shard (gametest:ring)")
                             && unequip.outcome().contains("iron_nugget (gametest:ring)"),
                     "the reply does not name both pieces: " + unequip.outcome());
@@ -218,18 +217,17 @@ public class GearGameTests {
         });
     }
 
-    /** 按物品卸下:不给 slot,unequip item_id=紫水晶碎片,只从戴着它的那格摘,另一格不动。 */
+    /** 按物品卸下:不给 --slot,gear remove --item 紫水晶碎片,只从戴着它的那格摘,另一格不动。 */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_gear")
     public static void gear_unequip_by_item(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_pickyring", new BlockPos(4, 2, 4), false);
         FakeGear gear = dress(companion);
         gear.ring(0).worn = new ItemStack(Items.IRON_NUGGET);
         gear.ring(1).worn = new ItemStack(Items.AMETHYST_SHARD);
-        ToolRun unequip = call(companion, "equip_item",
-                args("action", "unequip", "item_id", "minecraft:amethyst_shard"));
+        ToolRun unequip = command(companion, "gear remove --item minecraft:amethyst_shard");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(unequip.done(), "unequip has not finished");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(unequip.done(), "gear remove has not finished");
             helper.assertTrue(unequip.succeeded() && unequip.outcome().contains("amethyst_shard (gametest:ring)"),
                     "the reply does not name the shard: " + unequip.outcome());
             helper.assertTrue(gear.ring(1).worn.isEmpty(), "the amethyst shard is still worn");
@@ -248,10 +246,10 @@ public class GearGameTests {
             companion.getInventory().setItem(i, new ItemStack(Items.COBBLESTONE, 64));
         }
         gear.ring(0).worn = new ItemStack(Items.AMETHYST_SHARD);
-        ToolRun unequip = call(companion, "equip_item", args("action", "unequip", "slot", "gametest:ring"));
+        ToolRun unequip = command(companion, "gear remove --slot gametest:ring");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(unequip.done(), "unequip has not finished");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(unequip.done(), "gear remove has not finished");
             helper.assertTrue(!unequip.succeeded() && unequip.outcome().contains("inventory is full"),
                     "the failure does not say the inventory is full: " + unequip.outcome());
             helper.assertTrue(gear.ring(0).worn.is(Items.AMETHYST_SHARD), "the ring came off with nowhere to go");
@@ -268,10 +266,10 @@ public class GearGameTests {
         FakeGear gear = dress(companion);
         gear.ring(0).worn = new ItemStack(Items.AMETHYST_SHARD);
         gear.ring(0).refuseRemove = "the ring is stuck fast";
-        ToolRun unequip = call(companion, "equip_item", args("action", "unequip", "slot", "gametest:ring"));
+        ToolRun unequip = command(companion, "gear remove --slot gametest:ring");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(unequip.done(), "unequip has not finished");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(unequip.done(), "gear remove has not finished");
             helper.assertTrue(!unequip.succeeded() && unequip.outcome().contains("stuck fast"),
                     "the failure does not carry the slot's reason: " + unequip.outcome());
             helper.assertTrue(gear.ring(0).worn.is(Items.AMETHYST_SHARD), "the stuck ring came off");
@@ -283,7 +281,7 @@ public class GearGameTests {
 
     /**
      * {@code <worn>} 排在身体状态最前面:原版四件甲与假来源的格子都列出,空位写 empty,同名多格逗号并列;
-     * {@code get_self_status} 的 equipment 只剩两只手。
+     * {@code status_self} 的 equipment 只剩两只手。
      */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_gear")
     public static void body_state_lists_every_worn_slot(GameTestHelper helper) {
@@ -291,10 +289,10 @@ public class GearGameTests {
         FakeGear gear = dress(companion);
         gear.ring(0).worn = new ItemStack(Items.AMETHYST_SHARD);
         companion.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
-        ToolRun status = call(companion, "get_self_status", args());
+        ToolRun status = call(companion, "status_self", args());
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(status.reply() != null, "get_self_status has not replied");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(status.reply() != null, "status_self has not replied");
             var s = com.google.gson.JsonParser.parseString(status.reply()).getAsJsonObject();
             String body = s.get("body_state").getAsString();
             // 原版最先登记,排在最前;别的来源(装了的饰品模组)可能夹在中间,所以假来源那段只看在不在 <worn> 里
@@ -309,32 +307,55 @@ public class GearGameTests {
     }
 
     /**
-     * 遣散像死亡一样全掉在脚下:原版的头盔,和不在原版物品栏里的那处来源上戴着的,都落地各一件,
+     * 遣散像死亡一样全掉在脚下:背包里的、原版的头盔,和不在原版物品栏里的那处来源上戴着的,都落地各一件,
      * 身上不再戴着。只丢原版物品栏的话,模组的饰品会跟着身体一起消失。
      */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_gear")
     public static void dismiss_drops_what_she_wears(GameTestHelper helper) {
+        dismissDropsEverything(helper, "gametest_farewell", "gametest_bereaved",
+                (owner, companion) -> com.dwinovo.numen.network.payload.DismissRequestPayload.handle(
+                        new com.dwinovo.numen.network.payload.DismissRequestPayload(companion.getUUID()), owner));
+    }
+
+    /** 主人敲 {@code /numen player despawn} 和在面板上点 ✕ 是同一次遣散,掉的东西一样。 */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_gear")
+    public static void despawn_command_drops_what_she_carries_and_wears(GameTestHelper helper) {
+        dismissDropsEverything(helper, "gametest_parting", "gametest_mourner",
+                (owner, companion) -> owner.getServer().getCommands().performPrefixedCommand(
+                        owner.createCommandSourceStack(), "numen player despawn " + companion.getGameProfile().getName()));
+    }
+
+    private static void dismissDropsEverything(GameTestHelper helper, String name, String ownerName,
+            java.util.function.BiConsumer<net.minecraft.server.level.ServerPlayer, NumenPlayer> dismiss) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_farewell", new BlockPos(4, 2, 4), false);
-        NumenPlayer owner = presentOwner(helper, companion, "gametest_bereaved");
+        // 照正式召唤入册:遣散认的是注册表(按名遣散只查它),没入册的身体在正式游戏里不存在
+        var owner = presentPlayer(helper, null, ownerName);
+        BlockPos at = helper.absolutePos(new BlockPos(4, 2, 4));
+        NumenPlayer companion = com.dwinovo.numen.entity.Companions.summon(level.getServer(), owner.getUUID(), name,
+                level, new net.minecraft.world.phys.Vec3(at.getX() + 0.5, at.getY(), at.getZ() + 0.5));
         FakeGear gear = dress(companion);
         gear.ring(1).worn = new ItemStack(Items.AMETHYST_SHARD);
         companion.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+        companion.getInventory().add(new ItemStack(Items.DIAMOND));
         net.minecraft.world.phys.AABB around = companion.getBoundingBox().inflate(4);
-        com.dwinovo.numen.network.payload.DismissRequestPayload.handle(
-                new com.dwinovo.numen.network.payload.DismissRequestPayload(companion.getUUID()), owner);
+        dismiss.accept(owner, companion);
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             var drops = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, around);
             int shards = drops.stream().filter(e -> e.getItem().is(Items.AMETHYST_SHARD))
                     .mapToInt(e -> e.getItem().getCount()).sum();
             int helmets = drops.stream().filter(e -> e.getItem().is(Items.IRON_HELMET))
                     .mapToInt(e -> e.getItem().getCount()).sum();
+            int diamonds = drops.stream().filter(e -> e.getItem().is(Items.DIAMOND))
+                    .mapToInt(e -> e.getItem().getCount()).sum();
             helper.assertTrue(shards == 1, "the worn shard did not drop exactly once: " + shards);
             helper.assertTrue(helmets == 1, "the helmet did not drop exactly once: " + helmets);
+            helper.assertTrue(diamonds == 1, "the carried diamond did not drop exactly once: " + diamonds);
             helper.assertTrue(gear.ring(1).worn.isEmpty(), "the shard is still worn by a dismissed body");
+            helper.assertTrue(NumenPlayer.findByUuid(level.getServer(), companion.getUUID()) == null,
+                    "the dismissed body is still in the world");
             drops.forEach(net.minecraft.world.entity.Entity::discard);
-            CompanionFactory.despawn(level.getServer(), owner);
+            leave(owner);
         });
     }
 }

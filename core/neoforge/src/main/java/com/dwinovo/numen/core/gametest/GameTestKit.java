@@ -1,5 +1,9 @@
 package com.dwinovo.numen.core.gametest;
 
+import com.dwinovo.numen.agent.inbox.EventQueue;
+import com.dwinovo.numen.agent.loop.SerialCalls;
+import com.dwinovo.numen.agent.loop.ToolPort;
+import com.dwinovo.numen.agent.provider.LlmToolCall;
 import com.dwinovo.numen.agent.tool.NumenTool;
 import com.dwinovo.numen.agent.tool.ToolRegistry;
 import com.dwinovo.numen.core.Constants;
@@ -52,6 +56,10 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
  * <p>更远的感知(mine 与 goto 找方块扫 32 个 chunk、mine 捡掉落物按视距、逃跑看 32~40 格)隔不开:
  * 这类用例靠场景用别的用例不会留下的东西(独一种方块、物品)来保证只看见自己的。
  *
+ * <h2>步骤一律经 {@link #steps} 与 {@link #succeedWhen}</h2>
+ * 原版的 {@code helper.startSequence()} 与 {@code helper.succeedWhen} 在一步失败之后照样往下跑、也接不住断言以外的异常,
+ * 一条用例的失败会把整台测试服带崩({@link Steps})。用例不直接用它们。
+ *
  * <p>用例按领域分在同包的各个 {@code *GameTests} 类里;两个以上的类都要用的身体生成与场景搭建放在这里。
  * 这个类自己没有用例,仍挂着 {@link GameTestHolder}:NeoForge 登记用例时加载并初始化每个挂着它的类,
  * 静态块因此赶在任何结构模板加载之前把模板目录指到仓库里。
@@ -84,6 +92,16 @@ public final class GameTestKit {
         if (dir != null) {
             StructureUtils.testStructuresDir = dir;
         }
+    }
+
+    /** 这条用例的步骤,代替原版的 {@code helper.startSequence()}:一步失败只让这一条用例失败,见 {@link Steps}。 */
+    static Steps steps(GameTestHelper helper) {
+        return new Steps(helper);
+    }
+
+    /** 等到 {@code check} 成立就算通过,代替原版的 {@code helper.succeedWhen}:它抛出别的异常也只让这一条用例失败。 */
+    static void succeedWhen(GameTestHelper helper, Runnable check) {
+        steps(helper).thenWaitUntil(check).thenSucceed();
     }
 
     /** 把她提到 rel 那一格上空放手。 */
@@ -219,13 +237,6 @@ public final class GameTestKit {
         return n;
     }
 
-    /** goto/plan_route 的 spec:可自然改动。 */
-    static com.google.gson.JsonObject naturalSpec() {
-        com.google.gson.JsonObject spec = new com.google.gson.JsonObject();
-        spec.addProperty("alter", "natural");
-        return spec;
-    }
-
     /** 回执里点名的第一个路线 id(r1、r2……)。 */
     static String firstRouteId(String reply) {
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\br\\d+\\b").matcher(reply);
@@ -237,8 +248,21 @@ public final class GameTestKit {
         return call(companion, "scan_blocks", args("radius", radius, "block_ids", List.of(blockId)));
     }
 
+    /** 回执这一页列出的团:消息里一团一行,每行一个 JSON 对象(抬头、翻页提示与结尾不是)。 */
     static com.google.gson.JsonArray groupsIn(String reply) {
-        return com.google.gson.JsonParser.parseString(reply).getAsJsonObject().getAsJsonArray("groups");
+        return rowsIn(reply);
+    }
+
+    /** 回执消息里一条一行的 JSON 对象({@code scan blocks}、{@code scan entities} 的清单)。 */
+    static com.google.gson.JsonArray rowsIn(String reply) {
+        String message = com.google.gson.JsonParser.parseString(reply).getAsJsonObject().get("message").getAsString();
+        com.google.gson.JsonArray rows = new com.google.gson.JsonArray();
+        for (String line : message.split("\n")) {
+            if (line.startsWith("{")) {
+                rows.add(com.google.gson.JsonParser.parseString(line));
+            }
+        }
+        return rows;
     }
 
     /** 列出了 {@code cell} 这一格的那一团;没有为 null。 */
@@ -258,11 +282,19 @@ public final class GameTestKit {
         return null;
     }
 
-    /** interact_at 对着 {@code rel} 那一格按一下,同步调用。 */
+    /** {@code use block} 对着 {@code rel} 那一格按一下,同步调用。 */
     static TaskRecord click(GameTestHelper helper, NumenPlayer companion, String button, BlockPos rel) {
-        BlockPos at = helper.absolutePos(rel);
-        return call(companion, "interact_at", args("button", button, "x", at.getX(), "y", at.getY(), "z", at.getZ()))
-                .task();
+        return command(companion, "use block " + button + " " + at(helper, rel)).task();
+    }
+
+    /** {@code rel} 那一格的绝对坐标,写成命令行上的 {@code x y z}。 */
+    static String at(GameTestHelper helper, BlockPos rel) {
+        return xyz(helper.absolutePos(rel));
+    }
+
+    /** 一格的坐标写成命令行上的 {@code x y z}。 */
+    static String xyz(BlockPos pos) {
+        return pos.getX() + " " + pos.getY() + " " + pos.getZ();
     }
 
 
@@ -329,9 +361,132 @@ public final class GameTestKit {
         return new ToolRun(toolName, replied, CompanionTickDispatcher.taskOf(body.getUUID(), id));
     }
 
+    /**
+     * 一件直接交执行器的建造活,不经命令:测的是执行器本身(施工顺序、扣料、落定、续建)。按设计或蓝图施工、当场执行原语
+     * 从 {@code build} 命令进来的,见 BuildGameTests 里经 {@link #command} 调的那些。
+     */
+    static com.dwinovo.numen.core.task.build.BuildTaskRecord buildJob(String callId, long deadline,
+            com.dwinovo.numen.core.build.Layout layout, boolean consume, boolean partial) {
+        return new com.dwinovo.numen.core.task.build.BuildTaskRecord("build", callId, deadline, layout, consume,
+                partial, null);
+    }
+
+    /** 只有方块的一件建造活,见 {@link #buildJob(String, long, com.dwinovo.numen.core.build.Layout, boolean, boolean)}。 */
+    static com.dwinovo.numen.core.task.build.BuildTaskRecord buildJob(String callId, long deadline,
+            List<com.dwinovo.numen.core.task.build.BuildTaskRecord.Target> targets, boolean consume, boolean partial) {
+        return buildJob(callId, deadline, com.dwinovo.numen.core.build.Layout.of(targets, 0), consume, partial);
+    }
+
+    /**
+     * 按模型的样子派一轮调用:模型一次回复里写了这几条,交给内脑派发的同一个顺序({@link SerialCalls})——一条做完才派
+     * 下一条,后台活等它的 task_finished 进了队列才往下走。每条照 {@link #call} 从工具表取、走 {@link NumenTool#serve};
+     * 主人不在线,收尾的事件进出箱,每刻把新到的条目按收件箱的急件规则交给这一轮一次,和内核转给派发器的一样。
+     */
+    static Round round(GameTestHelper helper, NumenPlayer body, LlmToolCall... calls) {
+        Round round = new Round(body);
+        helper.onEachTick(round::feed);
+        round.calls.run(List.of(calls), round);
+        return round;
+    }
+
+    /** 一轮里的一条工具调用。 */
+    static LlmToolCall toolCall(String toolName, JsonObject args) {
+        return new LlmToolCall("gametest-" + toolName + "-" + UUID.randomUUID(), toolName, args.toString());
+    }
+
+    /** 一轮里的一行指令:一条 {@code command} 工具调用。 */
+    static LlmToolCall commandCall(String line) {
+        return toolCall(com.dwinovo.numen.cli.CommandTool.NAME, args("command", line));
+    }
+
+    /** 一轮调用的现场:每条的结果、派出那一刻她站在哪、这一轮结算没有。 */
+    static final class Round implements ToolPort.Sink {
+
+        private final NumenPlayer body;
+        /** 她的收件箱:进来的条目急不急由它的规则算,和主人客户端上同一条。 */
+        private final EventQueue inbox = new EventQueue(EventQueue.Journal.NONE);
+        private final SerialCalls calls;
+        private final java.util.Map<String, String> results = new java.util.HashMap<>();
+        private final java.util.Map<String, Vec3> startedAt = new java.util.HashMap<>();
+        /** 出箱里已经交给这一轮的条目数。 */
+        private int fed;
+        private boolean settled;
+
+        private Round(NumenPlayer body) {
+            this.body = body;
+            this.calls = new SerialCalls((call, done) -> ToolRegistry.get(call.name()).serve(call.id(),
+                    JsonParser.parseString(call.arguments()).getAsJsonObject(), body, done),
+                    com.dwinovo.numen.task.TaskDispatch::runningTaskOf,
+                    com.dwinovo.numen.event.NumenEvents::finishedTaskOf);
+        }
+
+        /** 出箱里新到的事件交给这一轮。 */
+        private void feed() {
+            List<EventQueue.Entry> out = com.dwinovo.numen.entity.EventOutbox.get(body.getServer())
+                    .peek(body.getUUID()).entries();
+            for (; fed < out.size(); fed++) {
+                arrive(out.get(fed));
+            }
+        }
+
+        /** 主人开口说一句,和他在聊天框里说的一样进她的收件箱。 */
+        void ownerSays(String words) {
+            arrive(new EventQueue.Entry(com.dwinovo.numen.agent.inbox.EventTypes.QUERY,
+                    "<query>" + words + "</query>", System.currentTimeMillis(), false));
+        }
+
+        private void arrive(EventQueue.Entry entry) {
+            calls.arrived(entry, inbox.push(entry.type(), entry.text(), entry.ts(), entry.urgent()));
+        }
+
+        @Override
+        public void started(LlmToolCall call) {
+            startedAt.put(call.id(), body.position());
+        }
+
+        @Override
+        public void finished(LlmToolCall call, String resultJson) {
+            results.put(call.id(), resultJson);
+        }
+
+        @Override
+        public void settled() {
+            settled = true;
+        }
+
+        /** 这条调用的结果;还没有是 null。 */
+        String result(LlmToolCall call) {
+            return results.get(call.id());
+        }
+
+        /** 这条调用派出那一刻她站在哪;还没派出是 null。 */
+        Vec3 startedAt(LlmToolCall call) {
+            return startedAt.get(call.id());
+        }
+
+        /** 这一轮结算了:每条调用都有了结果。 */
+        boolean hasSettled() {
+            return settled;
+        }
+    }
+
     /** 按模型的样子执行一行指令:就是调一次 {@code command} 工具,和 {@link #call} 同一个入口。 */
     static ToolRun command(NumenPlayer body, String line) {
         return call(body, com.dwinovo.numen.cli.CommandTool.NAME, args("command", line));
+    }
+
+    /**
+     * 一张按输出预算分页的清单,从第一页往后翻,直到哪一页里有 {@code needle}:清单跨次攒下来,要找的那条落在第几页由
+     * 前面有多少条定。翻到最后一页也没有、或者哪一页失败了,返回那一页,由用例的断言说明白。
+     */
+    static ToolRun pageWith(NumenPlayer body, String line, String needle) {
+        for (int page = 1; ; page++) {
+            ToolRun run = command(body, line + " --page " + page);
+            if (!run.succeeded() || run.reply().contains(needle)
+                    || !run.reply().contains(" --page " + (page + 1) + " to continue.]")) {
+                return run;
+            }
+        }
     }
 
     /** 拼工具参数:键、值交替;值是字符串、数字、布尔、列表(成 JSON 数组)或现成的 JSON。 */

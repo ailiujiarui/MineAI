@@ -41,11 +41,11 @@ public class ModeGameTests {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = spawnAt(helper, "gametest_cghost", new BlockPos(2, 2, 2), true);
         BlockPos target = helper.absolutePos(new BlockPos(13, 2, 13));
-        TaskRecord record = call(companion, "goto", args(
-                "x", (double) target.getX(),
-                "y", (double) target.getY(),
-                "z", (double) target.getZ())).task();
-        helper.succeedWhen(() -> {
+        TaskRecord record = call(companion, "move_goto", args(
+                "x", target.getX(),
+                "y", target.getY(),
+                "z", target.getZ())).task();
+        succeedWhen(helper, () -> {
             helper.assertTrue(companion.blockPosition().distSqr(target) <= 2 * 2,
                     "creative companion has not reached the goto target");
             CompanionFactory.despawn(level.getServer(), companion);
@@ -68,11 +68,11 @@ public class ModeGameTests {
         }
         NumenPlayer companion = spawnAt(helper, "gametest_cminer", new BlockPos(2, 2, 2), true);
 
-        TaskRecord record = call(companion, "mine", args(
+        TaskRecord record = call(companion, "work_mine", args(
                 "block_ids", List.of("minecraft:gold_ore"),
                 "count", 4)).task();
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             for (BlockPos ore : ores) {
                 helper.assertTrue(level.getBlockState(ore).isAir(),
                         "gold ore not broken at " + ore.toShortString());
@@ -95,9 +95,9 @@ public class ModeGameTests {
                     helper.absolutePos(rel), "cobblestone"));
         }
         var ctx = TaskDispatch.ctx("gametest-cbuild", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(3600L), targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, false), null, reply -> {});
-        helper.succeedWhen(() -> {
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(),
+                ctx.deadline(3600L), targets, false, false), null, reply -> {});
+        succeedWhen(helper, () -> {
             for (BuildTaskRecord.Target t : targets) {
                 helper.assertTrue(level.getBlockState(t.pos()).is(Blocks.COBBLESTONE),
                         "structure incomplete at " + t.pos().toShortString());
@@ -120,10 +120,9 @@ public class ModeGameTests {
         }
         var ctx = TaskDispatch.ctx("gametest-sbuild-broke", companion);
         // dispatchAsync 的回调只回"已受理"收条;预检失败落在任务记录的终态上
-        BuildTaskRecord record = new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(3600L), targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true);
+        BuildTaskRecord record = buildJob(ctx.toolCallId(), ctx.deadline(3600L), targets, true, false);
         TaskDispatch.setTask(companion, record, null, reply -> {});
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             var result = record.getResult();
             helper.assertTrue(result != null && !result.success()
                             && result.message() != null
@@ -158,15 +157,65 @@ public class ModeGameTests {
         }
         NumenPlayer companion = spawnAt(helper, "gametest_climber", new BlockPos(3, 2, 3), true);
         BlockPos target = helper.absolutePos(new BlockPos(12, 2, 12));
-        TaskRecord record = call(companion, "goto", args(
-                "x", (double) target.getX(),
-                "y", (double) target.getY(),
-                "z", (double) target.getZ(),
-                "spec", naturalSpec())).task();
-        helper.succeedWhen(() -> {
+        TaskRecord record = call(companion, "move_goto", args(
+                "x", target.getX(),
+                "y", target.getY(),
+                "z", target.getZ(),
+                "alter", "natural")).task();
+        succeedWhen(helper, () -> {
             helper.assertTrue(companion.blockPosition().distSqr(target) <= 2 * 2,
                     "empty-handed creative companion has not pillared out");
             CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
+     * 空手创造按她自己的垫路清单变料:清单里只有圆石,困在同一口黑曜石竖井里,照样垫圆石柱爬出来,
+     * 背包里也不多出一块清单外的料。
+     *
+     * <p>钉的是"有料可垫"只有一个判据:规划器认定创造画像有料,执行器取料就得取得出规划器认下的那种。
+     * 两边各算一份时,执行器变出一组清单外的泥土、选不出能放的料,垫柱那一步采纳即夭折,重新规划又是
+     * 同一条路。用名册里登记过的同伴——清单跟着名册落盘。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_mode")
+    public static void creative_pillars_with_her_own_throwaway_list(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floor = helper.absolutePos(new BlockPos(3, 2, 3));
+        NumenPlayer companion = com.dwinovo.numen.entity.Companions.summon(level.getServer(),
+                java.util.UUID.randomUUID(), "gametest_cobbler", level,
+                net.minecraft.world.phys.Vec3.atBottomCenterOf(floor));
+        for (int y = 2; y <= 4; y++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dz == 0) continue;
+                    level.setBlockAndUpdate(helper.absolutePos(new BlockPos(3 + dx, y, 3 + dz)),
+                            Blocks.OBSIDIAN.defaultBlockState());
+                }
+            }
+        }
+        companion.teleportTo(floor.getX() + 0.5, floor.getY(), floor.getZ() + 0.5);
+        companion.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+        com.dwinovo.numen.core.nav.ThrowawayBlocks.store(companion, List.of("minecraft:cobblestone"));
+        BlockPos target = helper.absolutePos(new BlockPos(12, 2, 12));
+        TaskRecord record = call(companion, "move_goto", args(
+                "x", target.getX(),
+                "y", target.getY(),
+                "z", target.getZ(),
+                "alter", "natural")).task();
+        helper.onEachTick(() -> {
+            if (record.getResult() != null && !record.getResult().success()) {
+                helper.fail("she did not pillar out of the well with her own throwaway blocks: "
+                        + record.getResult().message());
+            }
+        });
+        succeedWhen(helper, () -> {
+            helper.assertTrue(companion.blockPosition().distSqr(target) <= 2 * 2,
+                    "she has not pillared out of the well yet");
+            helper.assertTrue(level.getBlockState(floor).is(Blocks.COBBLESTONE),
+                    "the pillar is not cobblestone: " + level.getBlockState(floor));
+            helper.assertTrue(companion.getInventory().countItem(Items.DIRT) == 0,
+                    "she conjured dirt, which is not on her list");
+            com.dwinovo.numen.entity.Companions.dismiss(level.getServer(), companion);
         });
     }
 
@@ -273,30 +322,30 @@ public class ModeGameTests {
         helper.succeed();
     }
 
-    /** 创造取物:take_items 凭空取 100 钻石入背包(创造物品栏 GUI 的假体)。 */
+    /** 创造取物:inv take 凭空取 100 钻石入背包(创造物品栏 GUI 的假体)。 */
     @GameTest(template = "floor16", timeoutTicks = 6000, batch = "numen_mode")
     public static void creative_take_items(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = spawnAt(helper, "gametest_conjure", new BlockPos(2, 2, 2), true);
-        ToolRun reply = call(companion, "take_items", args("item_id", "minecraft:diamond", "count", 100));
-        helper.succeedWhen(() -> {
+        ToolRun reply = command(companion, "inv take minecraft:diamond 100");
+        succeedWhen(helper, () -> {
             helper.assertTrue(reply.reply() != null && reply.reply().contains("\"success\":true"),
-                    "take_items should succeed in creative, got: " + reply.reply());
+                    "inv take should succeed in creative, got: " + reply.reply());
             helper.assertTrue(companion.getInventory().countItem(Items.DIAMOND) == 100,
                     "expected 100 diamonds in inventory");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
 
-    /** 生存取物拒绝:take_items 在生存画像下吃诚实拒绝,背包不动。 */
+    /** 生存取物拒绝:inv take 在生存画像下吃诚实拒绝,背包不动。 */
     @GameTest(template = "floor16", timeoutTicks = 6000, batch = "numen_mode")
     public static void survival_take_items_refused(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = spawnAt(helper, "gametest_honest", new BlockPos(2, 2, 2), false);
-        ToolRun reply = call(companion, "take_items", args("item_id", "minecraft:diamond", "count", 10));
-        helper.succeedWhen(() -> {
+        ToolRun reply = command(companion, "inv take minecraft:diamond 10");
+        succeedWhen(helper, () -> {
             helper.assertTrue(reply.reply() != null && reply.reply().contains("\"success\":false"),
-                    "take_items must refuse in survival, got: " + reply.reply());
+                    "inv take must refuse in survival, got: " + reply.reply());
             helper.assertTrue(companion.getInventory().countItem(Items.DIAMOND) == 0,
                     "survival refusal must not add items");
             CompanionFactory.despawn(level.getServer(), companion);
@@ -315,9 +364,9 @@ public class ModeGameTests {
                     helper.absolutePos(rel), "cobblestone"));
         }
         var ctx = TaskDispatch.ctx("gametest-sbuild", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(3600L), targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true), null, reply -> {});
-        helper.succeedWhen(() -> {
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(),
+                ctx.deadline(3600L), targets, true, false), null, reply -> {});
+        succeedWhen(helper, () -> {
             for (BuildTaskRecord.Target t : targets) {
                 helper.assertTrue(level.getBlockState(t.pos()).is(Blocks.COBBLESTONE),
                         "structure incomplete at " + t.pos().toShortString());

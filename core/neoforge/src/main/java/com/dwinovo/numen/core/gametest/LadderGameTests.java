@@ -92,7 +92,7 @@ public class LadderGameTests {
         }
         NumenPlayer companion = spawnAt(helper, "gametest_l5", new BlockPos(4, 2, 4), false);
         companion.getInventory().add(new ItemStack(Items.WOODEN_PICKAXE));
-        TaskRecord task = call(companion, "mine", args(
+        TaskRecord task = call(companion, "work_mine", args(
                 "block_ids", List.of("minecraft:stone"), "count", 3)).task();
         helper.succeedWhen(() -> {
             helper.assertTrue(task.getResult() != null && task.getResult().success(),
@@ -121,18 +121,16 @@ public class LadderGameTests {
         companion.getInventory().add(new ItemStack(Items.COAL, 1));
 
         helper.startSequence()
-                .thenExecute(() -> call(companion, "interact_at", args(
-                        "button", "right",
-                        "x", furnace.getX(), "y", furnace.getY(), "z", furnace.getZ(),
-                        "hold_ticks", 0)))
+                .thenExecute(() -> command(companion, "use block right "
+                        + furnace.getX() + " " + furnace.getY() + " " + furnace.getZ()))
                 .thenWaitUntil(() -> helper.assertTrue(
                         companion.containerMenu instanceof AbstractFurnaceMenu, "furnace GUI not open"))
                 .thenExecute(() -> {
                     // 熔炉菜单:0=输入,1=燃料,2=产出。她自己的格子按菜单号取,不靠固定偏移。
                     int raw = menuSlotOf(companion, Items.RAW_IRON);
                     int coal = menuSlotOf(companion, Items.COAL);
-                    call(companion, "transfer", args("moves", List.of(
-                            move(raw, 0, 1), move(coal, 1, 1))));
+                    command(companion, "use transfer " + raw + " 0 --count 1");
+                    command(companion, "use transfer " + coal + " 1 --count 1");
                 })
                 .thenWaitUntil(() -> helper.assertTrue(
                         companion.containerMenu.getSlot(0).getItem().is(Items.RAW_IRON)
@@ -141,8 +139,8 @@ public class LadderGameTests {
                 .thenWaitUntil(() -> helper.assertTrue(
                         companion.containerMenu.getSlot(2).getItem().is(Items.IRON_INGOT),
                         "the furnace has not produced the iron ingot yet"))
-                // 产物在产出格,还没进包:整叠路由取出(省 to),才拿得到手里。
-                .thenExecute(() -> call(companion, "transfer", args("moves", List.of(args("from", 2)))))
+                // 产物在产出格,还没进包:shift 整叠取回她背包。
+                .thenExecute(() -> command(companion, "use shift 2"))
                 .thenWaitUntil(() -> helper.assertTrue(
                         PlayerInv.count(companion.getInventory(), Items.IRON_INGOT) >= 1, "no iron ingot yet"))
                 .thenExecute(() -> CompanionFactory.despawn(level.getServer(), companion))
@@ -165,7 +163,7 @@ public class LadderGameTests {
             level.setBlockAndUpdate(helper.absolutePos(pos), state);
         }
         NumenPlayer companion = spawnAt(helper, name, new BlockPos(4, 2, 4), false);
-        TaskRecord task = call(companion, "mine", args(
+        TaskRecord task = call(companion, "work_mine", args(
                 "block_ids", List.of(blockId), "count", count)).task();
         helper.succeedWhen(() -> {
             helper.assertTrue(task.getResult() != null && task.getResult().success(),
@@ -187,7 +185,7 @@ public class LadderGameTests {
         // 3x3 配方要有工作台够得着;放一个在她旁边(2x2 配方用不上,无害)
         level.setBlockAndUpdate(helper.absolutePos(new BlockPos(5, 2, 4)),
                 Blocks.CRAFTING_TABLE.defaultBlockState());
-        ToolRun run = call(companion, "craft", args("item_id", itemId, "count", 1));
+        ToolRun run = command(companion, "inv craft " + itemId + " --count 1");
         helper.succeedWhen(() -> {
             helper.assertTrue(run.succeeded(), "craft refused: " + run.reply());
             helper.assertTrue(PlayerInv.count(companion.getInventory(), expected) >= 1, "no " + itemId);
@@ -217,7 +215,7 @@ public class LadderGameTests {
         }
         level.setBlockAndUpdate(helper.absolutePos(new BlockPos(5, 2, 4)),
                 Blocks.CRAFTING_TABLE.defaultBlockState());
-        ToolRun run = call(companion, "craft", args("item_id", itemId, "count", 1));
+        ToolRun run = command(companion, "inv craft " + itemId + " --count 1");
         helper.succeedWhen(() -> {
             helper.assertTrue(run.succeeded(), "craft refused: " + run.reply());
             helper.assertTrue(PlayerInv.count(companion.getInventory(), target) >= 1, "no " + itemId);
@@ -232,14 +230,6 @@ public class LadderGameTests {
             }
         }
         return null;
-    }
-
-    private static com.google.gson.JsonObject move(int from, int to, int count) {
-        com.google.gson.JsonObject m = new com.google.gson.JsonObject();
-        m.addProperty("from", from);
-        m.addProperty("to", to);
-        m.addProperty("count", count);
-        return m;
     }
 
     private static String outcome(TaskRecord task) {

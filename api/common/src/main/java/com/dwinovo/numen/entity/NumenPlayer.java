@@ -1,6 +1,9 @@
 package com.dwinovo.numen.entity;
 
 import com.dwinovo.numen.api.CompanionEvent;
+import com.dwinovo.numen.pathing.body.Body;
+import com.dwinovo.numen.pathing.body.Controls;
+import com.dwinovo.numen.pathing.body.Physics;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.UUIDUtil;
@@ -31,8 +34,12 @@ import java.util.UUID;
  * {@link #addAdditionalSaveData}. Owner checks are UUID comparisons — never
  * vanilla {@code isOwnedBy} (which resolves through a level and breaks across
  * dimensions).
+ *
+ * <h2>身体</h2>
+ * 她就是寻路模块的身体端口({@link Body}):一副键盘({@link Controls}),导航、本能与各件活按的都是它;每刻在自己的实体刻里
+ * 跑一次物理步进({@link Physics#step}),按着的键在那里落成输入。
  */
-public final class NumenPlayer extends ServerPlayer {
+public final class NumenPlayer extends ServerPlayer implements Body {
 
     private static final String NBT_KEY_OWNER = "NumenOwner";
     private static final String NBT_KEY_ID_NUMBER = "NumenIdNumber";
@@ -45,6 +52,9 @@ public final class NumenPlayer extends ServerPlayer {
 
     /** 她没有客户端,服务端等的那几个回执由它代答。见 {@link FakeClient}。 */
     private final FakeClient fakeClient = new FakeClient(this);
+
+    /** 她的键盘:谁要让身体走、跳、潜行都按它,{@link Physics#step} 每刻落一次。 */
+    private final Controls controls = new Controls();
 
     /**
      * 死因,在 {@link #die} 里趁早抄下来。
@@ -249,6 +259,22 @@ public final class NumenPlayer extends ServerPlayer {
         return ownerUuid == null ? null : level().getServer().getPlayerList().getPlayer(ownerUuid);
     }
 
+    /**
+     * The owner's name for people to read: the online owner's, else the server's profile cache; empty when
+     * there is no owner or the name is unknown.
+     */
+    public String ownerName() {
+        if (ownerUuid == null) {
+            return "";
+        }
+        ServerPlayer online = resolveOwnerPlayer();
+        return online != null ? online.getGameProfile().getName()
+                : java.util.Optional.ofNullable(getServer().getProfileCache())
+                        .flatMap(cache -> cache.get(ownerUuid))
+                        .map(com.mojang.authlib.GameProfile::getName)
+                        .orElse("");
+    }
+
 
     /** True if {@code item} sits anywhere in the inventory (hotbar/main/offhand all count). */
     public boolean ensureInInventory(Item item) {
@@ -257,29 +283,6 @@ public final class NumenPlayer extends ServerPlayer {
             if (inv.getItem(i).is(item)) return true;
         }
         return false;
-    }
-
-    /**
-     * Hold the item in inventory slot {@code slot} in the main hand the way a real player
-     * does — a hotbar slot is simply SELECTED (number-key); a main-inventory slot is SWAPPED
-     * into the currently selected hotbar slot (item-conserving). This is the only correct way
-     * to "switch to hand": calling {@code setItemInHand(MAIN_HAND, stack)} overwrites the held
-     * item (losing it) and aliases ONE {@link net.minecraft.world.item.ItemStack} across two
-     * slots, which corrupts the inventory once the stack is consumed. No-op for {@code slot < 0}.
-     */
-    public void holdInHand(int slot) {
-        if (slot < 0) {
-            return;
-        }
-        var inv = getInventory();
-        if (net.minecraft.world.entity.player.Inventory.isHotbarSlot(slot)) {
-            inv.selected = slot;
-            return;
-        }
-        int selected = inv.selected;
-        net.minecraft.world.item.ItemStack held = inv.getItem(selected);
-        inv.setItem(selected, inv.getItem(slot));
-        inv.setItem(slot, held);
     }
 
     /**
@@ -300,21 +303,6 @@ public final class NumenPlayer extends ServerPlayer {
         return true;
     }
 
-    // ---- server tick (restore the movement pass a fake connection skips) ----
-
-    /**
-     * Drive the body's own movement physics. A real {@link ServerPlayer} runs
-     * {@code travel} (against {@code zza}/{@code xxa}), food, air and pose inside
-     * {@link #doTick()}, which the network layer invokes via
-     * {@code connection.tick()}. A fake player's connection is a no-op, so
-     * {@code doTick()} never fires and the body would only ever turn (a direct
-     * {@code setYRot} write) without walking. The entity system already calls
-     * {@code super.tick()} (menus / container / position sync), so we add the
-     * missing {@code doTick()} movement pass here in our own {@code tick()}
-     * override. Every 10 ticks we resync the
-     * connection position and let chunk loading follow the body so it never
-     * walks out of its loaded area.
-     */
     /**
      * 挨打。原样交给父类结算,只在真的掉了血之后广播一条 {@code HURT}。
      *
@@ -353,6 +341,18 @@ public final class NumenPlayer extends ServerPlayer {
         return fakeClient;
     }
 
+    // ---- 身体端口 ----
+
+    @Override
+    public ServerPlayer entity() {
+        return this;
+    }
+
+    @Override
+    public Controls controls() {
+        return controls;
+    }
+
     @Override
     public void tick() {
         // A fake player isn't auto-removed on death (no client to send a respawn packet), so it would
@@ -363,31 +363,18 @@ public final class NumenPlayer extends ServerPlayer {
             Companions.onDeath(this);
             return;
         }
-        if (level() instanceof ServerLevel sl && sl.getGameTime() % 10 == 0) {
-            this.connection.resetPosition();
-            sl.getChunkSource().move(this);
-        }
         try {
             super.tick();
         } catch (RuntimeException ex) {
             reportTickFailure(ex);
         }
-        // 摔落结算是玩家<b>唯一</b>由客户端权威的物理:{@code Entity.move} 里那一处被
-        // {@code isLocalInstanceAuthoritative()} 挡着(Player.isClientAuthoritative()
-        // 恒为 true,服务端算出来就是 false),真正结算的是收到移动包时的
-        // {@code doCheckFallDamage}。空壳玩家的连接是空的,那个包永远不来 —— 于是她既
-        // 不掉血,{@code fallDistance} 也永远是 0。和上面补 doTick() 是同一件事:
-        // 网络层漏掉的那一趟,按原版原样补回来。
-        net.minecraft.world.phys.Vec3 before = position();
+        // 她没有客户端:按着的键落成输入、玩家自己的一刻、摔伤结算、移动统计、区块跟随,原版由客户端与网络层替真玩家
+        // 做的这一趟,由寻路模块的物理步进在这里补上,每刻一次
         try {
-            this.doTick();
+            Physics.step(this);
         } catch (RuntimeException ex) {
             reportTickFailure(ex);
         }
-        // 位移只框住上面这一段。召唤、重生、跨维度都发生在 tick 之外,下一刻 before 读到的
-        // 已经是新位置,位移天然为零 —— 不需要另写传送豁免。
-        net.minecraft.world.phys.Vec3 moved = position().subtract(before);
-        doCheckFallDamage(moved.x, moved.y, moved.z, onGround());
     }
 
     /** 同一具身体只吵一次:tick 每秒二十下,真炸起来就是每秒二十条,日志立刻没法看。 */

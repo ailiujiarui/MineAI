@@ -18,6 +18,25 @@ public final class NumenPrompts {
     private NumenPrompts() {}
 
     /**
+     * 身体同时只做一件后台活——这条规则给模型读的说法只在这里。系统提示({@link #ENTITY_PROMPT})与外接大脑的说明都引用它,
+     * 各自只补上自己那一侧怎么把几件活排开:内脑同一轮里的调用由派发器按顺序做完(这一句在 {@link #ENTITY_PROMPT}),
+     * 外接大脑自己等身体空闲。它说的是任务槽({@code TaskDispatch})做的事:新派的后台活替换正在做的,受理回执说顶掉了谁;
+     * 有界短的同步动作排在它上面,做完交还。
+     */
+    public static final String ONE_BODY = "ONE body, ONE background job: starting another while one runs REPLACES it, "
+            + "and the new receipt names the job it stopped. Quick actions (`inv craft`, "
+            + "`use block`, …) step in on top of it and hand the body back.";
+
+    /**
+     * 派出一件后台活之后她该知道的事和能做的事——这段说法只在这里:系统提示({@link #ENTITY_PROMPT})的后台活一条与
+     * 内脑的受理回执({@code TaskDispatch})都引用它。照 Claude Code 后台 agent 的回执写:事实加接下来能做什么,不写禁令,
+     * 也不点名她此刻用不着的工具——只写"别轮询""task_stop 能取消"时,她会拿点到名的工具去"等"。
+     */
+    public static final String WHILE_IT_RUNS = "You'll be woken when it ends, or as soon as your owner speaks. Until "
+            + "then you know nothing about how it goes, so don't report or predict it. Do something that doesn't need "
+            + "your body, or briefly tell your owner what you started and end your reply.";
+
+    /**
      * 身体怎么干活:身份一句,之后是工具与任务的操作纪律。每个工具怎么用写在工具自己的描述里
      * (随每次请求发送),这里只放描述给不了的:什么时候该动手、失败怎么读、后台任务、要主人点头的动作,
      * 以及合成/熔炼从哪个工具起手这一条路由提示。
@@ -35,7 +54,7 @@ public final class NumenPrompts {
 
             <operating_principles>
             - Act, don't narrate. A physical request means CALL TOOLS, not
-              describe them — "I'll mine the ore" is wrong; call mine. Keep
+              describe them — "I'll mine the ore" is wrong; call work_mine. Keep
               calling tools until the goal is done or provably impossible, then
               tell the owner how it went.
             - But not everything is a task. Chit-chat, thanks, or a question you
@@ -43,23 +62,30 @@ public final class NumenPrompts {
               too vague to act on ("弄一下那个"), ask what they mean instead of
               guessing a tool or checking status to look busy. Tools are for
               concrete physical goals, not for filling a reply.
-            - Verify, don't assume. get_self_status is your whole self in one
+            - Verify, don't assume. status_self is your whole self in one
               call — HP, position, equipment AND full inventory; the world comes
               from the scan/inspect tools. NEVER claim an item, or a finished
               job, that a tool result hasn't confirmed.
             - Failed results teach. They say WHY and usually the next step (equip
               a tool, use a suggested coordinate, get a material) — follow it,
               don't repeat the same call unchanged.
-            - Long jobs run in the BACKGROUND. goto / mine / attack /
-              collect_items / fish / follow return a task_id immediately and the body works
-              on its own — you are free to talk or think meanwhile. NEVER poll:
-              a <event kind="task_finished"> arrives by itself (status done /
-              failed / timeout — timeout reports progress; re-dispatch the same
-              call to resume). <current_task> shows what's running; task_status
-              reads live state, task_stop aborts. ONE body, ONE job: dispatching
-              while a task runs is refused — stop it first or wait.
-            - Reuse the world. A station you set up once is worth a note —
-              remember it and you walk back to it instead of crafting and
+            - Long jobs run in the BACKGROUND. move_goto / work_mine / `fight attack` /
+              `work collect` / `work fish` / `move follow` / `build at` return a task_id immediately and
+              the body works
+              on its own — you stay free to talk or think. Its end is a
+              <event kind="task_finished"> (status done / failed / timeout —
+              timeout reports progress; re-dispatch the same call to resume);
+              <current_task> shows what's running.\s""" + WHILE_IT_RUNS + """
+
+            -\s""" + ONE_BODY + """
+
+              The calls in one reply run in order: once a background job is
+              accepted, the next call waits for its task_finished (a standing job
+              such as `move follow` doesn't hold them up), so several steps can go
+              in one reply. If your owner speaks or something urgent happens while
+              they wait, the rest are not run and their results say so.
+            - Reuse the world. A station you set up once is worth a note
+              (`memory remember`): you walk back to it instead of crafting and
               placing a second one.
             - Some actions need the owner's nod: breaking what a player placed
               or anything with a block entity (chests, furnaces, beds, doors),
@@ -72,17 +98,17 @@ public final class NumenPrompts {
               angle, no "clear it first"). Tell the owner what was refused and
               let them decide.
             - Plan only what's big. Multi-phase jobs: todowrite the phases and
-              work the list; load_skill when one fits the task. One-step
+              work the list; skill_load when one fits the task. One-step
               requests: just do them.
             </operating_principles>
 
             <choosing_actions>
             One routing hint the tool schemas can't give you (which tool to START
-            with): to craft or smelt, begin with lookup_recipe — it returns the
-            grid layout AND the steps (a 2x2 recipe in your own grid via inspect_gui,
-            a 3x3 at a crafting table, smelting at a furnace). Don't reach for
-            interact_at to "make" something. Everything else: pick the tool whose
-            description matches the intent.
+            with): to craft or smelt, begin with `inv recipe` — it returns the
+            recipe AND the steps (`inv craft` lays a crafting grid for you,
+            smelting happens at a furnace). Don't reach for `use block` to "make"
+            something. Everything else: pick the tool whose description matches
+            the intent.
             </choosing_actions>
             """;
 
@@ -99,25 +125,25 @@ public final class NumenPrompts {
      * 她有一份自己的札记这件事,以及记什么、不记什么。
      *
      * <h2>为什么规矩在这儿而内容不在</h2>
-     * 这一节是静态的:一整局不变,躺在缓存前缀里白拿。札记的<b>内容</b>会变(她一 remember
+     * 这一节是静态的:一整局不变,躺在缓存前缀里白拿。札记的<b>内容</b>会变(她一 memory remember
      * 就变),所以走注入块,见 {@code EntityAgentLoop.injectionPreamble}。
      *
-     * <p>同一份说明不写两处:remember/recall/forget 的描述只讲参数怎么填,什么值得记的判断
+     * <p>同一份说明不写两处:memory 命令组的帮助只讲参数怎么填,什么值得记的判断
      * 只在这里说——和本能名册同一条规矩。
      */
     public static final String MEMORY = """
 
             <memory_rules>
             You keep notes that outlive this session. Their index arrives as <memory> in injected
-            context — one line per note; call recall to read a note's body.
-            - remember a note when you learn something worth having later: how the owner likes to
+            context — one line per note; `memory recall` reads a note's body.
+            - `memory remember` a note when you learn something worth having later: how the owner likes to
               play, where a place is, a route that did not work.
             - Don't note what you can look at — scan_blocks already shows you the block at your
               feet.
             - Don't note rules — "don't break my house" is a permission the owner sets, not a note
               you keep.
             - Notes are leads, not facts: the world changes, so look before you trust one. When one
-              turns out wrong, fix it or forget it.
+              turns out wrong, fix it or `memory forget` it.
             </memory_rules>""";
 
     /**
@@ -169,7 +195,7 @@ public final class NumenPrompts {
 
             <examples>
             owner: 去挖10块铁
-            → equip_item(stone_pickaxe), mine(iron_ore + deepslate_iron_ore, 10) … (act)
+            → command `gear wear stone_pickaxe`, work_mine(iron_ore + deepslate_iron_ore, 10) … (act)
             → "铁够了,十块都在我这。"
 
             owner: 附近有原木吗
@@ -177,14 +203,15 @@ public final class NumenPrompts {
             → "东南边有片林子,野树不少。你门口那排柱子是你放的,我不碰。"
 
             owner: 用之前那个熔炉烧点铁
-            → interact_at(<the furnace from your <memory>>), load the iron + fuel … (act)
+            → command `use block right 120 64 -35` (the furnace from your <memory>), then `use shift` the
+              iron and the fuel in … (act)
             → "烧上了。"
 
             A result says the owner refused:
             → "那排柱子你没让拆,我就停下了。"
 
             owner: 那边那个僵尸危险吗
-            → scan_nearby_entities(radius=24)
+            → scan_entities(radius=24)
             → "西边有一只,离得不远。"
 
             owner: 今天天气真好啊

@@ -2,17 +2,14 @@ package com.dwinovo.numen.cli;
 
 import com.dwinovo.numen.agent.tool.ToolRegistry;
 import com.dwinovo.numen.api.Internal;
-import com.dwinovo.numen.platform.Services;
 import com.dwinovo.numen.task.TaskResult;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.ImmutableStringReader;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
-import net.minecraft.commands.CommandSourceStack;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,86 +17,58 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
- * Numen 的命令组:登记处、主人客户端那一侧的小表,以及两侧共用的路由与报错。设计稿见 {@code docs/cli.md}。
+ * 第 1 层:Numen 给她的命令层。登记处、两侧各一棵 Numen 自己的调度器,以及两侧共用的帮助与报错。设计稿见
+ * {@code docs/cli.md}。
  *
- * <h2>两棵树,一份声明</h2>
+ * <h2>一份声明,两棵树</h2>
  * 命令组的声明是进程级的静态表,由各模组的公共初始化代码登记——客户端进程与服务端进程各跑一遍同一份登记。
- * 由它长出两棵树({@link CommandTree}):
+ * 由它长出两棵树({@link CommandTree}),都不注册进 MC 的指令树:玩家在 MC 里看不到她的任何命令,也就不需要按
+ * "是不是她"过滤可见性。
  * <ul>
- *   <li><b>主人客户端的小表</b>:本类自己的 Brigadier 调度器,根是 {@code numen},只有客户端动作可执行,帮助各层都在。
- *       它不注册成 MC 的客户端指令:MC 客户端指令的来源是主人自己,说不出"替哪一只同伴",还会出现在主人的聊天补全里。</li>
- *   <li><b>MC 的指令树</b>:服务端动作真实注册在 {@code /numen} 下({@link #herNodes},由 {@code NumenCommands}
- *       在加载器的指令注册事件里挂上,只给她看见)。</li>
+ *   <li><b>主人客户端</b>:客户端动作可执行,帮助各层都在。</li>
+ *   <li><b>服务端</b>:服务端动作可执行,帮助各层都在。</li>
  * </ul>
  *
- * <h2>路由只有一条规则</h2>
- * 模型的一行先在主人客户端这张小表上解析:解析到客户端动作或帮助,就在客户端当场执行(写错了当场回,附用法);
- * 否则原样送服务端,由那边唯一的执行入口({@link CommandRunner})以她的身份执行。客户端不认识原版和模组的指令,
- * 也不需要认识。
+ * <h2>一行第 1 层命令怎么走</h2>
+ * 先在主人客户端这棵树上解析({@link #run}):解析到服务端动作,原样送服务端,由那边唯一的执行入口
+ * ({@link CommandRunner})在服务端这棵树上再解析、执行({@link #serve});其余(客户端动作、帮助、写错了)当场答。
+ * 行首是 {@code /} 的不归这里,见 {@link Line}。
  */
 public final class NumenCli {
 
-    /** 根命令:Numen 自己的命令一律以它开头。 */
-    public static final String ROOT = "numen";
     static final String HELP_FLAG = "--help";
     static final String HELP = "help";
 
     /** 按名字排序:根帮助与系统提示索引的顺序不随插件的加载先后变,字节稳定。 */
     private static final Map<String, CommandGroup> GROUPS = new TreeMap<>();
 
-    /** 主人客户端的那一侧:源对象就是 {@link ClientSource},执行客户端动作。 */
-    private static final CommandTree<ClientSource> CLIENT = new CommandTree<>() {
-        @Override
-        void handle(ClientSource source, Body body) throws CommandSyntaxException {
-            body.run(source);
-        }
-
-        @Override
-        boolean runs(Action action) {
-            return !action.runsOnServer();
-        }
-    };
-
+    /** 主人客户端的那一棵:执行客户端动作。 */
+    private static final CommandTree<ClientSource> CLIENT =
+            new CommandTree<ClientSource>(action -> !action.runsOnServer()).withRootHelp(NumenCli::rootListing);
+    /** 服务端的那一棵:执行服务端动作。 */
+    private static final CommandTree<ServerSource> SERVER =
+            new CommandTree<ServerSource>(Action::runsOnServer).withRootHelp(NumenCli::rootListing);
     /**
-     * MC 指令树那一侧:源对象是她的 {@code CommandSourceStack},这次调用在它的回话去处 {@link Echo} 里。
-     * 处理函数正常返回,就算这次调用由 Numen 答了,执行入口不再拿回显作回执。
+     * 只读不执行的那一棵:两侧的动作都长着参数,{@link #read} 用它把一行读成动作与参数。和两侧的树同一个生成器,
+     * 所以一行在这里读得通,在执行它的那一侧也读得通。
      */
-    private static final CommandTree<CommandSourceStack> HER = new CommandTree<>() {
-        @Override
-        void handle(CommandSourceStack source, Body body) throws CommandSyntaxException {
-            Echo echo = Echo.of(source);
-            body.run(echo.call());
-            echo.answered();
-        }
-
-        @Override
-        boolean runs(Action action) {
-            return action.runsOnServer();
-        }
-    };
-
-    private static final CommandDispatcher<ClientSource> DISPATCHER = new CommandDispatcher<>();
-    private static final LiteralCommandNode<ClientSource> ROOT_NODE = register(DISPATCHER);
+    private static final CommandTree<CommandSource> READ =
+            new CommandTree<CommandSource>(action -> true).withRootHelp(NumenCli::rootListing);
     /** 各组到齐、相关命令查过了没有;查过之后登记的组在登记那一刻就查(见 {@link #inUse()})。 */
     private static boolean inUse;
 
     private NumenCli() {}
 
-    private static LiteralCommandNode<ClientSource> register(CommandDispatcher<ClientSource> dispatcher) {
-        LiteralArgumentBuilder<ClientSource> root = LiteralArgumentBuilder.literal(ROOT);
-        CLIENT.rootHelp(NumenCli::rootListing).forEach(root::then);
-        return dispatcher.register(root);
-    }
-
     /**
      * 登记一个命令组。{@code NumenApi.registerCommands} 背后就是它;插件经那扇门来,不直接调。
      *
      * <p>组名谁先登记归谁,撞了当场抛出——插件只在自己的组里加动作,碰不到别人的(见 {@link CommandGroup})。
-     * 登记块跑完后:查过每个动作的例子(见 {@link CommandGroup#close}),组挂上主人客户端的小表(MC 指令树在服务器建
-     * 指令树时从这里长,见 {@link #herNodes}),提升过的动作按登记顺序进工具表(工具名撞了由 {@link ToolRegistry}
-     * 当场抛出)。各组已经到齐、查过相关命令之后才来的组,它的相关命令也在这时查(见 {@link #inUse()})。
+     * 登记块跑完后:查过每个动作的例子(见 {@link CommandGroup#close}),组挂上两侧的树,提升过的动作按登记顺序进工具表
+     * (工具名撞了由 {@link ToolRegistry} 当场抛出)。各组已经到齐、查过相关命令之后才来的组,它的相关命令也在这时查
+     * (见 {@link #inUse()})。
      */
     @Internal
     public static synchronized void register(String name, String summary, Consumer<CommandGroup> actions) {
@@ -107,7 +76,7 @@ public final class NumenCli {
             throw new IllegalArgumentException("命令组名不合规(小写字母开头,只含 [a-z0-9_]): '" + name + "'");
         }
         if (HELP.equals(name) || GROUPS.containsKey(name)) {
-            throw new IllegalArgumentException("命令组 " + ROOT + " " + name
+            throw new IllegalArgumentException("命令组 " + name
                     + " 已经有主了——每个插件只在自己的组里加动作,不往别人的组下挂");
         }
         if (summary == null || summary.isBlank()) {
@@ -125,49 +94,15 @@ public final class NumenCli {
             checkSeeAlso(List.of(group), known);
         }
         GROUPS.put(name, group);
-        ROOT_NODE.addChild(CLIENT.group(group).build());
+        CLIENT.add(group);
+        SERVER.add(group);
+        READ.add(group);
         for (Action a : group.actions()) {
             if (a.toolName() != null) {
                 ToolRegistry.register(new PromotedTool(a));
             }
         }
     }
-
-    /**
-     * 她在 MC 指令树 {@code /numen} 下的节点:根上的帮助与每一个命令组,由已登记的声明现长出来。服务器每次建指令树
-     * (开服、{@code /reload})都来取一次;谁能用这些节点由挂的人定({@code NumenCommands} 只给她)。这时各模组的组都
-     * 已登记完,相关命令在这里一次查全({@link #inUse()}):断掉的引用在服务器启动时就报出来。
-     */
-    @Internal
-    public static List<LiteralArgumentBuilder<CommandSourceStack>> herNodes() {
-        inUse();
-        return nodes(HER);
-    }
-
-    /** 一侧挂在 {@code numen} 下的节点:根上的帮助,与每一个命令组。 */
-    static <S> List<LiteralArgumentBuilder<S>> nodes(CommandTree<S> side) {
-        List<LiteralArgumentBuilder<S>> nodes = new ArrayList<>(side.rootHelp(NumenCli::rootListing));
-        for (CommandGroup group : GROUPS.values()) {
-            nodes.add(side.group(group));
-        }
-        return nodes;
-    }
-
-    /**
-     * Numen 自己的参数类型登记进 MC 的指令参数类型注册表,两侧都要:服务器给每个玩家(她也是玩家)发指令树时,
-     * 构造那个包就要把树上每种参数类型按类查出来序列化,查不到直接报错——她的假连接丢包也救不了,包在交给连接之前
-     * 就造不出来。玩家收到的树里没有只给她的节点,这些类型永远不会发到任何一个客户端。
-     */
-    @Internal
-    public static void registerArgumentTypes() {
-        Services.PLATFORM.registerArgumentType("flags", FlagsArgument.class, new HerArgumentInfo<>());
-        Services.PLATFORM.registerArgumentType("id", ArgType.IdArgument.class, new HerArgumentInfo<>());
-        Services.PLATFORM.registerArgumentType("string", ArgType.ValueArgument.class, new HerArgumentInfo<>());
-    }
-
-    /** {@link #registerArgumentTypes} 登记的类:单元测试拿它核对树上的每种参数类型都有着落。 */
-    static final List<Class<?>> OWN_ARGUMENT_TYPES =
-            List.of(FlagsArgument.class, ArgType.IdArgument.class, ArgType.ValueArgument.class);
 
     /**
      * 系统提示里的一行索引:已登记的各组一句。只在组增减时变,按名字排好,字节稳定,不打碎 prompt 缓存。
@@ -178,52 +113,132 @@ public final class NumenCli {
         if (GROUPS.isEmpty()) {
             return "";
         }
-        StringBuilder sb = new StringBuilder("<commands>\nNumen's command groups, run with the ")
-                .append(CommandTool.NAME).append(" tool (").append(ROOT).append(" <group> ").append(HELP_FLAG)
-                .append(" lists a group's actions):");
+        // 和系统提示里的技能清单同一个形状("The following … are available for use with …",一行一个"- 名字: 描述")
+        StringBuilder sb = new StringBuilder("<commands>\nThe following command groups are available for use with the ")
+                .append(CommandTool.NAME).append(" tool:");
         for (CommandGroup g : GROUPS.values()) {
-            sb.append('\n').append(CommandHelp.groupLine(g));
+            sb.append("\n- ").append(g.name()).append(": ").append(g.summary());
         }
         return sb.append("\n</commands>").toString();
     }
 
-    /** 模型写的一行去掉首尾空白与前导 {@code /}:两侧读的是同一行。 */
-    static String bare(String typed) {
-        String line = typed.strip();
-        return line.startsWith("/") ? line.substring(1).strip() : line;
-    }
-
     /**
-     * 主人客户端这一侧跑一行:解析到客户端动作或帮助就当场执行,写错了当场回并附用法;否则原样送服务端。
-     * 结果经 {@code source} 恰好回一次。
+     * 主人客户端这一侧跑模型写的一行:行首是 {@code /} 的原样送服务端(第 0 层);第 1 层的一行在这一侧的树上解析,
+     * 解析到服务端动作就原样送服务端,其余(客户端动作、帮助、写错了)当场答,写错了附用法。结果经 {@code source}
+     * 恰好回一次。
      */
-    static void run(String line, ClientSource source) {
-        inUse();
-        ParseResults<ClientSource> parse = DISPATCHER.parse(line, source);
-        if (!answeredOnClient(parse)) {
+    static void run(String typed, ClientSource source) {
+        Line line = Line.of(typed);
+        if (line.mc()) {
             source.forwardToServer();
             return;
         }
+        inUse();
+        ParseResults<ClientSource> parse = CLIENT.parse(line.text(), source);
+        if (reachesServerAction(parse)) {
+            source.forwardToServer();
+            return;
+        }
+        answer(CLIENT, parse, line.text(), source);
+    }
+
+    /**
+     * 一行第 1 层命令读成什么,不执行。
+     *
+     * @param path     走过的字面节点,空格隔开:{@code build layer}、{@code build --help}、{@code help}、{@code build}
+     * @param runnable 走到了可执行的一格(一个动作或一个帮助);否则这一行只点到一组或一个动作的名字,是提到它
+     * @param args     走到一个动作时读好的参数,和执行时处理函数拿到的是同一份;帮助与只提到名字的是 null
+     */
+    public record Reading(String path, boolean runnable, CommandArgs args) {}
+
+    /**
+     * 把一行第 1 层命令按命令树读一遍,不执行:写成它的样子的文字(设计文件里的一步、技能与提示里写的命令)和执行时
+     * 同一个解析器、同一个判据。读得通有两种:整行是一条能执行的命令,或整行只是一串名字({@code use gui}、{@code build},
+     * 在文字里提到一个动作或一组)。停在参数中间、多写了东西、写错了都读不通。
+     *
+     * @throws IllegalArgumentException 读不通;消息和执行时写错一样(Brigadier 的原话、出错那一层的帮助、你是不是要写)
+     */
+    public static Reading read(String line) {
+        inUse();
+        ParseResults<CommandSource> parse = READ.parse(line, null);
+        List<String> path = literalPath(parse);
+        if (parse.getContext().getCommand() == null) {
+            boolean named = !parse.getReader().canRead() && parse.getExceptions().isEmpty() && !path.isEmpty()
+                    && parse.getContext().getNodes().size() == path.size();
+            if (!named) {
+                // 没走到可执行的一格,Brigadier 执行前那道检查必然不过,problem 说的就是它
+                throw new IllegalArgumentException(problem(parse, line));
+            }
+            return new Reading(String.join(" ", path), false, null);
+        }
+        String problem = problem(parse, line);
+        if (problem != null) {
+            throw new IllegalArgumentException(problem);
+        }
+        return reading(parse, line, GROUPS::get);
+    }
+
+    /**
+     * 读通了、走到可执行一格的一行读成什么:动作路径,走到动作时还有读好的参数(帮助没有参数)。
+     *
+     * @param groups 按组名找组:读 {@link #read} 的是登记了的各组,树上读本组一行的({@link ArgType#command})是那一组
+     */
+    static Reading reading(ParseResults<?> parse, String line, Function<String, CommandGroup> groups) {
+        List<String> path = literalPath(parse);
+        Action action = path.size() == 2 ? groups.apply(path.get(0)).action(path.get(1)) : null;
+        CommandArgs args = null;
+        if (action != null) {
+            CommandContext<?> ctx = parse.getContext().build(line);
+            args = CommandArgs.fromCommand(action.positionals(), ctx, FlagsArgument.valuesIn(ctx));
+        }
+        return new Reading(String.join(" ", path), true, args);
+    }
+
+    /** 读好的一条命令写回组名之后的那一截({@link ArgType#command} 的值的写法):按那个动作的参数表写。 */
+    static String afterGroup(Reading reading) {
+        String[] path = reading.path().split(" ");
+        Action action = GROUPS.get(path[0]).action(path[1]);
+        return reading.args().write(reading.path(), action.params()).substring(path[0].length() + 1);
+    }
+
+    /** 登记了的各组,按名字排序。 */
+    static Collection<CommandGroup> groups() {
+        inUse();
+        return GROUPS.values();
+    }
+
+    /** 这个词是不是第 1 层的一级命令:一个命令组的名字,或根下的 {@code help}、{@code --help}。 */
+    public static boolean isTopLevel(String word) {
+        return HELP.equals(word) || HELP_FLAG.equals(word) || GROUPS.containsKey(word);
+    }
+
+    /** 服务端这一侧跑一行第 1 层命令:在服务端的树上解析、执行;写错了附用法。结果经 {@code call} 恰好回一次。 */
+    static void serve(String line, ServerSource call) {
+        inUse();
+        answer(SERVER, SERVER.parse(line, call), line, call);
+    }
+
+    private static <S extends CommandSource> void answer(CommandTree<S> tree, ParseResults<S> parse, String line,
+                                                         S source) {
         String problem = problem(parse, line);
         if (problem != null) {
             source.reply(TaskResult.fail(problem).toJson());
             return;
         }
         try {
-            DISPATCHER.execute(parse);
+            tree.execute(parse);
         } catch (CommandSyntaxException e) {
             source.reply(TaskResult.fail(e.getMessage() + "\n" + helpAt(parse)).toJson());
         }
     }
 
     /**
-     * 各组到齐的那一刻把相关命令查一遍:服务器建指令树时({@link #herNodes}),或者主人客户端这张小表第一次被读时
-     * (执行一行、系统提示要索引;连着别人的服务器时客户端不建指令树)。
+     * 各组到齐的那一刻把相关命令查一遍:任一侧的树第一次被读时(执行一行、系统提示要索引)。
      *
      * <p>为什么是这个时机:相关命令可以指向别的组,而组谁先登记由加载器排模组的顺序决定——在引用方登记那一刻查,
-     * 被指的组可能还没来,结论就随加载顺序变。各模组都在加载期登记,指令树与这张小表却要等世界起来才第一次被用,
-     * 那时加载期的组都已到齐,一次查全不会漏。查不过就抛出,而且不记作已查:下一次还会再查、再抛,不会带着
-     * 断掉的引用接着用。在这之后才登记的组(测试夹具这类)在它自己登记那一刻查,它能指向的组那时都已经在了。
+     * 被指的组可能还没来,结论就随加载顺序变。各模组都在加载期登记,树却要等世界起来才第一次被用,那时加载期的组
+     * 都已到齐,一次查全不会漏。查不过就抛出,而且不记作已查:下一次还会再查、再抛,不会带着断掉的引用接着用。
+     * 在这之后才登记的组(测试夹具这类)在它自己登记那一刻查,它能指向的组那时都已经在了。
      */
     private static synchronized void inUse() {
         if (!inUse) {
@@ -249,54 +264,59 @@ public final class NumenCli {
         }
     }
 
-    /** 一条整路径指的动作:{@code numen <组> <动作>};没有是 null。 */
+    /** 一条整路径指的动作:{@code <组> <动作>};没有是 null。 */
     private static Action resolve(String path, Map<String, CommandGroup> groups) {
         String[] words = path.split(" ");
-        if (words.length != 3 || !ROOT.equals(words[0])) {
+        if (words.length != 2) {
             return null;
         }
-        CommandGroup group = groups.get(words[1]);
-        return group == null ? null : group.action(words[2]);
+        CommandGroup group = groups.get(words[0]);
+        return group == null ? null : group.action(words[1]);
     }
 
     /**
-     * 这一行归不归主人客户端答:沿着解析到的字面节点看最后一格——是帮助({@code numen help}、各层的 {@code --help}),
-     * 或者是一个客户端动作,就在客户端;停在根上、组上、服务端动作上,或者根本不以 {@code numen} 开头,都送服务端。
+     * 这一行是不是解析到了一个服务端动作:沿着解析到的字面节点看,走到了某组的一个服务端动作,而且没有停在它的
+     * {@code --help} 上。主人客户端的树上服务端动作只有名字与帮助,参数读不读得通、怎么执行都归服务端。
      */
-    private static boolean answeredOnClient(ParseResults<ClientSource> parse) {
+    private static boolean reachesServerAction(ParseResults<ClientSource> parse) {
         List<String> path = literalPath(parse);
-        if (path.isEmpty()) {
+        if (path.size() < 2 || path.get(path.size() - 1).equals(HELP_FLAG)) {
             return false;
         }
-        String last = path.get(path.size() - 1);
-        if (last.equals(HELP_FLAG) || (path.size() == 2 && last.equals(HELP))) {
-            return true;
-        }
-        if (path.size() < 3) {
-            return false;
-        }
-        Action action = GROUPS.get(path.get(1)).action(path.get(2));
-        return action != null && !action.runsOnServer();
-    }
-
-    /** 这一行是不是 Numen 自己的命令:解析到的第一格是 {@code numen} 这个根。 */
-    static boolean owns(ParseResults<?> parse) {
-        List<String> path = literalPath(parse);
-        return !path.isEmpty() && path.get(0).equals(ROOT);
+        Action action = GROUPS.get(path.get(0)).action(path.get(1));
+        return action != null && action.runsOnServer();
     }
 
     /**
      * 一行 Numen 命令写不写得通:写不通是 Brigadier 的报错(原话与出错位置)、出错那一层的帮助,再接上"你是不是要写"
-     * ({@link Completions#didYouMean},和原版与模组的指令同一个函数);写得通是 null。两侧同一种说法——主人客户端的
-     * 小表与 MC 指令树都从同一份声明长出来,同一行在两边的报错一字不差。
+     * ({@link Completions#didYouMean},和原版与模组的指令同一个函数);写得通是 null。两侧同一种说法——两侧的树从同一份
+     * 声明长出来,同一行在两边的报错一字不差。第一个词是快捷工具名的,说法见 {@link #toolNameInstead}。
      */
     static <S> String problem(ParseResults<S> parse, String line) {
         try {
             validate(parse, line);
             return null;
         } catch (CommandSyntaxException e) {
-            return e.getMessage() + "\n" + helpAt(parse) + Completions.didYouMean(parse);
+            String toolName = toolNameInstead(parse, line);
+            return toolName != null ? toolName : e.getMessage() + "\n" + helpAt(parse) + Completions.didYouMean(parse);
         }
+    }
+
+    /**
+     * 第一个词不是任何一组,却按快捷工具名的写法反推得到一个提升过的动作({@link Action#promotedAs}):她把工具名写进了
+     * 命令行。直接告诉她这是工具名、两种写法各是什么;整份组列表帮不上这个忙。不是这种情况是 null。
+     */
+    private static String toolNameInstead(ParseResults<?> parse, String line) {
+        if (!literalPath(parse).isEmpty()) {
+            return null;
+        }
+        String word = line.strip().split(" ", 2)[0];
+        Action action = Action.promotedAs(word, GROUPS.values());
+        if (action == null) {
+            return null;
+        }
+        return word + " is a tool name, not a command: call the tool " + word + " directly, or write the command `"
+                + action.path() + "` (`" + action.path() + " " + HELP_FLAG + "` shows its arguments).";
     }
 
     /**
@@ -326,15 +346,15 @@ public final class NumenCli {
      */
     private static String helpAt(ParseResults<?> parse) {
         List<String> path = literalPath(parse);
-        CommandGroup group = path.size() > 1 ? GROUPS.get(path.get(1)) : null;
+        CommandGroup group = path.isEmpty() ? null : GROUPS.get(path.get(0));
         if (group == null) {
             return rootListing().first();
         }
-        Action action = path.size() > 2 ? group.action(path.get(2)) : null;
+        Action action = path.size() > 1 ? group.action(path.get(1)) : null;
         return action == null ? CommandHelp.group(group).first() : CommandHelp.action(action);
     }
 
-    /** 解析走过的字面节点的名字,从根往下。 */
+    /** 解析走过的字面节点的名字,从一级命令往下。 */
     static List<String> literalPath(ParseResults<?> parse) {
         return parse.getContext().getNodes().stream()
                 .map(n -> (CommandNode<?>) n.getNode())

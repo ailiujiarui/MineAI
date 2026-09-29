@@ -79,7 +79,7 @@ public class MekGameTests {
         level.setBlockAndUpdate(helper.absolutePos(new BlockPos(5, 2, 4)),
                 Blocks.CRAFTING_TABLE.defaultBlockState());
 
-        ToolRun run = call(companion, "craft", args("item_id", itemId, "count", 1));
+        ToolRun run = command(companion, "inv craft " + itemId + " --count 1");
 
         helper.succeedWhen(() -> {
             helper.assertTrue(run.succeeded(), "craft refused: " + run.reply());

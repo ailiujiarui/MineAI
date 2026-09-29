@@ -1,6 +1,6 @@
 ---
 name: building_design
-description: Building design doctrine for the build/blueprint tools - planning workflow, size reference, single-floor rule, door alignment, composition order with walls, quality checklist. Load BEFORE designing or building any non-trivial structure.
+description: Building design doctrine for the build commands - designs written step by step and built with build at, blueprint files, planning workflow, size reference, single-floor rule, door alignment, composition order with walls, quality checklist. Load BEFORE designing or building any non-trivial structure.
 ---
 
 # Skill: building_design
@@ -11,20 +11,36 @@ finished build looks wrong.
 ## Workflow
 
 1. PLAN first: purpose, footprint, height, one main material + one accent material.
-2. Inspect the site (goto / look around): flat enough? big enough? Note the GROUND
+2. Inspect the site (move_goto / scan_around): flat enough? big enough? Note the GROUND
    level — every vertical decision below is anchored to it.
    **Uneven ground is YOUR problem to solve, not the builder's**: the builder puts
    blocks exactly where told, so on a slope one side of the footprint will hang in
    the air (or bury into the hill). Scan the footprint first; if the surface varies,
-   either move the site, or lay a foundation yourself BEFORE the blueprint — a
-   `fill` volume of the wall material from the lowest corner up to your chosen
-   ground level (costs materials in survival like any build). Stilt houses are a
-   valid choice too — just make it a choice, not an accident.
-3. Build big-to-small in ONE build call where possible: a single ordered `ops`
-   stream — `layer` grids first, single `set` details last; later ops overwrite
-   earlier cells.
-4. After task_finished, LOOK at the result, run the checklist below, patch gaps
-   with a small follow-up build call.
+   either move the site, or give the design a foundation step — a `layer` of the
+   wall material repeated from the lowest ground up to your chosen floor level
+   (costs materials in survival like any build). Stilt houses are a valid choice
+   too — just make it a choice, not an accident.
+3. Write the building as a DESIGN, one level at a time from the ground up:
+   `build new` it, add the foundation and the first storey as steps with
+   `--into`, then LOOK at what you wrote with `build show` and `--layer`
+   (`build show cottage --layer 1`) — a map of that level seen from above as it
+   will stand when built, in the same character grid `layer` takes, with z and
+   x labelled. Fix what is off
+   (`build step`, `build insert`, `build drop`), look again, and only then write
+   the next level on top of the one you saw. Do NOT work the whole building out
+   in your head before the first step: a design is cheap to change, and the
+   slice shows what you actually wrote, not what you meant. Within a level go big
+   to small — `layer` grids first, single `set` details last; later steps
+   overwrite earlier cells. Coordinates in a design are relative to its origin
+   (0,0,0), so you can think in the building's own terms. `build show` lists
+   the steps with what each costs.
+4. `build at` the design on the site: it prices the whole design first and builds
+   it as one background job.
+5. After task_finished, LOOK at the result and run the checklist below. To fix
+   something, change the design (`build step`, `build insert`, `build drop`, or
+   one more step with `--into`) and `build at` the same spot again — it only adds
+   what is missing, changes what differs and takes away blocks of yours the
+   design no longer has.
 
 ## Size reference (width x depth x height)
 
@@ -60,29 +76,73 @@ want for a room.
 
 ## The primitives
 
-Six ops, all geometry, no style. What you build with them is yours.
+Seven primitives, all geometry, no style. What you build with them is yours.
+Each is one line: run it on its own and it is built at once, at world
+coordinates; add `--into` and it becomes the next step of a design.
 
 - `layer` — a character grid with a `legend`, stamped at one level, or repeated
-  from `y1` to `y2`. The first row sits at `z1` and runs +x, so the grid reads
-  like a map: north at the top, east to the right. `' '` and `'.'` leave a cell
-  alone. One grid is a floor, a wall ring, an L-shaped footprint, a course of
-  roof tiles, a window pattern, scattered flowers. **This is the op you will use
-  for almost everything.**
-- `set` — one cell, when a grid would be overkill.
+  up to the level `up_to` names. The first row sits at the given z and runs +x,
+  so the grid reads like a map: north at the top, east to the right. `' '` and
+  `'.'` leave a cell alone. One grid is a floor, a wall ring, an L-shaped
+  footprint, a course of roof tiles, a window pattern, scattered flowers.
+  **This is the primitive you will use for almost everything.**
+- `set` — one cell, exactly the block state you write, when a grid would be
+  overkill. `place` — one block put down the way a player would, facing the way
+  you look: a chest, a furnace, a crafting table.
 - `line` — two points, diagonals included: beams, posts, ridges, hip lines.
 - `cylinder` / `sphere` — round geometry, `hollow` for a shell. A dome is the
-  top half of a hollow sphere.
-- `copy` — take a region you already built and stamp it elsewhere, with
-  `rotation` and `mirror`. Build one wing, mirror it. Build one window bay,
-  repeat it down the wall. Cheaper than writing it twice, and the two halves
-  actually match.
+  top half of a hollow `sphere`.
+- `copy` — take a region and stamp it elsewhere, with `rotation` and `mirror`.
+  Build one wing, mirror it. Build one window bay, repeat it down the wall.
+  Cheaper than writing it twice, and the two halves actually match. In a design
+  it copies the design's own earlier steps.
+
+A small house, written as a design:
+```
+build new cottage
+build layer 0 0 0 ####### ####### ####### ####### ####### --block cobblestone --into cottage
+build layer 0 1 0 ####### #.....# #.....# #.....# ####### --block "oak_planks*8, spruce_planks*2" --up_to 3 --into cottage
+build show cottage --layer 1
+build layer 3 1 4 # --block air --up_to 2 --into cottage
+build set oak_door[facing=north] 3 1 4 --into cottage
+build show cottage --layer 1
+build show cottage
+build at cottage 120 64 -35
+```
+
+The doorway and the door are in the same cell of the south wall (z=4), and the
+slice after the walls is where you would have caught a doorway cut into the
+wrong wall.
 
 Block states ride along with the block name, exactly as in `/setblock`:
 `oak_stairs[facing=north,half=top]`, `oak_slab[type=double]`, `oak_log[axis=x]`,
-`trapdoor[open=true,facing=north]`. A door, bed or tall flower is placed from its
-LOWER half alone — the other half appears with it.
+`oak_trapdoor[open=true,facing=north]`. A door or tall flower is written as its
+lower half alone and a bed as its foot — the other half appears with it.
 
-`mask` decides what happens where something already stands: `carve` (default)
+Which way a block faces (these are the game's own rules; `--layer` shows the
+full state of every cell, so check a slice instead of reasoning it out):
+
+- **stairs** — `facing` is the side the tall back is on, the way you walk UP
+  them. A roof slope rises toward the ridge, so its stairs face the ridge: on a
+  south slope (the side that drops away to the south) they face north, on a
+  north slope south. `half=top` turns them upside down.
+- **door** — the closed panel lies against the edge of its cell opposite
+  `facing`: in a south wall, `facing=north` sets it flush with the outside,
+  `facing=south` with the inside.
+- **trapdoor** — open, it stands as a full-height panel against the edge of its
+  cell opposite `facing` (`facing=south` stands on the north edge, against a
+  north wall); shut, `half=top` is a slab at the top of the cell and
+  `half=bottom` one at the bottom.
+- **ladder** — hangs on the block on the side opposite `facing`:
+  `ladder[facing=north]` needs a solid block just south of it.
+- **bed** — `facing` points from the foot to the head; the head goes one cell
+  that way.
+- **lantern** — `hanging=true` hangs from the block above it and needs one
+  there; `hanging=false` stands on the block below.
+- **log / pillar** — `axis` is the way it runs: `y` upright, `x` east–west,
+  `z` north–south.
+
+`mask` decides what happens where something already stands, per step: `carve` (default)
 builds through anything and an `air` cell digs that cell out; `overwrite` leaves
 air cells alone; `solid` only overwrites with full blocks; `keep` only builds
 into air and grass. Adding to a building someone else made? `keep`.
@@ -97,7 +157,7 @@ into air and grass. Adding to a building someone else made? `keep`.
    1-2 above the floor; the door itself is one `set` of its lower half
 5. **interior fittings** — see the Interiors section. This is not a garnish: on
    an inhabited floor it is 35-50% of the cells, so plan the room purposes and
-   the wall lines before you start writing ops, not after.
+   the wall lines before you start writing steps, not after.
 6. exterior details: stairs facing the right way, glass panes, lanterns, and a
    sparse `layer` of flowers and grass around the yard
 
@@ -105,11 +165,11 @@ into air and grass. Adding to a building someone else made? `keep`.
 time from the ground up, and then walks the building again to fit the things that
 need something to hold onto: torches, signs, ladders, carpets, flowers, rails,
 redstone, pressure plates, buttons and hanging lanterns. You do not have to order
-those specially — write them wherever they belong in the ops stream and they get
+those specially — write them wherever they belong in the design and they get
 deferred for you. It also means an upper-floor lantern is never placed into thin
 air and dropped.
 
-**Liquids are not handled.** Leave `water` and `lava` out of the ops entirely. Dig
+**Liquids are not handled.** Leave `water` and `lava` out of the design entirely. Dig
 and line the basin, the moat, the canal or the fountain so it is ready to hold
 water, and let the player pour it — one bucket does the whole pond. Existing water
 on the site is never drained either, so pick a dry spot or plan the build around
@@ -117,7 +177,7 @@ it.
 
 ## Roofs (the part most builds get wrong)
 
-There is no roof op. You draw a roof course by course with `layer`, one grid per
+There is no roof primitive. You draw a roof course by course with `layer`, one grid per
 level, and that is the point: any shape you can draw, you can build — including
 the L-shaped and cross-shaped roofs no generator would have given you.
 
@@ -138,9 +198,9 @@ ways to climb that always meet:
   slab as you go up. This is what a tiled roof is actually made of, it is the
   shallowest pitch, and it is what East Asian roofs need.
 - **Stairs, one block per cell**: one course of stairs per level, `facing` the
-  way the roof RISES (a south slope's stairs face south). Steeper, western, and
-  the cheapest roof to write. Under a deep overhang put the lowest course as
-  `[half=top]` stairs so the eave reads thin.
+  way the roof RISES, toward the ridge (a south slope's stairs face north).
+  Steeper, western, and the cheapest roof to write. Under a deep overhang put
+  the lowest course as `[half=top]` stairs so the eave reads thin.
 
 Never mix the two on one plane — the join is exactly where the gap appears.
 
@@ -286,10 +346,10 @@ their shape. Measured frequencies from the same building, in order:
 
 - **Trapdoors — 397 of 941 furnishing cells, across seven different woods.** By a
   wide margin the most useful detail block in the game, because it is the only
-  thin one you can put in any orientation. All four states earn their keep:
-  - `open=true` → a **thin vertical panel** filling part of a cell: a screen, a
-    shutter, a cupboard front, railing infill, a partition that does not eat the
-    room.
+  thin one you can put in any orientation. All three shapes earn their keep:
+  - `open=true` → a **thin vertical panel** against one edge of the cell (the
+    edge opposite `facing`; `half` does not change it): a screen, a shutter, a
+    cupboard front, railing infill, a partition that does not eat the room.
   - `open=false, half=top` → a **shelf hanging under a beam**, or a ceiling panel.
   - `open=false, half=bottom` → a **low ledge at floor level**: a step, a hearth
     lip, the edge of a platform.
@@ -359,13 +419,14 @@ and let three or four props carry it:
 Two rooms with the same props are one room built twice. Vary the purpose before
 you vary the blocks.
 
-### Writing it in ops
+### Writing it in steps
 
-Interior detail is the **last** pass — later ops overwrite earlier cells, so the
+Interior detail is the **last** pass — later steps overwrite earlier cells, so the
 shell goes first and the fittings go on top. Almost all of it is one cell with a
 state, because the state is the whole point:
 
-- vertical panel: `oak_trapdoor[half=bottom,open=true,facing=north]`
+- vertical panel: `oak_trapdoor[half=bottom,open=true,facing=north]` (stands on
+  the cell's south edge)
 - hanging shelf: `oak_trapdoor[half=top,open=false]`
 - lit hearth: `campfire[signal_fire=false,lit=true]`
 - hanging lantern: `lantern[hanging=true]` under a beam
@@ -375,8 +436,9 @@ one `layer` grid — draw where each piece goes instead of sprinkling at random.
 
 ## Mix your materials
 
-Every block_id accepts a weighted mix — `"stone_bricks*8, mossy_stone_bricks*2,
-cracked_stone_bricks"` — and each cell picks one, the same way every time.
+Every block accepts a weighted mix — `"stone_bricks*8, mossy_stone_bricks*2,
+cracked_stone_bricks"`, quoted because it has spaces — and each cell picks one,
+the same way every time.
 
 A large surface in one flat colour is the single most reliable way to make a
 build look fake, so **put a mix on every wall, floor and roof that covers real
@@ -397,14 +459,20 @@ reads it as texture rather than as a pattern.
 - lit well enough that nothing spawns, dim enough to still have shadows
 - one main material family + one accent beats a single-material box
 
-## Tool mapping
+## Command mapping
 
-- everything goes through `build`'s ordered `ops` stream: layer / set / line /
-  cylinder / sphere / copy; block states ride in the block name; `minecraft:air`
-  clears; `mask` decides what may be overwritten; later ops overwrite earlier
-  cells, so details go last
-- whole structure files: `blueprint` tool (action=list first, then action=build
-  at a flat anchor); liquids are always skipped
+- a design is a named list of primitive steps: `build new` starts one, a
+  primitive with `--into` appends a step, `build show` lists the steps and what
+  they cost, `build show` with `--layer` draws one level as a map,
+  `build step` / `build insert` / `build drop` change them, `build at`
+  builds it on a spot and — run again on the same spot — changes the building to
+  match; block states ride in the block name; `air` clears; `mask` decides what
+  may be overwritten; later steps overwrite earlier cells, so details go last
+- a primitive without `--into` is built at once, at world coordinates: a single
+  `build place crafting_table 120 64 -35` is the quick way to put one block down
+- whole structure files: `build designs` lists them with the designs, `build show`
+  prices one, `build at` builds it; liquids are always skipped
+- `build built` lists what has been built and where
 
 ## Style references — how to read them
 
@@ -434,7 +502,7 @@ and wide with lifted corners"; translating that into courses, materials, an
 overhang and a corner lift is yours to do, and doing it differently on two
 buildings of the same style is the point, not a mistake.
 
-Load one with `load_skill(building_design, file="references/<style>.md")`.
+Load one with `skill load building_design --file references/baroque.md` (any style file name below).
 
 ### East Asia
 `japanese_minka` 和风民居 · `japanese_shrine` 神社 · `japanese_castle` 天守 ·

@@ -117,9 +117,11 @@ public final class Ae2Adapter {
         }
         // 标准 capability:AE2 的多数方块实体把内部库存经 NeoForge item handler 暴露出来,
         // 物品/流体/能量这一段先读它。
-        String caps = Services.CAPS.describe(level, pos);
-        if (caps != null && !caps.isBlank()) {
-            sb.append(caps);
+        java.util.List<String> caps = Services.CAPS.describe(level, pos);
+        if (caps != null && !caps.isEmpty()) {
+            for (String line : caps) {
+                sb.append(line).append('\n');
+            }
         }
         BlockEntity be = level.getBlockEntity(pos);
         if (be != null) {

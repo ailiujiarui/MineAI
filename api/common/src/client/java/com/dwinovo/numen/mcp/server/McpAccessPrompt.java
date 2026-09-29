@@ -72,23 +72,25 @@ final class McpAccessPrompt {
 
                 - Every tool takes a `companion` argument (name or id), so each call targets one body. \
                 There is no take-control handshake — just call tools.
-                - You are the companion's brain, so keep a `get_events(companion, wait_seconds)` loop \
-                running: it long-polls and returns the moment something urgent happens. The player \
-                speaking to the companion in-game arrives as a `<query>`; world happenings and task \
-                completions arrive as `<event>`s. Events are consumed on read and nothing is lost \
-                between calls.
+                - You are the companion's brain, so call `get_events(companion)` about every 2 seconds \
+                while you drive it: it waits 2 seconds by default and returns at once when something \
+                urgent lands. The player speaking to the companion in-game arrives as a `<query>`; \
+                world happenings arrive as `<event>`s. Events are consumed on read and nothing is lost \
+                between calls. Raise `wait_seconds` (up to 50) only to park and wait for the player.
                 - Reply and narrate with `say(companion, text)` — the words appear in-game as the \
                 companion's chat line, speech bubble, and voice. Keep your own conversation history; \
                 the game stores none for you.
-                - Action tools (`goto`, `mine`, `build`, `fish`, …) are BACKGROUND tasks: they \
-                return a task id immediately. Their completions land in `get_events`; `task_status` \
-                answers "what is it doing right now", `task_stop` cancels.
-                - One body runs one task at a time. If you get a "body is busy" refusal, either wait for \
-                that task or `task_stop` it.
-                - You're blind between calls: perceive with `get_self_status` / `scan_blocks` / \
-                `scan_nearby_entities` before and after acting.
+                - Long actions — the tools `move_goto` and `work_mine`, and commands such as `build at`, \
+                `work fish` or `fight attack` run through the `command` tool — are BACKGROUND tasks: \
+                they return a task id at once. The end of a task you started does NOT show up in \
+                `get_events`: run the command `task status` until the body is idle, then perceive to \
+                confirm what happened. `task_stop` cancels. Short actions (`inv craft`, `gear wear`, \
+                `use block`, …) return when they are done.
+                - %s
+                - You're blind between calls: perceive with `status_self` / `scan_blocks` / \
+                `scan_entities` before and after acting.
                 - `scan_blocks` answers in groups of touching blocks, each with an id (g1, g2, …) and \
-                whether breaking it is allowed, needs the owner's consent, or is refused. `mine` with \
+                whether breaking it is allowed, needs the owner's consent, or is refused. `work_mine` with \
                 `groups` digs exactly those cells; an id is only good until the next `scan_blocks`.
                 - It's survival mode — the tools do only what a real player can. No give, no setblock.
 
@@ -103,6 +105,7 @@ final class McpAccessPrompt {
                         auth.isBlank()
                                 ? "\"-y\", \"mcp-remote\", \"" + endpoint + "\""
                                 : "\"-y\", \"mcp-remote\", \"" + endpoint + "\", \"--header\", "
-                                        + "\"Authorization: Bearer " + auth + "\"");
+                                        + "\"Authorization: Bearer " + auth + "\"",
+                        McpServer.ONE_BODY);
     }
 }

@@ -1,23 +1,20 @@
 package com.dwinovo.numen.cli;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * 一个命令组({@code numen <组> …}):插件经 {@code NumenApi.registerCommands} 拿到的就是它,只能往这一组里加动作。
+ * 一个命令组({@code <组> …},组名就是一级命令):插件经 {@code NumenApi.registerCommands} 拿到的就是它,只能往这一组里加动作。
  *
  * <pre>{@code
  * numen.registerCommands("ftbquests", "Your quest book: chapters, quests, submitting.", quests -> {
  *     quests.server("submit", "Hand in the items a quest asks for.", Quests::submit, QUEST)
- *           .example("numen ftbquests submit 15CDF6A098B95FDA");
+ *           .example("ftbquests submit 15CDF6A098B95FDA");
  *     quests.client("list", "List the quests you can work on now.", Quests::list)
- *           .example("numen ftbquests list")
- *           .promote("list_quests", "…");
+ *           .example("ftbquests list")
+ *           .promote("…");   // 快捷工具 ftbquests_list
  * });
  * }</pre>
  *
@@ -56,7 +53,7 @@ public final class CommandGroup {
     private Action add(String action, String actionSummary, List<Param<?>> params,
                        Action.OnServer onServer, Action.OnClient onClient) {
         requireOpen();
-        String path = NumenCli.ROOT + " " + name + " " + action;
+        String path = name + " " + action;
         if (action == null || !Action.NAME.matcher(action).matches()) {
             throw new IllegalArgumentException("动作名不合规(小写字母开头,只含 [a-z0-9_]): '" + action + "'");
         }
@@ -73,8 +70,8 @@ public final class CommandGroup {
     }
 
     /**
-     * 参数表的两条硬规矩:名字不重复;吃整行的参数只能是最后一个必填参数,而且这个动作不能再有标志——
-     * 它会把后面的一切都当成自己的值。
+     * 参数表的硬规矩:名字不重复;吃整行的参数只能是最后一个必填参数,而且这个动作不能再有标志——它会把后面的一切都当成
+     * 自己的值;一串值当位置参数时只能是最后一个必填参数——它读到行尾或下一个标志,后面的位置参数会被它吞掉。
      */
     private static void checkParams(String path, List<Param<?>> params) {
         Set<String> seen = new HashSet<>();
@@ -83,12 +80,14 @@ public final class CommandGroup {
             if (!seen.add(p.name())) {
                 throw new IllegalArgumentException(path + " 的参数 " + p.name() + " 写了两次");
             }
-            if (p.type().restOfLine()) {
-                boolean last = required.get(required.size() - 1) == p;
-                if (!last || required.size() != params.size()) {
-                    throw new IllegalArgumentException(path + " 的参数 " + p.name()
-                            + " 吃掉余下整行,只能是最后一个参数,且这个动作不能再有标志");
-                }
+            boolean last = !required.isEmpty() && required.get(required.size() - 1) == p;
+            if (p.type().span() == ArgType.Span.REST && (!last || required.size() != params.size())) {
+                throw new IllegalArgumentException(path + " 的参数 " + p.name()
+                        + " 吃掉余下整行,只能是最后一个参数,且这个动作不能再有标志");
+            }
+            if (p.type().span() == ArgType.Span.SEVERAL && p.required() && !last) {
+                throw new IllegalArgumentException(path + " 的参数 " + p.name()
+                        + " 是一串值,当位置参数只能是最后一个必填参数");
             }
         }
     }
@@ -102,19 +101,19 @@ public final class CommandGroup {
 
     void requireOpen() {
         if (!open) {
-            throw new IllegalStateException("numen " + name + " 已经登记完了,不能再往里加");
+            throw new IllegalStateException("命令组 " + name + " 已经登记完了,不能再往里加");
         }
     }
 
     /**
      * 登记块跑完:封口,再查每个动作的例子。例子在一棵只有这一组的树上解析——组这时还没挂上共享的树,
-     * 而例子只该用到这一组自己的语法。这棵树由两侧的树同一个生成器长出来,只是每个动作都长着参数
-     * ({@link CommandTree#EXAMPLES}):服务端动作与客户端动作的例子按同一种形状解析。
+     * 而例子只该用到这一组自己的语法。这棵树由两侧的树同一个生成器长出来,只是每个动作都长着参数:
+     * 服务端动作与客户端动作的例子按同一种形状解析。
      */
     void close() {
         open = false;
-        CommandDispatcher<Object> tree = new CommandDispatcher<>();
-        tree.register(LiteralArgumentBuilder.literal(NumenCli.ROOT).then(CommandTree.EXAMPLES.group(this)));
+        CommandTree<CommandSource> tree = new CommandTree<>(action -> true);
+        tree.add(this);
         for (Action a : actions) {
             a.checkExamples(tree);
         }

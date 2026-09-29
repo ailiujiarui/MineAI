@@ -10,12 +10,13 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * {@code command} 工具:执行一行游戏指令,就像玩家在聊天栏里敲的那样。没有自己的快捷工具的一切都从这里进——
- * Numen 自己的命令({@code numen …})、原版的、别的模组的,是同一种写法。
+ * {@code command} 工具:执行一行命令。她只有这一个能力,快捷工具是它的 alias。一行分两层({@link Line}):
+ * 行首不带 {@code /} 的是 Numen 给她的命令(第 1 层,{@link NumenCli});带 {@code /} 的是原版与模组的原生指令(第 0 层),
+ * 以她自己的权限执行,和玩家在聊天栏里敲的一样。
  *
- * <p>先在主人客户端的小表上解析({@link NumenCli#run}):解析到客户端动作或帮助,当场执行;否则这次调用原样经
+ * <p>先在主人客户端分({@link NumenCli#run}):第 1 层的客户端动作、帮助与写错的当场答;其余这次调用原样经
  * {@code ServerToolTransport} 送去服务端(和身体工具同一条运输),由服务端唯一的执行入口({@link CommandRunner})
- * 以她的身份执行,结果走原来的回执。外脑经 {@code NumenActuator} 调它也是这一条路。
+ * 执行,结果走原来的回执。外脑经 {@code NumenActuator} 调它也是这一条路。
  */
 public final class CommandTool implements NumenTool {
 
@@ -23,8 +24,8 @@ public final class CommandTool implements NumenTool {
     public static final String NAME = "command";
 
     private static final Param<String> LINE = Param.required("command", ArgType.text(),
-            "One command line, as a player would type it in chat; the leading / is optional. "
-                    + "E.g. \"numen --help\", \"help give\".");
+            "One command line: without a leading / a command from <commands>, e.g. `task status`; "
+                    + "with a leading / a Minecraft or mod command, e.g. `/help give`.");
 
     @Override
     public String name() {
@@ -33,14 +34,16 @@ public final class CommandTool implements NumenTool {
 
     @Override
     public String description() {
-        return "Run one game command as yourself, the way a player types it in chat. Numen's own commands start "
-                + "with " + NumenCli.ROOT + " (the installed groups are listed under <commands>): `" + NumenCli.ROOT
-                + " --help` lists the groups, `" + NumenCli.ROOT + " <group> --help` a group's actions, `"
-                + NumenCli.ROOT + " <group> <action> --help` explains one; required arguments follow the action "
-                + "in order, optional ones are flags written `--name value`. Every other command, vanilla or from "
-                + "another mod: `help` lists the ones the server lets you run, `help <command>` shows one's usage. "
-                + "What the command says comes back as the result; a line with a mistake comes back with the "
-                + "usage of the level it failed at.";
+        // 照 Claude Code 的工具描述写:动词起头,只说它做什么、环境是什么样,不说"谁给了你"
+        return "Runs one command line and returns its output.\n"
+                + "- A line without a leading / runs one of the command groups listed in <commands>: "
+                + "`<group> <action> [arguments]`. Required arguments follow the action in order; optional ones "
+                + "are flags written `--name value`. `help` lists the groups, `<group> --help` a group's actions, "
+                + "`<group> <action> --help` explains one.\n"
+                + "- A line with a leading / runs a Minecraft or mod command exactly as a player types it in chat, "
+                + "with your own permission level. `/help` lists the ones you can run, `/help <command>` shows "
+                + "one's usage. A command may need your owner's consent first.\n"
+                + "A line with a mistake returns the usage of the level it failed at.";
     }
 
     @Override
@@ -58,9 +61,9 @@ public final class CommandTool implements NumenTool {
         CommandRunner.line(new ServerSource(companion, NAME, toolCallId, args, reply), line(args));
     }
 
-    /** 这次调用写的那一行,去掉前导 {@code /}。 */
+    /** 这次调用写的那一行,原样(分到哪一层见 {@link Line})。 */
     static String line(JsonObject args) {
-        return NumenCli.bare(CommandArgs.fromJson(List.of(LINE), args).get(LINE));
+        return CommandArgs.fromJson(List.of(LINE), args).get(LINE);
     }
 
     /** 这一行作为一次调用的参数:{@code /numen drive} 与重放记的调用就是它。 */

@@ -100,6 +100,11 @@ public final class ActionQueue implements ToolPort {
         return delegate.cancel(stopBody);
     }
 
+    @Override
+    public void arrived(com.dwinovo.numen.agent.inbox.EventQueue.Entry entry, boolean urgent) {
+        delegate.arrived(entry, urgent);
+    }
+
     private void record(LlmToolCall call, String result, boolean success, boolean denied) {
         ledger.add(new ActionRecord(++seq, call.id(), call.name(), call.arguments(), result,
                 success, denied, System.currentTimeMillis()));
