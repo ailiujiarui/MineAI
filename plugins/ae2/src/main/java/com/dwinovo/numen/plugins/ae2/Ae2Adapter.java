@@ -31,6 +31,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.nio.file.Path;
 import java.util.Locale;
@@ -78,6 +81,11 @@ public final class Ae2Adapter {
             numen.registerContainerHandler("ae2", Ae2Adapter::readContainer);
             numen.registerTool(new Ae2NetworkTool());
             numen.registerTool(new Ae2EncodePatternTool());
+            Ae2CraftTool crafting = new Ae2CraftTool(numen);
+            numen.registerTool(crafting);
+            numen.registerEventType("ae2_craft", true);
+            NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post e) -> crafting.tick(e.getServer()));
+            NeoForge.EVENT_BUS.addListener((ServerStoppedEvent e) -> crafting.clear());
             if (adaptersRoot != null) {
                 numen.bundleAdapters(adaptersRoot);
             }

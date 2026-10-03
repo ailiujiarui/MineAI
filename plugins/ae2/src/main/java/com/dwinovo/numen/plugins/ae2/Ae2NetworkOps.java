@@ -72,7 +72,7 @@ final class Ae2NetworkOps {
     }
 
     /** 先把中心节点试出来(裸线缆/机器),没有再逐面试(面上的 part)。 */
-    private static IGridNode resolveNode(Level level, BlockPos pos) {
+    static IGridNode resolveNode(Level level, BlockPos pos) {
         IInWorldGridNodeHost host = GridHelper.getNodeHost(level, pos);
         if (host == null) {
             return null;
