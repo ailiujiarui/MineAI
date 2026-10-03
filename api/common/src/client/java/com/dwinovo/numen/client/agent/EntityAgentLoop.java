@@ -166,6 +166,22 @@ public final class EntityAgentLoop {
     private boolean wasDriving;
     /** JEV 判卷开着没有:开了就把主人每句话自动立成目标,收尾由 JEV 判卷(见 {@link #enqueueOwnerWords})。 */
     private final boolean jevGoal;
+    private java.util.function.BooleanSupplier requestPermit;
+
+    /** Passive observation and optional bounded execution, installed before submitting a live eval. */
+    public void observe(Consumer<? super com.dwinovo.numen.agent.loop.LoopEvent> observer) {
+        loop.subscribe(observer);
+    }
+
+    public void unobserve(Consumer<? super com.dwinovo.numen.agent.loop.LoopEvent> observer) {
+        loop.unsubscribe(observer);
+    }
+
+    public void executionBudget(java.util.function.BooleanSupplier requests,
+                                java.util.function.BooleanSupplier tools) {
+        requestPermit = requests;
+        dispatcher.executionPermit(tools);
+    }
 
     EntityAgentLoop(UUID entityUuid) {
         this.entityUuid = entityUuid;
@@ -869,6 +885,7 @@ public final class EntityAgentLoop {
         @Override
         public void call(ModelRequest request, CancelToken cancel, Consumer<Delta> onDelta,
                          Consumer<ModelOutcome> onDone) {
+            if (requestPermit != null) cancel.requestPermit(requestPermit);
             Minecraft mc = Minecraft.getInstance();
             java.util.concurrent.CompletableFuture<NumenLlmClient.ChatResult> result;
             try {

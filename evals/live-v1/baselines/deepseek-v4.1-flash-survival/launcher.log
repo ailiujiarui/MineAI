@@ -1,0 +1,1124 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :buildSrc:extractPluginRequests UP-TO-DATE
+> Task :buildSrc:generatePluginAdapters UP-TO-DATE
+> Task :buildSrc:compileJava UP-TO-DATE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:compileGroovyPlugins UP-TO-DATE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources UP-TO-DATE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :api:fabric
+Fabric Loom: 1.14.10
+
+> Configure project :core:fabric
+Fabric Loom: 1.14.10
+
+> Task :ai:compileJava UP-TO-DATE
+> Task :agent:compileJava UP-TO-DATE
+> Task :agent:processResources NO-SOURCE
+> Task :agent:classes UP-TO-DATE
+> Task :agent:jar UP-TO-DATE
+> Task :ai:processResources UP-TO-DATE
+> Task :ai:classes UP-TO-DATE
+> Task :ai:jar UP-TO-DATE
+> Task :ui:compileJava UP-TO-DATE
+> Task :ui:processResources NO-SOURCE
+> Task :ui:classes UP-TO-DATE
+> Task :ui:jar UP-TO-DATE
+> Task :api:common:createMinecraftArtifacts UP-TO-DATE
+> Task :api:common:compileJava UP-TO-DATE
+> Task :api:neoforge:createMinecraftArtifacts UP-TO-DATE
+> Task :api:neoforge:compileJava UP-TO-DATE
+> Task :api:neoforge:processResources UP-TO-DATE
+> Task :api:neoforge:classes UP-TO-DATE
+> Task :api:neoforge:jarJar NO-SOURCE
+> Task :api:neoforge:jar UP-TO-DATE
+> Task :core:common:createMinecraftArtifacts UP-TO-DATE
+> Task :core:common:compileJava UP-TO-DATE
+> Task :core:neoforge:createMinecraftArtifacts UP-TO-DATE
+> Task :api:neoforge:apiJar UP-TO-DATE
+> Task :plugins:curios:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:curios:compileJava UP-TO-DATE
+> Task :plugins:ftbquests:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:ftbquests:compileJava UP-TO-DATE
+> Task :plugins:jei:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:jei:compileJava UP-TO-DATE
+> Task :plugins:kaleidoscope:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:kaleidoscope:compileJava UP-TO-DATE
+> Task :plugins:mekanism:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:mekanism:compileJava UP-TO-DATE
+> Task :plugins:tlm:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:tlm:compileJava UP-TO-DATE
+> Task :api:common:processResources UP-TO-DATE
+> Task :api:common:classes UP-TO-DATE
+> Task :api:common:compileClientJava UP-TO-DATE
+> Task :api:common:processClientResources NO-SOURCE
+> Task :api:common:clientClasses UP-TO-DATE
+> Task :api:common:jarJar NO-SOURCE
+> Task :api:common:jar UP-TO-DATE
+> Task :api:common:apiJar UP-TO-DATE
+> Task :plugins:ysm:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:ysm:compileJava UP-TO-DATE
+> Task :core:neoforge:compileJava UP-TO-DATE
+> Task :core:neoforge:processResources UP-TO-DATE
+> Task :plugins:jei:processResources NO-SOURCE
+> Task :plugins:jei:classes UP-TO-DATE
+> Task :plugins:mekanism:processResources UP-TO-DATE
+> Task :plugins:mekanism:classes UP-TO-DATE
+> Task :core:neoforge:classes UP-TO-DATE
+> Task :core:neoforge:downloadAssets UP-TO-DATE
+> Task :core:neoforge:writeClientLegacyClasspath UP-TO-DATE
+> Task :core:neoforge:prepareClientRun
+
+> Task :core:neoforge:runClient
+WARN StatusConsoleListener Advanced terminal features are not available in this environment
+[10:21:06] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeclientdev, --version, 21.1.233, --assetIndex, 17, --assetsDir, C:\\Users\\21036\\.gradle\\caches\\neoformruntime\\assets, --gameDir, ., --fml.fmlVersion, 4.0.42, --fml.mcVersion, 1.21.1, --fml.neoForgeVersion, 21.1.233, --fml.neoFormVersion, 20240808.144430]
+[10:21:06] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: JVM identified as Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.12.1+1-LTS
+[10:21:06] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher 11.0.5+main.901c6ea8 starting: java version 21.0.12.1 by Eclipse Adoptium; OS Windows 11 arch amd64 version 10.0
+[10:21:06] [main/INFO] [ne.ne.fm.lo.ImmediateWindowHandler/]: Loading ImmediateWindowProvider fmlearlywindow
+[10:21:06] [main/INFO] [EARLYDISPLAY/]: Trying GL version 4.6
+[10:21:06] [main/INFO] [EARLYDISPLAY/]: Requested GL version 4.6 got version 4.6
+[10:21:06] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=union:/C:/Users/21036/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.15.2+mixin.0.8.7/2af2f021d8e02a0220dc27a7a72b4666d66d44ca/sponge-mixin-0.15.2+mixin.0.8.7.jar%23138!/ Service=ModLauncher Env=CLIENT
+[10:21:06] [pool-2-thread-1/INFO] [EARLYDISPLAY/]: GL info: Intel(R) Graphics GL version 4.6.0 - Build 32.0.101.8332, Intel
+[10:21:06] [main/INFO] [ne.ne.fm.lo.mo.lo.JarInJarDependencyLocator/]: Found 2 dependencies adding them to mods collection
+[10:21:06] [main/INFO] [ne.ne.fm.lo.mo.ModDiscoverer/]: 
+     Mod List:
+		Name Version (Mod Id)
+
+		Minecraft 1.21.1 (minecraft)
+		NeoForge 21.1.233 (neoforge)
+		Numen 0.1.3 (numen_api)
+		Numen 0.1.3 (numen)
+[10:21:07] [main/INFO] [mixin/]: Compatibility level set to JAVA_21
+[10:21:07] [main/INFO] [cp.mo.mo.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeclientdev' with arguments [--version, 21.1.233, --gameDir, ., --assetsDir, C:\Users\21036\.gradle\caches\neoformruntime\assets, --assetIndex, 17]
+[10:21:08] [main/WARN] [mixin/]: Error loading class: dev/architectury/hooks/level/entity/PlayerHooks (java.lang.ClassNotFoundException: dev.architectury.hooks.level.entity.PlayerHooks)
+[10:21:09] [Datafixer Bootstrap/INFO] [mojang/DataFixerBuilder]: 229 Datafixer optimizations took 174 milliseconds
+[10:21:09] [pool-8-thread-1/INFO] [MixinExtras|Service/]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.3).
+[10:21:13] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[10:21:13] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, targets] with inputs: [0.1 -0.5 .9, 0 0 0]
+[10:21:13] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, destination] and [teleport, targets] with inputs: [Player, 0123, @e, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[10:21:13] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets] and [teleport, destination] with inputs: [Player, 0123, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[10:21:13] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets, location] and [teleport, targets, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[10:21:13] [Render thread/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/E:/mineAI/core/neoforge/build/moddev/artifacts/neoforge-21.1.233.jar%23189!/assets/.mcassetsroot' uses unexpected schema
+[10:21:13] [Render thread/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/E:/mineAI/core/neoforge/build/moddev/artifacts/neoforge-21.1.233.jar%23189!/data/.mcassetsroot' uses unexpected schema
+[10:21:13] [Render thread/INFO] [mojang/YggdrasilAuthenticationService]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[10:21:13] [Render thread/INFO] [minecraft/Minecraft]: Setting user: Dev
+[10:21:13] [Render thread/INFO] [minecraft/Minecraft]: Backend library: LWJGL version 3.3.3+5
+[10:21:13] [modloading-worker-0/INFO] [ne.ne.ne.co.NeoForgeMod/NEOFORGE-MOD]: NeoForge mod loading, version 21.1.233, for MC 1.21.1
+[10:21:13] [modloading-worker-0/INFO] [Numen/]: [numen] common init on NeoForge (development)
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] reload E:\mineAI\build\evals\live-v1\20261003T022055527569Z-300c622c\game\config\numen\adapters: 0 loaded, 0 failed, 3 skipped (added=[], updated=[], removed=[])
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'beyonddimensions': mod 'beyonddimensions' not loaded
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'curios': mod 'curios' not loaded
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'tacz': mod 'tacz' not loaded
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen] registered 1 tool(s)
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: Numen mod initialised on NeoForge.
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-mcp-client] wrote default config E:\mineAI\build\evals\live-v1\20261003T022055527569Z-300c622c\game\config\numen\mcp_clients.json
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-mcp-client] 2 server(s) configured, 0 connecting
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-mcp] wrote default config E:\mineAI\build\evals\live-v1\20261003T022055527569Z-300c622c\game\config\numen\mcp_server.json
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-mcp] 外接大脑模式关闭(config/numen/mcp_server.json)
+[10:21:14] [modloading-worker-0/INFO] [NumenCore/]: [numen-core] registered 42 tool(s), 16 task type(s); survival chains enabled
+[10:21:14] [modloading-worker-0/INFO] [Numen/]: [numen-skill] declared bundled skills root skills
+[10:21:14] [modloading-worker-0/INFO] [NumenCore/]: numen-core initialised on NeoForge.
+[10:21:14] [Render thread/INFO] [ne.ne.ne.ga.GameTestHooks/]: Enabled Gametest Namespaces: [numen]
+[10:21:14] [Render thread/INFO] [minecraft/ReloadableResourceManager]: Reloading ResourceManager: vanilla, mod_resources, mod/numen_api, mod/numen, mod/neoforge
+[10:21:14] [Worker-Main-7/INFO] [minecraft/UnihexProvider]: Found unifont_all_no_pua-15.1.05.hex, loading
+[10:21:14] [Worker-Main-5/INFO] [minecraft/UnihexProvider]: Found unifont_jp_patch-15.1.05.hex, loading
+[10:21:15] [Render thread/WARN] [minecraft/SoundEngine]: Missing sound for event: minecraft:item.goat_horn.play
+[10:21:15] [Render thread/WARN] [minecraft/SoundEngine]: Missing sound for event: minecraft:entity.goat.screaming.horn_break
+[10:21:17] [Render thread/INFO] [mojang/Library]: OpenAL initialized on device OpenAL Soft on 扬声器 (Realtek(R) Audio)
+[10:21:17] [Render thread/INFO] [minecraft/SoundEngine]: Sound engine started
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x512x4 minecraft:textures/atlas/blocks.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x256x4 minecraft:textures/atlas/signs.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x512x4 minecraft:textures/atlas/shield_patterns.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x512x4 minecraft:textures/atlas/banner_patterns.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x1024x4 minecraft:textures/atlas/armor_trims.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x256x4 minecraft:textures/atlas/chest.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 128x64x4 minecraft:textures/atlas/decorated_pot.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x4 minecraft:textures/atlas/beds.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x4 minecraft:textures/atlas/shulker_boxes.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x128x0 minecraft:textures/atlas/mob_effects.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 64x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[10:21:17] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[10:21:17] [Render thread/WARN] [minecraft/ShaderInstance]: Shader rendertype_entity_translucent_emissive could not find sampler named Sampler2 in the specified shader program.
+[10:21:17] [Render thread/INFO] [Numen/]: [numen-skill] loaded 11 skill(s) (1 bundled root(s), userRoot=.\config\numen\skills)
+[10:21:17] [Render thread/INFO] [ne.ne.ne.cl.en.an.js.AnimationLoader/]: Loaded 0 entity animations
+[10:21:20] [Render thread/INFO] [minecraft/RecipeManager]: Loaded 1290 recipes
+[10:21:20] [Render thread/INFO] [minecraft/AdvancementTree]: Loaded 1399 advancements
+[10:21:20] [Server thread/INFO] [minecraft/IntegratedServer]: Starting integrated minecraft server version 1.21.1
+[10:21:20] [Server thread/INFO] [minecraft/MinecraftServer]: Generating keypair
+[10:21:22] [Server thread/INFO] [minecraft/MinecraftServer]: Preparing start region for dimension minecraft:overworld
+[10:21:22] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[10:21:23] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[10:21:23] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[10:21:24] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 51%
+[10:21:24] [Server thread/INFO] [ne.ne.ne.se.pe.PermissionAPI/]: Successfully initialized permission handler neoforge:default_handler
+[10:21:24] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Time elapsed: 1806 ms
+[10:21:24] [Server thread/INFO] [Numen/]: [numen-task] scheduler heartbeat online (first server tick)
+[10:21:24] [Server thread/INFO] [minecraft/IntegratedServer]: Changing view distance to 12, from 10
+[10:21:24] [Server thread/INFO] [minecraft/IntegratedServer]: Changing simulation distance to 12, from 0
+[10:21:25] [Server thread/INFO] [minecraft/PlayerList]: Dev[local:E:02cd8026] logged in with entity id 22 at (157.5, 63.0, -131.5)
+[10:21:25] [Server thread/INFO] [minecraft/MinecraftServer]: Dev joined the game
+[10:21:25] [Render thread/INFO] [minecraft/AdvancementTree]: Loaded 2 advancements
+[10:21:25] [Server thread/INFO] [minecraft/PlayerList]: EvalBot[embedded] logged in with entity id 56 at (170.5, 63.0, -117.5)
+[10:21:25] [Server thread/INFO] [minecraft/MinecraftServer]: EvalBot joined the game
+[10:21:25] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot joined the game
+[10:21:25] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 0 种物品 / 0 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符 (首次)
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued query URGENT: <query>/goal 从空背包开始，在这个普通生存世界独立建立能继续生活的据点和可再生食物循环。你自己决定方案、行动顺序和何时进食，不向我索要物资或操作帮助。评测以服务端真实世界状态为准，首次死亡即失败。
+
+公开成功标准：最终你至少保有...
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-queue#bb40f864-bb92-43c4-b249-f91d9cd3560e] 主动开轮:有急件(攒了 1 条/阈值 3,最老 0s/上限 180s,档位 3)
+[10:21:26] [Render thread/WARN] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] can't reach the model: This companion has no model config bound — pick or create one in Settings → Model Configs
+[10:21:26] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] ⚠ EvalBot:This companion has no model config bound — pick or create one in Settings → Model Configs
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] provider entry set to eval-model
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] BINDING_CHANGED 解开停牌 BLOCKED
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-queue#bb40f864-bb92-43c4-b249-f91d9cd3560e] 主动开轮:有急件(攒了 1 条/阈值 3,最老 0s/上限 180s,档位 3)
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:330 字符,这份快照 1234ms 前收到
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=2 msgs, tools=42
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-http] routing LLM calls through proxy 127.0.0.1:7897
+[10:21:26] [Render thread/INFO] [Numen/]: [numen-llm] client initialised: provider=deepseek, model=deepseek-v4.1-flash, url=https://api.b.ai/v1/chat/completions, streaming=true
+[10:22:56] [ForkJoinPool.commonPool-worker-11/WARN] [Numen/]: [numen-http][lr-1] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:22:56] [ForkJoinPool.commonPool-worker-11/WARN] [Numen/]: [numen-http][lr-1] retrying in 434ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:23:01] [ForkJoinPool.commonPool-worker-11/INFO] [Numen/]: [numen-llm] chat done in 95039ms, chunks=126, tokens=19399/353 (total 19752), finish=tool_calls, tool_calls=[command, get_world_info, look_around, load_skill], content="<no text>"
+[10:23:01] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=command id=call_00_0yvrfvqyxqvvbn6a4n6dm9xe args={"command": "numen --help"}
+[10:23:01] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_0yvrfvqyxqvvbn6a4n6dm9xe tool=command (queued=3) → {"success":true,"message":"numen <group> <action> [arguments]. Command groups:\n  adapter — Hot-reloadable mod adapters: re-read them from disk.\n  task — Your dispatched work — the background task an...
+[10:23:01] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=get_world_info id=call_01_mxv8jw63zrqyiyw15zw63r15 args={}
+[10:23:01] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_mxv8jw63zrqyiyw15zw63r15 tool=get_world_info (queued=2) → {"dimension":"minecraft:overworld","game_time":1952,"is_bright_outside":true,"is_dark_outside":false,"weather":"clear"}
+[10:23:02] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=look_around id=call_02_d8dqkkjnimdtv98ot9lfygoo args={"radius": 12}
+[10:23:02] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_02_d8dqkkjnimdtv98ot9lfygoo tool=look_around (queued=1) → look_around center=(160,66,-128) facing=east | 1 cell = 1 block, @ = you, North = up (-Z), East = right (+X)
+
+v T v v v v v . T T T . ^ ^ v ^ ^ v v v , , , , ,
+v v v T . . . . . T ^ T v v ^ ^ v v v v ...
+[10:23:02] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=load_skill id=call_03_l01fifc7cpepxntx9ddu4i1s args={"name": "tier_progression", "file": ""}
+[10:23:02] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_03_l01fifc7cpepxntx9ddu4i1s tool=load_skill (queued=0) → <skill_content name="tier_progression">
+# Skill: tier_progression
+
+# Skill: tier_progression
+
+Phase 1 of the dragon route. You need diamond tools before you can mine obsidian and survive the Nether. S...
+[10:23:02] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=7 msgs, tools=42
+[10:23:11] [ForkJoinPool.commonPool-worker-11/INFO] [Numen/]: [numen-llm] chat done in 9688ms, chunks=655, tokens=21930/1218 (total 23148), finish=tool_calls, tool_calls=[todowrite, mine], content="<no text>"
+[10:23:11] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=todowrite id=call_00_61wu47rcf4m9ldtc31vgv8mu args={"todos": [{"content": "Wood: chop logs → planks, sticks, crafting table, wooden pickaxe", "status": "in_progress", "priority": "high"}, {"content": "Stone: mine cobblestone → stone pickaxe, stone hoe...
+[10:23:11] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_61wu47rcf4m9ldtc31vgv8mu tool=todowrite (queued=1) → {"success":true,"message":"plan snapshot replaced; continue only the in_progress item","todos":[{"content":"Wood: chop logs → planks, sticks, crafting table, wooden pickaxe","status":"in_progress","pr...
+[10:23:11] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=mine id=call_01_x3qfv1c4c59ksmu1nvzi5bqo args={"block_ids": ["minecraft:oak_log", "minecraft:birch_log", "minecraft:spruce_log", "minecraft:jungle_log", "minecraft:acacia_log", "minecraft:dark_oak_log", "minecraft:cherry_log", "minecraft:mangrove...
+[10:23:11] [Server thread/INFO] [NumenCore/]: [numen-task] mine start targets=oak_log+7 count=14 cells=- feet=160, 66, -128
+[10:23:11] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_x3qfv1c4c59ksmu1nvzi5bqo tool=mine (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t1","task":"mine","standing":false}}
+[10:23:11] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 3: convo=10 msgs, tools=42
+[10:23:11] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 221 hit(s), nearest 1.4 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 12 read | 1 tick(s)
+[10:23:13] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 1 种物品 / 1 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:23:16] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 220 hit(s), nearest 1.7 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:16] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 2 种物品 / 2 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:23:21] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 219 hit(s), nearest 1.7 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:26] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 218 hit(s), nearest 2.4 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:31] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 216 hit(s), nearest 2.4 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:36] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 215 hit(s), nearest 3.0 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:37] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 127 hit(s), nearest 2.2 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 2 read | 0 tick(s)
+[10:23:42] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 126 hit(s), nearest 3.2 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:47] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 125 hit(s), nearest 3.2 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:49] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:开始动手▌
+[10:23:49] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:开始动手了——先砍树。▌
+[10:23:49] [ForkJoinPool.commonPool-worker-11/INFO] [Numen/]: [numen-llm] chat done in 37955ms, chunks=125, tokens=23479/294 (total 23773), finish=tool_calls, tool_calls=[scan_blocks], content="开始动手了——先砍树。"
+[10:23:49] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:开始动手了——先砍树。
+[10:23:49] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_blocks id=call_00_ovs795sgf4q7lchrdsituzg9 args={"radius": 32, "block_ids": ["minecraft:stone", "minecraft:grass_block", "minecraft:dirt", "minecraft:water", "minecraft:short_grass", "minecraft:tall_grass", "minecraft:coal_ore", "minecraft:iron_ore...
+[10:23:49] [Server thread/INFO] [NumenCore/]: [numen-scan] stone+7 r=32 → 10591 hit(s), nearest 1.0 | collect cap | 2/25 columns read, 0 not loaded, 11 section(s) visited, 8 read | 0 tick(s)
+[10:23:49] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_ovs795sgf4q7lchrdsituzg9 tool=scan_blocks (queued=0) → {"groups":[{"id":"g1","cells":2363,"blocks":{"minecraft:stone":1552,"minecraft:water":373,"minecraft:dirt":304,"minecraft:grass_block":88,"minecraft:coal_ore":42,"minecraft:short_grass":4},"nearest":{...
+[10:23:49] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:383 字符,这份快照 33067ms 前收到
+[10:23:49] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 4: convo=12 msgs, tools=42
+[10:23:52] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 124 hit(s), nearest 3.3 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:55] [ForkJoinPool.commonPool-worker-11/INFO] [Numen/]: [numen-llm] chat done in 5131ms, chunks=117, tokens=24603/342 (total 24945), finish=tool_calls, tool_calls=[scan_nearby_entities], content="<no text>"
+[10:23:55] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_nearby_entities id=call_00_tvmftp5ptqhgl21u5rzx63nh args={"radius": 48, "type_filter": "passive"}
+[10:23:55] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_tvmftp5ptqhgl21u5rzx63nh tool=scan_nearby_entities (queued=0) → {"entities":[{"id":1722,"type":"entity.minecraft.item","category":"passive","position":{"x":159.7885874319515,"y":64.0,"z":-128.125},"distance":3.0752015113830566},{"id":1705,"type":"entity.minecraft....
+[10:23:55] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 5: convo=14 msgs, tools=42
+[10:23:56] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=158, 64, -126 goal-center=160, 65, -125 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:23:57] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 123 hit(s), nearest 3.3 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:23:58] [ForkJoinPool.commonPool-worker-11/INFO] [Numen/]: [numen-llm] chat done in 3660ms, chunks=47, tokens=25540/126 (total 25666), finish=tool_calls, tool_calls=[scan_nearby_entities], content="<no text>"
+[10:23:58] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_nearby_entities id=call_00_gpwjqjophuzecqe37n9bl9od args={"radius": 64, "type_filter": "hostile"}
+[10:23:58] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_gpwjqjophuzecqe37n9bl9od tool=scan_nearby_entities (queued=0) → {"entities":[{"id":1386,"type":"entity.minecraft.skeleton","category":"hostile","position":{"x":190.5957845383036,"y":29.0,"z":-146.5080768205424},"distance":51.99238967895508,"hp":20.0,"max_hp":20.0}...
+[10:23:58] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 6: convo=16 msgs, tools=42
+[10:24:02] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 122 hit(s), nearest 3.3 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:24:03] [ForkJoinPool.commonPool-worker-11/INFO] [Numen/]: [numen-llm] chat done in 4643ms, chunks=129, tokens=26053/351 (total 26404), finish=tool_calls, tool_calls=[command], content="<no text>"
+[10:24:03] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=command id=call_00_3tx5xhd45bwpmxldtillh6wn args={"command": "numen task --help"}
+[10:24:03] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_3tx5xhd45bwpmxldtillh6wn tool=command (queued=0) → {"success":true,"message":"numen task: Your dispatched work — the background task and your pending timers. Actions:\n  numen task status — What you have in flight: the background task and your pending...
+[10:24:03] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 7: convo=18 msgs, tools=42
+[10:24:04] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 3 种物品 / 3 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:06] [ForkJoinPool.commonPool-worker-11/INFO] [Numen/]: [numen-llm] chat done in 3287ms, chunks=84, tokens=26535/225 (total 26760), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:24:06] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=task_status id=call_00_yx55avf7a6z529300l78j9al args={}
+[10:24:06] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_yx55avf7a6z529300l78j9al tool=task_status (queued=0) → {"success":true,"message":"t1(挖 oak_log+7 1/14) running,已进行 55s,时间预算剩 365s。没有挂着的表。","data":{"task_id":"t1","task":"mine","state":"running","elapsed_s":55,"budget_left_s":365}}
+[10:24:06] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:403 字符,这份快照 1743ms 前收到
+[10:24:06] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 8: convo=20 msgs, tools=42
+[10:24:07] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 120 hit(s), nearest 3.3 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:24:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 3 种物品 / 3 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 3 种物品 / 3 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:09] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:11] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 207 hit(s), nearest 1.0 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:24:11] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:12] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:12] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 120 hit(s), nearest 1.0 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:24:12] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:13] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 207 hit(s), nearest 3.0 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:24:16] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:18] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 432 hit(s), nearest 1.0 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 12 read | 0 tick(s)
+[10:24:21] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:23] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 431 hit(s), nearest 1.0 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:24:25] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:28] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 430 hit(s), nearest 1.0 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:24:31] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:33] [Server thread/INFO] [NumenCore/]: [numen-scan] mangrove_log+7 r=512 → 204 hit(s), nearest 1.4 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:24:33] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 4 种物品 / 4 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:24:33] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:24:33] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="0" t="09:47" id="t1" task="mine" status="done">gathered 14/14 oak_log+7 (gathered all r...
+[10:25:36] [ForkJoinPool.commonPool-worker-1/WARN] [Numen/]: [numen-http][lr-9] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:25:36] [ForkJoinPool.commonPool-worker-1/WARN] [Numen/]: [numen-http][lr-9] retrying in 439ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:25:42] [ForkJoinPool.commonPool-worker-1/WARN] [Numen/]: [numen-http][lr-10r1] retrying in 769ms (attempt 2/2) — javax.net.ssl.SSLHandshakeException: Remote host terminated the handshake
+[10:25:47] [ForkJoinPool.commonPool-worker-1/INFO] [Numen/]: [numen-llm] chat done in 100564ms, chunks=192, tokens=26848/433 (total 27281), finish=tool_calls, tool_calls=[task_stop, scan_blocks], content="<no text>"
+[10:25:47] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=task_stop id=call_00_g032zo1b7soh49e4lf4upszc args={"task_id": "t1"}
+[10:25:47] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_g032zo1b7soh49e4lf4upszc tool=task_stop (queued=1) → {"success":false,"message":"没有 t1 这个 id。当前:身体空闲;表:无。"}
+[10:25:47] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_blocks id=call_01_88xotpykt0vn9qpnx0jrctfk args={"block_ids": ["minecraft:oak_log", "minecraft:birch_log", "minecraft:spruce_log", "minecraft:jungle_log", "minecraft:acacia_log", "minecraft:dark_oak_log", "minecraft:cherry_log", "minecraft:pale_oak...
+[10:25:47] [Server thread/INFO] [NumenCore/]: [numen-scan] oak_log+6 r=20 → 94 hit(s), nearest 1.4 | covered the whole radius | 25/25 columns read, 0 not loaded, 29 section(s) visited, 12 read | 0 tick(s)
+[10:25:47] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_88xotpykt0vn9qpnx0jrctfk tool=scan_blocks (queued=0) → {"groups":[{"id":"g7","cells":14,"blocks":{"minecraft:oak_log":14},"nearest":{"x":163,"y":66,"z":-122,"direction":"north-east","distance":1.4},"box":"163,63,-123..167,72,-122","permission":"allow","po...
+[10:25:47] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:424 字符,这份快照 73710ms 前收到
+[10:25:47] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=24 msgs, tools=42
+[10:27:17] [ForkJoinPool.commonPool-worker-18/WARN] [Numen/]: [numen-http][lr-12] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:27:17] [ForkJoinPool.commonPool-worker-18/WARN] [Numen/]: [numen-http][lr-12] retrying in 375ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:27:26] [ForkJoinPool.commonPool-worker-18/INFO] [Numen/]: [numen-llm] chat done in 99320ms, chunks=382, tokens=29016/1228 (total 30244), finish=tool_calls, tool_calls=[craft, get_self_status], content="<no text>"
+[10:27:26] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_00_ils8iaj1i5m8mgzm9ypdz04u args={"item_id": "minecraft:oak_planks", "count": 12}
+[10:27:26] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 5 种物品 / 5 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:27:26] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_ils8iaj1i5m8mgzm9ypdz04u tool=craft (queued=1) → {"success":true,"message":"crafted 12x oak_planks — used 3x oak_log. Used your own 2x2 grid. Now carrying 12x oak_planks.","data":{"carrying":12,"crafted":12}}
+[10:27:26] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=get_self_status id=call_01_zkp3nvlcqmyu6yexk7o8vjzs args={}
+[10:27:26] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_zkp3nvlcqmyu6yexk7o8vjzs tool=get_self_status (queued=0) → {"entity_id":56,"name":"EvalBot","game_mode":"survival","hp":20.0,"max_hp":20.0,"hunger":20,"saturation":5.0,"position":{"x":162.75352847860927,"y":66.0,"z":-120.51459000636589},"dimension":"minecraft...
+[10:27:26] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:450 字符,这份快照 8ms 前收到
+[10:27:26] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=27 msgs, tools=42
+[10:27:54] [ForkJoinPool.commonPool-worker-18/INFO] [Numen/]: [numen-llm] chat done in 28095ms, chunks=1467, tokens=30516/4184 (total 34700), finish=tool_calls, tool_calls=[craft], content="<no text>"
+[10:27:54] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_00_5hk9fjhglzohuoyrvusb2jc7 args={"count": 8, "item_id": "minecraft:oak_planks"}
+[10:27:54] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_5hk9fjhglzohuoyrvusb2jc7 tool=craft (queued=0) → {"success":true,"message":"crafted 8x oak_planks — used 2x oak_log. Used your own 2x2 grid. Now carrying 20x oak_planks.","data":{"carrying":20,"crafted":8}}
+[10:27:54] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 3: convo=29 msgs, tools=42
+[10:27:54] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 5 种物品 / 5 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:27:57] [ForkJoinPool.commonPool-worker-18/INFO] [Numen/]: [numen-llm] chat done in 2832ms, chunks=77, tokens=34767/215 (total 34982), finish=tool_calls, tool_calls=[craft, craft], content="<no text>"
+[10:27:57] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_00_eyrg2vqdqkr1wgkjvlxikhnm args={"count": 8, "item_id": "minecraft:stick"}
+[10:27:57] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_eyrg2vqdqkr1wgkjvlxikhnm tool=craft (queued=1) → {"success":true,"message":"crafted 8x stick — used 4x oak_planks. Used your own 2x2 grid. Now carrying 10x stick.","data":{"carrying":10,"crafted":8}}
+[10:27:57] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_01_9awaumuv7gj9h4d15xts526s args={"count": 1, "item_id": "minecraft:crafting_table"}
+[10:27:57] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_9awaumuv7gj9h4d15xts526s tool=craft (queued=0) → {"success":true,"message":"crafted 1x crafting_table — used 4x oak_planks. Used your own 2x2 grid. Now carrying 1x crafting_table.","data":{"carrying":1,"crafted":1}}
+[10:27:57] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:449 字符,这份快照 2833ms 前收到
+[10:27:57] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 4: convo=32 msgs, tools=42
+[10:27:57] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 6 种物品 / 6 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:28:04] [ForkJoinPool.commonPool-worker-18/INFO] [Numen/]: [numen-llm] chat done in 7118ms, chunks=259, tokens=35106/835 (total 35941), finish=tool_calls, tool_calls=[look_around], content="<no text>"
+[10:28:04] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=look_around id=call_00_zuoht2bzp7cxxs5s958k95l7 args={"radius": 5}
+[10:28:04] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_zuoht2bzp7cxxs5s958k95l7 tool=look_around (queued=0) → look_around center=(162,66,-121) facing=north | 1 cell = 1 block, @ = you, North = up (-Z), East = right (+X)
+
+, , v v v v v v v v v
+v ^ ^ ^ ^ ^ v v v v v
+v ^ ^ ^ ^ ^ v v v v v
+v ^ T , v ^ v v v v v
+v...
+[10:28:04] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:479 字符,这份快照 7117ms 前收到
+[10:28:04] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 5: convo=34 msgs, tools=42
+[10:29:34] [ForkJoinPool.commonPool-worker-2/WARN] [Numen/]: [numen-http][lr-17] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:29:34] [ForkJoinPool.commonPool-worker-2/WARN] [Numen/]: [numen-http][lr-17] retrying in 466ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:30:55] [ForkJoinPool.commonPool-worker-8/INFO] [Numen/]: [numen-llm] chat done in 170255ms, chunks=849, tokens=36206/2537 (total 38743), finish=tool_calls, tool_calls=[build, look_around], content="<no text>"
+[10:30:55] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=build id=call_00_swttzyoexo6l9kowrw1bsjjt args={"ops": [{"op": "set", "x": 165, "y": 66, "z": -120, "block_id": "minecraft:crafting_table"}], "mask": "keep"}
+[10:30:55] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=162, 66, -121 goal-center=163, 66, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:30:55] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_swttzyoexo6l9kowrw1bsjjt tool=build (queued=1) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t2","task":"build","standing":false}}
+[10:30:55] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=look_around id=call_01_3wj3931fm4hkdnxnh20676zu args={"radius": 16}
+[10:30:55] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_3wj3931fm4hkdnxnh20676zu tool=look_around (queued=0) → look_around center=(162,66,-121) facing=north | 1 cell = 1 block, @ = you, North = up (-Z), East = right (+X)
+
+v v v ^ . T T T . v v v v v T v v v v v v , , , , , , , , , , . .
+v v v v . ^ T . . v v v...
+[10:30:55] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 6: convo=37 msgs, tools=42
+[10:30:55] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:30:55] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="0" t="17:25" id="t2" task="build" status="done">built 1/1 block(s); placed 1, cleared 0...
+[10:30:55] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 5 种物品 / 5 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:31:15] [ForkJoinPool.commonPool-worker-8/INFO] [Numen/]: [numen-llm] chat done in 20821ms, chunks=1075, tokens=40152/3397 (total 43549), finish=tool_calls, tool_calls=[inspect_block, inspect_block, inspect_block, inspect_block], content="<no text>"
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=inspect_block id=call_00_nty5skmsxach1mt2xz7jvsy8 args={"x": 169, "y": 63, "z": -117}
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_nty5skmsxach1mt2xz7jvsy8 tool=inspect_block (queued=3) → {"x":169,"y":63,"z":-117,"block":"minecraft:air","is_air":true,"is_solid":false,"is_liquid":false,"hardness":0.0,"unbreakable":false,"needs_correct_tool":false,"current_hand_correct_tool":false,"dista...
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=inspect_block id=call_01_d79zxe26hyg3qpp9idcjomen args={"x": 169, "y": 62, "z": -117}
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_d79zxe26hyg3qpp9idcjomen tool=inspect_block (queued=2) → {"x":169,"y":62,"z":-117,"block":"minecraft:grass_block","properties":{"snowy":"false"},"is_air":false,"is_solid":true,"is_liquid":false,"hardness":0.6,"unbreakable":false,"needs_correct_tool":false,"...
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=inspect_block id=call_02_rxkpnnq7p8et31ofq8ne4ppf args={"x": 165, "y": 65, "z": -117}
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_02_rxkpnnq7p8et31ofq8ne4ppf tool=inspect_block (queued=1) → {"x":165,"y":65,"z":-117,"block":"minecraft:oak_leaves","properties":{"distance":"4","persistent":"false","waterlogged":"false"},"is_air":false,"is_solid":true,"is_liquid":false,"hardness":0.2,"unbrea...
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=inspect_block id=call_03_bcmn813vkztkis6i5qmbd0a3 args={"x": 166, "y": 65, "z": -118}
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_03_bcmn813vkztkis6i5qmbd0a3 tool=inspect_block (queued=0) → {"x":166,"y":65,"z":-118,"block":"minecraft:air","is_air":true,"is_solid":false,"is_liquid":false,"hardness":0.0,"unbreakable":false,"needs_correct_tool":false,"current_hand_correct_tool":false,"dista...
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:436 字符,这份快照 20272ms 前收到
+[10:31:15] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=43 msgs, tools=42
+[10:31:20] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:桌子立▌
+[10:31:20] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:桌子立好了，开始做工具。▌
+[10:31:21] [ForkJoinPool.commonPool-worker-8/INFO] [Numen/]: [numen-llm] chat done in 5243ms, chunks=191, tokens=43928/605 (total 44533), finish=tool_calls, tool_calls=[craft], content="桌子立好了，开始做工具。"
+[10:31:21] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:桌子立好了，开始做工具。
+[10:31:21] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_00_fa3omjks0d0hmtx9wmqq09e4 args={"count": 1, "item_id": "minecraft:wooden_pickaxe"}
+[10:31:21] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_fa3omjks0d0hmtx9wmqq09e4 tool=craft (queued=0) → {"success":true,"message":"crafted 1x wooden_pickaxe — used 3x oak_planks, 2x stick. Used the crafting table at 165,66,-120. Now carrying 1x wooden_pickaxe.","data":{"carrying":1,"crafted":1}}
+[10:31:21] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=45 msgs, tools=42
+[10:31:21] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 6 种物品 / 6 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:31:23] [ForkJoinPool.commonPool-worker-8/INFO] [Numen/]: [numen-llm] chat done in 2216ms, chunks=43, tokens=44610/127 (total 44737), finish=tool_calls, tool_calls=[craft], content="<no text>"
+[10:31:23] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_00_h7rowb5a8439lykn3pczzri4 args={"count": 1, "item_id": "minecraft:wooden_hoe"}
+[10:31:23] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_h7rowb5a8439lykn3pczzri4 tool=craft (queued=0) → {"success":true,"message":"crafted 1x wooden_hoe — used 2x oak_planks, 2x stick. Used the crafting table at 165,66,-120. Now carrying 1x wooden_hoe.","data":{"carrying":1,"crafted":1}}
+[10:31:23] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:480 字符,这份快照 2225ms 前收到
+[10:31:23] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 3: convo=47 msgs, tools=42
+[10:31:23] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 7 种物品 / 7 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:31:28] [ForkJoinPool.commonPool-worker-8/INFO] [Numen/]: [numen-llm] chat done in 4555ms, chunks=137, tokens=44829/410 (total 45239), finish=tool_calls, tool_calls=[craft], content="<no text>"
+[10:31:28] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_00_pl5vfat54gp56bspf3hu3kix args={"count": 1, "item_id": "minecraft:wooden_sword"}
+[10:31:28] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 8 种物品 / 8 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:31:28] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_pl5vfat54gp56bspf3hu3kix tool=craft (queued=0) → {"success":true,"message":"crafted 1x wooden_sword — used 2x oak_planks, 1x stick. Used the crafting table at 165,66,-120. Now carrying 1x wooden_sword.","data":{"carrying":1,"crafted":1}}
+[10:31:28] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:505 字符,这份快照 4550ms 前收到
+[10:31:28] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 4: convo=49 msgs, tools=42
+[10:32:58] [ForkJoinPool.commonPool-worker-6/WARN] [Numen/]: [numen-http][lr-23] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:32:58] [ForkJoinPool.commonPool-worker-6/WARN] [Numen/]: [numen-http][lr-23] retrying in 488ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:33:14] [ForkJoinPool.commonPool-worker-6/INFO] [Numen/]: [numen-llm] chat done in 106261ms, chunks=683, tokens=45326/2018 (total 47344), finish=tool_calls, tool_calls=[mine], content="<no text>"
+[10:33:14] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=mine id=call_00_o0wv5xs2dxbe4xswa3c6tg71 args={"block_ids": ["minecraft:stone"], "count": 40}
+[10:33:14] [Server thread/INFO] [NumenCore/]: [numen-task] mine start targets=stone count=40 cells=- feet=162, 66, -121
+[10:33:14] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_o0wv5xs2dxbe4xswa3c6tg71 tool=mine (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t3","task":"mine","standing":false}}
+[10:33:14] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:532 字符,这份快照 106275ms 前收到
+[10:33:14] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 5: convo=51 msgs, tools=42
+[10:33:14] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9436 hit(s), nearest 8.0 | collect cap | 0/4225 columns read, 0 not loaded, 8 section(s) visited, 4 read | 0 tick(s)
+[10:33:16] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:18] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:19] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9436 hit(s), nearest 2.2 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:33:19] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:20] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:21] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=163, 58, -121 goal-center=162, 57, -120 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:33:21] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=163, 58, -121 goal-center=162, 57, -120 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:33:21] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=163, 58, -121 goal-center=162, 57, -120 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:33:22] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:23] [Server thread/INFO] [minecraft/MinecraftServer]: EvalBot has made the advancement [Stone Age]
+[10:33:23] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot has made the advancement [Stone Age]
+[10:33:23] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:24] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9435 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:33:25] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:27] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:29] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9432 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:33:31] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:34] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:34] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9430 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:33:35] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:39] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9427 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:33:40] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:42] [ForkJoinPool.commonPool-worker-6/INFO] [Numen/]: [numen-llm] chat done in 28099ms, chunks=1433, tokens=47427/4234 (total 51661), finish=tool_calls, tool_calls=[scan_blocks], content="<no text>"
+[10:33:42] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_blocks id=call_00_awn17qy9aszt8ktc7sunk345 args={"block_ids": ["minecraft:short_grass", "minecraft:tall_grass", "minecraft:fern", "minecraft:large_fern"], "radius": 24}
+[10:33:42] [Server thread/INFO] [NumenCore/]: [numen-scan] short_grass+3 r=24 → 49 hit(s), nearest 5.1 | covered the whole radius | 25/25 columns read, 0 not loaded, 40 section(s) visited, 31 read | 1 tick(s)
+[10:33:42] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_awn17qy9aszt8ktc7sunk345 tool=scan_blocks (queued=0) → {"groups":[{"id":"g23","cells":1,"blocks":{"minecraft:short_grass":1},"nearest":{"x":164,"y":63,"z":-121,"direction":"east, 5 up","distance":5.1},"box":"164,63,-121..164,63,-121","permission":"allow",...
+[10:33:42] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:578 字符,这份快照 2014ms 前收到
+[10:33:42] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 6: convo=53 msgs, tools=42
+[10:33:44] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9425 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:33:44] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:45] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:47] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:挖▌
+[10:33:47] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:挖石头中，等它挖够▌
+[10:33:47] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:挖石头中，等它挖够数。▌
+[10:33:47] [ForkJoinPool.commonPool-worker-6/INFO] [Numen/]: [numen-llm] chat done in 5401ms, chunks=201, tokens=53176/592 (total 53768), finish=tool_calls, tool_calls=[scan_blocks], content="挖石头中，等它挖够数。"
+[10:33:47] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:挖石头中，等它挖够数。
+[10:33:47] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_blocks id=call_00_dabi0ykd86l9qxx2sli36g0u args={"block_ids": ["minecraft:water"], "radius": 16}
+[10:33:47] [Server thread/INFO] [NumenCore/]: [numen-scan] water r=16 → 652 hit(s), nearest 7.9 | covered the whole radius | 9/9 columns read, 0 not loaded, 22 section(s) visited, 16 read | 0 tick(s)
+[10:33:47] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_dabi0ykd86l9qxx2sli36g0u tool=scan_blocks (queued=0) → {"groups":[{"id":"g39","cells":371,"blocks":{"minecraft:water":371},"nearest":{"x":156,"y":55,"z":-119,"direction":"west, 3 down","distance":7.9},"box":"151,49,-125..157,62,-113","permission":"allow",...
+[10:33:47] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:578 字符,这份快照 2459ms 前收到
+[10:33:47] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 7: convo=55 msgs, tools=42
+[10:33:49] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9424 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:33:50] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:54] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9423 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:33:56] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:33:59] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9422 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:04] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9421 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:05] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:06] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:07] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:09] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9420 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:14] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9420 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:15] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:15] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:15] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=161, 58, -120 goal-center=162, 56, -120 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:34:16] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:17] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:17] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:19] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:19] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9418 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:20] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:24] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9417 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:26] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:27] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=161, 57, -119 goal-center=162, 56, -120 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:34:28] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:29] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9414 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:29] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 wooden_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:30] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:30] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:31] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:31] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.4 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:31] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:32] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:32] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:33] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:33] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:33] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:34] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:35] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:36] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:36] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:36] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 9 种物品 / 9 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:37] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 diorite, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:37] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.4 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:38] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 diorite, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:38] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.7 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:38] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 diorite, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:39] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 diorite, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:39] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:40] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:41] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 diorite, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:41] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:41] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 diorite, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:42] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 diorite, 副手 空手, 效果 0, 插件片段 64 字符
+[10:34:42] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:34:42] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:34:42] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="0" t="21:57" id="t3" task="mine" status="done">gathered 23/40 stone (no more stone in r...
+[10:34:43] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 diorite, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:21] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 94047ms, chunks=784, tokens=54117/2263 (total 56380), finish=tool_calls, tool_calls=[locate_structure], content="<no text>"
+[10:35:22] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=locate_structure id=call_00_6np0ufjt5nftvyej5uanpbh5 args={"structure": "#minecraft:village"}
+[10:35:22] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_6np0ufjt5nftvyej5uanpbh5 tool=locate_structure (queued=0) → {"success":true,"message":"nearest #minecraft:village at 336,0,-544 (north, ~455 blocks). goto the x/z (pick a sensible y for the terrain), then scan_blocks to find its actual blocks.","data":{"horizo...
+[10:35:22] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:565 字符,这份快照 39060ms 前收到
+[10:35:22] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=58 msgs, tools=42
+[10:35:34] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:工具▌
+[10:35:34] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:工具挖坏在坑▌
+[10:35:34] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:工具挖坏在坑里了，先爬回地面重做一把。▌
+[10:35:34] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 12559ms, chunks=603, tokens=56567/1798 (total 58365), finish=tool_calls, tool_calls=[goto, scaffold_materials], content="工具挖坏在坑里了，先爬回地面重做一把。"
+[10:35:34] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:工具挖坏在坑里了，先爬回地面重做一把。
+[10:35:34] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=goto id=call_00_3o4e6gf0orlpt6jk3uzp52xi args={"block": "minecraft:crafting_table", "spec": {"alter": "natural", "alter_budget": 40}, "x": null, "y": null, "z": null}
+[10:35:34] [Server thread/INFO] [NumenCore/]: [numen-task] goto start kind=FIND block=minecraft:crafting_table
+[10:35:34] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_3o4e6gf0orlpt6jk3uzp52xi tool=goto (queued=1) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t5","task":"goto","standing":false}}
+[10:35:34] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scaffold_materials id=call_01_tctwjr6j35daoeu3d02kj3rq args={}
+[10:35:34] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_tctwjr6j35daoeu3d02kj3rq tool=scaffold_materials (queued=0) → {"success":true,"materials":["minecraft:cobblestone","minecraft:dirt","minecraft:cobbled_deepslate","minecraft:stone","minecraft:netherrack","minecraft:andesite","minecraft:diorite","minecraft:granite...
+[10:35:34] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=61 msgs, tools=42
+[10:35:34] [Server thread/INFO] [NumenCore/]: [numen-scan] crafting_table r=512 → 1 hit(s), nearest 8.1 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 1 read | 0 tick(s)
+[10:35:34] [Server thread/INFO] [NumenCore/]: [numen-task] goto FIND crafting_table → 1 hit(s), 1 usable after pruning, straight-line nearest 165, 66, -120
+[10:35:35] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:35] [Server thread/INFO] [NumenCore/]: [numen-pillar] 未就绪 src=163, 58, -121 蹲=true 看准=true 高度够=false y=58.00 dy=-1.00 dist=0.16 横速=0.070 在地=true 请求跳=false 竖速=-0.078 手持=minecraft:cobblestone
+[10:35:35] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=163, 58, -121 y=59.17 sneak=true dist=0.12
+[10:35:35] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:35] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=163, 58, -121 feet=163, 59, -121
+[10:35:36] [Server thread/INFO] [NumenCore/]: [numen-pillar] 未就绪 src=163, 59, -121 蹲=false 看准=true 高度够=false y=59.25 dy=-0.75 dist=0.16 横速=0.013 在地=false 请求跳=true 竖速=-0.075 手持=minecraft:cobblestone
+[10:35:36] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=163, 59, -121 y=60.17 sneak=true dist=0.07
+[10:35:36] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:36] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=163, 59, -121 feet=163, 60, -121
+[10:35:36] [Server thread/INFO] [NumenCore/]: [numen-pillar] 未就绪 src=163, 60, -121 蹲=true 看准=true 高度够=false y=60.25 dy=-0.75 dist=0.08 横速=0.012 在地=false 请求跳=true 竖速=0.003 手持=minecraft:cobblestone
+[10:35:36] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=163, 60, -121 y=61.17 sneak=true dist=0.14
+[10:35:36] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=163, 60, -121 feet=163, 61, -121
+[10:35:37] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:37] [Server thread/INFO] [NumenCore/]: [numen-pillar] 未就绪 src=163, 61, -121 蹲=false 看准=true 高度够=false y=61.25 dy=-0.75 dist=0.15 横速=0.003 在地=false 请求跳=true 竖速=-0.075 手持=minecraft:cobblestone
+[10:35:37] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=163, 61, -121 y=62.17 sneak=true dist=0.15
+[10:35:37] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=163, 61, -121 feet=163, 62, -121
+[10:35:37] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:37] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 2926ms, chunks=56, tokens=58678/189 (total 58867), finish=tool_calls, tool_calls=[scan_nearby_entities], content="<no text>"
+[10:35:37] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_nearby_entities id=call_00_p3bcw96oelhz37u431gaugr9 args={"radius": 32, "type_filter": "passive"}
+[10:35:37] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_p3bcw96oelhz37u431gaugr9 tool=scan_nearby_entities (queued=0) → {"entities":[{"id":4183,"type":"entity.minecraft.bat","category":"passive","position":{"x":180.51957270790442,"y":64.76481534533585,"z":-112.37179266309815},"distance":19.032087326049805,"hp":6.0,"max...
+[10:35:37] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:569 字符,这份快照 135ms 前收到
+[10:35:37] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 3: convo=63 msgs, tools=42
+[10:35:40] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:35:40] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="0" t="23:06" id="t5" task="goto" status="done">arrived beside minecraft:crafting_table ...
+[10:35:40] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 2887ms, chunks=64, tokens=59171/216 (total 59387), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:35:40] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=task_status id=call_00_kkfkcyvybmhn93mc8ru3iaq3 args={}
+[10:35:40] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_kkfkcyvybmhn93mc8ru3iaq3 tool=task_status (queued=0) → {"success":true,"message":"身体空闲,没有后台任务。没有挂着的表。"}
+[10:35:40] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=66 msgs, tools=42
+[10:35:49] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 8968ms, chunks=468, tokens=59408/1279 (total 60687), finish=tool_calls, tool_calls=[craft, craft, craft, craft, craft, craft, craft, craft], content="<no text>"
+[10:35:51] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_00_pd68obm4073zpanlxklmek01 args={"count": 8, "item_id": "minecraft:stick"}
+[10:35:51] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:51] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_pd68obm4073zpanlxklmek01 tool=craft (queued=7) → {"success":true,"message":"crafted 8x stick — used 4x oak_planks. Used your own 2x2 grid. Now carrying 13x stick.","data":{"carrying":13,"crafted":8}}
+[10:35:51] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_01_pfyex57nhrj1vqlkba1xlu04 args={"count": 8, "item_id": "minecraft:oak_planks"}
+[10:35:51] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 10 种物品 / 10 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_pfyex57nhrj1vqlkba1xlu04 tool=craft (queued=6) → {"success":true,"message":"crafted 8x oak_planks — used 2x oak_log. Used your own 2x2 grid. Now carrying 9x oak_planks.","data":{"carrying":9,"crafted":8}}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_02_m9eeu8nnt0g5hgmf3rysmrgt args={"count": 1, "item_id": "minecraft:stone_pickaxe"}
+[10:35:52] [Server thread/INFO] [minecraft/MinecraftServer]: EvalBot has made the advancement [Getting an Upgrade]
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_02_m9eeu8nnt0g5hgmf3rysmrgt tool=craft (queued=5) → {"success":true,"message":"crafted 1x stone_pickaxe — used 3x cobblestone, 2x stick. Used the crafting table at 165,66,-120. Now carrying 1x stone_pickaxe.","data":{"carrying":1,"crafted":1}}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_03_jml9jl9ox1dr6wesh541euk7 args={"count": 1, "item_id": "minecraft:stone_hoe"}
+[10:35:52] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot has made the advancement [Getting an Upgrade]
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_03_jml9jl9ox1dr6wesh541euk7 tool=craft (queued=4) → {"success":true,"message":"crafted 1x stone_hoe — used 2x cobblestone, 2x stick. Used the crafting table at 165,66,-120. Now carrying 1x stone_hoe.","data":{"carrying":1,"crafted":1}}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_04_8xf2raxxp9i3l8v73inn66rj args={"count": 1, "item_id": "minecraft:stone_sword"}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_04_8xf2raxxp9i3l8v73inn66rj tool=craft (queued=3) → {"success":true,"message":"crafted 1x stone_sword — used 2x cobblestone, 1x stick. Used the crafting table at 165,66,-120. Now carrying 1x stone_sword.","data":{"carrying":1,"crafted":1}}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_05_szfwvi0vjm2dv4frzc42rkhz args={"count": 1, "item_id": "minecraft:stone_shovel"}
+[10:35:52] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 14 种物品 / 14 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_05_szfwvi0vjm2dv4frzc42rkhz tool=craft (queued=2) → {"success":true,"message":"crafted 1x stone_shovel — used 1x cobblestone, 2x stick. Used the crafting table at 165,66,-120. Now carrying 1x stone_shovel.","data":{"carrying":1,"crafted":1}}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_06_17jcv1acu8isp9x053f20crv args={"count": 1, "item_id": "minecraft:furnace"}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_06_17jcv1acu8isp9x053f20crv tool=craft (queued=1) → {"success":true,"message":"crafted 1x furnace — used 8x cobblestone. Used the crafting table at 165,66,-120. Now carrying 1x furnace.","data":{"carrying":1,"crafted":1}}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=craft id=call_07_kcro1ncic97aqab8kdvb7l6e args={"count": 1, "item_id": "minecraft:oak_door"}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_07_kcro1ncic97aqab8kdvb7l6e tool=craft (queued=0) → {"success":true,"message":"crafted 3x oak_door — used 6x oak_planks. Used the crafting table at 165,66,-120. Now carrying 3x oak_door.","data":{"carrying":3,"crafted":3}}
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:674 字符,这份快照 83ms 前收到
+[10:35:52] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=75 msgs, tools=42
+[10:35:52] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:07] [Server thread/INFO] [minecraft/IntegratedServer]: Saving and pausing game...
+[10:37:07] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-d4a5b6df92f24fa5b453d95856339dd3]'/minecraft:overworld
+[10:37:07] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-d4a5b6df92f24fa5b453d95856339dd3]'/minecraft:the_end
+[10:37:07] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-d4a5b6df92f24fa5b453d95856339dd3]'/minecraft:the_nether
+[10:37:22] [ForkJoinPool.commonPool-worker-9/WARN] [Numen/]: [numen-http][lr-32] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:37:22] [ForkJoinPool.commonPool-worker-9/WARN] [Numen/]: [numen-http][lr-32] retrying in 393ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:37:51] [ForkJoinPool.commonPool-worker-9/INFO] [Numen/]: [numen-llm] chat done in 118495ms, chunks=1324, tokens=61262/4017 (total 65279), finish=tool_calls, tool_calls=[mine], content="<no text>"
+[10:37:51] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=mine id=call_00_ytjqdc9bwug3ppvleuw7ynir args={"block_ids": ["minecraft:stone"], "count": 64}
+[10:37:51] [Server thread/INFO] [NumenCore/]: [numen-task] mine start targets=stone count=64 cells=- feet=166, 66, -120
+[10:37:51] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_ytjqdc9bwug3ppvleuw7ynir tool=mine (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t6","task":"mine","standing":false}}
+[10:37:51] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:718 字符,这份快照 118132ms 前收到
+[10:37:51] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 3: convo=77 msgs, tools=42
+[10:37:51] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 8.5 | collect cap | 0/4225 columns read, 0 not loaded, 8 section(s) visited, 4 read | 0 tick(s)
+[10:37:53] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:53] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:54] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:55] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:55] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=173, 58, -120 goal-center=166, 57, -119 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:37:55] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=173, 58, -120 goal-center=166, 57, -119 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:37:55] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=173, 58, -120 goal-center=166, 57, -119 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:37:56] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:56] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9413 hit(s), nearest 1.4 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:37:56] [ForkJoinPool.commonPool-worker-9/INFO] [Numen/]: [numen-llm] chat done in 5058ms, chunks=193, tokens=65369/434 (total 65803), finish=tool_calls, tool_calls=[scan_blocks], content="<no text>"
+[10:37:56] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_blocks id=call_00_etjwk21vwquto1syiwwsmcbq args={"block_ids": ["minecraft:short_grass", "minecraft:tall_grass", "minecraft:fern", "minecraft:dead_bush"], "radius": 40}
+[10:37:56] [Server thread/INFO] [NumenCore/]: [numen-scan] short_grass+3 r=40 → 258 hit(s), nearest 5.9 | covered the whole radius | 49/49 columns read, 0 not loaded, 131 section(s) visited, 97 read | 2 tick(s)
+[10:37:56] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_etjwk21vwquto1syiwwsmcbq tool=scan_blocks (queued=0) → {"groups":[{"id":"g43","cells":1,"blocks":{"minecraft:short_grass":1},"nearest":{"x":176,"y":63,"z":-121,"direction":"east, 5 up","distance":5.9},"box":"176,63,-121..176,63,-121","permission":"allow",...
+[10:37:56] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:719 字符,这份快照 314ms 前收到
+[10:37:56] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 4: convo=79 msgs, tools=42
+[10:37:56] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:57] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:57] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:58] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:58] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:37:59] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:00] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:01] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9410 hit(s), nearest 1.4 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:01] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:02] [ForkJoinPool.commonPool-worker-9/INFO] [Numen/]: [numen-llm] chat done in 5882ms, chunks=459, tokens=67315/677 (total 67992), finish=tool_calls, tool_calls=[todowrite], content="<no text>"
+[10:38:02] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=todowrite id=call_00_n4g1tbi5co5lgh204ybzra3i args={"todos": [{"content": "Wood: logs → planks, sticks, crafting table, wooden/stone tools", "priority": "high", "status": "completed"}, {"content": "Stone: mine ~110 cobblestone for shelter + tools + fu...
+[10:38:02] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_n4g1tbi5co5lgh204ybzra3i tool=todowrite (queued=0) → {"success":true,"message":"plan snapshot replaced; continue only the in_progress item","todos":[{"content":"Wood: logs → planks, sticks, crafting table, wooden/stone tools","status":"completed","prior...
+[10:38:02] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:719 字符,这份快照 551ms 前收到
+[10:38:02] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 5: convo=81 msgs, tools=42
+[10:38:02] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:02] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:04] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:04] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:05] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:06] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9407 hit(s), nearest 1.4 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:06] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:07] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:07] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:09] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:11] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9403 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:12] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=172, 57, -120 goal-center=166, 57, -119 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:38:12] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=172, 57, -120 goal-center=166, 57, -119 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:38:12] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=172, 57, -120 goal-center=166, 57, -119 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:38:12] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:14] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:14] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:15] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:16] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9398 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:16] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:17] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:18] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:19] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:19] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:20] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:21] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9393 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:26] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9387 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:27] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:28] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:29] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:31] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9383 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:34] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:34] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:35] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:36] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9378 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:39] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:41] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9373 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:42] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:42] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:43] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:46] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9368 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:48] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:48] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:49] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:50] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:50] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:51] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:51] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9364 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:53] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:54] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:56] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9359 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:38:57] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:58] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:58] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:59] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:38:59] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:00] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:00] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:01] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9355 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:39:02] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:03] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:06] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9350 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:39:06] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:07] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:07] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 16 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:09] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:09] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:10] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:11] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:11] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9349 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:39:11] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:12] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:12] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:13] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:13] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:14] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:14] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:15] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:15] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:16] [Server thread/INFO] [NumenCore/]: [numen-scan] stone r=512 → 9349 hit(s), nearest 1.0 | collect cap | 0/4225 columns read, 0 not loaded, 6 section(s) visited, 4 read | 0 tick(s)
+[10:39:16] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:18] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:18] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:39:18] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="0" t="03:24" id="t6" task="mine" status="done">gathered 64/64 stone (gathered all reque...
+[10:39:19] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:36] [ForkJoinPool.commonPool-worker-5/INFO] [Numen/]: [numen-llm] chat done in 94410ms, chunks=74, tokens=68303/185 (total 68488), finish=tool_calls, tool_calls=[command], content="<no text>"
+[10:39:36] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=command id=call_00_s7bkb8qa4xfwhq8jo8rf0y0z args={"command": "numen task status"}
+[10:39:36] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_s7bkb8qa4xfwhq8jo8rf0y0z tool=command (queued=0) → {"success":true,"message":"身体空闲,没有后台任务。没有挂着的表。"}
+[10:39:36] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:721 字符,这份快照 17429ms 前收到
+[10:39:36] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=84 msgs, tools=42
+[10:39:41] [ForkJoinPool.commonPool-worker-5/INFO] [Numen/]: [numen-llm] chat done in 5247ms, chunks=205, tokens=68550/562 (total 69112), finish=tool_calls, tool_calls=[mine], content="<no text>"
+[10:39:41] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=mine id=call_00_pd7xn0mnthai89kekj8cm5a6 args={"block_ids": ["minecraft:short_grass", "minecraft:tall_grass"], "count": 8}
+[10:39:41] [Server thread/INFO] [NumenCore/]: [numen-task] mine start targets=short_grass+1 count=8 cells=- feet=172, 57, -118
+[10:39:41] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_pd7xn0mnthai89kekj8cm5a6 tool=mine (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t7","task":"mine","standing":false}}
+[10:39:41] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=86 msgs, tools=42
+[10:39:41] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 293 hit(s), nearest 6.7 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 31 read | 0 tick(s)
+[10:39:42] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:43] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:43] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:44] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:45] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:46] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:46] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 291 hit(s), nearest 6.6 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:39:48] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:48] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:49] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:51] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:51] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 290 hit(s), nearest 6.2 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:39:52] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:55] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:55] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:56] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 288 hit(s), nearest 6.4 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:39:58] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:39:58] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:00] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:00] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=165, 57, -117 y=58.17 sneak=true dist=0.04
+[10:40:00] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=165, 57, -117 feet=165, 58, -117
+[10:40:00] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=165, 58, -117 goal-center=173, 63, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:00] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=165, 58, -117 goal-center=173, 63, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:00] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=165, 58, -117 goal-center=173, 63, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:00] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=165, 58, -117 goal-center=173, 63, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:00] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:01] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:01] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:01] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 286 hit(s), nearest 6.4 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:02] [Server thread/INFO] [NumenCore/]: [numen-pillar] 未就绪 src=165, 58, -117 蹲=false 看准=true 高度够=false y=58.75 dy=-0.25 dist=0.04 横速=0.000 在地=false 请求跳=true 竖速=0.248 手持=minecraft:cobblestone
+[10:40:02] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:02] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=165, 58, -117 y=59.17 sneak=true dist=0.04
+[10:40:02] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=165, 58, -117 feet=165, 59, -117
+[10:40:02] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=165, 59, -117 goal-center=173, 63, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:02] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=165, 59, -117 goal-center=173, 63, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:02] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=165, 59, -117 goal-center=173, 63, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:02] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=165, 59, -117 goal-center=173, 63, -122 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:02] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:04] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:04] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:05] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:05] [Server thread/INFO] [NumenCore/]: [numen-pillar] 未就绪 src=166, 60, -116 蹲=false 看准=false 高度够=false y=60.00 dy=-1.00 dist=0.48 横速=0.110 在地=true 请求跳=false 竖速=-0.078 手持=minecraft:cobblestone
+[10:40:05] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:05] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=166, 60, -116 y=61.25 sneak=true dist=0.17
+[10:40:05] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=166, 60, -116 feet=166, 61, -116
+[10:40:06] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:06] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 285 hit(s), nearest 8.5 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:07] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:10] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:10] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 363 hit(s), nearest 6.1 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 6 read | 0 tick(s)
+[10:40:15] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 262 hit(s), nearest 5.5 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 5 read | 0 tick(s)
+[10:40:19] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:20] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=189, 64, -133 goal-center=175, 63, -123 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:20] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 259 hit(s), nearest 6.4 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:20] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=189, 65, -135 goal-center=176, 63, -123 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:20] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=189, 65, -135 goal-center=176, 63, -123 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:20] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=189, 65, -135 goal-center=176, 63, -123 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:22] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:25] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 252 hit(s), nearest 3.0 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:25] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=181, 66, -141 goal-center=175, 63, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:27] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 230 hit(s), nearest 5.9 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 5 read | 0 tick(s)
+[10:40:28] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:30] [Server thread/INFO] [Numen/]: [numen-defense] 自动接管 —— 身边 1 个危险
+[10:40:30] [Server thread/INFO] [NumenCore/]: [numen-attack] SKIRMISH foe=5712 dist=2.7 melee=true ranged=false hp_eff=20 场上=1
+[10:40:30] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.7 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:30] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=180, 66, -148 goal-center=181, 67, -150 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:30] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 stone_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:30] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.6 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:30] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.5 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:30] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.4 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.3 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.2 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.1 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.2 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.3 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.4 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.5 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.6 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=2.7 带=[2.02, 3.30] 太近=1 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.0 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.8 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:31] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.6 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.5 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.1 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.0 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.5 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] SKIRMISH foe=5712 dist=3.4 melee=true ranged=false hp_eff=20 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:32] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.6 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.1 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.1 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.8 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.6 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.5 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.0 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:33] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.5 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=4.0 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.8 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.5 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Server thread/INFO] [minecraft/MinecraftServer]: EvalBot has made the advancement [Monster Hunter]
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5712 距离=3.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:40:34] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot has made the advancement [Monster Hunter]
+[10:40:34] [Server thread/INFO] [NumenCore/]: [numen-attack] DONE foe=全场 dist=- melee=true ranged=false hp_eff=20 场上=0
+[10:40:34] [Server thread/INFO] [Numen/]: [numen-defense] 收场 SUCCESS —— fought off 1 hostiles, collected {}; nothing is coming after you any more
+[10:40:34] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=reflex → 客户端
+[10:40:34] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued reflex: <event kind="reflex" day="0" t="04:55" reflex="mob_defense">hit danger and handled it on instinct — fought off 1 hostile...
+[10:40:35] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 229 hit(s), nearest 4.6 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:40] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 229 hit(s), nearest 4.6 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:45] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 229 hit(s), nearest 4.6 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:50] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 229 hit(s), nearest 4.6 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:51] [Server thread/INFO] [NumenCore/]: [numen-task] mine 卡住 400 刻:没挖掉任何一格、也没挪窝 | feet=180, 66, -148 名单 64 个
+[10:40:51] [Server thread/INFO] [NumenCore/]: [numen-task] mine 够数靠的 4 件掉落物走不到(stuck there with nothing minable in place for 20 seconds),出账接着挖 | feet=180, 66, -148 名单 64 个
+[10:40:53] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=184, 68, -148 goal-center=175, 63, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:53] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=184, 68, -148 goal-center=175, 63, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:53] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 stone_hoe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:54] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:55] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:55] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 224 hit(s), nearest 6.6 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:40:57] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 stone_hoe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:58] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=190, 69, -150 goal-center=175, 63, -126 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:58] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=190, 69, -150 goal-center=175, 63, -126 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:58] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=190, 69, -150 goal-center=175, 63, -126 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:40:59] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:40:59] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 215 hit(s), nearest 7.3 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 5 read | 0 tick(s)
+[10:41:04] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 215 hit(s), nearest 5.4 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:41:06] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:41:06] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=192, 71, -153 goal-center=175, 63, -125 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:41:07] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 wooden_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:41:08] [Server thread/INFO] [Numen/]: [numen-defense] 自动接管 —— 身边 1 个危险
+[10:41:08] [Server thread/INFO] [NumenCore/]: [numen-attack] DISENGAGE foe=全场 dist=- melee=true ranged=false hp_eff=8 场上=1
+[10:41:08] [Server thread/INFO] [NumenCore/]: [numen-attack] 逃向 BlockPos{x=169, y=69, z=-133} —— 32 格内 4 只
+[10:41:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 stone_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] SKIRMISH foe=5963 dist=3.0 melee=true ranged=false hp_eff=9 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.0 带=[2.02, 3.30] 太近=1 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=193, 71, -154 goal-center=192, 70, -152 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=2.9 带=[2.02, 3.30] 太近=1 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.0 带=[2.02, 3.30] 太近=1 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.1 带=[2.02, 3.30] 太近=1 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.6 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.1 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:09] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.1 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.0 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.1 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.2 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.1 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.0 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:10] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.8 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] SKIRMISH foe=5963 dist=3.7 melee=true ranged=false hp_eff=9 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.6 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.5 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.6 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.5 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:11] [ForkJoinPool.commonPool-worker-4/WARN] [Numen/]: [numen-http][lr-38] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:41:11] [ForkJoinPool.commonPool-worker-4/WARN] [Numen/]: [numen-http][lr-38] retrying in 471ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:41:11] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.8 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.4 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.6 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.7 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.8 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.9 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.0 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.1 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=4.0 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.8 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.5 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] 站位 剑 目标=5963 距离=3.3 带=[2.02, 3.30] 太近=0 场上=1
+[10:41:12] [Server thread/INFO] [NumenCore/]: [numen-attack] DONE foe=全场 dist=- melee=true ranged=false hp_eff=9 场上=0
+[10:41:12] [Server thread/INFO] [Numen/]: [numen-defense] 收场 SUCCESS —— fought off 1 hostiles, collected {}; nothing is coming after you any more
+[10:41:12] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=reflex → 客户端
+[10:41:12] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued reflex: <event kind="reflex" day="0" t="05:41" reflex="mob_defense">hit danger and handled it on instinct — fought off 1 hostile...
+[10:41:13] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 211 hit(s), nearest 8.6 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:41:14] [Server thread/INFO] [NumenCore/]: [numen-path] 身位脱离路径 21 刻(身位193, 71, -152 应在193, 71, -154),取消重算
+[10:41:16] [ForkJoinPool.commonPool-worker-4/INFO] [Numen/]: [numen-llm] chat done in 94143ms, chunks=86, tokens=69184/263 (total 69447), finish=tool_calls, tool_calls=[look_around], content="<no text>"
+[10:41:16] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=look_around id=call_00_oy3054f52j88013zeqxa2y8v args={"radius": 10}
+[10:41:16] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_oy3054f52j88013zeqxa2y8v tool=look_around (queued=0) → look_around center=(197,71,-150) facing=south | 1 cell = 1 block, @ = you, North = up (-Z), East = right (+X)
+
+, . . . . . . ^ ^ ^ ^ ^ ^ ^ # # # # # # #
+, . . . . . . ^ ^ T ^ ^ ^ ^ # # # # # # #
+, . ....
+[10:41:16] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:745 字符,这份快照 7100ms 前收到
+[10:41:16] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=89 msgs, tools=42
+[10:41:18] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 210 hit(s), nearest 4.2 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:41:19] [ForkJoinPool.commonPool-worker-4/INFO] [Numen/]: [numen-llm] chat done in 3763ms, chunks=109, tokens=70248/309 (total 70557), finish=tool_calls, tool_calls=[scan_nearby_entities], content="<no text>"
+[10:41:19] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_nearby_entities id=call_00_c0iqsg0lspsiva0mlp7vgcev args={"radius": 32, "type_filter": "hostile"}
+[10:41:19] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_c0iqsg0lspsiva0mlp7vgcev tool=scan_nearby_entities (queued=0) → {"entities":[{"id":5594,"type":"entity.minecraft.skeleton","category":"hostile","position":{"x":195.77266560188667,"y":72.0,"z":-172.17216935329344},"distance":22.60207176208496,"hp":20.0,"max_hp":20....
+[10:41:19] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=91 msgs, tools=42
+[10:41:23] [ForkJoinPool.commonPool-worker-4/INFO] [Numen/]: [numen-llm] chat done in 3637ms, chunks=89, tokens=70816/260 (total 71076), finish=tool_calls, tool_calls=[get_world_info], content="<no text>"
+[10:41:23] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=get_world_info id=call_00_869u1vt8vy0ijuht40oow4x1 args={}
+[10:41:23] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_869u1vt8vy0ijuht40oow4x1 tool=get_world_info (queued=0) → {"dimension":"minecraft:overworld","game_time":23901,"is_bright_outside":true,"is_dark_outside":false,"weather":"clear"}
+[10:41:23] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 3: convo=93 msgs, tools=42
+[10:41:23] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 210 hit(s), nearest 4.2 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:41:28] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 210 hit(s), nearest 4.2 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:41:33] [ForkJoinPool.commonPool-worker-4/INFO] [Numen/]: [numen-llm] chat done in 10101ms, chunks=411, tokens=71124/1201 (total 72325), finish=tool_calls, tool_calls=[get_self_status], content="<no text>"
+[10:41:33] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=get_self_status id=call_00_50whneh97do71b6nbp59shgy args={}
+[10:41:33] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_50whneh97do71b6nbp59shgy tool=get_self_status (queued=0) → {"entity_id":56,"name":"EvalBot","game_mode":"survival","hp":9.0,"max_hp":20.0,"hunger":16,"saturation":0.0,"position":{"x":197.37772136956633,"y":71.0,"z":-149.64934958995272},"dimension":"minecraft:...
+[10:41:33] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 4: convo=95 msgs, tools=42
+[10:41:33] [Server thread/INFO] [NumenCore/]: [numen-scan] tall_grass+1 r=512 → 210 hit(s), nearest 4.2 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 0 read | 0 tick(s)
+[10:41:34] [Server thread/INFO] [NumenCore/]: [numen-task] mine 卡住 400 刻:没挖掉任何一格、也没挪窝 | feet=197, 71, -150 名单 64 个
+[10:41:34] [Server thread/INFO] [NumenCore/]: [numen-task] mine 够数靠的 1 件掉落物走不到(stuck there with nothing minable in place for 20 seconds),出账接着挖 | feet=197, 71, -150 名单 64 个
+[10:41:35] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=197, 72, -152 goal-center=176, 63, -125 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:41:37] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 stone_sword, 副手 空手, 效果 0, 插件片段 64 字符
+[10:41:37] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:41:37] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="1" t="06:11" id="t7" task="mine" status="done">gathered 8/8 short_grass+1 (gathered all...
+[10:43:03] [ForkJoinPool.commonPool-worker-19/WARN] [Numen/]: [numen-http][lr-43] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:43:03] [ForkJoinPool.commonPool-worker-19/WARN] [Numen/]: [numen-http][lr-43] retrying in 478ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:44:34] [ForkJoinPool.commonPool-worker-10/WARN] [Numen/]: [numen-http][lr-44r1] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:44:34] [ForkJoinPool.commonPool-worker-10/WARN] [Numen/]: [numen-http][lr-44r1] retrying in 763ms (attempt 2/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:44:40] [ForkJoinPool.commonPool-worker-10/INFO] [Numen/]: [numen-llm] chat done in 187276ms, chunks=158, tokens=72519/458 (total 72977), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:44:40] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=task_status id=call_00_9p6s937dt1xk46qh7fb2q7ty args={}
+[10:44:40] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_9p6s937dt1xk46qh7fb2q7ty tool=task_status (queued=0) → {"success":true,"message":"身体空闲,没有后台任务。没有挂着的表。"}
+[10:44:40] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:745 字符,这份快照 183230ms 前收到
+[10:44:40] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=98 msgs, tools=42
+[10:46:10] [ForkJoinPool.commonPool-worker-15/WARN] [Numen/]: [numen-http][lr-46] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:46:10] [ForkJoinPool.commonPool-worker-15/WARN] [Numen/]: [numen-http][lr-46] retrying in 429ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:46:15] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:血有点低，先吃个▌
+[10:46:15] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:血有点低，先吃个苹果垫一下。▌
+[10:46:15] [ForkJoinPool.commonPool-worker-15/INFO] [Numen/]: [numen-llm] chat done in 94800ms, chunks=83, tokens=73132/222 (total 73354), finish=tool_calls, tool_calls=[eat, scan_nearby_entities], content="血有点低，先吃个苹果垫一下。"
+[10:46:15] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:血有点低，先吃个苹果垫一下。
+[10:46:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=eat id=call_00_qwb9xvoc8ysmx1g3kbx8i2si args={"item_id": "minecraft:apple"}
+[10:46:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_qwb9xvoc8ysmx1g3kbx8i2si tool=eat (queued=1) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t10","task":"eat","standing":false}}
+[10:46:15] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 apple, 副手 空手, 效果 0, 插件片段 64 字符
+[10:46:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_nearby_entities id=call_01_xfiawnq9re2llceb2fiq9q7c args={"radius": 64, "type_filter": "passive"}
+[10:46:15] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_xfiawnq9re2llceb2fiq9q7c tool=scan_nearby_entities (queued=0) → {"entities":[{"id":15,"type":"entity.minecraft.sheep","category":"passive","position":{"x":178.791104091434,"y":70.0,"z":-173.73735818527484},"distance":33.10546875,"hp":8.0,"max_hp":8.0},{"id":14,"ty...
+[10:46:15] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:739 字符,这份快照 11ms 前收到
+[10:46:15] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=101 msgs, tools=42
+[10:46:17] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[10:46:17] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:46:17] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="1" t="11:46" id="t10" task="eat" status="done">ate apple — hunger 20/20 (+4)</event>
+[10:46:55] [ForkJoinPool.commonPool-worker-15/INFO] [Numen/]: [numen-llm] chat done in 39776ms, chunks=323, tokens=74931/885 (total 75816), finish=tool_calls, tool_calls=[scan_blocks], content="<no text>"
+[10:46:55] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_blocks id=call_00_aqx6tyrlttallw4qam3uot34 args={"block_ids": ["minecraft:coal_ore", "minecraft:deepslate_coal_ore"], "radius": 40}
+[10:46:55] [Server thread/INFO] [NumenCore/]: [numen-scan] coal_ore+1 r=40 → 598 hit(s), nearest 15.3 | covered the whole radius | 49/49 columns read, 0 not loaded, 129 section(s) visited, 53 read | 2 tick(s)
+[10:46:55] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_aqx6tyrlttallw4qam3uot34 tool=scan_blocks (queued=0) → {"groups":[{"id":"g59","cells":43,"blocks":{"minecraft:coal_ore":43},"nearest":{"x":189,"y":64,"z":-157,"direction":"north-west, 7 down","distance":15.3},"box":"184,60,-159..189,65,-153","permission":...
+[10:46:55] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:711 字符,这份快照 38305ms 前收到
+[10:46:55] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=104 msgs, tools=42
+[10:47:03] [ForkJoinPool.commonPool-worker-15/INFO] [Numen/]: [numen-llm] chat done in 7555ms, chunks=266, tokens=76984/743 (total 77727), finish=tool_calls, tool_calls=[mine], content="<no text>"
+[10:47:03] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=mine id=call_00_vevigdxzwle1j5h4coxcalq2 args={"block_ids": ["minecraft:coal_ore", "minecraft:deepslate_coal_ore"], "count": 8}
+[10:47:03] [Server thread/INFO] [NumenCore/]: [numen-task] mine start targets=coal_ore+1 count=8 cells=- feet=200, 71, -149
+[10:47:03] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_vevigdxzwle1j5h4coxcalq2 tool=mine (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t11","task":"mine","standing":false}}
+[10:47:03] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=106 msgs, tools=42
+[10:47:03] [Server thread/INFO] [NumenCore/]: [numen-scan] deepslate_coal_ore+1 r=512 → 2224 hit(s), nearest 15.3 | proved nearest at ring 2 | 25/4225 columns read, 0 not loaded, 600 section(s) visited, 82 read | 1 tick(s)
+[10:47:05] [Server thread/INFO] [NumenCore/]: [numen-scan] deepslate_coal_ore+1 r=512 → 786 hit(s), nearest 6.8 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:47:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:09] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:10] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=184, 65, -156 goal-center=188, 61, -156 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:47:10] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=184, 65, -156 goal-center=188, 61, -156 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:47:10] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:10] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:10] [Server thread/INFO] [NumenCore/]: [numen-scan] deepslate_coal_ore+1 r=512 → 786 hit(s), nearest 2.4 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:47:11] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:11] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:12] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:15] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:15] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:15] [Server thread/INFO] [NumenCore/]: [numen-scan] deepslate_coal_ore+1 r=512 → 784 hit(s), nearest 2.4 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:47:16] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:19] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:20] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:20] [Server thread/INFO] [NumenCore/]: [numen-scan] deepslate_coal_ore+1 r=512 → 782 hit(s), nearest 2.4 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:47:21] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:22] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=184, 64, -156 goal-center=188, 60, -156 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:47:22] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=184, 64, -156 goal-center=188, 60, -156 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:47:22] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=184, 64, -156 goal-center=188, 60, -156 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:47:22] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:23] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:23] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:24] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_shovel, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:25] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:25] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:25] [Server thread/INFO] [NumenCore/]: [numen-scan] deepslate_coal_ore+1 r=512 → 780 hit(s), nearest 2.2 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:47:28] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 16 种物品 / 17 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:28] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:47:28] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:47:28] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="1" t="13:12" id="t11" task="mine" status="done">gathered 8/8 coal_ore+1 (gathered all r...
+[10:47:29] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 stone_pickaxe, 副手 空手, 效果 0, 插件片段 64 字符
+[10:48:33] [ForkJoinPool.commonPool-worker-16/WARN] [Numen/]: [numen-http][lr-50] ✗ SSE idle >90000ms after 0 chunks — killed
+[10:48:33] [ForkJoinPool.commonPool-worker-16/WARN] [Numen/]: [numen-http][lr-50] retrying in 440ms (attempt 1/2) — java.io.IOException: SSE stream went silent for over 90s (half-dead connection)
+[10:48:39] [ForkJoinPool.commonPool-worker-16/INFO] [Numen/]: [numen-llm] chat done in 96085ms, chunks=153, tokens=77799/436 (total 78235), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:48:39] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=task_status id=call_00_7ntzuut8smr9bf6roq9ebqew args={}
+[10:48:39] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_7ntzuut8smr9bf6roq9ebqew tool=task_status (queued=0) → {"success":true,"message":"身体空闲,没有后台任务。没有挂着的表。"}
+[10:48:39] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:747 字符,这份快照 70228ms 前收到
+[10:48:39] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=109 msgs, tools=42
+[10:48:43] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:挖到煤了，回湖边▌
+[10:48:43] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:挖到煤了，回湖边去定据点。▌
+[10:48:44] [ForkJoinPool.commonPool-worker-16/INFO] [Numen/]: [numen-llm] chat done in 4695ms, chunks=72, tokens=78402/203 (total 78605), finish=tool_calls, tool_calls=[goto], content="挖到煤了，回湖边去定据点。"
+[10:48:44] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:挖到煤了，回湖边去定据点。
+[10:48:44] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=goto id=call_00_sfnd9yydq7ug1t3po7o14as9 args={"x": 165, "y": null, "z": -119}
+[10:48:44] [Server thread/INFO] [NumenCore/]: [numen-task] goto start kind=COLUMN target=165,0,-119 solid=false
+[10:48:44] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_sfnd9yydq7ug1t3po7o14as9 tool=goto (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t12","task":"goto","standing":false}}
+[10:48:44] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=111 msgs, tools=42
+[10:48:44] [Server thread/INFO] [NumenCore/]: [numen-path] 无路,查 alter=NATURAL 的候选路线 start=186, 64, -158 goal=165, 0, -119
+[10:48:44] [Server thread/INFO] [NumenCore/]: [numen-path] TERRAIN-BLOCKED start=186, 64, -158 goal=165, 0, -119 | found no route without altering terrain (from 186, 64, -158 toward 165, 0, -119, about 78 blocks away; every reachable cell was searched). candidates:
+  r75  49 blocks  place 3 blocks
+  r76  50 blocks  break 1 grass_block (184,67,-157), 1 oak_leaves (165,64,-119)  place 2 blocks
+  r77  48 blocks  place 4 blocks
+choose one with goto route:<id>, or pick another destination. A route with cells needing consent asks the owner before I set off.
+[10:48:44] [Server thread/INFO] [NumenCore/]: [numen-task] MoveToCompanionTask FAILED(TERRAIN_BLOCKED) blocked: got within 44.0 blocks of location x=165 z=-119 (now on the ground at y=64). found no route without altering terrain (from 186, 64, -158 toward 165, 0, -119, about 78 blocks away; every reachable cell was searched). candidates:
+  r75  49 blocks  place 3 blocks
+  r76  50 blocks  break 1 grass_block (184,67,-157), 1 oak_leaves (165,64,-119)  place 2 blocks
+  r77  48 blocks  place 4 blocks
+choose one with goto route:<id>, or pick another destination. A route with cells needing consent asks the owner before I set off..
+[10:48:44] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:48:44] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="1" t="14:42" id="t12" task="goto" status="failed">blocked: got within 44.0 blocks of lo...
+[10:48:48] [ForkJoinPool.commonPool-worker-16/INFO] [Numen/]: [numen-llm] chat done in 4133ms, chunks=56, tokens=78677/202 (total 78879), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:48:48] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=task_status id=call_00_7mgnogamaw8aejtpvwxuf5dq args={}
+[10:48:48] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_7mgnogamaw8aejtpvwxuf5dq tool=task_status (queued=0) → {"success":true,"message":"身体空闲,没有后台任务。没有挂着的表。"}
+[10:48:48] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=114 msgs, tools=42
+[10:48:53] [ForkJoinPool.commonPool-worker-16/INFO] [Numen/]: [numen-llm] chat done in 4965ms, chunks=149, tokens=79111/463 (total 79574), finish=tool_calls, tool_calls=[goto], content="<no text>"
+[10:48:53] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=goto id=call_00_ey83atsw1oj3wiw8d7dcnl9c args={"route": "r75", "x": null, "y": null, "z": null}
+[10:48:53] [Server thread/INFO] [NumenCore/]: [numen-task] goto start kind=ROUTE id=r75 toward=165, 0, -119 alter=NATURAL
+[10:48:53] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_ey83atsw1oj3wiw8d7dcnl9c tool=goto (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"async":true,"task_id":"t13","task":"goto","standing":false}}
+[10:48:53] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=116 msgs, tools=42
+[10:48:53] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:48:54] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:48:54] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=184, 65, -156 y=66.17 sneak=true dist=0.13
+[10:48:54] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=184, 65, -156 feet=184, 66, -156
+[10:48:54] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:48:55] [Server thread/INFO] [NumenCore/]: [numen-pillar] 放置尝试 src=184, 66, -156 y=67.17 sneak=true dist=0.15
+[10:48:55] [Server thread/INFO] [NumenCore/]: [numen-pillar] 垫柱成功 src=184, 66, -156 feet=184, 67, -156
+[10:48:55] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 17 种物品 / 18 格, 主手 cobblestone, 副手 空手, 效果 0, 插件片段 64 字符
+[10:49:06] [Server thread/INFO] [Numen/]: [numen-event] bb40f864-bb92-43c4-b249-f91d9cd3560e kind=task_finished URGENT → 客户端
+[10:49:06] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] queued task_finished URGENT: <event kind="task_finished" day="1" t="15:09" id="t13" task="goto" status="done">arrived via route r75, standing at 166,...
+[10:49:12] [ForkJoinPool.commonPool-worker-16/INFO] [Numen/]: [numen-llm] chat done in 19733ms, chunks=898, tokens=79646/2445 (total 82091), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:49:12] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=task_status id=call_00_vq5ahr3fbmb1njv9v1bodm1e args={}
+[10:49:12] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_vq5ahr3fbmb1njv9v1bodm1e tool=task_status (queued=0) → {"success":true,"message":"身体空闲,没有后台任务。没有挂着的表。"}
+[10:49:12] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:745 字符,这份快照 17422ms 前收到
+[10:49:12] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 1: convo=119 msgs, tools=42
+[10:49:17] [ForkJoinPool.commonPool-worker-16/INFO] [Numen/]: [numen-llm] chat done in 4514ms, chunks=56, tokens=82209/170 (total 82379), finish=tool_calls, tool_calls=[look_around, scan_blocks], content="<no text>"
+[10:49:17] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=look_around id=call_00_s1wbjzod9rgkv57k96q0gss5 args={"radius": 10}
+[10:49:17] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_s1wbjzod9rgkv57k96q0gss5 tool=look_around (queued=1) → look_around center=(165,66,-119) facing=west | 1 cell = 1 block, @ = you, North = up (-Z), East = right (+X)
+
+v v , v , v v v v v v v v v T , , , , , ,
+. v , v v v v v v v v v v v , , , , , , ,
+. v , ...
+[10:49:17] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=scan_blocks id=call_01_5v7qglu00ki1fie9q9luf2n3 args={"block_ids": ["minecraft:water"], "radius": 14}
+[10:49:17] [Server thread/INFO] [NumenCore/]: [numen-scan] water r=14 → 228 hit(s), nearest 6.4 | covered the whole radius | 9/9 columns read, 0 not loaded, 17 section(s) visited, 8 read | 0 tick(s)
+[10:49:17] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_01_5v7qglu00ki1fie9q9luf2n3 tool=scan_blocks (queued=0) → {"groups":[{"id":"g78","cells":144,"blocks":{"minecraft:water":144},"nearest":{"x":169,"y":62,"z":-116,"direction":"south-east, 4 down","distance":6.4},"box":"158,61,-117..178,62,-106","permission":"a...
+[10:49:17] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 2: convo=122 msgs, tools=42
+[10:49:28] [ForkJoinPool.commonPool-worker-16/INFO] [Numen/]: [numen-llm] chat done in 10671ms, chunks=478, tokens=83157/1480 (total 84637), finish=tool_calls, tool_calls=[look_around], content="<no text>"
+[10:49:28] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] dispatch tool=look_around id=call_00_7p0ina19w5ezr751bcoixha2 args={"radius": 16}
+[10:49:28] [Render thread/INFO] [Numen/]: [numen-dispatch#bb40f864-bb92-43c4-b249-f91d9cd3560e] tool_result id=call_00_7p0ina19w5ezr751bcoixha2 tool=look_around (queued=0) → look_around center=(165,66,-119) facing=south | 1 cell = 1 block, @ = you, North = up (-Z), East = right (+X)
+
+v . . . . . v v v v v v v v v v v v T , , , , , , , , . . . . . T
+T . . . v v v v v v v v...
+[10:49:28] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] turn 3: convo=124 msgs, tools=42
+[10:49:46] [ForkJoinPool.commonPool-worker-16/INFO] [Numen/]: [numen-http][lr-58] cancelled by caller in 18699ms (878 chunks)
+[10:49:46] [Server thread/INFO] [Numen/]: [numen-net] ✓ cancel_tasks on entity bb40f864-bb92-43c4-b249-f91d9cd3560e for Dev
+[10:49:46] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] halt OWNER_STOP (phase=MODEL, abandoned calls=0, cleared queued=0, left=0)
+[10:49:46] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] 目标收工(1 轮,按停止收工了:从空背包开始，在这个普通生存世界独立建立能继续生活的据点和可再生食物循环。你自己决定方案、行动顺序和何时进食，不向我索要物资或操作帮助。评测以服务端真实世界状态为准，首次死亡即失败。
+
+公开成功标准：最终你至少保有 10 点生命和 12 点饱食度，背包中有一把仍可用、能正确采集铁矿的镐，以及一把仍可用的锄头；金镐不满足采铁要求。你附近的已加载区域里至少有 1 个放置好的工作台、1 个放置好的普通熔炉和 8 株小麦。这里的附近指水平各轴距离不超过 24 格、竖向距离不超过 8 格；小麦下方必须是当前湿润的耕地，耕地水平 4 格内在耕地或作物高度存在水，作物位置当前光照至少为 9。
+
+你必须亲自收割过至少 3 个不同位置的成熟小麦，并在各自原坐标重新种下小麦；评测需要观察到这些位置从成熟收割到未成熟幼苗的补种，不能用只找到一片现成农田代替。背包里可安全食用物品的饱食恢复值乘数量，合计至少为 20；会产生负面效果的食物不计入储备。
+
+你还需要身处合格的安全庇护所内。本次评测承认位于你当前水平各轴 8 格范围内、单层、平地板、封闭的简单矩形室内空间：至少有一片 2×2 的可站立空地，各可站立格上方至少空两格，室内连续可通行地面不超过 64 格，有实地板、完整连续屋顶和实心围墙，屋顶距脚下地面高度为 2～5 格。至少有一扇关闭且可手动开关的门，能从屋内走到门口，门外可站立并通向露天。各室内可站立格必须有大于 0 的方块光照，室内没有 MONSTER 分类怪物。室内和脚下地板不能包含液体、含水方块、火、灵魂火、岩浆块、仙人掌、甜浆果丛、凋零玫瑰、细雪、营火、灵魂营火或滴水石锥；熄灭的营火也不计为安全。高低地板、斜屋顶和露台式出入口暂不计入这个评分标准。
+
+所有成功条件必须同时连续保持 1200 个游戏 tick（正常 20 TPS 时约 60 秒），期间你留在庇护所内；世界状态约每 200 毫秒采样一次，条件中断则重新计时。达到这些条件后告诉我。不要求你在这次任务中熬过整夜或击杀末影龙。):从空背包开始，在这个普通生存世界独立建立能继续生活的据点和可再生食物循环。你自己决定方案、行动顺序和何时进食，不向我索要物资或操作帮助。评测以服务端真实世界状态为准，首次死亡即失败。
+
+公开成功标准：最终你至少保有 10 点生命和 12 点饱食度，背包中有一把仍可用、能正确采集铁矿的镐，以及一把仍可用的锄头；金镐不满足采铁要求。你附近的已加载区域里至少有 1 个放置好的工作台、1 个放置好的普通熔炉和 8 株小麦。这里的附近指水平各轴距离不超过 24 格、竖向距离不超过 8 格；小麦下方必须是当前湿润的耕地，耕地水平 4 格内在耕地或作物高度存在水，作物位置当前光照至少为 9。
+
+你必须亲自收割过至少 3 个不同位置的成熟小麦，并在各自原坐标重新种下小麦；评测需要观察到这些位置从成熟收割到未成熟幼苗的补种，不能用只找到一片现成农田代替。背包里可安全食用物品的饱食恢复值乘数量，合计至少为 20；会产生负面效果的食物不计入储备。
+
+你还需要身处合格的安全庇护所内。本次评测承认位于你当前水平各轴 8 格范围内、单层、平地板、封闭的简单矩形室内空间：至少有一片 2×2 的可站立空地，各可站立格上方至少空两格，室内连续可通行地面不超过 64 格，有实地板、完整连续屋顶和实心围墙，屋顶距脚下地面高度为 2～5 格。至少有一扇关闭且可手动开关的门，能从屋内走到门口，门外可站立并通向露天。各室内可站立格必须有大于 0 的方块光照，室内没有 MONSTER 分类怪物。室内和脚下地板不能包含液体、含水方块、火、灵魂火、岩浆块、仙人掌、甜浆果丛、凋零玫瑰、细雪、营火、灵魂营火或滴水石锥；熄灭的营火也不计为安全。高低地板、斜屋顶和露台式出入口暂不计入这个评分标准。
+
+所有成功条件必须同时连续保持 1200 个游戏 tick（正常 20 TPS 时约 60 秒），期间你留在庇护所内；世界状态约每 200 毫秒采样一次，条件中断则重新计时。达到这些条件后告诉我。不要求你在这次任务中熬过整夜或击杀末影龙。
+[10:49:47] [Render thread/INFO] [minecraft/Minecraft]: Stopping!
+[10:49:47] [Render thread/INFO] [Numen/]: [numen-entity#bb40f864-bb92-43c4-b249-f91d9cd3560e] halt DISCONNECT (phase=idle, abandoned calls=0, cleared queued=0, left=0)
+[10:49:47] [Server thread/INFO] [minecraft/ServerGamePacketListenerImpl]: Dev lost connection: Disconnected
+[10:49:47] [Server thread/INFO] [minecraft/MinecraftServer]: Dev left the game
+[10:49:47] [Server thread/INFO] [minecraft/ServerCommonPacketListenerImpl]: Stopping singleplayer server as player logged out
+[10:49:47] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping server
+[10:49:47] [Server thread/INFO] [minecraft/MinecraftServer]: Saving players
+[10:49:47] [Server thread/INFO] [minecraft/MinecraftServer]: Saving worlds
+[10:49:47] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-d4a5b6df92f24fa5b453d95856339dd3]'/minecraft:overworld
+[10:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-d4a5b6df92f24fa5b453d95856339dd3]'/minecraft:the_end
+[10:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-d4a5b6df92f24fa5b453d95856339dd3]'/minecraft:the_nether
+[10:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (numen-eval-d4a5b6df92f24fa5b453d95856339dd3): All chunks are saved
+[10:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[10:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[10:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
+
+[Incubating] Problems report is available at: file:///E:/mineAI/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 28m 58s
+49 actionable tasks: 2 executed, 47 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.2.0/userguide/configuration_cache_enabling.html

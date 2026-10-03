@@ -1,0 +1,41 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :buildSrc:extractPluginRequests UP-TO-DATE
+> Task :buildSrc:generatePluginAdapters UP-TO-DATE
+> Task :buildSrc:compileJava UP-TO-DATE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:compileGroovyPlugins UP-TO-DATE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources UP-TO-DATE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :api:fabric
+Fabric Loom: 1.14.10
+
+> Configure project :core:fabric
+Fabric Loom: 1.14.10
+
+> Task :ai:compileJava UP-TO-DATE
+> Task :agent:compileJava UP-TO-DATE
+> Task :agent:processResources NO-SOURCE
+> Task :agent:classes UP-TO-DATE
+> Task :agent:compileTestJava
+> Task :agent:processTestResources NO-SOURCE
+> Task :agent:testClasses
+> Task :ai:processResources UP-TO-DATE
+> Task :ai:classes UP-TO-DATE
+> Task :ai:jar UP-TO-DATE
+> Task :agent:benchmark
+
+[Incubating] Problems report is available at: file:///E:/mineAI/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 10s
+13 actionable tasks: 2 executed, 11 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.2.0/userguide/configuration_cache_enabling.html

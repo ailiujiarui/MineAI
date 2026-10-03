@@ -1,0 +1,63 @@
+{
+  "evaluation_version": "survival-v1",
+  "run_id": "20261003T022055527569Z-300c622c",
+  "split": "dev",
+  "rep": 0,
+  "started_at_utc": "2026-10-03T02:20:55.529034+00:00",
+  "status": "budget_exhausted",
+  "success": false,
+  "model_cost": null,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.2",
+  "offline_gradle": true,
+  "neoforge_version_override": "21.1.233",
+  "command": {
+    "argv": [
+      "E:\\mineAI\\gradlew.bat",
+      ":core:neoforge:runClient",
+      "--no-daemon",
+      "--console=plain",
+      "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\20261003T022055527569Z-300c622c\\request.json",
+      "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\20261003T022055527569Z-300c622c\\game",
+      "--offline",
+      "-Pneoforge_version=21.1.233"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "interrupted": false,
+    "duration_ms": 1738758,
+    "log": "launcher.log"
+  },
+  "provider": {
+    "id": "eval-model",
+    "provider": "deepseek",
+    "model": "deepseek-v4.1-flash",
+    "reasoning_effort": "",
+    "ctx": 1000000
+  },
+  "case_id": "live.sustainable-survival",
+  "budget": {
+    "max_model_calls": 80,
+    "max_seconds": 1700,
+    "max_tokens": 2600000
+  },
+  "blockers": [],
+  "candidate": "f39ee4d9bfa0+1b3e98c40b00",
+  "source_sha256": "1b3e98c40b00cd8be8e937cabf769c3dce208b7eb304694c50694b0acd568006",
+  "git_status": "M agent/build.gradle\n M agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java\n M agent/src/main/java/com/dwinovo/numen/agent/loop/AgentLoop.java\n M ai/src/main/java/com/dwinovo/numen/agent/http/CancelToken.java\n M ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java\n M ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java\n M api/common/src/client/java/com/dwinovo/numen/client/agent/AgentLoopRegistry.java\n M api/common/src/client/java/com/dwinovo/numen/client/agent/EntityAgentLoop.java\n M api/common/src/client/java/com/dwinovo/numen/client/agent/ToolDispatcher.java\n M core/common/src/main/java/com/dwinovo/numen/core/NumenCore.java\n M core/common/src/main/java/com/dwinovo/numen/core/act/BlockDigger.java\n M core/neoforge/build.gradle\n M docs/architecture-mind-model.md\n?? agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java\n?? agent/src/test/java/com/dwinovo/numen/agent/acceptance/LiveEvalRunTest.java\n?? agent/src/test/java/com/dwinovo/numen/agent/loop/ResponseBenchmark.java\n?? agent/src/test/java/com/dwinovo/numen/agent/plan/PlanningBenchmark.java\n?? api/common/src/client/java/com/dwinovo/numen/client/eval/\n?? api/common/src/main/java/com/dwinovo/numen/eval/\n?? core/common/src/main/java/com/dwinovo/numen/core/eval/\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/BenchmarkGameTests.java\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/SurvivalEvalGameTests.java\n?? evals/\n?? tools/calibrate_live_eval.py\n?? tools/run_bot_eval.py\n?? tools/run_live_eval.py\n?? tools/test_run_bot_eval.py\n?? tools/test_run_live_eval.py",
+  "scenario_sha256": "1533ad96fa993ec7ad03003a961a9459438baa8369fb931312c7f5eceb09ceec",
+  "startup_seconds": 600,
+  "planned_command": [
+    "E:\\mineAI\\gradlew.bat",
+    ":core:neoforge:runClient",
+    "--no-daemon",
+    "--console=plain",
+    "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\20261003T022055527569Z-300c622c\\request.json",
+    "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\20261003T022055527569Z-300c622c\\game",
+    "--offline",
+    "-Pneoforge_version=21.1.233"
+  ],
+  "reason": "max_seconds",
+  "result_ref": "results/result.json",
+  "finished_at_utc": "2026-10-03T02:49:55.121001+00:00"
+}

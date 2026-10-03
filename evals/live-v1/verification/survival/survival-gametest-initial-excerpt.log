@@ -1,0 +1,4 @@
+21063: [02:29:15] [Server thread/ERROR] [minecraft/LogTestReporter]: build_japanese_cottage failed at 9505557, -60, 7130701! build failed: 2 cell(s) unbuilt at 9505573, -57, 7130722: 2 blocked by someone standing there — ask them to step aside; built 5855/5857
+22258: [02:29:25] [Server thread/INFO] [minecraft/GameTestServer]: 1 required tests failed :(
+22259: [02:29:25] [Server thread/INFO] [minecraft/GameTestServer]:    - build_japanese_cottage
+22296: BUILD FAILED in 1m 21s

@@ -1,0 +1,47 @@
+{
+  "valid_run": true,
+  "layers": {
+    "body": {
+      "passed": 6,
+      "scored": 6,
+      "failed": 0,
+      "invalid": 0,
+      "not_run": 0,
+      "observed_success_rate": 1.0
+    },
+    "live": {
+      "passed": 0,
+      "scored": 0,
+      "failed": 0,
+      "invalid": 0,
+      "not_run": 10,
+      "observed_success_rate": null
+    },
+    "planning": {
+      "passed": 4,
+      "scored": 6,
+      "failed": 2,
+      "invalid": 0,
+      "not_run": 0,
+      "observed_success_rate": 0.6666666666666666
+    },
+    "response": {
+      "passed": 4,
+      "scored": 6,
+      "failed": 2,
+      "invalid": 0,
+      "not_run": 0,
+      "observed_success_rate": 0.6666666666666666
+    }
+  },
+  "record_errors": [],
+  "interpretation": "Exploratory dev evidence only. Layers are not pooled. No live LLM calls.",
+  "external_model_calls": 0,
+  "external_model_tokens": 0,
+  "external_model_cost": 0,
+  "total_cost": null,
+  "candidate": "f39ee4d9bfa0+9c18e1f4d386",
+  "evaluation_version": "bot-v1.2",
+  "evaluation_sha256": "58bc1f13308f19af6eddb4dc3264ff184ae5dcd74c5111b40cb12c001b897207",
+  "environment_sha256": "f3da52fd0ac629815969639b801aa2d69b5c2dc031be879a2df939268d5c358a"
+}

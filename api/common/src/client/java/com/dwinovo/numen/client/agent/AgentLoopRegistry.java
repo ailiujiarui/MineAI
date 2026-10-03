@@ -68,6 +68,7 @@ public final class AgentLoopRegistry {
      * 断线前排上的一句话会在标题画面上开起一次 run。
      */
     public static void tickAll() {
+        com.dwinovo.numen.client.eval.LiveEvalClient.tick();
         if (net.minecraft.client.Minecraft.getInstance().getConnection() == null) {
             return;
         }

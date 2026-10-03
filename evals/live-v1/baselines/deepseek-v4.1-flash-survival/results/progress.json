@@ -1,0 +1,369 @@
+{
+  "evaluation_version": "survival-v1",
+  "case_id": "live.sustainable-survival",
+  "spec": {
+    "evaluation_version": "survival-v1",
+    "case_id": "live.sustainable-survival",
+    "split": "dev",
+    "source": "Hand-authored renewable-food survival dev case; public scoring criteria exposed to the model and evaluator developers",
+    "prompt": "从空背包开始，在这个普通生存世界独立建立能继续生活的据点和可再生食物循环。你自己决定方案、行动顺序和何时进食，不向我索要物资或操作帮助。评测以服务端真实世界状态为准，首次死亡即失败。\n\n公开成功标准：最终你至少保有 10 点生命和 12 点饱食度，背包中有一把仍可用、能正确采集铁矿的镐，以及一把仍可用的锄头；金镐不满足采铁要求。你附近的已加载区域里至少有 1 个放置好的工作台、1 个放置好的普通熔炉和 8 株小麦。这里的附近指水平各轴距离不超过 24 格、竖向距离不超过 8 格；小麦下方必须是当前湿润的耕地，耕地水平 4 格内在耕地或作物高度存在水，作物位置当前光照至少为 9。\n\n你必须亲自收割过至少 3 个不同位置的成熟小麦，并在各自原坐标重新种下小麦；评测需要观察到这些位置从成熟收割到未成熟幼苗的补种，不能用只找到一片现成农田代替。背包里可安全食用物品的饱食恢复值乘数量，合计至少为 20；会产生负面效果的食物不计入储备。\n\n你还需要身处合格的安全庇护所内。本次评测承认位于你当前水平各轴 8 格范围内、单层、平地板、封闭的简单矩形室内空间：至少有一片 2×2 的可站立空地，各可站立格上方至少空两格，室内连续可通行地面不超过 64 格，有实地板、完整连续屋顶和实心围墙，屋顶距脚下地面高度为 2～5 格。至少有一扇关闭且可手动开关的门，能从屋内走到门口，门外可站立并通向露天。各室内可站立格必须有大于 0 的方块光照，室内没有 MONSTER 分类怪物。室内和脚下地板不能包含液体、含水方块、火、灵魂火、岩浆块、仙人掌、甜浆果丛、凋零玫瑰、细雪、营火、灵魂营火或滴水石锥；熄灭的营火也不计为安全。高低地板、斜屋顶和露台式出入口暂不计入这个评分标准。\n\n所有成功条件必须同时连续保持 1200 个游戏 tick（正常 20 TPS 时约 60 秒），期间你留在庇护所内；世界状态约每 200 毫秒采样一次，条件中断则重新计时。达到这些条件后告诉我。不要求你在这次任务中熬过整夜或击杀末影龙。",
+    "seed": 73002,
+    "world_preset": "normal",
+    "world_observer": "sustainable-survival-v1",
+    "success_hold_ticks": 1200,
+    "setup": {
+      "inventory": {}
+    },
+    "success": {
+      "min_health": 10,
+      "min_food": 12,
+      "world": {
+        "usable_pickaxe": true,
+        "usable_hoe": true,
+        "crafting_tables": 1,
+        "furnaces": 1,
+        "growing_wheat": 8,
+        "replanted_wheat": 3,
+        "food_nutrition": 20,
+        "shelter": true
+      }
+    },
+    "milestones": [
+      {
+        "id": "usable-tools",
+        "condition": {
+          "world": {
+            "usable_pickaxe": true,
+            "usable_hoe": true
+          }
+        }
+      },
+      {
+        "id": "placed-workstations",
+        "condition": {
+          "world": {
+            "crafting_tables": 1,
+            "furnaces": 1
+          }
+        }
+      },
+      {
+        "id": "growing-field",
+        "condition": {
+          "world": {
+            "growing_wheat": 8
+          }
+        }
+      },
+      {
+        "id": "harvest-and-replant",
+        "condition": {
+          "world": {
+            "replanted_wheat": 3
+          }
+        }
+      },
+      {
+        "id": "safe-food-reserve",
+        "condition": {
+          "world": {
+            "food_nutrition": 20
+          }
+        }
+      },
+      {
+        "id": "safe-base",
+        "condition": {
+          "min_health": 10,
+          "min_food": 12,
+          "world": {
+            "shelter": true
+          }
+        }
+      }
+    ],
+    "budget": {
+      "max_model_calls": 80,
+      "max_seconds": 1700,
+      "max_tokens": 2600000
+    }
+  },
+  "status": "budget_exhausted",
+  "reason": "max_seconds",
+  "elapsed_ms": 1700033.8171,
+  "success_held_ticks": 0,
+  "model_calls": 58,
+  "denied_model_calls": 0,
+  "usage_reports": 45,
+  "unknown_usage_reports": 0,
+  "usage_complete": false,
+  "tokens": {
+    "input": 119837,
+    "output": 45084,
+    "cache_read": 2316288,
+    "cache_write": 0,
+    "total": 2481209
+  },
+  "cost": null,
+  "first_token_ms": 142226.6213,
+  "first_reply_ms": 95141.8508,
+  "correct_response_ms": null,
+  "response_correctness": "not_measured",
+  "milestones": [
+    {
+      "id": "usable-tools",
+      "elapsed_ms": 865538.641,
+      "snapshot": {
+        "alive": true,
+        "game_tick": 17360,
+        "dragon_kills": 0,
+        "deaths": 0,
+        "inventory": {
+          "minecraft:apple": 1,
+          "minecraft:cobblestone": 12,
+          "minecraft:diorite": 3,
+          "minecraft:dirt": 39,
+          "minecraft:oak_log": 7,
+          "minecraft:oak_planks": 9,
+          "minecraft:oak_sapling": 2,
+          "minecraft:stick": 8,
+          "minecraft:stone_hoe": 1,
+          "minecraft:stone_pickaxe": 1,
+          "minecraft:stone_sword": 1,
+          "minecraft:wooden_hoe": 1,
+          "minecraft:wooden_sword": 1
+        },
+        "health": 20.0,
+        "food": 20,
+        "dimension": "minecraft:overworld",
+        "world": {
+          "growing_wheat": 0,
+          "crafting_tables": 1,
+          "furnaces": 0,
+          "evidence": {
+            "scan_origin": {
+              "position": [
+                166,
+                66,
+                -120
+              ]
+            },
+            "wheat": [],
+            "crafting_tables": [
+              {
+                "position": [
+                  165,
+                  66,
+                  -120
+                ]
+              }
+            ],
+            "furnaces": [],
+            "coordinates_truncated": false,
+            "scanned_game_tick": 17360,
+            "dimension": "minecraft:overworld",
+            "food": [
+              {
+                "id": "minecraft:apple",
+                "count": 1,
+                "nutrition": 4
+              }
+            ],
+            "tools": [
+              {
+                "id": "minecraft:wooden_hoe",
+                "count": 1,
+                "remaining_durability": 59
+              },
+              {
+                "id": "minecraft:stone_hoe",
+                "count": 1,
+                "remaining_durability": 131
+              },
+              {
+                "id": "minecraft:stone_pickaxe",
+                "count": 1,
+                "remaining_durability": 131
+              }
+            ],
+            "shelter": {
+              "valid": false,
+              "position": {
+                "position": [
+                  166,
+                  66,
+                  -120
+                ]
+              },
+              "reason": "open_or_oversize_room"
+            },
+            "replanted_wheat": []
+          },
+          "usable_pickaxe": true,
+          "usable_hoe": true,
+          "food_nutrition": 4,
+          "shelter": false,
+          "replanted_wheat": 0
+        },
+        "position": [
+          166.4983906628888,
+          66.0,
+          -119.7682562889278
+        ],
+        "current_task": null
+      }
+    }
+  ],
+  "initial_snapshot": {
+    "alive": true,
+    "game_tick": 48,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {},
+    "health": 20.0,
+    "food": 20,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "growing_wheat": 0,
+      "crafting_tables": 0,
+      "furnaces": 0,
+      "evidence": {
+        "scan_origin": {
+          "position": [
+            160,
+            66,
+            -128
+          ]
+        },
+        "wheat": [],
+        "crafting_tables": [],
+        "furnaces": [],
+        "coordinates_truncated": false,
+        "scanned_game_tick": 48,
+        "dimension": "minecraft:overworld",
+        "food": [],
+        "tools": [],
+        "shelter": {
+          "valid": false,
+          "position": {
+            "position": [
+              160,
+              66,
+              -128
+            ]
+          },
+          "reason": "open_or_oversize_room"
+        },
+        "replanted_wheat": []
+      },
+      "usable_pickaxe": false,
+      "usable_hoe": false,
+      "food_nutrition": 0,
+      "shelter": false,
+      "replanted_wheat": 0
+    },
+    "position": [
+      160.5,
+      66.0,
+      -127.5
+    ],
+    "current_task": null
+  },
+  "final_snapshot": {
+    "alive": true,
+    "game_tick": 33965,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:coal": 8,
+      "minecraft:cobblestone": 61,
+      "minecraft:diorite": 3,
+      "minecraft:dirt": 113,
+      "minecraft:furnace": 1,
+      "minecraft:oak_door": 3,
+      "minecraft:oak_log": 9,
+      "minecraft:oak_planks": 3,
+      "minecraft:oak_sapling": 2,
+      "minecraft:stick": 6,
+      "minecraft:stone_hoe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_shovel": 1,
+      "minecraft:stone_sword": 1,
+      "minecraft:wheat_seeds": 8,
+      "minecraft:wooden_hoe": 1,
+      "minecraft:wooden_sword": 1
+    },
+    "health": 12.533333,
+    "food": 16,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "growing_wheat": 0,
+      "crafting_tables": 1,
+      "furnaces": 0,
+      "evidence": {
+        "scan_origin": {
+          "position": [
+            165,
+            66,
+            -119
+          ]
+        },
+        "wheat": [],
+        "crafting_tables": [
+          {
+            "position": [
+              165,
+              66,
+              -120
+            ]
+          }
+        ],
+        "furnaces": [],
+        "coordinates_truncated": false,
+        "scanned_game_tick": 33965,
+        "dimension": "minecraft:overworld",
+        "food": [],
+        "tools": [
+          {
+            "id": "minecraft:stone_pickaxe",
+            "count": 1,
+            "remaining_durability": 59
+          },
+          {
+            "id": "minecraft:wooden_hoe",
+            "count": 1,
+            "remaining_durability": 59
+          },
+          {
+            "id": "minecraft:stone_hoe",
+            "count": 1,
+            "remaining_durability": 128
+          }
+        ],
+        "shelter": {
+          "valid": false,
+          "position": {
+            "position": [
+              165,
+              66,
+              -119
+            ]
+          },
+          "reason": "open_or_oversize_room"
+        },
+        "replanted_wheat": []
+      },
+      "usable_pickaxe": true,
+      "usable_hoe": true,
+      "food_nutrition": 0,
+      "shelter": false,
+      "replanted_wheat": 0
+    },
+    "position": [
+      165.6955602714977,
+      66.0,
+      -118.66359851128355
+    ],
+    "current_task": null
+  }
+}
