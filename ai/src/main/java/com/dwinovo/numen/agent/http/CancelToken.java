@@ -16,6 +16,23 @@ public final class CancelToken {
 
     private final List<Runnable> actions = new ArrayList<>();
     private boolean cancelled;
+    private java.util.function.BooleanSupplier requestPermit;
+
+    /** Optional run budget, checked for every wire attempt, including transport retries. */
+    public synchronized void requestPermit(java.util.function.BooleanSupplier permit) {
+        requestPermit = permit;
+    }
+
+    /** A denied attempt cancels this request chain before anything is sent. */
+    public boolean permitRequest() {
+        java.util.function.BooleanSupplier permit;
+        synchronized (this) {
+            if (cancelled) return false;
+            permit = requestPermit;
+        }
+        if (permit != null && !permit.getAsBoolean()) cancel();
+        return !isCancelled();
+    }
 
     /** 取消。重复调用无事发生。 */
     public void cancel() {

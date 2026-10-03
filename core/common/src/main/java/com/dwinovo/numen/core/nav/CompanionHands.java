@@ -2,6 +2,7 @@ package com.dwinovo.numen.core.nav;
 
 import com.dwinovo.numen.core.act.Interaction;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.eval.WorldEvalObservers;
 import com.dwinovo.numen.pathing.body.BodyAction;
 import com.dwinovo.numen.pathing.body.Effector;
 import com.dwinovo.numen.pathing.body.Hotbar;
@@ -68,7 +69,11 @@ public final class CompanionHands implements Effector {
                 return new Strike.Refused(pos.immutable(), verdict);
             }
         }
-        return hands.dig(hit);
+        Strike strike = hands.dig(hit);
+        if (strike instanceof Strike.Broke broke && player.level().getBlockState(broke.pos()) != broke.before()) {
+            WorldEvalObservers.blockBroken(player, broke.pos(), broke.before());
+        }
+        return strike;
     }
 
     @Override

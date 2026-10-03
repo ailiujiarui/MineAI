@@ -64,7 +64,20 @@ dependencies {
 }
 
 test {
-    useJUnitPlatform()
+    useJUnitPlatform { excludeTags 'benchmark' }
+}
+
+// 评测的业务低分写进逐例记录,不混入回归测试的通过数。
+tasks.register('benchmark', Test) {
+    group = 'verification'
+    description = 'Run the offline bot planning and response benchmarks'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'benchmark' }
+    outputs.upToDateWhen { false }
+    doFirst {
+        systemProperty 'numen.eval.output', providers.gradleProperty('numenEvalOutput').get()
+    }
 }
 
 publishing {

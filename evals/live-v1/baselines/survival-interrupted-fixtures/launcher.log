@@ -1,0 +1,279 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :buildSrc:extractPluginRequests UP-TO-DATE
+> Task :buildSrc:generatePluginAdapters UP-TO-DATE
+> Task :buildSrc:compileJava UP-TO-DATE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:compileGroovyPlugins UP-TO-DATE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources UP-TO-DATE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :api:fabric
+Fabric Loom: 1.14.10
+
+> Configure project :core:fabric
+Fabric Loom: 1.14.10
+
+> Task :ai:compileJava UP-TO-DATE
+> Task :agent:compileJava UP-TO-DATE
+> Task :agent:processResources NO-SOURCE
+> Task :agent:classes UP-TO-DATE
+> Task :agent:jar UP-TO-DATE
+> Task :ai:processResources UP-TO-DATE
+> Task :ai:classes UP-TO-DATE
+> Task :ai:jar UP-TO-DATE
+> Task :ui:compileJava UP-TO-DATE
+> Task :ui:processResources NO-SOURCE
+> Task :ui:classes UP-TO-DATE
+> Task :ui:jar UP-TO-DATE
+> Task :api:common:createMinecraftArtifacts UP-TO-DATE
+> Task :api:common:compileJava UP-TO-DATE
+> Task :api:neoforge:createMinecraftArtifacts UP-TO-DATE
+> Task :api:neoforge:compileJava UP-TO-DATE
+> Task :api:neoforge:processResources UP-TO-DATE
+> Task :api:neoforge:classes UP-TO-DATE
+> Task :api:neoforge:jarJar NO-SOURCE
+> Task :api:neoforge:jar UP-TO-DATE
+> Task :core:common:createMinecraftArtifacts UP-TO-DATE
+> Task :core:common:compileJava UP-TO-DATE
+> Task :core:neoforge:createMinecraftArtifacts UP-TO-DATE
+> Task :api:neoforge:apiJar UP-TO-DATE
+> Task :plugins:curios:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:curios:compileJava UP-TO-DATE
+> Task :plugins:ftbquests:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:ftbquests:compileJava UP-TO-DATE
+> Task :plugins:jei:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:jei:compileJava UP-TO-DATE
+> Task :plugins:kaleidoscope:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:kaleidoscope:compileJava UP-TO-DATE
+> Task :plugins:mekanism:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:mekanism:compileJava UP-TO-DATE
+> Task :plugins:tlm:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:tlm:compileJava UP-TO-DATE
+> Task :api:common:processResources UP-TO-DATE
+> Task :api:common:classes UP-TO-DATE
+> Task :api:common:compileClientJava UP-TO-DATE
+> Task :api:common:processClientResources NO-SOURCE
+> Task :api:common:clientClasses UP-TO-DATE
+> Task :api:common:jarJar NO-SOURCE
+> Task :api:common:jar UP-TO-DATE
+> Task :api:common:apiJar UP-TO-DATE
+> Task :plugins:ysm:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:ysm:compileJava UP-TO-DATE
+> Task :core:neoforge:compileJava UP-TO-DATE
+> Task :core:neoforge:processResources UP-TO-DATE
+> Task :plugins:jei:processResources NO-SOURCE
+> Task :plugins:jei:classes UP-TO-DATE
+> Task :plugins:mekanism:processResources UP-TO-DATE
+> Task :plugins:mekanism:classes UP-TO-DATE
+> Task :core:neoforge:classes UP-TO-DATE
+> Task :core:neoforge:downloadAssets UP-TO-DATE
+> Task :core:neoforge:writeClientLegacyClasspath UP-TO-DATE
+> Task :core:neoforge:prepareClientRun
+
+> Task :core:neoforge:runClient
+WARN StatusConsoleListener Advanced terminal features are not available in this environment
+[10:12:13] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeclientdev, --version, 21.1.233, --assetIndex, 17, --assetsDir, C:\\Users\\21036\\.gradle\\caches\\neoformruntime\\assets, --gameDir, ., --fml.fmlVersion, 4.0.42, --fml.mcVersion, 1.21.1, --fml.neoForgeVersion, 21.1.233, --fml.neoFormVersion, 20240808.144430]
+[10:12:13] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: JVM identified as Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.12.1+1-LTS
+[10:12:13] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher 11.0.5+main.901c6ea8 starting: java version 21.0.12.1 by Eclipse Adoptium; OS Windows 11 arch amd64 version 10.0
+[10:12:13] [main/INFO] [ne.ne.fm.lo.ImmediateWindowHandler/]: Loading ImmediateWindowProvider fmlearlywindow
+[10:12:13] [main/INFO] [EARLYDISPLAY/]: Trying GL version 4.6
+[10:12:13] [main/INFO] [EARLYDISPLAY/]: Requested GL version 4.6 got version 4.6
+[10:12:13] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=union:/C:/Users/21036/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.15.2+mixin.0.8.7/2af2f021d8e02a0220dc27a7a72b4666d66d44ca/sponge-mixin-0.15.2+mixin.0.8.7.jar%23138!/ Service=ModLauncher Env=CLIENT
+[10:12:13] [pool-2-thread-1/INFO] [EARLYDISPLAY/]: GL info: Intel(R) Graphics GL version 4.6.0 - Build 32.0.101.8332, Intel
+[10:12:13] [main/INFO] [ne.ne.fm.lo.mo.lo.JarInJarDependencyLocator/]: Found 2 dependencies adding them to mods collection
+[10:12:13] [main/INFO] [ne.ne.fm.lo.mo.ModDiscoverer/]: 
+     Mod List:
+		Name Version (Mod Id)
+
+		Minecraft 1.21.1 (minecraft)
+		NeoForge 21.1.233 (neoforge)
+		Numen 0.1.3 (numen_api)
+		Numen 0.1.3 (numen)
+[10:12:14] [main/INFO] [mixin/]: Compatibility level set to JAVA_21
+[10:12:14] [main/INFO] [cp.mo.mo.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeclientdev' with arguments [--version, 21.1.233, --gameDir, ., --assetsDir, C:\Users\21036\.gradle\caches\neoformruntime\assets, --assetIndex, 17]
+[10:12:14] [main/WARN] [mixin/]: Error loading class: dev/architectury/hooks/level/entity/PlayerHooks (java.lang.ClassNotFoundException: dev.architectury.hooks.level.entity.PlayerHooks)
+[10:12:15] [Datafixer Bootstrap/INFO] [mojang/DataFixerBuilder]: 229 Datafixer optimizations took 180 milliseconds
+[10:12:16] [pool-8-thread-1/INFO] [MixinExtras|Service/]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.3).
+[10:12:20] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[10:12:20] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, targets] with inputs: [0.1 -0.5 .9, 0 0 0]
+[10:12:20] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, destination] and [teleport, targets] with inputs: [Player, 0123, @e, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[10:12:20] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets] and [teleport, destination] with inputs: [Player, 0123, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[10:12:20] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets, location] and [teleport, targets, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[10:12:20] [Render thread/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/E:/mineAI/core/neoforge/build/moddev/artifacts/neoforge-21.1.233.jar%23189!/assets/.mcassetsroot' uses unexpected schema
+[10:12:20] [Render thread/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/E:/mineAI/core/neoforge/build/moddev/artifacts/neoforge-21.1.233.jar%23189!/data/.mcassetsroot' uses unexpected schema
+[10:12:20] [Render thread/INFO] [mojang/YggdrasilAuthenticationService]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[10:12:20] [Render thread/INFO] [minecraft/Minecraft]: Setting user: Dev
+[10:12:20] [Render thread/INFO] [minecraft/Minecraft]: Backend library: LWJGL version 3.3.3+5
+[10:12:20] [modloading-worker-0/INFO] [ne.ne.ne.co.NeoForgeMod/NEOFORGE-MOD]: NeoForge mod loading, version 21.1.233, for MC 1.21.1
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen] common init on NeoForge (development)
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] reload E:\mineAI\build\evals\live-v1\20261003T021202919920Z-7562409a\game\config\numen\adapters: 0 loaded, 0 failed, 3 skipped (added=[], updated=[], removed=[])
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'beyonddimensions': mod 'beyonddimensions' not loaded
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'curios': mod 'curios' not loaded
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'tacz': mod 'tacz' not loaded
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen] registered 1 tool(s)
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: Numen mod initialised on NeoForge.
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-mcp-client] wrote default config E:\mineAI\build\evals\live-v1\20261003T021202919920Z-7562409a\game\config\numen\mcp_clients.json
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-mcp-client] 2 server(s) configured, 0 connecting
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-mcp] wrote default config E:\mineAI\build\evals\live-v1\20261003T021202919920Z-7562409a\game\config\numen\mcp_server.json
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-mcp] 外接大脑模式关闭(config/numen/mcp_server.json)
+[10:12:20] [modloading-worker-0/INFO] [NumenCore/]: [numen-core] registered 42 tool(s), 16 task type(s); survival chains enabled
+[10:12:20] [modloading-worker-0/INFO] [Numen/]: [numen-skill] declared bundled skills root skills
+[10:12:20] [modloading-worker-0/INFO] [NumenCore/]: numen-core initialised on NeoForge.
+[10:12:21] [Render thread/INFO] [ne.ne.ne.ga.GameTestHooks/]: Enabled Gametest Namespaces: [numen]
+[10:12:21] [Render thread/INFO] [minecraft/ReloadableResourceManager]: Reloading ResourceManager: vanilla, mod_resources, mod/numen_api, mod/numen, mod/neoforge
+[10:12:21] [Worker-Main-1/INFO] [minecraft/UnihexProvider]: Found unifont_all_no_pua-15.1.05.hex, loading
+[10:12:21] [Worker-Main-12/INFO] [minecraft/UnihexProvider]: Found unifont_jp_patch-15.1.05.hex, loading
+[10:12:22] [Render thread/WARN] [minecraft/SoundEngine]: Missing sound for event: minecraft:item.goat_horn.play
+[10:12:22] [Render thread/WARN] [minecraft/SoundEngine]: Missing sound for event: minecraft:entity.goat.screaming.horn_break
+[10:12:23] [Render thread/INFO] [mojang/Library]: OpenAL initialized on device OpenAL Soft on 扬声器 (Realtek(R) Audio)
+[10:12:23] [Render thread/INFO] [minecraft/SoundEngine]: Sound engine started
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x512x4 minecraft:textures/atlas/blocks.png-atlas
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x256x4 minecraft:textures/atlas/signs.png-atlas
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x512x4 minecraft:textures/atlas/shield_patterns.png-atlas
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x512x4 minecraft:textures/atlas/banner_patterns.png-atlas
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x1024x4 minecraft:textures/atlas/armor_trims.png-atlas
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 128x64x4 minecraft:textures/atlas/decorated_pot.png-atlas
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x256x4 minecraft:textures/atlas/chest.png-atlas
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x4 minecraft:textures/atlas/shulker_boxes.png-atlas
+[10:12:23] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x4 minecraft:textures/atlas/beds.png-atlas
+[10:12:24] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[10:12:24] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[10:12:24] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x128x0 minecraft:textures/atlas/mob_effects.png-atlas
+[10:12:24] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 64x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[10:12:24] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[10:12:24] [Render thread/WARN] [minecraft/ShaderInstance]: Shader rendertype_entity_translucent_emissive could not find sampler named Sampler2 in the specified shader program.
+[10:12:24] [Render thread/INFO] [Numen/]: [numen-skill] loaded 11 skill(s) (1 bundled root(s), userRoot=.\config\numen\skills)
+[10:12:24] [Render thread/INFO] [ne.ne.ne.cl.en.an.js.AnimationLoader/]: Loaded 0 entity animations
+[10:12:26] [Render thread/INFO] [minecraft/RecipeManager]: Loaded 1290 recipes
+[10:12:26] [Render thread/INFO] [minecraft/AdvancementTree]: Loaded 1399 advancements
+[10:12:27] [Server thread/INFO] [minecraft/IntegratedServer]: Starting integrated minecraft server version 1.21.1
+[10:12:27] [Server thread/INFO] [minecraft/MinecraftServer]: Generating keypair
+[10:12:29] [Server thread/INFO] [minecraft/MinecraftServer]: Preparing start region for dimension minecraft:overworld
+[10:12:29] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[10:12:29] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[10:12:30] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[10:12:30] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 51%
+[10:12:30] [Server thread/INFO] [ne.ne.ne.se.pe.PermissionAPI/]: Successfully initialized permission handler neoforge:default_handler
+[10:12:30] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Time elapsed: 1797 ms
+[10:12:30] [Server thread/INFO] [Numen/]: [numen-task] scheduler heartbeat online (first server tick)
+[10:12:30] [Server thread/INFO] [minecraft/IntegratedServer]: Changing view distance to 12, from 10
+[10:12:30] [Server thread/INFO] [minecraft/IntegratedServer]: Changing simulation distance to 12, from 0
+[10:12:31] [Server thread/INFO] [minecraft/PlayerList]: Dev[local:E:e990ea67] logged in with entity id 22 at (157.5, 67.0, -118.5)
+[10:12:31] [Server thread/INFO] [minecraft/MinecraftServer]: Dev joined the game
+[10:12:31] [Render thread/INFO] [minecraft/AdvancementTree]: Loaded 2 advancements
+[10:12:31] [Server thread/INFO] [minecraft/PlayerList]: EvalBot[embedded] logged in with entity id 45 at (160.5, 75.0, -123.5)
+[10:12:31] [Server thread/INFO] [minecraft/MinecraftServer]: EvalBot joined the game
+[10:12:31] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot joined the game
+[10:12:31] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 0 种物品 / 0 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符 (首次)
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] queued query URGENT: <query>/goal 从空背包开始，在这个普通生存世界独立建立能继续生活的据点和可再生食物循环。你自己决定方案、行动顺序和何时进食，不向我索要物资或操作帮助。评测以服务端真实世界状态为准，首次死亡即失败。
+
+公开成功标准：最终你至少保有...
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-queue#dd9c456c-9910-476f-80aa-50bdcebe0384] 主动开轮:有急件(攒了 1 条/阈值 3,最老 0s/上限 180s,档位 3)
+[10:12:33] [Render thread/WARN] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] can't reach the model: This companion has no model config bound — pick or create one in Settings → Model Configs
+[10:12:33] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] ⚠ EvalBot:This companion has no model config bound — pick or create one in Settings → Model Configs
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] provider entry set to eval-model
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] BINDING_CHANGED 解开停牌 BLOCKED
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-queue#dd9c456c-9910-476f-80aa-50bdcebe0384] 主动开轮:有急件(攒了 1 条/阈值 3,最老 0s/上限 180s,档位 3)
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:330 字符,这份快照 1180ms 前收到
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 1: convo=2 msgs, tools=43
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-http] routing LLM calls through proxy 127.0.0.1:7897
+[10:12:33] [Render thread/INFO] [Numen/]: [numen-llm] client initialised: provider=deepseek, model=deepseek-v4.1-flash, url=https://api.b.ai/v1/chat/completions, streaming=true
+[10:12:39] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 6662ms, chunks=42, tokens=19511/139 (total 19650), finish=tool_calls, tool_calls=[get_self_status, get_world_info, look_around], content="<no text>"
+[10:12:39] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=get_self_status id=call_00_12onf4aiun92vyimto25fm7w args={}
+[10:12:39] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_12onf4aiun92vyimto25fm7w tool=get_self_status (queued=2) → {"entity_id":45,"name":"EvalBot","game_mode":"survival","hp":20.0,"max_hp":20.0,"hunger":20,"saturation":5.0,"position":{"x":160.5,"y":78.0,"z":-127.5},"dimension":"minecraft:overworld","biome":"minec...
+[10:12:39] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=get_world_info id=call_01_rbn9ph135eo8xc0oru2cz4xr args={}
+[10:12:39] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_01_rbn9ph135eo8xc0oru2cz4xr tool=get_world_info (queued=1) → {"dimension":"minecraft:overworld","game_time":183,"is_bright_outside":true,"is_dark_outside":false,"weather":"clear"}
+[10:12:39] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=look_around id=call_02_t9kckufegmjt788wx2p3nmw0 args={"radius": 16}
+[10:12:39] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_02_t9kckufegmjt788wx2p3nmw0 tool=look_around (queued=0) → look_around center=(160,78,-128) facing=east | 1 cell = 1 block, @ = you, North = up (-Z), East = right (+X)
+
+v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v
+v v v v v v v v v v v v ...
+[10:12:39] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 2: convo=6 msgs, tools=43
+[10:12:47] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 7187ms, chunks=376, tokens=21110/757 (total 21867), finish=tool_calls, tool_calls=[scan_blocks, scan_nearby_entities], content="<no text>"
+[10:12:47] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=scan_blocks id=call_00_50r0w4uxf1e1rdn3gvl5obkm args={"radius": 48, "block_ids": ["minecraft:oak_log", "minecraft:birch_log", "minecraft:spruce_log", "minecraft:dark_oak_log", "minecraft:acacia_log", "minecraft:jungle_log", "minecraft:cherry_log", "mine...
+[10:12:47] [Server thread/INFO] [NumenCore/]: [numen-scan] oak_log+14 r=48 → 8484 hit(s), nearest 7.3 | collect cap | 1/49 columns read, 0 not loaded, 9 section(s) visited, 6 read | 2 tick(s)
+[10:12:47] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_50r0w4uxf1e1rdn3gvl5obkm tool=scan_blocks (queued=1) → {"groups":[{"id":"g1","cells":3,"blocks":{"minecraft:oak_log":3},"nearest":{"x":159,"y":71,"z":-130,"direction":"north, 7 down","distance":7.3},"box":"157,71,-131..159,72,-130","permission":"allow","p...
+[10:12:47] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=scan_nearby_entities id=call_01_z0fh9mc3em7q10bxb02vuomj args={"radius": 32, "type_filter": "passive"}
+[10:12:47] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_01_z0fh9mc3em7q10bxb02vuomj tool=scan_nearby_entities (queued=0) → {"entities":[{"id":3,"type":"entity.minecraft.chicken","category":"passive","position":{"x":157.86964362833467,"y":64.0,"z":-150.87046211065703},"distance":27.36964225769043,"hp":4.0,"max_hp":4.0},{"i...
+[10:12:47] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 3: convo=9 msgs, tools=43
+[10:12:56] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 8733ms, chunks=612, tokens=22859/1112 (total 23971), finish=tool_calls, tool_calls=[todowrite, mine], content="<no text>"
+[10:12:56] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=todowrite id=call_00_3hn5f6fmim558bwo2ojhcw5e args={"todos": [{"content": "Gather wood (logs)", "status": "in_progress", "priority": "high"}, {"content": "Craft crafting table, wooden pick/axe/sword, hoe", "status": "pending", "priority": "high"}, {"c...
+[10:12:56] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_3hn5f6fmim558bwo2ojhcw5e tool=todowrite (queued=1) → {"success":true,"message":"plan snapshot replaced; continue only the in_progress item","todos":[{"content":"Gather wood (logs)","status":"in_progress","priority":"high"},{"content":"Craft crafting tab...
+[10:12:56] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=mine id=call_01_98cp4swrnost64giqt5ufknc args={"block_ids": ["minecraft:oak_log", "minecraft:birch_log"], "count": 24}
+[10:12:56] [Server thread/INFO] [NumenCore/]: [numen-task] mine start targets=oak_log+1 count=24 cells=- feet=160, 78, -128
+[10:12:56] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_01_98cp4swrnost64giqt5ufknc tool=mine (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"task_id":"t1","task":"mine","standing":false,"async":true}}
+[10:12:56] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 4: convo=12 msgs, tools=43
+[10:12:56] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 239 hit(s), nearest 5.1 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 12 read | 0 tick(s)
+[10:12:57] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 152 hit(s), nearest 5.1 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 2 read | 0 tick(s)
+[10:12:58] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 2608ms, chunks=14, tokens=24296/46 (total 24342), finish=tool_calls, tool_calls=[gt_linger], content="<no text>"
+[10:12:58] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=gt_linger id=call_00_gmnbv46zvu23vclz69bohvu2 args={"ticks": 200}
+[10:12:58] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_gmnbv46zvu23vclz69bohvu2 tool=gt_linger (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"task_id":"t2","task":"gt_linger","standing":false,"async":true}}
+[10:12:58] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 5: convo=14 msgs, tools=43
+[10:12:58] [Server thread/INFO] [Numen/]: [numen-event] dd9c456c-9910-476f-80aa-50bdcebe0384 kind=task_finished → 客户端
+[10:12:58] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] queued task_finished: <event kind="task_finished" day="0" t="06:33" id="t1" task="mine" status="stopped">a newer body action replaced it — int...
+[10:13:03] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 4245ms, chunks=108, tokens=24526/342 (total 24868), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:13:03] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=task_status id=call_00_chr1xj1vkcdop9wslavt8eju args={}
+[10:13:03] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_chr1xj1vkcdop9wslavt8eju tool=task_status (queued=0) → {"success":true,"message":"t2(gt_linger) running,已进行 4s,时间预算剩 15s。没有挂着的表。","data":{"task_id":"t2","task":"gt_linger","state":"running","elapsed_s":4,"budget_left_s":15}}
+[10:13:03] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 1: convo=17 msgs, tools=43
+[10:13:06] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 3170ms, chunks=47, tokens=25019/102 (total 25121), finish=tool_calls, tool_calls=[mine], content="<no text>"
+[10:13:06] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=mine id=call_00_qhww7robexn2wsp6gg0mv3gt args={"block_ids": ["minecraft:oak_log", "minecraft:birch_log"], "count": 24}
+[10:13:06] [Server thread/INFO] [NumenCore/]: [numen-task] mine start targets=oak_log+1 count=24 cells=- feet=158, 72, -125
+[10:13:06] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_qhww7robexn2wsp6gg0mv3gt tool=mine (queued=0) → {"success":true,"message":"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。","data":{"task_id":"t3","task":"mine","standing":false,"async":true}}
+[10:13:06] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 2: convo=19 msgs, tools=43
+[10:13:06] [Server thread/INFO] [Numen/]: [numen-event] dd9c456c-9910-476f-80aa-50bdcebe0384 kind=task_finished → 客户端
+[10:13:06] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] queued task_finished: <event kind="task_finished" day="0" t="06:42" id="t2" task="gt_linger" status="stopped">a newer body action replaced it ...
+[10:13:06] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 152 hit(s), nearest 3.2 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 10 read | 0 tick(s)
+[10:13:07] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 1 种物品 / 1 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:13:11] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 4773ms, chunks=123, tokens=25193/338 (total 25531), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:13:11] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=task_status id=call_00_oxm4holmcvark1qi7v0inxov args={}
+[10:13:11] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_oxm4holmcvark1qi7v0inxov tool=task_status (queued=0) → {"success":true,"message":"t3(挖 oak_log+1 0/24) running,已进行 4s,时间预算剩 715s。没有挂着的表。","data":{"task_id":"t3","task":"mine","state":"running","elapsed_s":4,"budget_left_s":715}}
+[10:13:11] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:361 字符,这份快照 3845ms 前收到
+[10:13:11] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 1: convo=22 msgs, tools=43
+[10:13:11] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 152 hit(s), nearest 3.2 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:13:15] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 3967ms, chunks=99, tokens=25685/254 (total 25939), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:13:15] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=task_status id=call_00_a75krryb9r2emmvuf826b4mv args={}
+[10:13:15] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_a75krryb9r2emmvuf826b4mv tool=task_status (queued=0) → {"success":true,"message":"t3(挖 oak_log+1 0/24) running,已进行 8s,时间预算剩 711s。没有挂着的表。","data":{"task_id":"t3","task":"mine","state":"running","elapsed_s":8,"budget_left_s":711}}
+[10:13:15] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 2: convo=24 msgs, tools=43
+[10:13:16] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 150 hit(s), nearest 4.6 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:13:18] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 3560ms, chunks=37, tokens=26020/123 (total 26143), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:13:18] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=task_status id=call_00_uzkehxmsr6xc2pitbgb2mlf1 args={}
+[10:13:18] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_uzkehxmsr6xc2pitbgb2mlf1 tool=task_status (queued=0) → {"success":true,"message":"t3(挖 oak_log+1 0/24) running,已进行 12s,时间预算剩 707s。没有挂着的表。","data":{"task_id":"t3","task":"mine","state":"running","elapsed_s":12,"budget_left_s":707}}
+[10:13:18] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 3: convo=26 msgs, tools=43
+[10:13:21] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 150 hit(s), nearest 4.6 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:13:22] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 3429ms, chunks=40, tokens=26224/132 (total 26356), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:13:22] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=task_status id=call_00_9iz56r06ddd9oc0eb13lba41 args={}
+[10:13:22] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_9iz56r06ddd9oc0eb13lba41 tool=task_status (queued=0) → {"success":true,"message":"t3(挖 oak_log+1 0/24) running,已进行 15s,时间预算剩 704s。没有挂着的表。","data":{"task_id":"t3","task":"mine","state":"running","elapsed_s":15,"budget_left_s":704}}
+[10:13:22] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 4: convo=28 msgs, tools=43
+[10:13:24] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=154, 63, -125 goal-center=159, 67, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:13:24] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=154, 63, -125 goal-center=159, 67, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:13:25] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 3082ms, chunks=35, tokens=26437/110 (total 26547), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:13:25] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=task_status id=call_00_38boslajp3zdjnr3zzwipm4b args={}
+[10:13:25] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_38boslajp3zdjnr3zzwipm4b tool=task_status (queued=0) → {"success":true,"message":"t3(挖 oak_log+1 0/24) running,已进行 18s,时间预算剩 701s。没有挂着的表。","data":{"task_id":"t3","task":"mine","state":"running","elapsed_s":18,"budget_left_s":701}}
+[10:13:25] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 5: convo=30 msgs, tools=43
+[10:13:26] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 149 hit(s), nearest 5.0 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:13:28] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 3353ms, chunks=83, tokens=26628/218 (total 26846), finish=tool_calls, tool_calls=[task_status], content="<no text>"
+[10:13:28] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=task_status id=call_00_fuwinz8fyx7cpwliprfh64qk args={}
+[10:13:28] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_fuwinz8fyx7cpwliprfh64qk tool=task_status (queued=0) → {"success":true,"message":"t3(挖 oak_log+1 0/24) running,已进行 22s,时间预算剩 697s。没有挂着的表。","data":{"task_id":"t3","task":"mine","state":"running","elapsed_s":22,"budget_left_s":697}}
+[10:13:28] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 6: convo=32 msgs, tools=43
+[10:13:31] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 148 hit(s), nearest 5.0 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:13:31] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:我先在附近砍点▌
+[10:13:31] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:我先在附近砍点木头起家。▌
+[10:13:32] [ForkJoinPool.commonPool-worker-14/INFO] [Numen/]: [numen-llm] chat done in 3679ms, chunks=78, tokens=26927/210 (total 27137), finish=tool_calls, tool_calls=[task_status], content="我先在附近砍点木头起家。"
+[10:13:32] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot:我先在附近砍点木头起家。
+[10:13:32] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] dispatch tool=task_status id=call_00_56mpis5s6k3iinz9mb71und0 args={}
+[10:13:32] [Render thread/INFO] [Numen/]: [numen-dispatch#dd9c456c-9910-476f-80aa-50bdcebe0384] tool_result id=call_00_56mpis5s6k3iinz9mb71und0 tool=task_status (queued=0) → {"success":true,"message":"t3(挖 oak_log+1 0/24) running,已进行 25s,时间预算剩 694s。没有挂着的表。","data":{"task_id":"t3","task":"mine","state":"running","elapsed_s":25,"budget_left_s":694}}
+[10:13:32] [Render thread/INFO] [Numen/]: [numen-entity#dd9c456c-9910-476f-80aa-50bdcebe0384] turn 7: convo=34 msgs, tools=43
+[10:13:33] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 2 种物品 / 2 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:13:36] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 147 hit(s), nearest 5.4 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:13:40] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 2 种物品 / 2 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:13:40] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=156, 64, -126 goal-center=159, 66, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:13:40] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=156, 64, -126 goal-center=159, 66, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:13:40] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=157, 64, -126 goal-center=159, 66, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:13:40] [Server thread/INFO] [NumenCore/]: [numen-path] ARRIVED-IN-PLACE feet=157, 64, -126 goal-center=159, 66, -124 —— 搜索目标在脚下即满足,钉稳结论交任务层裁决
+[10:13:41] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 145 hit(s), nearest 4.1 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)
+[10:13:44] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 2 种物品 / 2 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:13:44] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 2 种物品 / 2 格, 主手 oak_sapling, 副手 空手, 效果 0, 插件片段 64 字符
+[10:13:46] [Server thread/INFO] [NumenCore/]: [numen-scan] birch_log+1 r=512 → 144 hit(s), nearest 3.6 | proved nearest at ring 1 | 9/4225 columns read, 0 not loaded, 216 section(s) visited, 0 read | 0 tick(s)

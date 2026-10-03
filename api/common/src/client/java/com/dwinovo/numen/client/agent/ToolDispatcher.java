@@ -50,6 +50,12 @@ public final class ToolDispatcher implements ToolPort {
     /** Where the in-flight call's result goes, for the backstop; null when nothing is in flight. */
     private Consumer<String> inFlightDone;
     private long deadlineMillis = 0;
+    private java.util.function.BooleanSupplier executionPermit;
+
+    /** Optional eval budget. Denial leaves the batch for cancellation on the next client tick. */
+    public void executionPermit(java.util.function.BooleanSupplier permit) {
+        executionPermit = permit;
+    }
 
     public ToolDispatcher(UUID entityUuid, Supplier<AbstractClientPlayer> entity) {
         this.entityUuid = entityUuid;
@@ -125,6 +131,7 @@ public final class ToolDispatcher implements ToolPort {
      * 结果之后回来。没有这个工具、工具抛出,都当场回一条失败。
      */
     private void invoke(LlmToolCall call, Consumer<String> done) {
+        if (executionPermit != null && !executionPermit.getAsBoolean()) return;
         NumenTool tool = ToolRegistry.resolve(call.name());
         if (tool == null) {
             Constants.LOG.warn("[numen-dispatch#{}] LLM called unknown tool '{}' (id={})",

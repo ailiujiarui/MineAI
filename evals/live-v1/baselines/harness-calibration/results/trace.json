@@ -1,0 +1,262 @@
+[
+  {
+    "type": "started",
+    "elapsed_ms": 0.0,
+    "data": {
+      "alive": true,
+      "game_tick": 45,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 0.0,
+    "data": {
+      "alive": true,
+      "game_tick": 45,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "fixture",
+    "elapsed_ms": 0.0,
+    "data": {
+      "setup": {
+        "spawn": [
+          8,
+          65,
+          8
+        ],
+        "floor": {
+          "from": [
+            0,
+            64,
+            0
+          ],
+          "to": [
+            20,
+            64,
+            20
+          ],
+          "block": "minecraft:stone"
+        },
+        "inventory": {
+          "minecraft:oak_log": 2
+        }
+      },
+      "goal_max_turns": 30,
+      "goal_stuck_limit": 2,
+      "owner_mode": "spectator",
+      "owner_follows_companion": false,
+      "client_tracking_limit": "Owner remains at spawn; local perception tools may lose the body beyond tracking distance or after dimension travel"
+    }
+  },
+  {
+    "type": "owner_goal",
+    "elapsed_ms": 7.1681,
+    "data": {
+      "text": "把背包里的 2 个橡木原木合成为 8 个橡木木板，留在你的背包中。完成后告诉我。"
+    }
+  },
+  {
+    "type": "model_call",
+    "elapsed_ms": 104.9024,
+    "data": {
+      "attempt": 1
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 198.3617,
+    "data": {
+      "alive": true,
+      "game_tick": 49,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "model_usage",
+    "elapsed_ms": 257.8576,
+    "data": {
+      "purpose": "TURN"
+    }
+  },
+  {
+    "type": "assistant",
+    "elapsed_ms": 260.3064,
+    "data": {
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "fixture-craft",
+          "type": "function",
+          "function": {
+            "name": "craft",
+            "arguments": "{\"item_id\": \"minecraft:oak_planks\", \"count\": 8}"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_started",
+    "elapsed_ms": 261.6897,
+    "data": {
+      "call": {
+        "id": "fixture-craft",
+        "type": "function",
+        "function": {
+          "name": "craft",
+          "arguments": "{\"item_id\": \"minecraft:oak_planks\", \"count\": 8}"
+        }
+      }
+    }
+  },
+  {
+    "type": "tool_finished",
+    "elapsed_ms": 294.5107,
+    "data": {
+      "call": {
+        "id": "fixture-craft",
+        "type": "function",
+        "function": {
+          "name": "craft",
+          "arguments": "{\"item_id\": \"minecraft:oak_planks\", \"count\": 8}"
+        }
+      },
+      "result": "{\"success\":true,\"message\":\"crafted 8x oak_planks — used 2x oak_log. Used your own 2x2 grid. Now carrying 8x oak_planks.\",\"data\":{\"carrying\":8,\"crafted\":8}}"
+    }
+  },
+  {
+    "type": "model_call",
+    "elapsed_ms": 299.5699,
+    "data": {
+      "attempt": 2
+    }
+  },
+  {
+    "type": "first_text_delta",
+    "elapsed_ms": 311.6179,
+    "data": {}
+  },
+  {
+    "type": "model_usage",
+    "elapsed_ms": 312.4072,
+    "data": {
+      "purpose": "TURN"
+    }
+  },
+  {
+    "type": "assistant",
+    "elapsed_ms": 327.0454,
+    "data": {
+      "content": "Scripted harness fixture: crafting request completed.",
+      "tool_calls": []
+    }
+  },
+  {
+    "type": "model_call",
+    "elapsed_ms": 332.6498,
+    "data": {
+      "attempt": 3
+    }
+  },
+  {
+    "type": "model_usage",
+    "elapsed_ms": 353.0838,
+    "data": {
+      "purpose": "GOAL"
+    }
+  },
+  {
+    "type": "model_call",
+    "elapsed_ms": 359.6319,
+    "data": {
+      "attempt": 4
+    }
+  },
+  {
+    "type": "model_usage",
+    "elapsed_ms": 367.979,
+    "data": {
+      "purpose": "TURN"
+    }
+  },
+  {
+    "type": "assistant",
+    "elapsed_ms": 369.0515,
+    "data": {
+      "content": "Scripted harness fixture: crafting request completed.",
+      "tool_calls": []
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 403.455,
+    "data": {
+      "alive": true,
+      "game_tick": 53,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_planks": 8
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "finished",
+    "elapsed_ms": 403.455,
+    "data": {
+      "status": "success",
+      "reason": "authoritative_success_criterion_met"
+    }
+  }
+]

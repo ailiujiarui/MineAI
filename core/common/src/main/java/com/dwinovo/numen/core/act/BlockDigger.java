@@ -5,6 +5,7 @@ import java.util.function.Predicate;
 
 import com.dwinovo.numen.core.nav.CompanionHands;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.eval.WorldEvalObservers;
 import com.dwinovo.numen.pathing.body.BodyAction;
 import com.dwinovo.numen.pathing.body.Crosshair;
 import com.dwinovo.numen.pathing.body.Effector.Strike;
@@ -86,6 +87,9 @@ public final class BlockDigger {
             // 权限层放行了,原生通道却没让它碎(别的模组取消了破坏事件、出生点保护):和逐刻挖掘被退回同一个说法
             refusal = Verdict.deny(SERVER_REFUSED);
             return false;
+        }
+        if (player.level().getBlockState(target) != state) {
+            WorldEvalObservers.blockBroken(player, target, state);
         }
         return true;
     }
