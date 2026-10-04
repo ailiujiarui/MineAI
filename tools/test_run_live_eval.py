@@ -298,10 +298,24 @@ class LiveLauncherTest(unittest.TestCase):
                         milestones=[{"id": "eye-resources", "condition": {"world": {"eye_equivalents": 16}}}])
         return scenario
 
+    def end_entry_scenario(self):
+        scenario = self.end_resources_scenario()
+        scenario.update(evaluation_version="end-entry-v1", case_id="live.end-entry",
+                        world_observer="end-entry-v1", success_hold_ticks=20,
+                        success={"min_health": 16, "min_food": 16, "world": {"native_end_entry": True}},
+                        milestones=[{"id": "portal-reached", "condition": {"world": {"portal_reached": True}}},
+                                    {"id": "portal-activated", "condition": {"world": {"portal_activated_by_companion": True}}},
+                                    {"id": "entered-end", "condition": {"world": {"native_end_entry": True}}}])
+        scenario["setup"]["inventory"].update({"minecraft:ender_eye": 8,
+                                               "minecraft:ender_pearl": 8,
+                                               "minecraft:blaze_rod": 4})
+        return scenario
+
     def test_supported_protocol_versions_preserve_the_scenario(self):
         legacy_observer = {**self.scenario, "world_observer": "sustainable-survival-v1"}
         for scenario in (self.scenario, legacy_observer, self.survival_scenario(),
-                         self.free_survival_scenario(), self.expedition_scenario(), self.end_resources_scenario()):
+                         self.free_survival_scenario(), self.expedition_scenario(), self.end_resources_scenario(),
+                         self.end_entry_scenario()):
             with self.subTest(version=scenario["evaluation_version"]):
                 self.assertEqual(scenario, runner.validate_scenario(copy.deepcopy(scenario)))
 
@@ -364,6 +378,39 @@ class LiveLauncherTest(unittest.TestCase):
                 else:
                     scenario["setup"]["equipment"] = equipment
                 self.assertEqual(scenario, runner.validate_scenario(copy.deepcopy(scenario)))
+
+    def test_end_entry_prepare_preserves_mixed_resources_and_does_not_read_credentials(self):
+        scenario = self.end_entry_scenario()
+        path = self.base / "end-entry.json"
+        runner.write_json(path, scenario)
+        with patch.object(runner, "select_provider", side_effect=AssertionError("Do not read credentials")):
+            code, launch, _ = self.main(["--prepare-only", "--scenario", str(path)])
+        self.assertEqual(0, code)
+        launch.assert_not_called()
+        self.assertEqual("end-entry-v1", self.read_run()["evaluation_version"])
+        self.assertIsNone(self.read_run()["success"])
+        request = json.loads((self.output / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual({**scenario, "budget": self.read_run()["budget"]}, request["scenario"])
+        stock = request["scenario"]["setup"]["inventory"]
+        self.assertEqual(16, stock["minecraft:ender_eye"] + min(stock["minecraft:ender_pearl"],
+                                                             2 * stock["minecraft:blaze_rod"]))
+        self.assertFalse((self.output / "game/config/numen/providers.json").exists())
+
+    def test_end_entry_observer_pairing_and_equipment_follow_the_new_protocol(self):
+        scenario = self.end_entry_scenario()
+        self.assertEqual(scenario, runner.validate_scenario(copy.deepcopy(scenario)))
+        for observer in ("end-resources-v1", "expedition-v1", "sustainable-survival-v1", "free-survival-v2"):
+            with self.subTest(observer=observer):
+                invalid = copy.deepcopy(scenario)
+                invalid["world_observer"] = observer
+                with self.assertRaisesRegex(runner.PreflightError, "world_observer"):
+                    runner.validate_scenario(invalid)
+        for equipment in ({"mainhand": "minecraft:iron_sword"}, {"head": 1}, {"head": "iron_helmet"}):
+            with self.subTest(equipment=equipment):
+                invalid = copy.deepcopy(scenario)
+                invalid["setup"]["equipment"] = equipment
+                with self.assertRaisesRegex(runner.PreflightError, "equipment"):
+                    runner.validate_scenario(invalid)
 
     def test_end_resources_equipment_rejects_unknown_slots_counts_and_malformed_ids(self):
         for equipment in (None, [], "iron", {"mainhand": "minecraft:iron_pickaxe"},
@@ -688,6 +735,257 @@ class LiveLauncherTest(unittest.TestCase):
         changed["final_snapshot"]["world"]["evidence"]["coverage"]["inventory_change"].update(
             status="observed", sampled_events=1, first_event={"kind": "inventory_change", "game_tick": 20})
         self.assertTrue(calibrator.end_resources_negative_check(0, changed, scenario)["passed"])
+
+    def end_entry_portal_evidence(self, x=100, active=False):
+        y, z = 32, 100
+        frames = [{"x": x + offset, "y": y, "z": z - 2, "id": "minecraft:end_portal_frame",
+                   "has_eye": active, "facing": "south"} for offset in (-1, 0, 1)]
+        frames += [{"x": x + offset, "y": y, "z": z + 2, "id": "minecraft:end_portal_frame",
+                    "has_eye": active, "facing": "north"} for offset in (-1, 0, 1)]
+        frames += [{"x": x - 2, "y": y, "z": z + offset, "id": "minecraft:end_portal_frame",
+                    "has_eye": active, "facing": "east"} for offset in (-1, 0, 1)]
+        frames += [{"x": x + 2, "y": y, "z": z + offset, "id": "minecraft:end_portal_frame",
+                    "has_eye": active, "facing": "west"} for offset in (-1, 0, 1)]
+        if not active:
+            for frame in frames[:2]:
+                frame["has_eye"] = True
+        return {"portal_id": f"minecraft:overworld:{x}:{y}:{z}", "dimension": "minecraft:overworld",
+                "x": x, "y": y, "z": z, "generated_stronghold": True,
+                "portal_origin": "generated_stronghold", "frames": frames,
+                "portal_blocks": [{"x": x + dx, "y": y, "z": z + dz,
+                                   "id": "minecraft:end_portal" if active else "minecraft:air"}
+                                  for dx in (-1, 0, 1) for dz in (-1, 0, 1)],
+                "eyes": 12 if active else 2, "active": active, "initial_eyes": 2,
+                "initial_active": False, "companion_eye_insertions": 10 if active else 0,
+                "other_eye_insertions": 0}
+
+    def end_entry_snapshots(self):
+        subject = "26ef93c4-6ce9-4570-8d9e-4aed8b3a220a"
+        initial = {"companion_uuid": subject, "subject_present": True, "alive": True, "deaths": 0,
+                   "game_tick": 0, "dimension": "minecraft:overworld", "health": 20, "food": 20,
+                   "inventory": {"minecraft:ender_eye": 8, "minecraft:ender_pearl": 8, "minecraft:blaze_rod": 4},
+                   "world": {"subject_uuid": subject, "portal_reached": False,
+                             "portal_activated_by_companion": False, "native_end_entry": False,
+                             "observation_complete": True, "end_alive_held_ticks": 0,
+                             "evidence": {"end_entry": {"subject_uuid": subject, "portal": None,
+                                           "arrival": None, "activation": None, "entry": None,
+                                           "last_verified_game_tick": 0, "observation_gaps": 0,
+                                           "native_entry_episode_active": False,
+                                           "first_death_observed": False,
+                                           "critical_evidence_complete": True}}}}
+        final = copy.deepcopy(initial)
+        final.update(game_tick=60, dimension="minecraft:the_end", inventory={})
+        final["world"].update(portal_reached=True, portal_activated_by_companion=True,
+                              native_end_entry=True, end_alive_held_ticks=31)
+        chain = final["world"]["evidence"]["end_entry"]
+        portal = self.end_entry_portal_evidence(active=True)
+        chain.update(portal=portal, last_verified_game_tick=60, native_entry_episode_active=True)
+        for field, tick, kind in (("arrival", 10, "portal_reached"), ("activation", 20, "portal_activated"),
+                                  ("entry", 30, "native_end_entry")):
+            chain[field] = {"kind": kind, "subject_uuid": subject, "game_tick": tick,
+                            "dimension": "minecraft:overworld", "x": 100, "y": 32, "z": 100,
+                            "portal_id": portal["portal_id"],
+                            "portal": copy.deepcopy(portal if field != "arrival" else self.end_entry_portal_evidence())}
+        chain["activation"].update(actor_uuid=subject, native_eye_inserted=True, eye_inventory_delta=-1,
+                                    frame={"x": 99, "y": 32, "z": 98})
+        chain["entry"].update(dimension="minecraft:the_end", from_dimension="minecraft:overworld",
+                             destination_uuid=subject,
+                             to_dimension="minecraft:the_end",
+                             source_block={"x": 100, "y": 32, "z": 100},
+                             evidence_source="vanilla_handle_portal_change_dimension")
+        return {"initial_snapshot": initial, "final_snapshot": final}
+
+    def test_end_entry_native_chain_accepts_normal_eye_consumption_and_server_hold(self):
+        self.scenario = self.end_entry_scenario()
+        evidence = self.end_entry_snapshots()
+        self.assertEqual({}, evidence["final_snapshot"]["inventory"])
+        expected = self.write_result(**evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_end_entry_items_known_coordinates_or_seen_inactive_frames_cannot_succeed(self):
+        self.scenario = self.end_entry_scenario()
+        for progress in ("none", "coordinates", "frames"):
+            with self.subTest(progress=progress):
+                evidence = self.end_entry_snapshots()
+                final = evidence["final_snapshot"] = copy.deepcopy(evidence["initial_snapshot"])
+                final.update(game_tick=60, known_stronghold_position=[100, 32, 100])
+                final["world"]["evidence"]["end_entry"]["last_verified_game_tick"] = 60
+                if progress == "frames":
+                    final["world"]["evidence"]["end_entry"]["portal"] = self.end_entry_portal_evidence()
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+                expected = self.write_result(status="budget_exhausted", success_held_ticks=0, **evidence)
+                self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_end_entry_portal_geometry_active_blocks_and_identity_cannot_be_forged(self):
+        self.scenario = self.end_entry_scenario()
+        for defect in ("inactive", "frame", "facing", "different_portal", "duplicate_blocks", "fixture"):
+            with self.subTest(defect=defect):
+                evidence = self.end_entry_snapshots()
+                chain = evidence["final_snapshot"]["world"]["evidence"]["end_entry"]
+                if defect == "inactive":
+                    chain["entry"]["portal"]["portal_blocks"][0]["id"] = "minecraft:air"
+                elif defect == "frame":
+                    chain["activation"]["portal"]["frames"][0]["id"] = "minecraft:stone"
+                elif defect == "facing":
+                    chain["activation"]["portal"]["frames"][0]["facing"] = "north"
+                elif defect == "different_portal":
+                    chain["entry"]["portal"] = self.end_entry_portal_evidence(x=200, active=True)
+                    chain["entry"]["portal_id"] = chain["entry"]["portal"]["portal_id"]
+                elif defect == "duplicate_blocks":
+                    chain["activation"]["portal"]["portal_blocks"][1] = chain["activation"]["portal"]["portal_blocks"][0]
+                else:
+                    chain["arrival"]["portal"].update(generated_stronghold=False, portal_origin="calibration_fixture")
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_end_entry_direct_dimension_change_and_missing_native_eye_receipt_are_rejected(self):
+        self.scenario = self.end_entry_scenario()
+        for field, change in (("entry", {"evidence_source": "native_dimension_change_hook"}),
+                              ("entry", {"evidence_source": "test_change_dimension"}),
+                              ("entry", {"from_dimension": "minecraft:the_nether"}),
+                              ("activation", {"native_eye_inserted": False}),
+                              ("activation", {"eye_inventory_delta": 0}),
+                              ("activation", {"frame": {"x": 0, "y": 0, "z": 0}})):
+            with self.subTest(field=field, change=change):
+                evidence = self.end_entry_snapshots()
+                evidence["final_snapshot"]["world"]["evidence"]["end_entry"][field].update(change)
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_end_entry_native_actor_destination_and_first_death_need_explicit_attribution(self):
+        self.scenario = self.end_entry_scenario()
+        other = "484ef3c7-c6a6-441d-9958-bc4642337723"
+        for event, field in (("activation", "actor_uuid"), ("entry", "destination_uuid")):
+            for value in (None, other):
+                with self.subTest(event=event, field=field, value=value):
+                    evidence = self.end_entry_snapshots()
+                    record = evidence["final_snapshot"]["world"]["evidence"]["end_entry"][event]
+                    if value is None:
+                        record.pop(field)
+                    else:
+                        record[field] = value
+                    self.write_result(**evidence)
+                    with self.assertRaises(runner.PreflightError):
+                        runner.validate_result(self.output, self.scenario)
+        for value in (None, True):
+            with self.subTest(first_death_observed=value):
+                evidence = self.end_entry_snapshots()
+                chain = evidence["final_snapshot"]["world"]["evidence"]["end_entry"]
+                if value is None:
+                    chain.pop("first_death_observed")
+                else:
+                    chain["first_death_observed"] = value
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_end_entry_preopened_and_other_actor_activation_cannot_count_as_bot_work(self):
+        self.scenario = self.end_entry_scenario()
+        for change in ({"initial_active": True}, {"initial_eyes": 12}, {"other_eye_insertions": 1},
+                       {"companion_eye_insertions": 9}):
+            with self.subTest(change=change):
+                evidence = self.end_entry_snapshots()
+                evidence["final_snapshot"]["world"]["evidence"]["end_entry"]["activation"]["portal"].update(change)
+                self.write_result(**evidence)
+                with self.assertRaisesRegex(runner.PreflightError, "attribute"):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_end_entry_cross_dimension_snapshots_and_events_require_the_same_subject(self):
+        self.scenario = self.end_entry_scenario()
+        other = "484ef3c7-c6a6-441d-9958-bc4642337723"
+        for target in ("snapshot", "world", "chain", "entry"):
+            with self.subTest(target=target):
+                evidence = self.end_entry_snapshots()
+                final = evidence["final_snapshot"]
+                chain = final["world"]["evidence"]["end_entry"]
+                if target == "snapshot":
+                    final["companion_uuid"] = other
+                elif target == "world":
+                    final["world"]["subject_uuid"] = other
+                elif target == "chain":
+                    chain["subject_uuid"] = other
+                else:
+                    chain["entry"]["subject_uuid"] = other
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_end_entry_incomplete_observation_stale_hold_and_out_of_order_events_are_rejected(self):
+        self.scenario = self.end_entry_scenario()
+        for defect in ("gap", "critical", "stale", "short_hold", "out_of_order", "subject_missing", "deaths",
+                       "health", "food", "source_block"):
+            with self.subTest(defect=defect):
+                evidence = self.end_entry_snapshots()
+                final = evidence["final_snapshot"]
+                chain = final["world"]["evidence"]["end_entry"]
+                if defect == "gap":
+                    chain["observation_gaps"] = 1
+                elif defect == "critical":
+                    chain["critical_evidence_complete"] = False
+                elif defect == "stale":
+                    chain["last_verified_game_tick"] = 59
+                elif defect == "short_hold":
+                    final["world"]["end_alive_held_ticks"] = 19
+                elif defect == "out_of_order":
+                    chain["activation"]["game_tick"] = 31
+                elif defect == "subject_missing":
+                    final["subject_present"] = False
+                elif defect == "deaths":
+                    final["deaths"] = 1
+                elif defect in {"health", "food"}:
+                    final[defect] = 15
+                else:
+                    chain["entry"]["source_block"] = {"x": 0, "y": 0, "z": 0}
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_end_entry_diagnostic_event_truncation_preserves_complete_critical_chain(self):
+        self.scenario = self.end_entry_scenario()
+        evidence = self.end_entry_snapshots()
+        evidence["final_snapshot"]["world"]["evidence"].update(events=[], events_total=200, events_truncated=True)
+        expected = self.write_result(**evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_end_entry_first_death_remains_failure_with_removed_body(self):
+        self.scenario = self.end_entry_scenario()
+        evidence = self.end_entry_snapshots()
+        evidence["final_snapshot"] = {"alive": False, "subject_present": False, "deaths": 1}
+        expected = self.write_result(status="failed", reason="companion_died", success_held_ticks=0, **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_end_entry_idle_client_calibration_requires_mixed_start_and_no_portal_chain(self):
+        _, result = self.end_resources_negative_evidence()
+        scenario = self.end_entry_scenario()
+        snapshots = self.end_entry_snapshots()
+        for field in ("initial_snapshot", "final_snapshot"):
+            snapshot = copy.deepcopy(snapshots["initial_snapshot"])
+            snapshot["inventory"] = dict(scenario["setup"]["inventory"])
+            snapshot["inventory"].update({item: 1 for item in scenario["setup"]["equipment"].values()})
+            snapshot["world"].update(copy.deepcopy(result[field]["world"]))
+            snapshot["world"]["evidence"]["end_entry"] = snapshots["initial_snapshot"]["world"]["evidence"]["end_entry"]
+            snapshot["world"].update(ender_eyes=8, ender_pearls=8, blaze_rods=4, eye_equivalents=16)
+            result[field] = snapshot
+        self.assertTrue(calibrator.end_entry_negative_check(0, result, scenario)["passed"])
+        for defect in ("different_subject", "wrong_resources", "portal_progress", "gap", "replanning"):
+            with self.subTest(defect=defect):
+                invalid = copy.deepcopy(result)
+                final = invalid["final_snapshot"]
+                if defect == "different_subject":
+                    final["companion_uuid"] = "484ef3c7-c6a6-441d-9958-bc4642337723"
+                elif defect == "wrong_resources":
+                    final["inventory"]["minecraft:ender_eye"] = 7
+                elif defect == "portal_progress":
+                    final["world"]["native_end_entry"] = True
+                elif defect == "gap":
+                    final["world"]["evidence"]["end_entry"]["observation_gaps"] = 1
+                else:
+                    final["world"]["evidence"]["coverage"]["risk_replanning"]["status"] = "observed"
+                self.assertFalse(calibrator.end_entry_negative_check(0, invalid, scenario)["passed"])
 
     def test_result_version_must_match_requested_scenario(self):
         for version, other in (("live-v1", "survival-v1"), ("survival-v1", "live-v1"),

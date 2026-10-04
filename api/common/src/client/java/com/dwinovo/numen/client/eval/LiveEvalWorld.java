@@ -56,6 +56,7 @@ public final class LiveEvalWorld {
     private static volatile Path createdWorld;
     private static UUID subject;
     private static ServerStatsCounter stats;
+    private static boolean endEntry;
 
     private LiveEvalWorld() {}
 
@@ -102,6 +103,7 @@ public final class LiveEvalWorld {
         ServerLevel level = server.overworld();
         JsonObject setup = spec.getAsJsonObject("setup");
         if (setup == null) throw new IllegalArgumentException("Scenario must contain setup");
+        endEntry = "end-entry-v1".equals(spec.get("evaluation_version").getAsString());
         server.setDifficulty(Difficulty.NORMAL, true);
         if (setup.has("fixed_time")) {
             level.setDayTime(setup.get("fixed_time").getAsLong());
@@ -155,8 +157,8 @@ public final class LiveEvalWorld {
             }
         }
         if (setup.has("equipment")) {
-            if (!"end-resources-v1".equals(spec.get("evaluation_version").getAsString())) {
-                throw new IllegalArgumentException("Equipment initialization requires end-resources-v1");
+            if (!"end-resources-v1".equals(spec.get("evaluation_version").getAsString()) && !endEntry) {
+                throw new IllegalArgumentException("Equipment initialization requires end-resources-v1 or end-entry-v1");
             }
             for (var entry : setup.getAsJsonObject("equipment").entrySet()) {
                 EquipmentSlot slot = switch (entry.getKey()) {
@@ -212,6 +214,10 @@ public final class LiveEvalWorld {
         NumenPlayer body = NumenPlayer.findByUuid(server, companion);
         if (body != null) stats = body.getStats();
         JsonObject result = new JsonObject();
+        if (endEntry) {
+            result.addProperty("companion_uuid", companion.toString());
+            result.addProperty("subject_present", body != null);
+        }
         result.addProperty("alive", body != null && body.isAlive());
         result.addProperty("game_tick", server.overworld().getGameTime());
         result.addProperty("dragon_kills", stats.getValue(Stats.ENTITY_KILLED.get(EntityType.ENDER_DRAGON)));
@@ -219,6 +225,7 @@ public final class LiveEvalWorld {
         JsonObject inventory = new JsonObject();
         result.add("inventory", inventory);
         if (body == null) {
+            if (endEntry) WorldEvalObservers.observationUnavailable(companion, server.overworld().getGameTime());
             for (String field : new String[]{"health", "food", "position", "dimension", "current_task"}) {
                 result.add(field, JsonNull.INSTANCE);
             }
@@ -227,6 +234,8 @@ public final class LiveEvalWorld {
         result.addProperty("health", body.getHealth());
         result.addProperty("food", body.getFoodData().getFoodLevel());
         result.addProperty("dimension", body.level().dimension().location().toString());
+        // A queued server read may run before the dispatcher; verify this actual tick once before freezing stage-four evidence.
+        if (endEntry) WorldEvalObservers.tick(body);
         JsonObject world = WorldEvalObservers.observe(body);
         if (world != null) result.add("world", world);
         JsonArray position = new JsonArray();

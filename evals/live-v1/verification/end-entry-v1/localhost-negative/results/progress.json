@@ -1,0 +1,912 @@
+{
+  "evaluation_version": "end-entry-v1",
+  "case_id": "live.end-entry",
+  "spec": {
+    "evaluation_version": "end-entry-v1",
+    "case_id": "live.end-entry",
+    "split": "dev",
+    "source": "Scripted localhost transport calibration; no model inference or capability score",
+    "prompt": "找到要塞的末地传送门，补齐其缺少的末影之眼并从同一个入口真正进入末地。这是独立第四阶段专项，起点代表第三阶段资源已经准备完成：种子73004的普通生存新世界，普通难度，结构生成开启，原版默认世界规则和正常昼夜；主世界固定出生坐标(0.5,84,32.5)，初始生命20、饱食20、饱和度5。你已实际穿戴全新铁头盔、铁胸甲、铁护腿、铁靴，副手有全新盾牌；背包有全新铁镐、铁斧、铁剑各1，水桶1、普通火把32、工作台1、熔炉1、熟牛肉16，以及末影之眼8、末影珍珠8、烈焰棒4。眼资源总等价16份：眼 + min(珍珠,粉 + 2×棒)；原料仍需要正常合成才能使用。所有物资都是公开人工初始化，不是上一阶段存档，不恢复旧Agent记忆或目标；没有给出要塞坐标，没有预建或预开启传送门，也不会在过程中补发物资、传送或人工救场。主人以旁观者停在初始位置。\n\n允许使用现有locate_structure等产品工具寻找要塞，也允许投掷末影之眼；不强迫投眼、固定路线或特定寻找策略。定位返回坐标只算线索，你仍须实际到达原生生成的要塞传送门。按正常游戏方式补齐该门所有缺少的眼，确认内部九个末地传送方块可用，再让你自己的身体经同一入口进入minecraft:the_end。原生成门框已带的眼可以利用；初始已开启的门不能作为本轮开启成果；其他主体帮忙补眼不能算作你完成全部缺口。只观察到门已开启、只持有眼、知道坐标、声称完成或因命令、召回、跟随传送、测试直接换维或复活进入末地，都不算完成。\n\n进入后，同一身体须在末地连续存活20个服务端游戏tick（正常20TPS约1秒），完成时生命至少16、饱食至少16。保持期只检查在末地存活，不要求生命和饱食全程维持16；生命或饱食不够时可正常补给，达标后再完成。首次死亡即失败。眼允许正常用于定位、合成和开门，最终不要求保留16份资源；装备耐久和补给只记录事实，不设置本阶段的最终保留门槛，也不要求安全保持200tick。服务端用同伴UUID、同一门的维度与坐标、真实方块状态、原生插眼和穿门证据判分，观察缺口或关键证据不足不能算成功。此阶段只要求找到并进入末地，不要求击杀末影龙。完成后告诉我。",
+    "seed": 73004,
+    "world_preset": "normal",
+    "world_observer": "end-entry-v1",
+    "success_hold_ticks": 20,
+    "setup": {
+      "spawn": [
+        0.5,
+        84.0,
+        32.5
+      ],
+      "inventory": {
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:iron_axe": 1,
+        "minecraft:iron_sword": 1,
+        "minecraft:water_bucket": 1,
+        "minecraft:torch": 32,
+        "minecraft:crafting_table": 1,
+        "minecraft:furnace": 1,
+        "minecraft:cooked_beef": 16,
+        "minecraft:ender_eye": 8,
+        "minecraft:ender_pearl": 8,
+        "minecraft:blaze_rod": 4
+      },
+      "equipment": {
+        "head": "minecraft:iron_helmet",
+        "chest": "minecraft:iron_chestplate",
+        "legs": "minecraft:iron_leggings",
+        "feet": "minecraft:iron_boots",
+        "offhand": "minecraft:shield"
+      }
+    },
+    "success": {
+      "min_health": 16,
+      "min_food": 16,
+      "world": {
+        "native_end_entry": true
+      }
+    },
+    "milestones": [
+      {
+        "id": "portal-reached",
+        "condition": {
+          "world": {
+            "portal_reached": true
+          }
+        }
+      },
+      {
+        "id": "portal-activated",
+        "condition": {
+          "world": {
+            "portal_activated_by_companion": true
+          }
+        }
+      },
+      {
+        "id": "entered-end",
+        "condition": {
+          "world": {
+            "native_end_entry": true
+          }
+        }
+      }
+    ],
+    "budget": {
+      "max_model_calls": 4,
+      "max_seconds": 45,
+      "max_tokens": 1000
+    }
+  },
+  "status": "budget_exhausted",
+  "reason": "max_model_calls",
+  "elapsed_ms": 496.238,
+  "success_held_ticks": 0,
+  "model_calls": 4,
+  "denied_model_calls": 1,
+  "usage_reports": 4,
+  "unknown_usage_reports": 0,
+  "usage_complete": true,
+  "tokens": {
+    "input": 4,
+    "output": 4,
+    "cache_read": 0,
+    "cache_write": 0,
+    "total": 8
+  },
+  "cost": null,
+  "first_token_ms": 395.5972,
+  "first_reply_ms": 434.597,
+  "correct_response_ms": null,
+  "response_correctness": "not_measured",
+  "milestones": [],
+  "initial_snapshot": {
+    "companion_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+    "subject_present": true,
+    "alive": true,
+    "game_tick": 51,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:blaze_rod": 4,
+      "minecraft:cooked_beef": 16,
+      "minecraft:crafting_table": 1,
+      "minecraft:ender_eye": 8,
+      "minecraft:ender_pearl": 8,
+      "minecraft:furnace": 1,
+      "minecraft:iron_axe": 1,
+      "minecraft:iron_boots": 1,
+      "minecraft:iron_chestplate": 1,
+      "minecraft:iron_helmet": 1,
+      "minecraft:iron_leggings": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:iron_sword": 1,
+      "minecraft:shield": 1,
+      "minecraft:torch": 32,
+      "minecraft:water_bucket": 1
+    },
+    "health": 20.0,
+    "food": 20,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "mining_tool_ready": true,
+      "shield_ready": true,
+      "armor_ready": true,
+      "food_nutrition": 128,
+      "safe_state": true,
+      "evidence": {
+        "scanned_game_tick": 51,
+        "dimension": "minecraft:overworld",
+        "inventory": [
+          {
+            "id": "minecraft:iron_pickaxe",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 0,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_axe",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 1,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_sword",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 2,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:water_bucket",
+            "count": 1,
+            "slot": 3,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:torch",
+            "count": 32,
+            "slot": 4,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:crafting_table",
+            "count": 1,
+            "slot": 5,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:furnace",
+            "count": 1,
+            "slot": 6,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:cooked_beef",
+            "count": 16,
+            "slot": 7,
+            "safe_nutrition": 128
+          },
+          {
+            "id": "minecraft:ender_eye",
+            "count": 8,
+            "slot": 8,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:ender_pearl",
+            "count": 8,
+            "slot": 9,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:blaze_rod",
+            "count": 4,
+            "slot": 10,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_boots",
+            "count": 1,
+            "remaining_durability": 195,
+            "max_durability": 195,
+            "slot": 36,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_leggings",
+            "count": 1,
+            "remaining_durability": 225,
+            "max_durability": 225,
+            "slot": 37,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_chestplate",
+            "count": 1,
+            "remaining_durability": 240,
+            "max_durability": 240,
+            "slot": 38,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_helmet",
+            "count": 1,
+            "remaining_durability": 165,
+            "max_durability": 165,
+            "slot": 39,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:shield",
+            "count": 1,
+            "remaining_durability": 336,
+            "max_durability": 336,
+            "slot": 40,
+            "safe_nutrition": 0
+          }
+        ],
+        "armor": {
+          "head": {
+            "id": "minecraft:iron_helmet",
+            "count": 1,
+            "remaining_durability": 165,
+            "max_durability": 165,
+            "ready": true
+          },
+          "chest": {
+            "id": "minecraft:iron_chestplate",
+            "count": 1,
+            "remaining_durability": 240,
+            "max_durability": 240,
+            "ready": true
+          },
+          "legs": {
+            "id": "minecraft:iron_leggings",
+            "count": 1,
+            "remaining_durability": 225,
+            "max_durability": 225,
+            "ready": true
+          },
+          "feet": {
+            "id": "minecraft:iron_boots",
+            "count": 1,
+            "remaining_durability": 195,
+            "max_durability": 195,
+            "ready": true
+          }
+        },
+        "safety": {
+          "valid": true,
+          "on_fire": false,
+          "in_lava": false,
+          "drowning": false,
+          "air_supply": 300,
+          "fully_frozen": false,
+          "harmful_effects": [],
+          "visible_attackers_within_16": []
+        },
+        "resources": {
+          "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+          "carried_scope": "inventory.items + inventory.offhand; excludes armor slots and external containers",
+          "counts": {
+            "ender_eyes": 8,
+            "ender_pearls": 8,
+            "blaze_powder": 0,
+            "blaze_rods": 4,
+            "pearl_units": 16,
+            "blaze_units": 16,
+            "eye_equivalents": 16
+          },
+          "slots": [
+            {
+              "id": "minecraft:ender_eye",
+              "count": 8,
+              "slot": 8
+            },
+            {
+              "id": "minecraft:ender_pearl",
+              "count": 8,
+              "slot": 9
+            },
+            {
+              "id": "minecraft:blaze_rod",
+              "count": 4,
+              "slot": 10
+            }
+          ]
+        },
+        "end_entry": {
+          "subject_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+          "portal": null,
+          "arrival": null,
+          "activation": null,
+          "entry": null,
+          "calibration_native_end_entry": false,
+          "native_entry_episode_active": false,
+          "critical_evidence_complete": true,
+          "observation_gaps": 0,
+          "first_death_observed": false,
+          "last_verified_game_tick": 51
+        },
+        "initial_sample": {
+          "position": [
+            0,
+            84,
+            32
+          ],
+          "x": 0.5,
+          "y": 84.0,
+          "z": 32.5,
+          "game_tick": 25,
+          "dimension": "minecraft:overworld",
+          "subject_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+          "inventory": {
+            "minecraft:blaze_rod": 4,
+            "minecraft:cooked_beef": 16,
+            "minecraft:crafting_table": 1,
+            "minecraft:ender_eye": 8,
+            "minecraft:ender_pearl": 8,
+            "minecraft:furnace": 1,
+            "minecraft:iron_axe": 1,
+            "minecraft:iron_pickaxe": 1,
+            "minecraft:iron_sword": 1,
+            "minecraft:shield": 1,
+            "minecraft:torch": 32,
+            "minecraft:water_bucket": 1
+          },
+          "resources": {
+            "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+            "carried_scope": "inventory.items + inventory.offhand; excludes armor slots and external containers",
+            "counts": {
+              "ender_eyes": 8,
+              "ender_pearls": 8,
+              "blaze_powder": 0,
+              "blaze_rods": 4,
+              "pearl_units": 16,
+              "blaze_units": 16,
+              "eye_equivalents": 16
+            },
+            "slots": [
+              {
+                "id": "minecraft:ender_eye",
+                "count": 8,
+                "slot": 8
+              },
+              {
+                "id": "minecraft:ender_pearl",
+                "count": 8,
+                "slot": 9
+              },
+              {
+                "id": "minecraft:blaze_rod",
+                "count": 4,
+                "slot": 10
+              }
+            ]
+          }
+        },
+        "eye_consumption": {
+          "initial_ender_eyes": 8,
+          "current_ender_eyes": 8,
+          "native_frame_insertions": 0,
+          "inventory_delta_is_sampled": true,
+          "final_resource_threshold": 0
+        },
+        "events": [],
+        "events_total": 0,
+        "events_truncated": false,
+        "portal_evidence_truncated": false,
+        "coverage": {
+          "portal_reached": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "eye_inserted": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "other_eye_inserted": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "portal_activated": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "native_end_entry": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dimension_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "hurt": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "inventory_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "sampled_chunk_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "danger_entered": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "danger_cleared": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "observation_gap": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "death": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "risk_replanning": {
+            "status": "not_measured",
+            "reason": "world facts do not attribute memory or planning; review the tool trace"
+          },
+          "resource_site_replanning": {
+            "status": "not_measured",
+            "reason": "world facts do not attribute memory or planning; review the tool trace"
+          },
+          "remember_unfinished_goal": {
+            "status": "not_measured",
+            "reason": "world facts do not attribute memory or planning; review the tool trace"
+          }
+        }
+      },
+      "ender_eyes": 8,
+      "ender_pearls": 8,
+      "blaze_powder": 0,
+      "blaze_rods": 4,
+      "pearl_units": 16,
+      "blaze_units": 16,
+      "eye_equivalents": 16,
+      "subject_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+      "portal_reached": false,
+      "portal_activated_by_companion": false,
+      "native_end_entry": false,
+      "end_alive_held_ticks": 0,
+      "observation_complete": true
+    },
+    "position": [
+      0.5,
+      84.0,
+      32.5
+    ],
+    "current_task": null
+  },
+  "final_snapshot": {
+    "companion_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+    "subject_present": true,
+    "alive": true,
+    "game_tick": 61,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:blaze_rod": 4,
+      "minecraft:cooked_beef": 16,
+      "minecraft:crafting_table": 1,
+      "minecraft:ender_eye": 8,
+      "minecraft:ender_pearl": 8,
+      "minecraft:furnace": 1,
+      "minecraft:iron_axe": 1,
+      "minecraft:iron_boots": 1,
+      "minecraft:iron_chestplate": 1,
+      "minecraft:iron_helmet": 1,
+      "minecraft:iron_leggings": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:iron_sword": 1,
+      "minecraft:shield": 1,
+      "minecraft:torch": 32,
+      "minecraft:water_bucket": 1
+    },
+    "health": 20.0,
+    "food": 20,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "mining_tool_ready": true,
+      "shield_ready": true,
+      "armor_ready": true,
+      "food_nutrition": 128,
+      "safe_state": true,
+      "evidence": {
+        "scanned_game_tick": 61,
+        "dimension": "minecraft:overworld",
+        "inventory": [
+          {
+            "id": "minecraft:iron_pickaxe",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 0,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_axe",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 1,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_sword",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 2,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:water_bucket",
+            "count": 1,
+            "slot": 3,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:torch",
+            "count": 32,
+            "slot": 4,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:crafting_table",
+            "count": 1,
+            "slot": 5,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:furnace",
+            "count": 1,
+            "slot": 6,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:cooked_beef",
+            "count": 16,
+            "slot": 7,
+            "safe_nutrition": 128
+          },
+          {
+            "id": "minecraft:ender_eye",
+            "count": 8,
+            "slot": 8,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:ender_pearl",
+            "count": 8,
+            "slot": 9,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:blaze_rod",
+            "count": 4,
+            "slot": 10,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_boots",
+            "count": 1,
+            "remaining_durability": 195,
+            "max_durability": 195,
+            "slot": 36,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_leggings",
+            "count": 1,
+            "remaining_durability": 225,
+            "max_durability": 225,
+            "slot": 37,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_chestplate",
+            "count": 1,
+            "remaining_durability": 240,
+            "max_durability": 240,
+            "slot": 38,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_helmet",
+            "count": 1,
+            "remaining_durability": 165,
+            "max_durability": 165,
+            "slot": 39,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:shield",
+            "count": 1,
+            "remaining_durability": 336,
+            "max_durability": 336,
+            "slot": 40,
+            "safe_nutrition": 0
+          }
+        ],
+        "armor": {
+          "head": {
+            "id": "minecraft:iron_helmet",
+            "count": 1,
+            "remaining_durability": 165,
+            "max_durability": 165,
+            "ready": true
+          },
+          "chest": {
+            "id": "minecraft:iron_chestplate",
+            "count": 1,
+            "remaining_durability": 240,
+            "max_durability": 240,
+            "ready": true
+          },
+          "legs": {
+            "id": "minecraft:iron_leggings",
+            "count": 1,
+            "remaining_durability": 225,
+            "max_durability": 225,
+            "ready": true
+          },
+          "feet": {
+            "id": "minecraft:iron_boots",
+            "count": 1,
+            "remaining_durability": 195,
+            "max_durability": 195,
+            "ready": true
+          }
+        },
+        "safety": {
+          "valid": true,
+          "on_fire": false,
+          "in_lava": false,
+          "drowning": false,
+          "air_supply": 300,
+          "fully_frozen": false,
+          "harmful_effects": [],
+          "visible_attackers_within_16": []
+        },
+        "resources": {
+          "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+          "carried_scope": "inventory.items + inventory.offhand; excludes armor slots and external containers",
+          "counts": {
+            "ender_eyes": 8,
+            "ender_pearls": 8,
+            "blaze_powder": 0,
+            "blaze_rods": 4,
+            "pearl_units": 16,
+            "blaze_units": 16,
+            "eye_equivalents": 16
+          },
+          "slots": [
+            {
+              "id": "minecraft:ender_eye",
+              "count": 8,
+              "slot": 8
+            },
+            {
+              "id": "minecraft:ender_pearl",
+              "count": 8,
+              "slot": 9
+            },
+            {
+              "id": "minecraft:blaze_rod",
+              "count": 4,
+              "slot": 10
+            }
+          ]
+        },
+        "end_entry": {
+          "subject_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+          "portal": null,
+          "arrival": null,
+          "activation": null,
+          "entry": null,
+          "calibration_native_end_entry": false,
+          "native_entry_episode_active": false,
+          "critical_evidence_complete": true,
+          "observation_gaps": 0,
+          "first_death_observed": false,
+          "last_verified_game_tick": 61
+        },
+        "initial_sample": {
+          "position": [
+            0,
+            84,
+            32
+          ],
+          "x": 0.5,
+          "y": 84.0,
+          "z": 32.5,
+          "game_tick": 25,
+          "dimension": "minecraft:overworld",
+          "subject_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+          "inventory": {
+            "minecraft:blaze_rod": 4,
+            "minecraft:cooked_beef": 16,
+            "minecraft:crafting_table": 1,
+            "minecraft:ender_eye": 8,
+            "minecraft:ender_pearl": 8,
+            "minecraft:furnace": 1,
+            "minecraft:iron_axe": 1,
+            "minecraft:iron_pickaxe": 1,
+            "minecraft:iron_sword": 1,
+            "minecraft:shield": 1,
+            "minecraft:torch": 32,
+            "minecraft:water_bucket": 1
+          },
+          "resources": {
+            "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+            "carried_scope": "inventory.items + inventory.offhand; excludes armor slots and external containers",
+            "counts": {
+              "ender_eyes": 8,
+              "ender_pearls": 8,
+              "blaze_powder": 0,
+              "blaze_rods": 4,
+              "pearl_units": 16,
+              "blaze_units": 16,
+              "eye_equivalents": 16
+            },
+            "slots": [
+              {
+                "id": "minecraft:ender_eye",
+                "count": 8,
+                "slot": 8
+              },
+              {
+                "id": "minecraft:ender_pearl",
+                "count": 8,
+                "slot": 9
+              },
+              {
+                "id": "minecraft:blaze_rod",
+                "count": 4,
+                "slot": 10
+              }
+            ]
+          }
+        },
+        "eye_consumption": {
+          "initial_ender_eyes": 8,
+          "current_ender_eyes": 8,
+          "native_frame_insertions": 0,
+          "inventory_delta_is_sampled": true,
+          "final_resource_threshold": 0
+        },
+        "events": [],
+        "events_total": 0,
+        "events_truncated": false,
+        "portal_evidence_truncated": false,
+        "coverage": {
+          "portal_reached": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "eye_inserted": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "other_eye_inserted": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "portal_activated": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "native_end_entry": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dimension_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "hurt": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "inventory_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "sampled_chunk_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "danger_entered": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "danger_cleared": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "observation_gap": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "death": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "risk_replanning": {
+            "status": "not_measured",
+            "reason": "world facts do not attribute memory or planning; review the tool trace"
+          },
+          "resource_site_replanning": {
+            "status": "not_measured",
+            "reason": "world facts do not attribute memory or planning; review the tool trace"
+          },
+          "remember_unfinished_goal": {
+            "status": "not_measured",
+            "reason": "world facts do not attribute memory or planning; review the tool trace"
+          }
+        }
+      },
+      "ender_eyes": 8,
+      "ender_pearls": 8,
+      "blaze_powder": 0,
+      "blaze_rods": 4,
+      "pearl_units": 16,
+      "blaze_units": 16,
+      "eye_equivalents": 16,
+      "subject_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+      "portal_reached": false,
+      "portal_activated_by_companion": false,
+      "native_end_entry": false,
+      "end_alive_held_ticks": 0,
+      "observation_complete": true
+    },
+    "position": [
+      0.5,
+      84.0,
+      32.5
+    ],
+    "current_task": null
+  },
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false
+}

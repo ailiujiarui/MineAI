@@ -193,6 +193,11 @@ public final class LiveEvalClient {
         fixture.addProperty("goal_stuck_limit", GoalState.STUCK_STREAK_TO_GIVE_UP);
         fixture.addProperty("owner_mode", "spectator");
         fixture.addProperty("owner_follows_companion", false);
+        if ("end-entry-v1".equals(scenario.get("evaluation_version").getAsString())) {
+            fixture.addProperty("companion_uuid", companion.toString());
+            fixture.addProperty("observation_source", "server_player_list_by_uuid");
+            fixture.addProperty("client_visibility_required_after_start", false);
+        }
         JsonArray tools = new JsonArray();
         ToolRegistry.all().forEach(tool -> tools.add(tool.name()));
         fixture.add("registered_tools", tools);

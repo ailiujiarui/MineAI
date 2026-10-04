@@ -20,7 +20,7 @@ from run_bot_eval import digest_files, git, source_files_for, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = "live-v1"
-SUPPORTED_VERSIONS = {VERSION, "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1"}
+SUPPORTED_VERSIONS = {VERSION, "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1", "end-entry-v1"}
 RUNS = ROOT / "build/evals" / VERSION
 SCENARIOS = ROOT / "evals" / VERSION / "scenarios"
 CRITERIA = {"items", "min_health", "min_food", "dragon_kills", "within", "world"}
@@ -125,6 +125,178 @@ def world_evidence(snapshot, conditions, label, require_met=False):
                     raise PreflightError(f"{label}.world does not meet the successful result criterion")
 
 
+def end_entry_portal(portal, label, active=False):
+    if not isinstance(portal, dict):
+        raise PreflightError(f"{label} needs a server portal snapshot")
+    dimension = portal.get("dimension")
+    if dimension != "minecraft:overworld":
+        raise PreflightError(f"{label} must belong to the overworld stronghold")
+    for coordinate in ("x", "y", "z"):
+        number(portal.get(coordinate), label + "." + coordinate, minimum=-30_000_000, integer=True)
+    portal_id = f"{dimension}:{portal['x']}:{portal['y']}:{portal['z']}"
+    if (portal.get("portal_id") != portal_id or portal.get("generated_stronghold") is not True
+            or portal.get("portal_origin") != "generated_stronghold"):
+        raise PreflightError(f"{label} needs one generated stronghold portal identity")
+    if type(portal.get("active")) is not bool:
+        raise PreflightError(f"{label}.active must be boolean")
+    number(portal.get("eyes"), label + ".eyes", integer=True)
+    if portal["eyes"] > 12:
+        raise PreflightError(f"{label}.eyes exceeds the twelve frames")
+    frames, blocks = portal.get("frames"), portal.get("portal_blocks")
+    if not isinstance(frames, list) or len(frames) != 12 or not isinstance(blocks, list) or len(blocks) != 9:
+        raise PreflightError(f"{label} needs twelve frames and nine interior block observations")
+    x, y, z = portal["x"], portal["y"], portal["z"]
+    expected_frames = {(x + offset, y, z - 2): "south" for offset in (-1, 0, 1)}
+    expected_frames.update({(x + offset, y, z + 2): "north" for offset in (-1, 0, 1)})
+    expected_frames.update({(x - 2, y, z + offset): "east" for offset in (-1, 0, 1)})
+    expected_frames.update({(x + 2, y, z + offset): "west" for offset in (-1, 0, 1)})
+    frame_positions = set()
+    for frame in frames:
+        if not isinstance(frame, dict):
+            raise PreflightError(f"{label}.frames needs block observations")
+        location = tuple(frame.get(axis) for axis in ("x", "y", "z"))
+        if (any(type(value) is not int for value in location) or location in frame_positions
+                or location not in expected_frames or frame.get("id") != "minecraft:end_portal_frame"
+                or frame.get("facing") != expected_frames[location] or type(frame.get("has_eye")) is not bool):
+            raise PreflightError(f"{label}.frames does not describe one inward-facing portal ring")
+        frame_positions.add(location)
+    if sum(frame["has_eye"] for frame in frames) != portal["eyes"]:
+        raise PreflightError(f"{label}.eyes does not match actual frame states")
+    for field in ("initial_eyes", "companion_eye_insertions", "other_eye_insertions"):
+        number(portal.get(field), label + "." + field, integer=True)
+        if portal[field] > 12:
+            raise PreflightError(f"{label}.{field} exceeds the twelve frames")
+    if type(portal.get("initial_active")) is not bool:
+        raise PreflightError(f"{label}.initial_active must be boolean")
+    expected_blocks = {(x + dx, y, z + dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1)}
+    block_positions = set()
+    for block in blocks:
+        if not isinstance(block, dict):
+            raise PreflightError(f"{label}.portal_blocks needs block observations")
+        location = tuple(block.get(axis) for axis in ("x", "y", "z"))
+        if (any(type(value) is not int for value in location) or location in block_positions
+                or location not in expected_blocks or not isinstance(block.get("id"), str)):
+            raise PreflightError(f"{label}.portal_blocks does not describe one portal interior")
+        block_positions.add(location)
+    actual_active = portal["eyes"] == 12 and all(block["id"] == "minecraft:end_portal" for block in blocks)
+    if portal["active"] != actual_active or (active and not actual_active):
+        raise PreflightError(f"{label} lacks the actual active portal blocks")
+    if active and (portal["initial_active"] or portal["initial_eyes"] == 12
+                   or portal["other_eye_insertions"] != 0
+                   or portal["companion_eye_insertions"] != 12 - portal["initial_eyes"]):
+        raise PreflightError(f"{label} does not attribute the missing eyes to this companion")
+    return portal_id
+
+
+def end_entry_evidence(snapshot, label):
+    world = snapshot.get("world")
+    if not isinstance(world, dict):
+        raise PreflightError(f"{label}.world needs end-entry observer evidence")
+    subject = snapshot.get("companion_uuid")
+    try:
+        canonical_subject = str(uuid.UUID(subject))
+    except (ValueError, TypeError, AttributeError):
+        raise PreflightError(f"{label}.companion_uuid needs a subject UUID") from None
+    if (subject != canonical_subject or snapshot.get("subject_present") is not True
+            or snapshot.get("alive") is not True or world.get("subject_uuid") != subject):
+        raise PreflightError(f"{label} does not identify one present living companion")
+    for field in ("portal_reached", "portal_activated_by_companion", "native_end_entry", "observation_complete"):
+        if type(world.get(field)) is not bool:
+            raise PreflightError(f"{label}.world.{field} must be boolean")
+    number(snapshot.get("game_tick"), label + ".game_tick", integer=True)
+    number(world.get("end_alive_held_ticks"), label + ".world.end_alive_held_ticks", integer=True)
+    evidence = world.get("evidence")
+    chain = evidence.get("end_entry") if isinstance(evidence, dict) else None
+    if not isinstance(chain, dict) or chain.get("subject_uuid") != subject:
+        raise PreflightError(f"{label} needs subject-bound raw end-entry evidence")
+    number(chain.get("observation_gaps"), label + ".world.evidence.end_entry.observation_gaps", integer=True)
+    if world["observation_complete"] is not True or chain["observation_gaps"] != 0:
+        raise PreflightError(f"{label} has incomplete end-entry observation")
+    if chain.get("critical_evidence_complete") is not True:
+        raise PreflightError(f"{label} has incomplete critical end-entry evidence")
+    if type(chain.get("native_entry_episode_active")) is not bool:
+        raise PreflightError(f"{label} must report the current native entrance episode")
+    if chain.get("first_death_observed") is not False:
+        raise PreflightError(f"{label} needs explicit evidence that no first death was observed")
+    if chain.get("last_verified_game_tick") != snapshot["game_tick"]:
+        raise PreflightError(f"{label} has stale end-entry tick evidence")
+    flags = (world["portal_reached"], world["portal_activated_by_companion"], world["native_end_entry"])
+    if (flags[1] and not flags[0]) or (flags[2] and not flags[1]):
+        raise PreflightError(f"{label} has an incomplete portal milestone chain")
+    if flags[2] and chain["native_entry_episode_active"] is not True:
+        raise PreflightError(f"{label} cannot reuse an earlier End visit")
+    portal_id = None
+    baseline = None
+    previous_tick = -1
+    for required, field, kind in zip(flags, ("arrival", "activation", "entry"),
+                                     ("portal_reached", "portal_activated", "native_end_entry")):
+        if not required:
+            continue
+        event = chain.get(field)
+        if (not isinstance(event, dict) or event.get("kind") != kind or event.get("subject_uuid") != subject):
+            raise PreflightError(f"{label}.{field} lacks attributed native evidence")
+        number(event.get("game_tick"), label + "." + field + ".game_tick", integer=True)
+        for axis in ("x", "y", "z"):
+            number(event.get(axis), label + "." + field + "." + axis, minimum=-30_000_000)
+        if not previous_tick <= event["game_tick"] <= snapshot["game_tick"]:
+            raise PreflightError(f"{label} has an out-of-order portal chain")
+        previous_tick = event["game_tick"]
+        event_portal_id = end_entry_portal(event.get("portal"), label + "." + field + ".portal", field != "arrival")
+        if event.get("portal_id") != event_portal_id or (portal_id is not None and portal_id != event_portal_id):
+            raise PreflightError(f"{label} combines events from different portals")
+        portal_id = event_portal_id
+        event_baseline = (event["portal"]["initial_eyes"], event["portal"]["initial_active"])
+        if baseline is not None and baseline != event_baseline:
+            raise PreflightError(f"{label} changes the portal's initial state across events")
+        baseline = event_baseline
+        if field in {"arrival", "activation"} and event.get("dimension") != event["portal"]["dimension"]:
+            raise PreflightError(f"{label}.{field} belongs to a different dimension")
+        if field == "arrival":
+            if sum((event[axis] - event["portal"][axis] - 0.5) ** 2 for axis in ("x", "y", "z")) > 36:
+                raise PreflightError(f"{label}.arrival does not prove reaching this portal")
+        if field == "activation" and (event.get("native_eye_inserted") is not True
+                                      or event.get("actor_uuid") != subject
+                                      or type(event.get("eye_inventory_delta")) is not int
+                                      or event["eye_inventory_delta"] != -1):
+            raise PreflightError(f"{label}.activation lacks a committed native eye insertion")
+        if field == "activation":
+            frame = event.get("frame")
+            frames = event["portal"]["frames"]
+            if (not isinstance(frame, dict) or
+                    tuple(frame.get(axis) for axis in ("x", "y", "z")) not in
+                    {tuple(item[axis] for axis in ("x", "y", "z")) for item in frames}):
+                raise PreflightError(f"{label}.activation did not interact with this portal ring")
+        if field == "entry" and (event.get("evidence_source") != "vanilla_handle_portal_change_dimension"
+                                 or event.get("destination_uuid") != subject
+                                 or event.get("from_dimension") != event["portal"]["dimension"]
+                                 or event.get("to_dimension") != "minecraft:the_end"
+                                 or event.get("dimension") != "minecraft:the_end"):
+            raise PreflightError(f"{label}.entry lacks vanilla entrance provenance")
+        if field == "entry":
+            source = event.get("source_block")
+            blocks = event["portal"]["portal_blocks"]
+            if (not isinstance(source, dict) or
+                    tuple(source.get(axis) for axis in ("x", "y", "z")) not in
+                    {tuple(block[axis] for axis in ("x", "y", "z")) for block in blocks}):
+                raise PreflightError(f"{label}.entry lacks this portal's native source block")
+    if flags[2] and snapshot.get("dimension") != "minecraft:the_end":
+        raise PreflightError(f"{label} native entrance requires the companion to remain in the End")
+    if portal_id is not None:
+        if end_entry_portal(chain.get("portal"), label + ".portal") != portal_id:
+            raise PreflightError(f"{label} current portal identity differs from the native chain")
+        if (chain["portal"]["initial_eyes"], chain["portal"]["initial_active"]) != baseline:
+            raise PreflightError(f"{label} current portal initial state differs from the native chain")
+        if flags[1] and (chain["portal"]["other_eye_insertions"] != 0
+                         or chain["portal"]["companion_eye_insertions"]
+                         != chain["activation"]["portal"]["companion_eye_insertions"]):
+            raise PreflightError(f"{label} current portal contributions differ from the native activation")
+    if flags[2] and world["end_alive_held_ticks"] > snapshot["game_tick"] - chain["entry"]["game_tick"] + 1:
+        raise PreflightError(f"{label} hold predates the native entrance")
+    if not flags[2] and world["end_alive_held_ticks"] != 0:
+        raise PreflightError(f"{label} cannot hold an unverified entrance")
+    return chain
+
+
 def validate_scenario(value):
     if set(value) - {"evaluation_version", "case_id", "split", "source", "prompt", "seed",
                      "world_preset", "setup", "success", "milestones", "budget",
@@ -134,7 +306,7 @@ def validate_scenario(value):
             or value["evaluation_version"] not in SUPPORTED_VERSIONS):
         raise PreflightError("Scenario has the wrong evaluation_version")
     observer = {"survival-v2": "free-survival-v2", "expedition-v1": "expedition-v1",
-                "end-resources-v1": "end-resources-v1"}.get(
+                "end-resources-v1": "end-resources-v1", "end-entry-v1": "end-entry-v1"}.get(
         value["evaluation_version"], "sustainable-survival-v1")
     if "world_observer" in value and value["world_observer"] != observer:
         raise PreflightError("Scenario has an unsupported world_observer")
@@ -157,7 +329,7 @@ def validate_scenario(value):
     setup_fields = {"spawn", "floor", "blocks", "inventory"}
     if value["evaluation_version"] == "survival-v2":
         setup_fields |= {"food_level", "saturation"}
-    if value["evaluation_version"] == "end-resources-v1":
+    if value["evaluation_version"] in {"end-resources-v1", "end-entry-v1"}:
         setup_fields.add("equipment")
     if not isinstance(setup, dict) or set(setup) - setup_fields:
         raise PreflightError("Unsupported setup fields")
@@ -367,6 +539,10 @@ def validate_result(output, scenario):
                     if not isinstance(world, dict):
                         raise PreflightError(f"{key}.world must contain required observer evidence")
                     number(world.get("loadout_held_ticks"), key + ".world.loadout_held_ticks", integer=True)
+                if scenario["evaluation_version"] == "end-entry-v1":
+                    end_entry_evidence(snapshot, key)
+                    if snapshot.get("companion_uuid") != result["initial_snapshot"].get("companion_uuid"):
+                        raise PreflightError("End-entry snapshots must track the same companion UUID")
         if status == "success":
             world_evidence(result["final_snapshot"], [scenario["success"]], "final_snapshot", require_met=True)
             if "success_hold_ticks" in scenario:
@@ -376,6 +552,22 @@ def validate_result(output, scenario):
                 number(result["final_snapshot"]["world"].get("loadout_held_ticks"),
                        "final_snapshot.world.loadout_held_ticks",
                        minimum=scenario.get("success_hold_ticks", 0), integer=True)
+            if scenario["evaluation_version"] == "end-entry-v1":
+                final = result["final_snapshot"]
+                number(final["world"].get("end_alive_held_ticks"), "final_snapshot.world.end_alive_held_ticks",
+                       minimum=scenario.get("success_hold_ticks", 0), integer=True)
+                if final["world"].get("native_end_entry") is not True:
+                    raise PreflightError("Successful end-entry result needs the complete native entrance chain")
+                if final.get("deaths") != result["initial_snapshot"].get("deaths"):
+                    raise PreflightError("Successful end-entry result cannot follow a death")
+                for field, criterion_key in (("health", "min_health"), ("food", "min_food")):
+                    if criterion_key in scenario["success"]:
+                        number(final.get(field), "final_snapshot." + field,
+                               minimum=scenario["success"][criterion_key])
+                for field in ("arrival", "activation", "entry"):
+                    if (final["world"]["evidence"]["end_entry"][field]["game_tick"]
+                            < result["initial_snapshot"]["game_tick"]):
+                        raise PreflightError("Native entrance milestones must belong to this run")
     if result.get("spec") != scenario:
         raise PreflightError("Client result does not match the exact requested scenario and budget")
     trace_path = output / "results/trace.json"

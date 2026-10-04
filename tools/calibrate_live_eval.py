@@ -17,8 +17,9 @@ class Fixture(BaseHTTPRequestHandler):
     def do_POST(self):
         payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         has_result = any(message.get("role") == "tool" for message in payload["messages"])
-        if self.server.calibration_case in {"expedition-preparation", "end-resources"}:
-            stage = "expedition" if self.server.calibration_case == "expedition-preparation" else "end-resource"
+        if self.server.calibration_case in {"expedition-preparation", "end-resources", "end-entry"}:
+            stage = {"expedition-preparation": "expedition", "end-resources": "end-resource",
+                     "end-entry": "End-entry"}[self.server.calibration_case]
             delta = {"content": f"Scripted negative control: no {stage} actions performed."}
             finish = "stop"
         elif has_result:
@@ -43,9 +44,7 @@ class Fixture(BaseHTTPRequestHandler):
         self.wfile.write(body.encode())
 
 
-def end_resources_negative_check(code, result, scenario):
-    initial = result.get("initial_snapshot") or {}
-    final = result.get("final_snapshot") or {}
+def prepared_loadout_check(initial, scenario):
     expected_inventory = dict(scenario["setup"].get("inventory", {}))
     for item in scenario["setup"].get("equipment", {}).values():
         expected_inventory[item] = expected_inventory.get(item, 0) + 1
@@ -53,20 +52,8 @@ def end_resources_negative_check(code, result, scenario):
     armor = initial_world.get("evidence", {}).get("armor", {})
     offhand = [item for item in initial_world.get("evidence", {}).get("inventory", [])
                if item.get("slot") == 40]
-    resource_fields = ("eye_equivalents", "ender_eyes", "ender_pearls", "blaze_powder",
-                       "blaze_rods", "pearl_units", "blaze_units")
-    resource_items = ("minecraft:ender_eye", "minecraft:ender_pearl",
-                      "minecraft:blaze_powder", "minecraft:blaze_rod")
-    check = {
-        "purpose": "Reject the prepared expedition inventory as end-resource success with idle localhost replies",
-        "expected_outcome": "budget_exhausted",
-        "scripted_request_budget_reached": result.get("reason") == "max_model_calls"
-                                          and result.get("model_calls") == 4,
+    return {
         "starter_inventory_matches": initial.get("inventory") == expected_inventory,
-        "initial_resources_zero": all(initial_world.get(field) == 0 for field in resource_fields)
-                                  and all(initial.get("inventory", {}).get(item, 0) == 0 for item in resource_items),
-        "final_resources_zero": all(final.get("world", {}).get(field) == 0 for field in resource_fields)
-                                and all(final.get("inventory", {}).get(item, 0) == 0 for item in resource_items),
         "initial_worn_armor_matches": all(
             armor.get(slot, {}).get("id") == item
             and armor.get(slot, {}).get("count") == 1
@@ -82,6 +69,25 @@ def end_resources_negative_check(code, result, scenario):
         "initial_equipment_ready": all(initial_world.get(field) is True
                                        for field in ("mining_tool_ready", "shield_ready", "armor_ready")),
         "initial_food_nutrition": initial_world.get("food_nutrition"),
+    }
+
+
+def end_resources_negative_check(code, result, scenario):
+    initial = result.get("initial_snapshot") or {}
+    final = result.get("final_snapshot") or {}
+    resource_fields = ("eye_equivalents", "ender_eyes", "ender_pearls", "blaze_powder",
+                       "blaze_rods", "pearl_units", "blaze_units")
+    resource_items = ("minecraft:ender_eye", "minecraft:ender_pearl",
+                      "minecraft:blaze_powder", "minecraft:blaze_rod")
+    check = prepared_loadout_check(initial, scenario) | {
+        "purpose": "Reject the prepared expedition inventory as end-resource success with idle localhost replies",
+        "expected_outcome": "budget_exhausted",
+        "scripted_request_budget_reached": result.get("reason") == "max_model_calls"
+                                          and result.get("model_calls") == 4,
+        "initial_resources_zero": all(initial.get("world", {}).get(field) == 0 for field in resource_fields)
+                                  and all(initial.get("inventory", {}).get(item, 0) == 0 for item in resource_items),
+        "final_resources_zero": all(final.get("world", {}).get(field) == 0 for field in resource_fields)
+                                and all(final.get("inventory", {}).get(item, 0) == 0 for item in resource_items),
         "no_milestones": result.get("milestones") == [],
         "absent_travel_uncovered": all(
             snapshot.get("world", {}).get("evidence", {}).get("coverage", {}).get(field, {}).get("status")
@@ -113,11 +119,58 @@ def end_resources_negative_check(code, result, scenario):
     return check
 
 
+def end_entry_negative_check(code, result, scenario):
+    initial = result.get("initial_snapshot") or {}
+    final = result.get("final_snapshot") or {}
+    stock = scenario["setup"].get("inventory", {})
+    resource_items = {"ender_eyes": "minecraft:ender_eye", "ender_pearls": "minecraft:ender_pearl",
+                      "blaze_powder": "minecraft:blaze_powder", "blaze_rods": "minecraft:blaze_rod"}
+    expected = {field: stock.get(item, 0) for field, item in resource_items.items()}
+    equivalents = expected["ender_eyes"] + min(expected["ender_pearls"],
+                                              expected["blaze_powder"] + 2 * expected["blaze_rods"])
+    evidence_valid = True
+    try:
+        for label, snapshot in (("initial_snapshot", initial), ("final_snapshot", final)):
+            run_live_eval.end_entry_evidence(snapshot, label)
+    except run_live_eval.PreflightError:
+        evidence_valid = False
+    check = prepared_loadout_check(initial, scenario) | {
+        "purpose": "Reject prepared sixteen-eye-equivalent resources as a native End entrance with idle localhost replies",
+        "expected_outcome": "budget_exhausted",
+        "scripted_request_budget_reached": result.get("reason") == "max_model_calls" and result.get("model_calls") == 4,
+        "initial_eye_equivalents": initial.get("world", {}).get("eye_equivalents"),
+        "initial_mixed_resources_match": equivalents == 16 and all(
+            initial.get("world", {}).get(field) == count for field, count in expected.items()),
+        "idle_resources_retained": all(
+            final.get("world", {}).get(field) == count
+            and final.get("inventory", {}).get(resource_items[field], 0) == count
+            for field, count in expected.items()),
+        "no_portal_progress": all(snapshot.get("world", {}).get(field) is False
+                                  for snapshot in (initial, final)
+                                  for field in ("portal_reached", "portal_activated_by_companion", "native_end_entry")),
+        "no_milestones": result.get("milestones") == [],
+        "same_subject": initial.get("companion_uuid") == final.get("companion_uuid"),
+        "observer_evidence_valid": evidence_valid,
+        "replanning_not_measured": all(
+            snapshot.get("world", {}).get("evidence", {}).get("coverage", {}).get(field, {}).get("status")
+            == "not_measured" for snapshot in (initial, final)
+            for field in ("risk_replanning", "resource_site_replanning")),
+    }
+    required = ("starter_inventory_matches", "initial_worn_armor_matches", "initial_offhand_shield_matches",
+                "initial_equipment_ready", "initial_mixed_resources_match", "idle_resources_retained",
+                "no_portal_progress", "no_milestones", "same_subject", "observer_evidence_valid",
+                "replanning_not_measured", "scripted_request_budget_reached")
+    check["passed"] = (code == 0 and result.get("status") == "budget_exhausted"
+                       and all(check[field] for field in required)
+                       and check["initial_eye_equivalents"] == 16 and check["initial_food_nutrition"] == 128)
+    return check
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--neoforge-version")
-    parser.add_argument("--scenario", choices=("craft-planks", "expedition-preparation", "end-resources"),
+    parser.add_argument("--scenario", choices=("craft-planks", "expedition-preparation", "end-resources", "end-entry"),
                         default="craft-planks",
                         help="Crafting success control or stage starter-inventory negative control")
     args = parser.parse_args()
@@ -154,10 +207,11 @@ def main():
         finally:
             server.shutdown()
     check = {"scenario": args.scenario, "launcher_exit_code": code}
-    if args.scenario == "end-resources":
+    if args.scenario in {"end-resources", "end-entry"}:
         result_path = output / "results/result.json"
         result = json.loads(result_path.read_text(encoding="utf-8")) if result_path.exists() else {}
-        check.update(end_resources_negative_check(code, result, scenario))
+        negative_check = end_resources_negative_check if args.scenario == "end-resources" else end_entry_negative_check
+        check.update(negative_check(code, result, scenario))
         if not check["passed"]:
             code = 2
     elif args.scenario == "expedition-preparation":

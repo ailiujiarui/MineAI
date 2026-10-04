@@ -1,0 +1,74 @@
+{
+  "evaluation_version": "end-entry-v1",
+  "run_id": "20261004T172814941185Z-98d68fa8",
+  "split": "dev",
+  "rep": 0,
+  "started_at_utc": "2026-10-04T17:28:14.942180+00:00",
+  "status": "budget_exhausted",
+  "success": false,
+  "model_cost": null,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.2",
+  "offline_gradle": true,
+  "neoforge_version_override": "21.1.233",
+  "command": {
+    "argv": [
+      "E:\\mineAI\\gradlew.bat",
+      ":core:neoforge:runClient",
+      "--no-daemon",
+      "--console=plain",
+      "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\calibration-68a025cf567e441ea63bbd02658af4c5\\request.json",
+      "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\calibration-68a025cf567e441ea63bbd02658af4c5\\game",
+      "--offline",
+      "-Pneoforge_version=21.1.233"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "interrupted": false,
+    "duration_ms": 33341,
+    "log": "launcher.log"
+  },
+  "provider": {
+    "id": "fixture",
+    "provider": "openai",
+    "model": "scripted-loopback-fixture",
+    "reasoning_effort": null,
+    "ctx": 64000
+  },
+  "case_id": "live.end-entry",
+  "budget": {
+    "max_model_calls": 4,
+    "max_seconds": 45,
+    "max_tokens": 1000
+  },
+  "blockers": [],
+  "candidate": "27b047449c10+efe0584cc934",
+  "source_sha256": "efe0584cc934d66f9618bf760fd3f4a40ac085e2ba4b772532a2dfc74e48928d",
+  "git_status": "M agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java\n M agent/src/test/java/com/dwinovo/numen/agent/acceptance/LiveEvalRunTest.java\n M ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java\n M ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java\n M api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalClient.java\n M api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java\n M api/common/src/main/java/com/dwinovo/numen/entity/Companions.java\n M api/common/src/main/java/com/dwinovo/numen/eval/WorldEvalObservers.java\n M core/common/src/main/java/com/dwinovo/numen/core/NumenCore.java\n M core/common/src/main/java/com/dwinovo/numen/core/eval/EndResourcesWorldObserver.java\n M core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java\n M core/common/src/main/resources/numen.mixins.json\n M core/neoforge/build.gradle\n M core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java\n M docs/architecture-mind-model.md\n M evals/README.md\n M evals/live-v1/README.md\n M tools/calibrate_live_eval.py\n M tools/run_live_eval.py\n M tools/test_run_live_eval.py\n?? core/common/src/main/java/com/dwinovo/numen/core/eval/EndEntryWorldObserver.java\n?? core/common/src/main/java/com/dwinovo/numen/core/mixin/EnderEyeEvalMixin.java\n?? core/common/src/main/java/com/dwinovo/numen/core/mixin/NativePortalEvalMixin.java\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/EndEntryEvalGameTests.java\n?? evals/live-v1/scenarios/end-entry.json\n?? tools/__pycache__/",
+  "scenario_sha256": "d9a47be8d1859ca2dcea58e8ea7a84a60afa8c4a1a686fab45fb7706166ce585",
+  "startup_seconds": 600,
+  "planned_command": [
+    "E:\\mineAI\\gradlew.bat",
+    ":core:neoforge:runClient",
+    "--no-daemon",
+    "--console=plain",
+    "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\calibration-68a025cf567e441ea63bbd02658af4c5\\request.json",
+    "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\calibration-68a025cf567e441ea63bbd02658af4c5\\game",
+    "--offline",
+    "-Pneoforge_version=21.1.233"
+  ],
+  "companion_chat": {
+    "status": "captured",
+    "companion_uuid": "d42e1c71-c220-43d8-a52d-3ebf49f01fca",
+    "source_ref": "game/config/numen/companions/d42e1c71-c220-43d8-a52d-3ebf49f01fca/chat.jsonl",
+    "file_ref": "results/chat.jsonl",
+    "sha256": "612549ba67e9dd1553c0f0a9774702cd0c5d72d0bda11aeee2e798048f5556c3"
+  },
+  "reason": "max_model_calls",
+  "result_ref": "results/result.json",
+  "finished_at_utc": "2026-10-04T17:28:48.951568+00:00",
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false
+}

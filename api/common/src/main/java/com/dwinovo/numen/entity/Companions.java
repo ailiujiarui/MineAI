@@ -242,6 +242,7 @@ public final class Companions {
         MinecraftServer server = body.level().getServer();
         if (server == null) return;
         UUID uuid = body.getUUID();
+        com.dwinovo.numen.eval.WorldEvalObservers.died(body);
         // 死因取 die() 里抄下的那一句:此刻再问战斗记录已经被 vanilla 清空了,
         // 只会拿到"她死了"这种没有凶手的兜底文案(见 NumenPlayer#deathMessage)。
         String cause = body.deathMessage();

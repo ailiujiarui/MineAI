@@ -11,7 +11,10 @@
 | [自由前期生存](live-v1/scenarios/free-survival.json) | 新世界空背包，检查实际补给、储备与存活 | `survival-v2` 已有真实模型 dev 成绩，仅覆盖第一阶段部分条件 |
 | [远征准备](live-v1/scenarios/expedition-preparation.json) | 新世界固定石工具和少量补给，铁甲及远征物资，逐件耐久 ≥80% | `expedition-v1` 已校准；真实模型尚未运行 |
 | [第三阶段：末地资源](live-v1/scenarios/end-resources.json) | 新世界人工远征起点，当前末影之眼成品与原料可制作量 ≥16，保留补给和逐件耐久 ≥50%的装备 | `end-resources-v1` 已接入；[规则与能力边界](live-v1/README.md#end-resources-v1)、[验证记录](live-v1/end-resources-verification.json)；真实模型尚未运行 |
-| [完整击杀末影龙](live-v1/scenarios/defeat-dragon.json) | 从零开始的五阶段连续任务 | 脚手架，完整阶段判分与真实通关尚未验证；第四、第五阶段没有本轮新增建设 |
+| [第四阶段：找到并进入末地](live-v1/scenarios/end-entry.json) | 新世界公开8眼、8珍珠、4棒和远征装备；同一主体到达、补齐同一原生要塞门并经原生入口入末地，连续存活20 tick，最终生命与饱食≥16 | `end-entry-v1`；[规则与能力边界](live-v1/README.md#end-entry-v1)、[验证记录](live-v1/end-entry-verification.json)；真实模型尚未运行 |
+| [完整击杀末影龙](live-v1/scenarios/defeat-dragon.json) | 从零开始的五阶段连续任务 | 脚手架，完整阶段判分与真实通关尚未验证；第五阶段未建设 |
+
+第四阶段设施验证已通过双加载器构建、863项可执行JVM校验、72项Python测试及301项必需GameTest（新增12项）。API测试仍保留原有编译阻塞；原生入口正例是人工夹具校准，不计自主寻找成绩。具体命令、原始证据和localhost校准结果见[第四阶段记录](live-v1/end-entry-verification.json)。
 
 ## 当前评测与已记录成绩
 
@@ -41,6 +44,7 @@
 | **真实模型：初期物资生存** | 空背包取得石镐、熔炉、8 个火把、3 个熟牛肉，同时维持生命与饱食 | 已有[可运行场景定义](live-v1/scenarios/initial-survival.json)，**尚无真实运行成绩**；它检查背包物资，与可持续生存分开记录 |
 | **真实模型：第二阶段远征准备** | 固定初期物资出发，穿全套铁甲，备齐镐、盾、水桶、食物、火把和便携工作站；逐件耐久至少 80% | [场景、评分与运行方式](live-v1/README.md#expedition-v1)已实现；[校准与验证记录](live-v1/expedition-verification.json)单列，**尚无真实模型成绩**，不是上一阶段存档续跑 |
 | **真实模型：第三阶段末地资源** | 公开人工远征起点，取得并保有 ≥16 份末影之眼可制作量，保留装备与补给，安全保持 200 tick | [场景、评分与运行方式](live-v1/README.md#end-resources-v1)已实现；[校准与验证记录](live-v1/end-resources-verification.json)单列，**真实模型尚未运行**；换维、遇险未发生时记未覆盖 |
+| **真实模型：第四阶段找到并进入末地** | 公开第三阶段就绪物资，实际到达并开启同一原生要塞门，经原生入口入末地并存活20 tick，最终生命、饱食≥16 | [独立场景、事实归因与运行方式](live-v1/README.md#end-entry-v1)；[设施验证记录](live-v1/end-entry-verification.json)单列，**真实模型尚未运行**；定位坐标、人工门夹具与直接换维不代表长程寻找成功 |
 | **真实模型：击杀末影龙** | 从零开始，覆盖基本生存、远征准备、末地资源、进入末地、击杀末影龙五阶段 | 已记录[五阶段设计与观测证据](live-v1/README.md#dragon-five-stage)；已有[场景脚手架](live-v1/scenarios/defeat-dragon.json)，阶段判分尚未完整实现，**未运行**；完整通关所需能力尚未验证 |
 
 原 `bot-v1` 清单共 **28 例：18 例分层评测已跑，10 例完整玩家场景未跑**。真实客户端运行器后来已经接通，但木板和生存试跑不替代这 10 个专项场景，也不自动补齐它们的成绩。
@@ -64,7 +68,7 @@
 | [bot-v1/baselines/](bot-v1/baselines/) | 离线与 GameTest 基线：逐例结果、分层汇总、源码摘要和原始证据 |
 | [bot-v1/verification.json](bot-v1/verification.json) | 该轮构建、测试、依赖环境与阻塞记录 |
 | [live-v1/README.md](live-v1/README.md) | 真实模型与 Minecraft 客户端完整链路的使用说明、成功标准和结果解释 |
-| [live-v1/scenarios/](live-v1/scenarios/) | 真实游戏场景：木板合成、初期物资生存、自由前期生存与补给、指定农业据点、远征准备、末地资源、击杀末影龙 |
+| [live-v1/scenarios/](live-v1/scenarios/) | 真实游戏场景：木板合成、初期物资生存、自由前期生存与补给、指定农业据点、远征准备、末地资源、找到并进入末地、击杀末影龙 |
 | [live-v1/baselines/](live-v1/baselines/) | 归档的真实模型运行、脚本校准和中止记录；包含结果、日志、源码摘要及轨迹 |
 | [live-v1/verification/](live-v1/verification/) | 预检、构建、回归测试等验证日志，较大的日志按 gzip 压缩 |
 | [live-v1/verification.json](live-v1/verification.json)、[survival-verification.json](live-v1/survival-verification.json) | 冒烟链路与可持续生存场景的验证汇总、结果位置和证据哈希 |
@@ -87,15 +91,16 @@
 | --- | --- | --- |
 | 分层评测启动器 | [tools/run_bot_eval.py](../tools/run_bot_eval.py) | 运行规划、响应和身体评测，校验逐例记录并汇总成绩 |
 | 真实模型启动器 | [tools/run_live_eval.py](../tools/run_live_eval.py) | 校验场景与预算、准备独立配置和目录、启动客户端、检查最终结果及冻结源码 |
-| 链路校准 | [tools/calibrate_live_eval.py](../tools/calibrate_live_eval.py) | 用本机固定模型协议回复验证真实合成、远征准备或末地资源起点负例；输出合成用量，不作为模型能力成绩 |
+| 链路校准 | [tools/calibrate_live_eval.py](../tools/calibrate_live_eval.py) | 用本机固定模型协议回复验证真实合成及第二至第四阶段起点负例；输出合成用量，不作为模型能力成绩 |
 | 通用判分与预算 | [agent/.../acceptance/LiveEvalRun.java](../agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java) | 纯 JVM 逻辑：检查快照条件、记录里程碑、累计持续达标时间、调用数与用量，并生成报告和轨迹 |
 | 客户端运行编排 | [api/.../client/eval/LiveEvalClient.java](../api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalClient.java) | 创建评测会话、连接真实大脑、收集事件和世界快照、安装预算限制、持久化结果并结束运行 |
 | 世界准备与快照 | [api/.../client/eval/LiveEvalWorld.java](../api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java) | 创建隔离世界、初始化主人和同伴，并在服务端线程读取实际状态、清理本次观察器 |
-| 世界观察器接口 | [api/.../eval/WorldEvalObservers.java](../api/common/src/main/java/com/dwinovo/numen/eval/WorldEvalObservers.java) | 按场景注册与管理观察器，转发实际方块破坏及原生食物消费；`api` 不依赖具体 `core` 观察器 |
+| 世界观察器接口 | [api/.../eval/WorldEvalObservers.java](../api/common/src/main/java/com/dwinovo/numen/eval/WorldEvalObservers.java) | 管理逐tick观察与缺口，转发方块、食物、换维、受伤和死亡事实，以及 `core` 钩子提交的原生插眼／穿门事实；`api` 不依赖具体 `core` 观察器 |
 | 生存场景观察 | [core/.../eval/SurvivalWorldObserver.java](../core/common/src/main/java/com/dwinovo/numen/core/eval/SurvivalWorldObserver.java) | 读取工具、已放置工作站、农田、收割补种、食物和庇护所事实 |
 | 自由生存观察 | [FreeSurvivalWorldObserver.java](../core/common/src/main/java/com/dwinovo/numen/core/eval/FreeSurvivalWorldObserver.java) | 记录安全食物、真实有效补给、实际存活 tick 与当前危险；不规定农业或建筑路线 |
 | 远征准备观察 | [ExpeditionWorldObserver.java](../core/common/src/main/java/com/dwinovo/numen/core/eval/ExpeditionWorldObserver.java) | 记录镐和盾牌、四件护甲实际穿戴、逐件耐久、混合食物储备及当前安全状态 |
 | 末地资源观察 | [EndResourcesWorldObserver.java](../core/common/src/main/java/com/dwinovo/numen/core/eval/EndResourcesWorldObserver.java) | 当前库存算可制作量，复用装备与补给；记录真实换维、受伤及采样探索、危险、库存变化，区分历史证据与当前条件 |
+| 末地入口观察 | [EndEntryWorldObserver.java](../core/common/src/main/java/com/dwinovo/numen/core/eval/EndEntryWorldObserver.java) | 按UUID与门身份关联到达、原生插眼、真实门状态和原生穿门来源块，持续追踪末地存活；资源与装备只留事实 |
 | 场景注册及收割证据 | [NumenCore.java](../core/common/src/main/java/com/dwinovo/numen/core/NumenCore.java)、[BlockDigger.java](../core/common/src/main/java/com/dwinovo/numen/core/act/BlockDigger.java) | 注册生存观察器；方块实际破坏后报告事件，支持成熟小麦收割归因 |
 | 客户端评测入口 | [AgentLoopRegistry.java](../api/common/src/client/java/com/dwinovo/numen/client/agent/AgentLoopRegistry.java) | 在客户端 tick 中调用可选的评测入口 |
 | 大脑事件与执行接入 | [AgentLoop.java](../agent/src/main/java/com/dwinovo/numen/agent/loop/AgentLoop.java)、[EntityAgentLoop.java](../api/common/src/client/java/com/dwinovo/numen/client/agent/EntityAgentLoop.java)、[ToolDispatcher.java](../api/common/src/client/java/com/dwinovo/numen/client/agent/ToolDispatcher.java) | 提供事件订阅、模型请求和工具派发前的可选预算检查，复用真实产品执行链 |

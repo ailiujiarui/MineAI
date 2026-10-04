@@ -28,6 +28,7 @@ public final class LiveEvalRun {
     private final long maxTokens;
     private final long successHoldTicks;
     private final boolean requiresTickHold;
+    private final boolean endEntryProtocol;
     private long successSinceTick = -1;
     private long previousTick = -1;
     private long successHeldTicks;
@@ -57,14 +58,16 @@ public final class LiveEvalRun {
         if (spec == null) throw invalid("spec is required");
         this.spec = spec.deepCopy();
         String version = text(spec, "evaluation_version");
-        if (!Set.of("live-v1", "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1").contains(version)) {
+        if (!Set.of("live-v1", "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1", "end-entry-v1").contains(version)) {
             throw invalid("unknown evaluation_version");
         }
         requiresTickHold = "end-resources-v1".equals(version);
+        endEntryProtocol = "end-entry-v1".equals(version);
         String observer = switch (version) {
             case "survival-v2" -> "free-survival-v2";
             case "expedition-v1" -> "expedition-v1";
             case "end-resources-v1" -> "end-resources-v1";
+            case "end-entry-v1" -> "end-entry-v1";
             default -> "sustainable-survival-v1";
         };
         if (spec.has("world_observer") && !observer.equals(text(spec, "world_observer"))) {
@@ -79,7 +82,7 @@ public final class LiveEvalRun {
         }
         JsonObject setup = object(spec, "setup");
         if (setup.has("equipment")) {
-            if (!"end-resources-v1".equals(version)) throw invalid("equipment initialization requires end-resources-v1");
+            if (!requiresTickHold && !endEntryProtocol) throw invalid("equipment initialization requires end-resources-v1 or end-entry-v1");
             JsonObject equipment = object(setup, "equipment");
             for (String slot : equipment.keySet()) {
                 if (!Set.of("head", "chest", "legs", "feet", "offhand").contains(slot)) {
@@ -102,6 +105,11 @@ public final class LiveEvalRun {
         }
         success = object(this.spec, "success");
         validateCriterion(success);
+        if (endEntryProtocol && (!success.has("world")
+                || !success.getAsJsonObject("world").has("native_end_entry")
+                || !success.getAsJsonObject("world").get("native_end_entry").getAsBoolean())) {
+            throw invalid("end-entry-v1 success requires native_end_entry evidence");
+        }
         JsonObject budget = object(spec, "budget");
         maxModelCalls = (int) integer(budget, "max_model_calls", 1, Integer.MAX_VALUE);
         maxSeconds = number(budget, "max_seconds");
@@ -191,9 +199,34 @@ public final class LiveEvalRun {
         }
         finalSnapshot = snapshot.deepCopy();
         event("snapshot", snapshot, nowNanos);
-        if (!snapshot.get("alive").getAsBoolean() || snapshot.get("deaths").getAsInt() > initialDeaths) {
+        if (snapshot.get("deaths").getAsInt() > initialDeaths) {
             successHeldTicks = 0;
             finish("failed", "companion_died", nowNanos);
+            return;
+        }
+        if (endEntryProtocol && !snapshot.get("subject_present").getAsBoolean()) {
+            finish("infra_error", "observation_unavailable", nowNanos);
+            return;
+        }
+        if (!snapshot.get("alive").getAsBoolean()) {
+            successHeldTicks = 0;
+            finish("failed", "companion_died", nowNanos);
+            return;
+        }
+        if (endEntryProtocol && flag(object(object(object(snapshot, "world"), "evidence"), "end_entry"),
+                "first_death_observed")) {
+            successHeldTicks = 0;
+            finish("failed", "companion_died", nowNanos);
+            return;
+        }
+        if (endEntryProtocol && !text(snapshot, "companion_uuid").equals(text(initialSnapshot, "companion_uuid"))) {
+            finish("infra_error", "companion_identity_changed", nowNanos);
+            return;
+        }
+        if (endEntryProtocol && (!flag(object(snapshot, "world"), "observation_complete")
+                || integer(object(object(object(snapshot, "world"), "evidence"), "end_entry"),
+                "observation_gaps", 0, Integer.MAX_VALUE) > 0)) {
+            finish("infra_error", "observation_incomplete", nowNanos);
             return;
         }
         if (seconds(nowNanos) >= maxSeconds) {
@@ -222,14 +255,19 @@ public final class LiveEvalRun {
                 finish("infra_error", "game_tick_moved_backwards", nowNanos);
                 return;
             }
-            // 观察中断超过一秒游戏时间就重新计时,暂停游戏不能贡献存活时长。
-            if (!successMet || (previousTick >= 0 && tick - previousTick > 20)) successSinceTick = -1;
-            if (successMet && successSinceTick < 0) successSinceTick = tick;
-            successHeldTicks = successSinceTick < 0 ? 0 : tick - successSinceTick;
-            // 第三阶段由服务端逐 tick 证据约束保持,防止两次客户端快照之间的短暂失效被漏算。
-            if (requiresTickHold) {
-                successHeldTicks = Math.min(successHeldTicks,
-                        integer(object(snapshot, "world"), "loadout_held_ticks", 0, Long.MAX_VALUE));
+            if (endEntryProtocol) {
+                // 入门后存活时长来自同一主体的服务端逐刻观察,客户端不可见不另起一段计时。
+                successHeldTicks = successMet ? integer(object(snapshot, "world"), "end_alive_held_ticks", 0, Long.MAX_VALUE) : 0;
+            } else {
+                // 观察中断超过一秒游戏时间就重新计时,暂停游戏不能贡献存活时长。
+                if (!successMet || (previousTick >= 0 && tick - previousTick > 20)) successSinceTick = -1;
+                if (successMet && successSinceTick < 0) successSinceTick = tick;
+                successHeldTicks = successSinceTick < 0 ? 0 : tick - successSinceTick;
+                // 第三阶段由服务端逐 tick 证据约束保持,防止两次客户端快照之间的短暂失效被漏算。
+                if (requiresTickHold) {
+                    successHeldTicks = Math.min(successHeldTicks,
+                            integer(object(snapshot, "world"), "loadout_held_ticks", 0, Long.MAX_VALUE));
+                }
             }
             previousTick = tick;
         }
@@ -348,10 +386,16 @@ public final class LiveEvalRun {
         if (!snapshot.has("alive") || !snapshot.get("alive").isJsonPrimitive()
                 || !snapshot.getAsJsonPrimitive("alive").isBoolean()) throw invalid("snapshot.alive must be boolean");
         integer(snapshot, "deaths", 0, Integer.MAX_VALUE);
+        if (endEntryProtocol && (!started || snapshot.get("deaths").getAsInt() <= initialDeaths)) {
+            text(snapshot, "companion_uuid");
+            flag(snapshot, "subject_present");
+            if (!snapshot.get("subject_present").getAsBoolean()) return;
+        }
         if (!snapshot.get("alive").getAsBoolean()
                 || (started && snapshot.get("deaths").getAsInt() > initialDeaths)) return;
         if (successHoldTicks > 0) integer(snapshot, "game_tick", 0, Long.MAX_VALUE);
         if (requiresTickHold) integer(object(snapshot, "world"), "loadout_held_ticks", 0, Long.MAX_VALUE);
+        if (endEntryProtocol) validateEndEntrySnapshot(snapshot);
         validateEvidence(success, snapshot);
         for (JsonObject condition : milestones.values()) validateEvidence(condition, snapshot);
     }
@@ -380,13 +424,15 @@ public final class LiveEvalRun {
         if (criterion.has("within")) position(snapshot);
     }
 
-    private static boolean met(JsonObject criterion, JsonObject snapshot) {
+    private boolean met(JsonObject criterion, JsonObject snapshot) {
         if (criterion.has("world")) {
             JsonObject facts = object(snapshot, "world");
             for (var entry : criterion.getAsJsonObject("world").entrySet()) {
                 if (entry.getValue().getAsJsonPrimitive().isBoolean()) {
                     if (!facts.get(entry.getKey()).getAsBoolean()) return false;
                 } else if (number(facts, entry.getKey()) < entry.getValue().getAsDouble()) return false;
+                if (endEntryProtocol && Set.of("portal_reached", "portal_activated_by_companion", "native_end_entry")
+                        .contains(entry.getKey()) && !endEntryMet(entry.getKey(), snapshot)) return false;
             }
         }
         if (criterion.has("items")) {
@@ -407,6 +453,219 @@ public final class LiveEvalRun {
             if (distance > number(within, "radius")) return false;
         }
         return true;
+    }
+
+    /** 原生入门的三个里程碑各留独立方块快照,不能把不同门或不同主体的事拼接。 */
+    private static void validateEndEntrySnapshot(JsonObject snapshot) {
+        text(snapshot, "dimension");
+        integer(snapshot, "game_tick", 0, Long.MAX_VALUE);
+        JsonObject world = object(snapshot, "world");
+        text(world, "subject_uuid");
+        for (String key : new String[]{"portal_reached", "portal_activated_by_companion", "native_end_entry", "observation_complete"}) {
+            flag(world, key);
+        }
+        integer(world, "end_alive_held_ticks", 0, Long.MAX_VALUE);
+        JsonObject chain = object(object(world, "evidence"), "end_entry");
+        text(chain, "subject_uuid");
+        flag(chain, "critical_evidence_complete");
+        flag(chain, "native_entry_episode_active");
+        flag(chain, "first_death_observed");
+        integer(chain, "last_verified_game_tick", 0, Long.MAX_VALUE);
+        integer(chain, "observation_gaps", 0, Integer.MAX_VALUE);
+        for (String key : new String[]{"arrival", "activation", "entry"}) {
+            JsonElement value = chain.get(key);
+            if (value == null) throw invalid("end_entry." + key + " is required");
+            if (value.isJsonNull()) continue;
+            JsonObject event = object(chain, key);
+            text(event, "kind");
+            text(event, "subject_uuid");
+            text(event, "dimension");
+            text(event, "portal_id");
+            integer(event, "game_tick", 0, Long.MAX_VALUE);
+            for (String coordinate : new String[]{"x", "y", "z"}) number(event, coordinate);
+            validatePortal(object(event, "portal"));
+            if ("activation".equals(key)) {
+                text(event, "actor_uuid");
+                coordinates(object(event, "frame"));
+                flag(event, "native_eye_inserted");
+                integer(event, "eye_inventory_delta", Integer.MIN_VALUE, Integer.MAX_VALUE);
+            }
+            if ("entry".equals(key)) {
+                text(event, "destination_uuid");
+                coordinates(object(event, "source_block"));
+                text(event, "from_dimension");
+                text(event, "to_dimension");
+                text(event, "evidence_source");
+            }
+        }
+        if (!chain.has("portal")) throw invalid("end_entry.portal is required");
+        if (!chain.get("portal").isJsonNull()) validatePortal(object(chain, "portal"));
+    }
+
+    private static void validatePortal(JsonObject portal) {
+        text(portal, "portal_id");
+        text(portal, "dimension");
+        text(portal, "portal_origin");
+        coordinates(portal);
+        for (String key : new String[]{"generated_stronghold", "active", "initial_active"}) flag(portal, key);
+        integer(portal, "eyes", 0, 12);
+        integer(portal, "initial_eyes", 0, 12);
+        integer(portal, "companion_eye_insertions", 0, Integer.MAX_VALUE);
+        integer(portal, "other_eye_insertions", 0, Integer.MAX_VALUE);
+        for (JsonElement value : array(portal, "frames")) {
+            if (!value.isJsonObject()) throw invalid("portal frame must be an object");
+            JsonObject frame = value.getAsJsonObject();
+            coordinates(frame);
+            text(frame, "id");
+            text(frame, "facing");
+            flag(frame, "has_eye");
+        }
+        for (JsonElement value : array(portal, "portal_blocks")) {
+            if (!value.isJsonObject()) throw invalid("portal block must be an object");
+            coordinates(value.getAsJsonObject());
+            text(value.getAsJsonObject(), "id");
+        }
+    }
+
+    private boolean endEntryMet(String fact, JsonObject snapshot) {
+        JsonObject world = object(snapshot, "world");
+        JsonObject chain = object(object(world, "evidence"), "end_entry");
+        String uuid = text(snapshot, "companion_uuid");
+        long tick = integer(snapshot, "game_tick", 0, Long.MAX_VALUE);
+        if (!uuid.equals(text(world, "subject_uuid")) || !uuid.equals(text(chain, "subject_uuid"))
+                || !flag(world, "observation_complete") || !flag(chain, "critical_evidence_complete")
+                || flag(chain, "first_death_observed")
+                || integer(chain, "observation_gaps", 0, Integer.MAX_VALUE) != 0
+                || integer(chain, "last_verified_game_tick", 0, Long.MAX_VALUE) != tick
+                || chain.get("portal").isJsonNull() || chain.get("arrival").isJsonNull()) return false;
+        long initialTick = integer(initialSnapshot, "game_tick", 0, Long.MAX_VALUE);
+        JsonObject portal = object(chain, "portal");
+        JsonObject arrival = object(chain, "arrival");
+        if (!portalState(portal, false) || !entryEvent(arrival, "portal_reached", uuid, portal, false)
+                || !text(arrival, "dimension").equals(text(portal, "dimension"))
+                || integer(arrival, "game_tick", 0, Long.MAX_VALUE) < initialTick
+                || integer(arrival, "game_tick", 0, Long.MAX_VALUE) > tick) return false;
+        double distance = Math.hypot(Math.hypot(number(arrival, "x") - number(portal, "x") - 0.5,
+                number(arrival, "y") - number(portal, "y") - 0.5), number(arrival, "z") - number(portal, "z") - 0.5);
+        if (distance > 6) return false;
+        if ("portal_reached".equals(fact)) return true;
+        if (chain.get("activation").isJsonNull()) return false;
+        JsonObject activation = object(chain, "activation");
+        JsonObject activatedPortal = object(activation, "portal");
+        if (!entryEvent(activation, "portal_activated", uuid, portal, true)
+                || !uuid.equals(text(activation, "actor_uuid"))
+                || !text(activation, "dimension").equals(text(portal, "dimension"))
+                || !flag(activation, "native_eye_inserted")
+                || integer(activation, "eye_inventory_delta", Integer.MIN_VALUE, Integer.MAX_VALUE) != -1
+                || flag(activatedPortal, "initial_active")
+                || integer(activatedPortal, "initial_eyes", 0, 12) >= 12
+                || integer(activatedPortal, "other_eye_insertions", 0, Integer.MAX_VALUE) != 0
+                || integer(activatedPortal, "companion_eye_insertions", 0, Integer.MAX_VALUE)
+                != 12 - integer(activatedPortal, "initial_eyes", 0, 12)
+                || !samePortalBaseline(object(arrival, "portal"), activatedPortal)
+                || !samePortalBaseline(portal, activatedPortal)
+                || integer(portal, "other_eye_insertions", 0, Integer.MAX_VALUE) != 0
+                || integer(portal, "companion_eye_insertions", 0, Integer.MAX_VALUE)
+                != integer(activatedPortal, "companion_eye_insertions", 0, Integer.MAX_VALUE)
+                || integer(arrival, "game_tick", 0, Long.MAX_VALUE) > integer(activation, "game_tick", 0, Long.MAX_VALUE)
+                || integer(activation, "game_tick", 0, Long.MAX_VALUE) > tick) return false;
+        JsonObject insertedFrame = object(activation, "frame");
+        boolean frameFound = false;
+        for (JsonElement value : array(activatedPortal, "frames")) {
+            JsonObject frame = value.getAsJsonObject();
+            if (sameCoordinates(insertedFrame, frame) && flag(frame, "has_eye")) frameFound = true;
+        }
+        if (!frameFound) return false;
+        if ("portal_activated_by_companion".equals(fact)) return true;
+        if (chain.get("entry").isJsonNull()) return false;
+        JsonObject entry = object(chain, "entry");
+        long entryTick = integer(entry, "game_tick", 0, Long.MAX_VALUE);
+        boolean sourceFound = false;
+        for (JsonElement value : array(object(entry, "portal"), "portal_blocks")) {
+            JsonObject block = value.getAsJsonObject();
+            if (sameCoordinates(object(entry, "source_block"), block)
+                    && "minecraft:end_portal".equals(text(block, "id"))) sourceFound = true;
+        }
+        return entryEvent(entry, "native_end_entry", uuid, portal, true)
+                && uuid.equals(text(entry, "destination_uuid"))
+                && flag(chain, "native_entry_episode_active")
+                && sourceFound
+                && samePortalBaseline(activatedPortal, object(entry, "portal"))
+                && integer(activatedPortal, "companion_eye_insertions", 0, Integer.MAX_VALUE)
+                == integer(object(entry, "portal"), "companion_eye_insertions", 0, Integer.MAX_VALUE)
+                && integer(object(entry, "portal"), "other_eye_insertions", 0, Integer.MAX_VALUE) == 0
+                && "vanilla_handle_portal_change_dimension".equals(text(entry, "evidence_source"))
+                && text(portal, "dimension").equals(text(entry, "from_dimension"))
+                && "minecraft:the_end".equals(text(entry, "to_dimension"))
+                && "minecraft:the_end".equals(text(entry, "dimension"))
+                && "minecraft:the_end".equals(text(snapshot, "dimension"))
+                && integer(activation, "game_tick", 0, Long.MAX_VALUE) <= entryTick && entryTick <= tick
+                && integer(world, "end_alive_held_ticks", 0, Long.MAX_VALUE) <= tick - entryTick + 1;
+    }
+
+    private static boolean entryEvent(JsonObject event, String kind, String uuid, JsonObject portal, boolean active) {
+        JsonObject eventPortal = object(event, "portal");
+        return kind.equals(text(event, "kind")) && uuid.equals(text(event, "subject_uuid"))
+                && text(portal, "portal_id").equals(text(event, "portal_id"))
+                && text(portal, "portal_id").equals(text(eventPortal, "portal_id")) && portalState(eventPortal, active);
+    }
+
+    private static boolean samePortalBaseline(JsonObject first, JsonObject second) {
+        return flag(first, "initial_active") == flag(second, "initial_active")
+                && integer(first, "initial_eyes", 0, 12) == integer(second, "initial_eyes", 0, 12);
+    }
+
+    private static boolean portalState(JsonObject portal, boolean requireActive) {
+        int x = (int) integer(portal, "x", Integer.MIN_VALUE, Integer.MAX_VALUE);
+        int y = (int) integer(portal, "y", Integer.MIN_VALUE, Integer.MAX_VALUE);
+        int z = (int) integer(portal, "z", Integer.MIN_VALUE, Integer.MAX_VALUE);
+        String dimension = text(portal, "dimension");
+        if (!"minecraft:overworld".equals(dimension) || !flag(portal, "generated_stronghold")
+                || !"generated_stronghold".equals(text(portal, "portal_origin"))
+                || !(dimension + ":" + x + ":" + y + ":" + z).equals(text(portal, "portal_id"))
+                || array(portal, "frames").size() != 12 || array(portal, "portal_blocks").size() != 9) return false;
+        Set<String> positions = new java.util.HashSet<>();
+        int eyes = 0;
+        for (JsonElement value : array(portal, "frames")) {
+            JsonObject frame = value.getAsJsonObject();
+            long dx = integer(frame, "x", Integer.MIN_VALUE, Integer.MAX_VALUE) - x;
+            long dz = integer(frame, "z", Integer.MIN_VALUE, Integer.MAX_VALUE) - z;
+            String facing = dx == -2 && Math.abs(dz) <= 1 ? "east" : dx == 2 && Math.abs(dz) <= 1 ? "west"
+                    : dz == -2 && Math.abs(dx) <= 1 ? "south" : dz == 2 && Math.abs(dx) <= 1 ? "north" : "";
+            if (!"minecraft:end_portal_frame".equals(text(frame, "id")) || facing.isEmpty()
+                    || !facing.equals(text(frame, "facing")) || integer(frame, "y", Integer.MIN_VALUE, Integer.MAX_VALUE) != y
+                    || !positions.add(dx + ":" + dz)) return false;
+            if (flag(frame, "has_eye")) eyes++;
+        }
+        if (eyes != integer(portal, "eyes", 0, 12)) return false;
+        positions.clear();
+        for (JsonElement value : array(portal, "portal_blocks")) {
+            JsonObject block = value.getAsJsonObject();
+            long dx = integer(block, "x", Integer.MIN_VALUE, Integer.MAX_VALUE) - x;
+            long dz = integer(block, "z", Integer.MIN_VALUE, Integer.MAX_VALUE) - z;
+            if (Math.abs(dx) > 1 || Math.abs(dz) > 1 || integer(block, "y", Integer.MIN_VALUE, Integer.MAX_VALUE) != y
+                    || !positions.add(dx + ":" + dz)
+                    || (requireActive && !"minecraft:end_portal".equals(text(block, "id")))) return false;
+        }
+        return !requireActive || flag(portal, "active") && eyes == 12;
+    }
+
+    private static boolean sameCoordinates(JsonObject first, JsonObject second) {
+        return integer(first, "x", Integer.MIN_VALUE, Integer.MAX_VALUE) == integer(second, "x", Integer.MIN_VALUE, Integer.MAX_VALUE)
+                && integer(first, "y", Integer.MIN_VALUE, Integer.MAX_VALUE) == integer(second, "y", Integer.MIN_VALUE, Integer.MAX_VALUE)
+                && integer(first, "z", Integer.MIN_VALUE, Integer.MAX_VALUE) == integer(second, "z", Integer.MIN_VALUE, Integer.MAX_VALUE);
+    }
+
+    private static void coordinates(JsonObject value) {
+        for (String key : new String[]{"x", "y", "z"}) integer(value, key, Integer.MIN_VALUE, Integer.MAX_VALUE);
+    }
+
+    private static boolean flag(JsonObject object, String key) {
+        JsonElement value = object.get(key);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
+            throw invalid(key + " must be boolean");
+        }
+        return value.getAsBoolean();
     }
 
     private static void validateCriterion(JsonObject criterion) {

@@ -7,6 +7,8 @@
     "FishingHookAccessor",
     "ItemEntityAccessor",
     "CraftingMenuAccessor",
+    "EnderEyeEvalMixin",
+    "NativePortalEvalMixin",
     "ServerLevelBlockChangeMixin",
     "ServerPlayerGameModeAccessor"
   ],

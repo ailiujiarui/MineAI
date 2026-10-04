@@ -179,9 +179,9 @@ public final class EndResourcesWorldObserver implements WorldEvalObservers.Obser
         return facts;
     }
 
-    private record Loadout(JsonObject facts, Map<String, Integer> carried) {}
+    record Loadout(JsonObject facts, Map<String, Integer> carried) {}
 
-    private Loadout scan(NumenPlayer body) {
+    Loadout scan(NumenPlayer body) {
         JsonObject facts = expedition.observe(body);
         JsonObject evidence = facts.getAsJsonObject("evidence");
         JsonArray resourceSlots = new JsonArray();
