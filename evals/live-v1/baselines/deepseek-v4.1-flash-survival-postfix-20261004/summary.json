@@ -1,0 +1,322 @@
+{
+  "recorded_at_utc": "2026-10-04T11:51:08.544143+00:00",
+  "evaluation_version": "survival-v1",
+  "case_id": "live.sustainable-survival",
+  "split": "dev",
+  "repetitions": 1,
+  "independent_test": false,
+  "source_run": "build/evals/live-v1/survival-postfix-20261004",
+  "status": "budget_exhausted",
+  "reason": "max_tokens",
+  "task_success": false,
+  "budget": {
+    "max_model_calls": 80,
+    "max_seconds": 1700,
+    "max_tokens": 2600000
+  },
+  "elapsed_ms": 640950.4102,
+  "model": "deepseek-v4.1-flash",
+  "source_sha256": "4d82d348064d82f1a47877571e5e5c854af15546cb1d332b93415341ee3e932e",
+  "model_calls": 45,
+  "usage_reports": 45,
+  "attempts_without_usage_report": 0,
+  "usage_complete": true,
+  "tokens_observed": {
+    "input": 116485,
+    "output": 66932,
+    "cache_read": 2472448,
+    "cache_write": 0,
+    "total": 2655865
+  },
+  "cost": null,
+  "token_threshold_overshoot": 55865,
+  "token_threshold_semantics": "Checked after returned usage; final response can exceed the threshold. Cache-read tokens are included.",
+  "milestones_reached": 1,
+  "milestones_total": 6,
+  "milestones": [
+    {
+      "id": "usable-tools",
+      "condition": {
+        "world": {
+          "usable_pickaxe": true,
+          "usable_hoe": true
+        }
+      },
+      "status": "reached",
+      "elapsed_ms": 461047.4126
+    },
+    {
+      "id": "placed-workstations",
+      "condition": {
+        "world": {
+          "crafting_tables": 1,
+          "furnaces": 1
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "growing-field",
+      "condition": {
+        "world": {
+          "growing_wheat": 8
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "harvest-and-replant",
+      "condition": {
+        "world": {
+          "replanted_wheat": 3
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "safe-food-reserve",
+      "condition": {
+        "world": {
+          "food_nutrition": 20
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "safe-base",
+      "condition": {
+        "min_health": 10,
+        "min_food": 12,
+        "world": {
+          "shelter": true
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    }
+  ],
+  "initial_position": [
+    160.5,
+    78.0,
+    -127.5
+  ],
+  "final_snapshot": {
+    "alive": true,
+    "game_tick": 12866,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:coal": 7,
+      "minecraft:cobblestone": 26,
+      "minecraft:dirt": 17,
+      "minecraft:furnace": 1,
+      "minecraft:oak_door": 3,
+      "minecraft:oak_planks": 43,
+      "minecraft:oak_sapling": 1,
+      "minecraft:stone_hoe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_sword": 1,
+      "minecraft:torch": 4,
+      "minecraft:wooden_pickaxe": 1
+    },
+    "health": 20.0,
+    "food": 20,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "growing_wheat": 0,
+      "crafting_tables": 1,
+      "furnaces": 0,
+      "evidence": {
+        "scan_origin": {
+          "position": [
+            157,
+            58,
+            -132
+          ]
+        },
+        "wheat": [],
+        "crafting_tables": [
+          {
+            "position": [
+              160,
+              63,
+              -131
+            ]
+          }
+        ],
+        "furnaces": [],
+        "coordinates_truncated": false,
+        "scanned_game_tick": 12866,
+        "dimension": "minecraft:overworld",
+        "food": [],
+        "tools": [
+          {
+            "id": "minecraft:stone_pickaxe",
+            "count": 1,
+            "remaining_durability": 94
+          },
+          {
+            "id": "minecraft:stone_hoe",
+            "count": 1,
+            "remaining_durability": 131
+          }
+        ],
+        "shelter": {
+          "valid": false,
+          "position": {
+            "position": [
+              157,
+              58,
+              -132
+            ]
+          },
+          "reason": "unsafe_floor"
+        },
+        "replanted_wheat": []
+      },
+      "usable_pickaxe": true,
+      "usable_hoe": true,
+      "food_nutrition": 0,
+      "shelter": false,
+      "replanted_wheat": 0
+    },
+    "position": [
+      157.8622078291864,
+      58.0,
+      -131.50386451997935
+    ],
+    "current_task": null
+  },
+  "first_reply_ms": 3842.4742,
+  "success_held_ticks": 0,
+  "registered_game_tests": 0,
+  "registered_tool_count": 42,
+  "test_tool_prefix_present": false,
+  "tool_calls": {
+    "get_self_status": 3,
+    "get_world_info": 3,
+    "look_around": 3,
+    "load_skill": 1,
+    "scan_blocks": 6,
+    "scan_nearby_entities": 1,
+    "todowrite": 1,
+    "mine": 3,
+    "inspect_block": 12,
+    "command": 19,
+    "craft": 13,
+    "build": 2,
+    "equip_item": 2,
+    "goto": 1
+  },
+  "transport_evidence": "verification/postfix-network-check.json",
+  "action_comparison_evidence": "verification/postfix-comparison.json",
+  "protocol_evidence": "verification/postfix-protocol-check.json",
+  "comparison": {
+    "previous_archive": "evals/live-v1/baselines/deepseek-v4.1-flash-survival-20261004",
+    "same_source": false,
+    "same_scenario": true,
+    "same_budget": true,
+    "same_model_config_metadata": true,
+    "same_initial_position": true,
+    "previous_milestones_reached": 1,
+    "previous_tools_elapsed_ms": 1516560.4277,
+    "source_changes": [
+      "ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java",
+      "ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java",
+      "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java",
+      "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java",
+      "tools/run_live_eval.py"
+    ],
+    "prompt_model_scenario_grader_unchanged": true
+  },
+  "limitations": [
+    "One exposed dev scenario per run; no independent validation or general success rate.",
+    "No SSE timeout in this run does not establish a permanent fix for historical intermittent network stalls.",
+    "Own-inventory GUI regression passes in GameTest, but this live run did not call inspect_gui.",
+    "All 45 attempts returned reported usage; monetary cost and later billing are not inferred from tokens.",
+    "Final proposed build was not dispatched before the token budget ended; it is not world progress."
+  ],
+  "archive_integrity": {
+    "request.json": {
+      "original_sha256": "12476b1a2665925921fc71745e1f77bd922d317058e4a1f10cae33a41542b805",
+      "archive_sha256": "12476b1a2665925921fc71745e1f77bd922d317058e4a1f10cae33a41542b805"
+    },
+    "run.json": {
+      "original_sha256": "cc8c4dc3ec9afafb8c8b5b960c0e3740978af8ee23ede08bc2bdcd1d6f41734c",
+      "archive_sha256": "cc8c4dc3ec9afafb8c8b5b960c0e3740978af8ee23ede08bc2bdcd1d6f41734c"
+    },
+    "source-hashes.json": {
+      "original_sha256": "d7a22b3603a26c2d209632f66e99c38c9eded04cb1bfd9622606ac4f56ad354a",
+      "archive_sha256": "d7a22b3603a26c2d209632f66e99c38c9eded04cb1bfd9622606ac4f56ad354a"
+    },
+    "launcher.log.gz": {
+      "original_sha256": "e8db2796b502d919af6f1d51d7eb725a7383c8971b24b9230ed4a2b073d274c0",
+      "archive_sha256": "a9a5aed76ae0fff011b06a28c3824c7436c2c7723ad81a2c50fd498c351909e7"
+    },
+    "results/model.json": {
+      "original_sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9",
+      "archive_sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+    },
+    "results/progress.json": {
+      "original_sha256": "2601ced1693fc28c9cfaa5766856393b9589256ca1c0db9b11176571af6e5d72",
+      "archive_sha256": "2601ced1693fc28c9cfaa5766856393b9589256ca1c0db9b11176571af6e5d72"
+    },
+    "results/result.json": {
+      "original_sha256": "2601ced1693fc28c9cfaa5766856393b9589256ca1c0db9b11176571af6e5d72",
+      "archive_sha256": "2601ced1693fc28c9cfaa5766856393b9589256ca1c0db9b11176571af6e5d72"
+    },
+    "results/trace.jsonl.gz": {
+      "original_sha256": "24cfba6a8c2e652a38c4a6508f4791db9cb7d0265ad7a77b962705db0686dfa1",
+      "archive_sha256": "9058e6470103e1ffb42cc7d66f6cbcb7b1c3f3c3fcac52ae06f43028770e6406"
+    },
+    "results/chat.jsonl.gz": {
+      "original_sha256": "74a13333e50528b3e952bfdb24dc33e9798c1b272669ab6709835ad6ec061d0e",
+      "archive_sha256": "5dec43f55261ad58c4ffa3794a1ec6111af0dc3159e40d2409b93bb6d20ca9ea"
+    },
+    "verification/postfix-protocol-check.json": {
+      "original_sha256": "ce87c2647693458a00bfa9327898fbc7ce5fc1a433091a44c8f446a90cb5e751",
+      "archive_sha256": "ce87c2647693458a00bfa9327898fbc7ce5fc1a433091a44c8f446a90cb5e751"
+    },
+    "verification/postfix-comparison.json": {
+      "original_sha256": "cd94cef66aa3260702e71f2799b75b5322dde33124643e8951f2f2f84b255a0a",
+      "archive_sha256": "cd94cef66aa3260702e71f2799b75b5322dde33124643e8951f2f2f84b255a0a"
+    },
+    "verification/postfix-network-check.json": {
+      "original_sha256": "073c832f8a48b19f53111cffd309764d51bb403ff8af3ed146010a4037cdaa61",
+      "archive_sha256": "073c832f8a48b19f53111cffd309764d51bb403ff8af3ed146010a4037cdaa61"
+    },
+    "verification/verify-gui-build.log.gz": {
+      "original_sha256": "2412c1c53542947dceaf1f24c9f971bb4fce31c122083091d04c6f7d1cec763e",
+      "archive_sha256": "979c49d72debbc150ee6721e5929c5ca4f30cbebac640db892d23dbb62f3828a"
+    },
+    "verification/verify-gui-jvm-tests.log.gz": {
+      "original_sha256": "5e3c981ca514976c0b019282039a1e8e4802a78dabc274245b70eeb8ca5346a0",
+      "archive_sha256": "b55105300a9e241261caa8c2c2632094a75c3e90053ade8856bdca1d80ae05b7"
+    },
+    "verification/verify-gui-core-tests.log.gz": {
+      "original_sha256": "73e60696fc2090635643503611da2be0cdb718ad07ff9a77094252e8288e447b",
+      "archive_sha256": "f2aa79223a8d4ded36bfeed42d0741b92fe4e7606e64512b5c971f1b66c0a5dd"
+    },
+    "verification/verify-gui-gametest.log.gz": {
+      "original_sha256": "22a5ed0638bd3a61afeb3a96aff053f7f53d70013169caa908d81fd97ab839a2",
+      "archive_sha256": "44a9b13a1abd1c5882803112dd3d28fa957a1dfb4edbf9f4b3bb465daaa5a531"
+    },
+    "verification/red-transport-tests.log.gz": {
+      "original_sha256": "774d51c5f95b6f5880c773aaa688bc2b2ee384f2f51df90aa70ecea4066d1d10",
+      "archive_sha256": "070a3a8dd00aad5849bed92d842321144622655c3641c210faa1f4dc72b4e9db"
+    },
+    "verification/red-inventory-gametest.log.gz": {
+      "original_sha256": "6511e11e5177f9182e327707931420f865918b4e8c9c4cdc38d8930c19832e39",
+      "archive_sha256": "9692374242e26beae20c09f3da50c10fc231f8ed9f4bc50ae670ac0fcd263713"
+    }
+  },
+  "secret_review": {
+    "selected_artifact_exact_key_scan": "passed",
+    "game_directory_copied": false,
+    "companion_transcript_only": true
+  }
+}

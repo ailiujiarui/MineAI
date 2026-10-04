@@ -177,7 +177,7 @@ public final class HttpLlmTransport {
     private CompletableFuture<Void> postSseAttempt(String url, String apiKey, JsonObject body,
                                                    Consumer<JsonObject> chunkHandler, CancelToken cancel,
                                                    int attempt) {
-        if (cancel.isCancelled()) {
+        if (!cancel.permitRequest()) {
             return CompletableFuture.failedFuture(new CancellationException("request cancelled before sending"));
         }
         String requestId = nextRequestId() + (attempt > 0 ? "r" + attempt : "");

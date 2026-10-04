@@ -59,6 +59,12 @@ public final class ToolDispatcher implements ToolPort {
     /** Reentrancy guard so a synchronously-completing tool keeps the drain iterative. */
     private boolean advancing = false;
     private long deadlineMillis = 0;
+    private java.util.function.BooleanSupplier executionPermit;
+
+    /** Optional eval budget. Denial leaves the batch for cancellation on the next client tick. */
+    public void executionPermit(java.util.function.BooleanSupplier permit) {
+        executionPermit = permit;
+    }
 
 
     public ToolDispatcher(UUID entityUuid, Supplier<AbstractClientPlayer> entity) {
@@ -154,6 +160,7 @@ public final class ToolDispatcher implements ToolPort {
         advancing = true;
         try {
             while (inFlight.isEmpty()) {
+                if (executionPermit != null && !executionPermit.getAsBoolean()) return;
                 LlmToolCall call = queue.poll();
                 if (call == null) {
                     sink.settled();

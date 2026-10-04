@@ -1,0 +1,710 @@
+{
+  "evaluation_version": "survival-v1",
+  "recorded_at_utc": "2026-10-03T02:53:06.474092+00:00",
+  "environment": {
+    "minecraft": "1.21.1",
+    "neoforge_override": "21.1.233",
+    "gradle_offline": true
+  },
+  "build": {
+    "status": "passed",
+    "tasks": [
+      ":core:fabric:build",
+      ":core:neoforge:build"
+    ],
+    "log": "verification/survival/survival-build.log"
+  },
+  "unit_tests": {
+    "status": "partial_failure",
+    "passed_tests": 836,
+    "passed_modules": [
+      {
+        "module": "ai",
+        "status": "passed",
+        "tests": 148,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "junit_xml_sha256": {
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.http.TransportCancelTest.xml": "c0c6fcfb18b7f2059e8300ed41f197321b3c4d88919d96cffe29b68dcfc84cff",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.CompactSplitTest.xml": "e2e1856bc1f64750bad2236ddcca9f2016d8ba33407550f9f8e1f3e49df9b019",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.ConvoLogClearTest.xml": "602f932973b5188276e458b0de24b6fab8974aca0f19cd13a524f992bceb9c2f",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.ConvoLogDisplayTest.xml": "939ca4b240d6bac2bccf16c5da64daa88d19daf2d79db28ca23743d79e66ced1",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.ConvoLogHaltTest.xml": "7ce79e46612ac0f49558a509dae3b6c5a6fdfeaa53b44c033910a5d207844a90",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.ConvoLogMigrationTest.xml": "7007e48ad2b2852fe2b72b0953f5dbc50e813695da3fbee2581c99eae1198c3d",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.ConvoLogPoisonTest.xml": "6fe47fe7aa11e92f5675aee0d77a16f97d1da886580337d50a147ab9611810ce",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.PickProviderTest.xml": "58df83472371d878677e45be6da1d04339572122cc3f0217c087c6fdb065ea1f",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.ProtocolViewTest.xml": "59068e2dd585137d90f3a096dec2ad88879d6f80660ebe4023fa7a7c9b903071",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.llm.ToolOutcomeTest.xml": "46fc221a570b0ad490fbc24585207b6a3ed833c1d20b714f33ef4f8d2df7431f",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.AnthropicProviderTest.xml": "d703307e7b5e5a01fc21056990cdb6d1cf30bae0bc2a071095516865e5eac4cc",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.CacheWasteTest.xml": "9d92e9777d66c074a8c9780b479bd5c35060fae93d6cc255422a1b9cc84478f1",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.GenerationParamsTest.xml": "f9a96099f42b30af076f71eec5055d229725885de15bd3f85783d5df12e0ae94",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.LlmToolCallTest.xml": "b48d6acbbbcfeb78a13d47258d351dad1ead7d2b25a87d3d86c2829c54b9e530",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.OpenAIResponsesProviderTest.xml": "84458e60b643db0b97fa148628ca0cd5b91c81d933ec6894ef9a9fb15828b6b9",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.ProviderRegistryTest.xml": "8bb182cfaa7c6509496e1022577b51af826a3bd3792f956b2920f0d05bd5ae52",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.ReasoningStreamTest.xml": "1580066f6d9eefed25c5eeedfcc4b932f850956fa3f167653f30ba21d101133c",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.StreamAccumulationTest.xml": "8b95b9d9236b6a2b99f78c74fe0969592f6e2322b49ab7a12c98ec42b8c3c607",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.ThinkingDialectTest.xml": "2b40edbceab21ce2f592a453e5bd4afd0d4569606ee074c95d773762f895917d",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.TurnOriginTest.xml": "0c6184d4641096ca28c0043d71b5222467d9a41fb591ba58a01686c3c5abf426",
+          "ai/build/test-results/test/TEST-com.dwinovo.numen.agent.provider.UsageAccountingTest.xml": "0c103897206ca42f4f7a2d09d5aaa8490477db09c1bd93e70c544dd62d2e8f20"
+        }
+      },
+      {
+        "module": "agent",
+        "status": "passed",
+        "tests": 307,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "junit_xml_sha256": {
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.ActionQueueTest.xml": "9bb4664b59782d8ba7d8a97a7861cf61fd49e33a34f6c4cb33aa8bc31a61f475",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.CompletionGuardTest.xml": "6c43a03d5a03a5219d260028be8013475a86156714b28d01ed4d0b8e14e92f87",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.DecisionPredicateTest.xml": "ea013cd8a31a3a5d6c93690c1449777bc97b321f437945fc012df1b4a4c3de60",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.GoalPredicateTest.xml": "557c69df20a3d56ee9afd1ae396379199191083368629fd5faf061b2e95a6f81",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.HarnessReportTest.xml": "8900b8e1d0d88cbcb096497fe90736aea3ed6a9893ef1419d9f939b7421f3759",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.LiveEvalRunTest.xml": "69844de1ce283e38b4b346a0fd0d2e0c2e1e726221978d54a3bfb47376ab9587",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.ObjectiveTest.xml": "6e0f5ff97451a7becc86dff5381dc83c3f0c519ecf7cc246c41fada5b5653e65",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.RconClientTest.xml": "338224555cbf79658685aec216b502601b2556950abebcefd88b052d67685aa8",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.RconPacketTest.xml": "373fafc37fdf221391f75daafe6e3fa77ace56f9f2ed58f39ea43e566b375635",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.adapter.AdapterRegistryTest.xml": "b281ca005950dfc2f58cbb27948139a5cfa7ab36a5386c5a985cba19cbca611c",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.bt.BehaviorTreeTest.xml": "05d5097dcb3146f3d353108f51b27286afd79b2b3a59dd938817b21d898c8572",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.control.AgentControllerTest.xml": "c67df30ba89e415189b9f6b059c81feef1ed5a191cad081db33ec88158e5aca6",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.control.LoopPlannerPortTest.xml": "dc6bf684cf7b38cb97749ccfcae60a8794b418a3f69bf9e835d44dca5d55ba1f",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.conversation.ConversationTest.xml": "0539b73ac267f99a467cfc1b199ecb676d88e26c82c61463477a51f4e00d1602",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.conversation.MentionsTest.xml": "38f8f6d7048854d6d986ed93e7dd73557a52759697a1949af47c505fd8dcc85a",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.conversation.QuoteTest.xml": "9b728e4f38d9cedbfd3b80183e0d8d0f4fafa43ad82e11bd015a2819adbd0de7",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.conversation.TranscriptTest.xml": "b0af2b14dd48ec1bc72d62bf85f447336a9fdaa1eb200208eb291933e89a1c37",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.decision.DecisionTest.xml": "d78aa2c6ff8a967fb9611f7015f3b1896832ac4f9a63b3d666e48602da611173",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.decision.JevDecisionProviderTest.xml": "eb2f9e2be52cd2542bde440711fe906a820acd08f725d4f11d61dffad24852bc",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.goal.GoalStateTest.xml": "bcf731589fcf446ac92e4bf0cf3cde16c948b330aa484465de6c56ee6775ab7b",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.goal.GoalStewardTest.xml": "b50ac036f8ad10066b73c95fcc1f5edc820f207e4c0077502a90b29e08409afa",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.goal.JevGoalJudgeTest.xml": "8bfcaaec24f191ab27b4dcd6593a57d743154d132be2413351eefba8a475f3b6",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.inbox.EventQueueTest.xml": "ef557029329bcd8e7fb054ecdbaf5915a600fc37c256f51d959661bd15cbc180",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.inbox.EventTypesTest.xml": "f5e7d9a16d9250711d1580fb2de001f4d0e1666273a95d59ed11eb7e7302f50a",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.inbox.JsonlJournalTest.xml": "5965d42724a634433e8e7dd2a4a4af217478bb1bb02176e2798941901dbb11fd",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$Compaction.xml": "0482118996cf17ed50f9f9abd4b473c0304e661d6c2d056bca94f44cc3e08ba0",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$Consult.xml": "cfc20b595ed662820a6fb07432cf44cde026b645f011d0c1e552fb6136701322",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$ControlEntries.xml": "83a9d44d0423b4effe4afdc69cd0eef48927d431318a462d4c98f5147b9c1900",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$EndpointGate.xml": "5ebeae29df60de75c1a496e568497fe331ebeb230f0d9cf16e54cc81749dceee",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$Failures.xml": "c03d353ff63754abd1781b6dfcf196bd5dc8e12437e968a742c978453fc4c6a7",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$Halting.xml": "4d70240076898be5320c394ac122bdbccd99d2ddf606390d0241ad64ef20f95c",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$Holds.xml": "92f1ea814381630cb39e946d5b2e165d8c6a3d4e2ab8784e5a8924a553f4a1a6",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$SteeringAndFollowUp.xml": "3d9d42b1d8d32f81ccbc7771d071df4d06c70f98942c57c9f1ec9f5aaead0807",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest$WhenARunStarts.xml": "9228f9fad549cd640c99aee6f7243b20ba3eab8436191bf19858af9b5b79a472",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.AgentLoopTest.xml": "c999d3d377a14428b8f571b7724c6a7e8f5e7b80ce4b257628eede4d82eb70ab",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.loop.LoopTablesTest.xml": "e1184048b67ec9666fa2ec877c64c837a7c0b57d4a508808a0007be56586abb0",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.memory.CompactorTest.xml": "d4c298fee395ff116fe58045de234fd2cea2e8ef72951d856e32e6239b6f0448",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.plan.CompilerTest.xml": "b4f28034912df4a219c5f6555fde1727d38d1bf6acd2e654e38753e9bfd8832e",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.plan.GapCalculatorTest.xml": "0c8107dda796229bb92ee3314220dc284d170ddc6510cf13c2b3d882d72077e3",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.recover.FailureClassifierTest.xml": "93a1467994f7289676ffba6920f5239c8147b5cd14fbf8c87e6b73ae79be2161",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.recover.ProgressTrackerTest.xml": "007217837304198b8c80d6e5a3228180a0c4633d39f28323b110471369cd36e6",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.recover.RecoverTest.xml": "4069edb1f303d6e2aa0e1246773d7dae7378ad8a96d848799f073510679555f9",
+          "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.utility.UtilityArbiterTest.xml": "610ec3e8cc0d8ab4bbbcc1e51db3b5b2a36fd4c882d6dbb2f60f44514a64bc0d"
+        }
+      },
+      {
+        "module": "core/common",
+        "status": "passed",
+        "tests": 381,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "junit_xml_sha256": {
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.act.BallisticsTest.xml": "c1eaf4bdbfa1dfd77cb01412d7cff20334d9f620408916972af9dd91fe6d13df",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.combat.AttackPlanTest.xml": "d5af06fbadcf8b9c64d7339f3ed2916731db719dcef3608a50b690d74da2ae03",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.combat.HavenTest.xml": "ee609ba736f0d02453f8f0f30e202162eef6f7ddf566fa66d7d96551ae64ac88",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.combat.MenaceTest.xml": "8def6c925557d50208569884c96e061e954cb790f460d7dc4818d64bc9e77433",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.combat.ShieldPlanTest.xml": "810fc61d9975fbe1dd1d2810c6705fb2a826e5f52937960f452266d066b7a80d",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.combat.SwingTest.xml": "ad8c5760b8d4cef250962fb78bf97f1d19c88e050c0e334f9fb96e7bf5be05c1",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.data.ModBlockTagDataTest.xml": "fb0662c24c3f57304995635dbaf3bea40a337092eb187ecebbe27f45b9644986",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.astar.AvoidanceTest.xml": "e789d1cd3e4f3c2aa52120606e7ddb809f4de15395dcfa48d1b1fc40bb0f3a88",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.astar.BestSoFarSelectionTest.xml": "d9dc0743a8832ead51b123f8d42a28f71645870bcbaa8072a7c20f86a8d98cda",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.astar.BinaryHeapOpenSetStressTest.xml": "925e26932123336b39fc1c8cd7fecd34afd3bc6885086dfe9ad7533ac81e429b",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.astar.FavoringTableTest.xml": "d331caf77be1eeb6cf2712eb2c5e04bff42c85123c3c6f3eca32c957a714f534",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.astar.SplicedPathTest.xml": "cc52af80d715f027458bb31c0dc2de78fdc7efc6717bb0f5ad96b60c18bbc5fc",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.astar.StaticCutoffTest.xml": "beaa53dc0425b6af65b6d7c2bfc5b1068fdf0a35d7f7753303f6d6e80dea2cb4",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.bridge.FrozenToolSetThreadingTest.xml": "7acd42ba8975eb004e8fac67be70249e53373be3bfcb962f45ee19d01654df5e",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.bridge.GoalAdapterTest.xml": "097f78377e7bdcd0967ba5c7e0f062721b69b0e83bf6c7fa99883a288a51aef3",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.calc.NavGoalMembershipTest.xml": "cd5461abe81c9492d4d4113f1ed00fb9cc2a6faa57c35b5f032687ab9c762a3c",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.execute.AimProcessorTest.xml": "763adcafdd747f134dea312130ce95fa6215109068025bd803afa5d0cc4007b6",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.execute.PathExecutorLogicTest.xml": "0afd018d10899c81e1eafc0de83d13ee034aaef423475d6bcbf150468e6b3ca8",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.goal.GoalCompilerTest.xml": "ac8c7dcede1e4cb8661dbbbec0514dce7ebacfbae8092c6ebd0301df3feccbd2",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.goals.GoalApproachAvoidingTest.xml": "7534b7969dc5a6918f32fc0251076baf43c4c617970d8f86a71c1e45b94bb78e",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.goals.GoalAvoidEntitiesTest.xml": "f5f4c05ba0033f5f82988348491403f67d3e43518fa0c3c31c824b43598aa26d",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.goals.GoalRingTest.xml": "73665972698690c8d3a3f46763829530d1f90b1c116acede24598c255d36bcd2",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.moves.ActionCostsTest.xml": "9fa126518c97ea8c9b2229d3d3e3d54264a75fd52e7cd02246145aee4faeb2a2",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.moves.movements.MovementCostsTest.xml": "7c319b9c65239480958d7b39669693e2804a13b8b4e2d0a98dfd9e8fdafa28ae",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.moves.movements.ThrowawaySelectionTest.xml": "0f258546e8ce422ddc01f21960a06f6bec2620a15310a92f71fbde2a5f6ba279",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.moves.ProtectionPinsTest.xml": "b7bdebb48f0b47eb81f4d6cf442f8d97ab230751a0520c85fd7682beb289e64b",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.plan.RouteBookTest.xml": "3edc4b101f33b192d867cea2662cb7cd685a7ca1bd7fca824d595a49835e5837",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.plan.RoutePlannerTest.xml": "0e84c6f425c9606d1245266f6e689dd86c6e4536298b87544b7eaac0fb216517",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.settings.ScaffoldMaterialsTest.xml": "c628edcc66769a4be0c7b6c12b80ce400403cf9e48ed7aa0d0aa6afe8bbceef2",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.spec.CellClassTest.xml": "08ff7d72d75363a625edcb52ed0935c8e9fb033a516d755a3b5ab2deedaabac3",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.pathing.spec.RouteSpecTest.xml": "457a1123a6832a1a8bb48dd62d37f83847385068ac51678b7a008d8fab3dd39f",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.scan.BlockGroupsTest.xml": "88a5ef857e8c919beb2617284520ce97f32a28a79d47fd5207e7fe44b520b590",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.scan.GroupBookTest.xml": "9dea0c28a2bb4c68e361e85cb5a645b716c640f87c68a3b2c574b84144b02b89",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.scan.SearchBudgetTest.xml": "ae49f4a6ada4c33babf009b33624f8dc93913ace193b286711061402659011c6",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.scan.SearchGeometryTest.xml": "efab8a58bb6520be35790ffa695626e1763f31a134960df1a2e372c7a517ff5b",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.task.build.BuildTaskRecordTest.xml": "a36b5880f990706ac4c75d655f0c196c88f6ca36f53a6d252aad2b6f68f51e7a",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.task.combat.RangedShotRulesTest.xml": "a82dd68f2c230d1b071358429bec603a545b744eb7ddd90c60a8805f00e06431",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.task.fish.FishingRulesTest.xml": "88678205be13ed19ae99749f18791cf6829227f22106df7c2b75d2b2b0c47cab",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.task.mine.NoPathVerdictTest.xml": "acd798c847edd7aa37d8c57fcb59fc17b8b7a60c86c9853a873126d534d50711",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.task.RecoveryLadderTest.xml": "e1ce311e0b5329fb4f42a12831c138f91e4822ddaa23a4f563bbea49307dbbe6",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.task.ReflexOrderTest.xml": "4c40997966eda4f52278a8d448094a385fd053f1ca98473005460500eec41740",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.task.survival.SurvivalDecisionsTest.xml": "34a64acbe1275f61c28bfad1b08b99ec9f9a582b22f8f4794255e56b1d97c5df",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.task.survival.UnstuckDetectorTest.xml": "c4fcce8036b868c21c437706a24e25d27c8381f9f13fb1ec9311a5f9e7d0d4fa",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.tools.AgentOpsTest.xml": "6be57fb87a155681b316c526ec79ad9692a78b7304f66c16796552452a200891",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.tools.CombatOpsTest.xml": "03f889df943717b01dc54e726d4c876acf1e1136506b6b9ed8a2bd3292799b03",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.tools.InventoryOpsUnequipTest.xml": "698d67ce23534ee77a57fbcedeb47739248327be77ccf8f12d6b1d43aed94189",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.tools.RecipeProbeTest.xml": "0006ea14cfb3241e254d171ee601264edb2662e87e68ff81b006eb51292c7735",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.tools.RouteSpecJsonTest.xml": "a4acd8c349babae9636adeade3b7ee4f30bd62872d33fc562905f255b976ee41",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.tools.ScanOpsTest.xml": "f2660daf3a0c9d69624a3413960fc577f0d5a0261e728f8b90ae2842761b2662",
+          "core/common/build/test-results/test/TEST-com.dwinovo.numen.core.tools.SleepOpsTest.xml": "8fd8a3e84c59499ae4176e155c913738893e329d5df3fe9ed3f8e8fb5c5b0389"
+        }
+      }
+    ],
+    "blocked_module": {
+      "module": "api/common",
+      "status": "compile_failed",
+      "source": "api/common/src/test/java/com/dwinovo/numen/api/adapter/AdapterHandlersTest.java:72",
+      "reason": "Container adapter lambda returns JsonObject; registered API expects String",
+      "tests_run": false,
+      "existing_failure": true
+    }
+  },
+  "python_tests": {
+    "status": "passed",
+    "tests": 51,
+    "log": "verification/survival/survival-python-tests.log"
+  },
+  "game_tests": {
+    "final_status": "passed",
+    "final_required_tests": 265,
+    "added_survival_tests": 9,
+    "final_log": "verification/survival/survival-gametest.log.gz",
+    "initial_status": "failed",
+    "initial_failed_test": "build_japanese_cottage",
+    "initial_failure_reason": "2 cells blocked by entities; built 5855/5857",
+    "initial_log": "verification/survival/survival-gametest-initial.log.gz",
+    "note": "Retain both outcomes; the complete subsequent run passed all required tests"
+  },
+  "logs": {
+    "survival-build.log": {
+      "original_path": "build/evals/survival-build.log",
+      "original_sha256": "f302975d0fb2fa502dc0f874b5039a192e62709f0537b43c7c7edd1ac46e4366",
+      "archive": "verification/survival/survival-build.log",
+      "archive_sha256": "f302975d0fb2fa502dc0f874b5039a192e62709f0537b43c7c7edd1ac46e4366"
+    },
+    "survival-unit-tests.log": {
+      "original_path": "build/evals/survival-unit-tests.log",
+      "original_sha256": "1d606b8103e984e4f67e162158e9532cdc6a63a571a01dffefb7cd8503af59cb",
+      "archive": "verification/survival/survival-unit-tests.log",
+      "archive_sha256": "1d606b8103e984e4f67e162158e9532cdc6a63a571a01dffefb7cd8503af59cb"
+    },
+    "survival-python-tests.log": {
+      "original_path": "build/evals/survival-python-tests.log",
+      "original_sha256": "a654faafb68e6c68a9a2070d8be765de8d5f93db638af46fc0d4a9dce3a398fd",
+      "archive": "verification/survival/survival-python-tests.log",
+      "archive_sha256": "a654faafb68e6c68a9a2070d8be765de8d5f93db638af46fc0d4a9dce3a398fd"
+    },
+    "survival-gametest.log": {
+      "original_path": "build/evals/survival-gametest.log",
+      "original_sha256": "fb593f1478b1e017560e649c8118ec553ad2fe4e58c48565b23095cfb5627e65",
+      "archive": "verification/survival/survival-gametest.log.gz",
+      "archive_sha256": "fe863db0fd50bc49a782553ad9dc2738a5b5fcc9bfb0d3c976bc7e6e3febbf04",
+      "compression": "gzip",
+      "excerpt": "verification/survival/survival-gametest-excerpt.log",
+      "excerpt_sha256": "b0d99eb6bbe7d404667cf9c76a7ae7dfa6ad5b97226a890ed2004e35c58f9f5c"
+    },
+    "survival-gametest-initial.log": {
+      "original_path": "build/evals/survival-gametest-initial.log",
+      "original_sha256": "a2c817469813b66aae42db350291954637d89e7f571cece8a56dfe9e3e03c580",
+      "archive": "verification/survival/survival-gametest-initial.log.gz",
+      "archive_sha256": "98d69e1f7c5e3e92a633eeccb4bf6ccb914d64ac1c84ef7d9c3b19225c98f3d7",
+      "compression": "gzip",
+      "excerpt": "verification/survival/survival-gametest-initial-excerpt.log",
+      "excerpt_sha256": "b36740949c02eaedaec0514aed2313d565cfc9b9691028153939e5241e274512"
+    }
+  },
+  "interrupted_survival_run": {
+    "source_run": "build/evals/live-v1/20261003T021202919920Z-7562409a",
+    "archive": "baselines/survival-interrupted-fixtures",
+    "original_run_status": "infra_error",
+    "original_report_status": "running",
+    "final_result_exists": false,
+    "copied_file_sha256": {
+      "request.json": "4646a1a4a7102e7795348d768d41f6ce656f506c2897f32c1245b441a14361fd",
+      "run.json": "5c481910ba622230c8bb4ed8f2b6f5dec6655d6d96faa24d7a54a2be769575c6",
+      "source-hashes.json": "78ba398490e02f60b39fa6883b380c434beb266f91e42b1c2aaf57c59f79df42",
+      "launcher.log": "9ed77b64afe5fd9de7f55551d0a530794f364f0d20d0da08f65e799596387e96",
+      "results/model.json": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9",
+      "results/progress.json": "dbe12d3371e41ee12cab91d50ab3c7c2dbcb86553c707b7d53f6a8877a317710"
+    },
+    "trace": {
+      "original_path": "build/evals/live-v1/20261003T021202919920Z-7562409a/results/trace.jsonl",
+      "original_sha256": "0c535bf3f3887b97067fece33350f97781e1816e6975ff27910e277269b3e52c",
+      "archive": "baselines/survival-interrupted-fixtures/results/trace.jsonl.gz",
+      "archive_sha256": "05e7fed6ee0a45a1b51274d9f339c05436fa8f81c49287ad15f49e908ad68a4e",
+      "compression": "gzip"
+    },
+    "status": "infra_error",
+    "termination": "externally_stopped",
+    "capability_baseline": false,
+    "reason": "NeoForge development client statically initialized GameTest fixtures; model invoked gt_linger and displaced mine. External stop preserved raw running progress; no final result was fabricated.",
+    "elapsed_ms_last_observed": 72799.5287,
+    "model_calls_observed": 14,
+    "usage_reports_observed": 13,
+    "tokens_observed": {
+      "input": 34227,
+      "output": 3883,
+      "cache_read": 286208,
+      "cache_write": 0,
+      "total": 324318
+    },
+    "usage_complete": false,
+    "cost": null,
+    "environment_registration_audit": "Not available in this pre-fix run; absence of registry fields is not a zero count",
+    "contamination_trace_lines": [
+      {
+        "line": 144,
+        "type": "assistant",
+        "elapsed_ms": 25645.7638
+      },
+      {
+        "line": 145,
+        "type": "tool_started",
+        "elapsed_ms": 25645.7924
+      },
+      {
+        "line": 146,
+        "type": "tool_finished",
+        "elapsed_ms": 25653.5674
+      },
+      {
+        "line": 148,
+        "type": "snapshot",
+        "elapsed_ms": 25797.5099
+      },
+      {
+        "line": 149,
+        "type": "snapshot",
+        "elapsed_ms": 25996.6243
+      },
+      {
+        "line": 150,
+        "type": "snapshot",
+        "elapsed_ms": 26199.2313
+      },
+      {
+        "line": 151,
+        "type": "snapshot",
+        "elapsed_ms": 26445.9398
+      },
+      {
+        "line": 152,
+        "type": "snapshot",
+        "elapsed_ms": 26695.8971
+      },
+      {
+        "line": 153,
+        "type": "snapshot",
+        "elapsed_ms": 26897.7863
+      },
+      {
+        "line": 154,
+        "type": "snapshot",
+        "elapsed_ms": 27146.9323
+      },
+      {
+        "line": 155,
+        "type": "snapshot",
+        "elapsed_ms": 27348.3942
+      },
+      {
+        "line": 156,
+        "type": "snapshot",
+        "elapsed_ms": 27600.772
+      },
+      {
+        "line": 157,
+        "type": "snapshot",
+        "elapsed_ms": 27798.8156
+      },
+      {
+        "line": 158,
+        "type": "snapshot",
+        "elapsed_ms": 28046.075
+      },
+      {
+        "line": 159,
+        "type": "snapshot",
+        "elapsed_ms": 28247.7374
+      },
+      {
+        "line": 160,
+        "type": "snapshot",
+        "elapsed_ms": 28495.5124
+      },
+      {
+        "line": 161,
+        "type": "snapshot",
+        "elapsed_ms": 28697.7491
+      },
+      {
+        "line": 162,
+        "type": "snapshot",
+        "elapsed_ms": 28898.898
+      },
+      {
+        "line": 163,
+        "type": "snapshot",
+        "elapsed_ms": 29148.132
+      },
+      {
+        "line": 164,
+        "type": "snapshot",
+        "elapsed_ms": 29347.5231
+      },
+      {
+        "line": 165,
+        "type": "snapshot",
+        "elapsed_ms": 29596.0033
+      },
+      {
+        "line": 166,
+        "type": "snapshot",
+        "elapsed_ms": 29795.9881
+      },
+      {
+        "line": 170,
+        "type": "tool_finished",
+        "elapsed_ms": 29914.9058
+      },
+      {
+        "line": 172,
+        "type": "snapshot",
+        "elapsed_ms": 30045.4511
+      },
+      {
+        "line": 173,
+        "type": "snapshot",
+        "elapsed_ms": 30246.571
+      },
+      {
+        "line": 174,
+        "type": "snapshot",
+        "elapsed_ms": 30448.3831
+      },
+      {
+        "line": 175,
+        "type": "snapshot",
+        "elapsed_ms": 30696.9178
+      },
+      {
+        "line": 176,
+        "type": "snapshot",
+        "elapsed_ms": 30896.8503
+      },
+      {
+        "line": 177,
+        "type": "snapshot",
+        "elapsed_ms": 31146.0013
+      },
+      {
+        "line": 178,
+        "type": "snapshot",
+        "elapsed_ms": 31346.6879
+      },
+      {
+        "line": 179,
+        "type": "snapshot",
+        "elapsed_ms": 31547.0759
+      },
+      {
+        "line": 180,
+        "type": "snapshot",
+        "elapsed_ms": 31797.8105
+      },
+      {
+        "line": 181,
+        "type": "snapshot",
+        "elapsed_ms": 31996.0203
+      },
+      {
+        "line": 182,
+        "type": "snapshot",
+        "elapsed_ms": 32199.1118
+      },
+      {
+        "line": 183,
+        "type": "snapshot",
+        "elapsed_ms": 32446.033
+      },
+      {
+        "line": 184,
+        "type": "snapshot",
+        "elapsed_ms": 32646.1119
+      },
+      {
+        "line": 185,
+        "type": "snapshot",
+        "elapsed_ms": 32847.6925
+      }
+    ]
+  },
+  "clean_harness_calibration": {
+    "source_run": "build/evals/live-v1/calibration-7be54127f4374ad38a1dd36808cc396a",
+    "archive": "baselines/survival-clean-calibration",
+    "original_run_status": "success",
+    "original_report_status": "success",
+    "final_result_exists": true,
+    "copied_file_sha256": {
+      "request.json": "653d14e46cbc67f8826efe28526684c2c634ca4641003cc2e8648b441cf0619c",
+      "run.json": "d4420d3f87bdcc1b927fcf7f94316a3e3884cc12d85d15672571653d19709584",
+      "source-hashes.json": "33e653f61b2fdedeb1c3b0c9459f189c3aba9bf7d46096b0ac3516b84c7e7e8c",
+      "launcher.log": "098320a22b467bbaa6fc0d0a130be98cfc800d63b653709ff39a8ec012e012c2",
+      "results/model.json": "ce788ceaa6d7405cd6d8b2a0dff36ef1fa6aa68cdaf1330479b0500775711862",
+      "results/progress.json": "7e611d91017ff6c9f4a5ef2f09ff3647763366738b2ec0612f303ba9b525d02b",
+      "results/result.json": "7e611d91017ff6c9f4a5ef2f09ff3647763366738b2ec0612f303ba9b525d02b"
+    },
+    "trace": {
+      "original_path": "build/evals/live-v1/calibration-7be54127f4374ad38a1dd36808cc396a/results/trace.jsonl",
+      "original_sha256": "a5d3e3b8e7294b19423ae1effc9348ad323d5868c663d8b84eff107a0f821191",
+      "archive": "baselines/survival-clean-calibration/results/trace.jsonl.gz",
+      "archive_sha256": "b62f43b7fb60d032fe1a3657b4cf3c627bf91c3834c7337356101dd77879ce19",
+      "compression": "gzip"
+    },
+    "status": "success",
+    "case_id": "live.craft-planks",
+    "evaluation_version": "live-v1",
+    "elapsed_ms": 401.9933,
+    "real_model": false,
+    "capability_baseline": false,
+    "usage_is_synthetic": true,
+    "model_calls": 4,
+    "tokens": {
+      "input": 4,
+      "output": 4,
+      "cache_read": 0,
+      "cache_write": 0,
+      "total": 8
+    },
+    "registered_game_tests": 0,
+    "registered_tool_count": 42,
+    "test_tool_prefix_present": false,
+    "purpose": "Clean real-client/world harness calibration with scripted localhost crafting, not a sustainable-survival run"
+  },
+  "formal_survival_run": {
+    "status": "budget_exhausted",
+    "reason": "max_seconds",
+    "case_id": "live.sustainable-survival",
+    "evaluation_version": "survival-v1",
+    "source_run": "build/evals/live-v1/20261003T022055527569Z-300c622c",
+    "archive": "baselines/deepseek-v4.1-flash-survival",
+    "result": "baselines/deepseek-v4.1-flash-survival/results/result.json",
+    "capability_baseline": true,
+    "task_success": false,
+    "split": "dev",
+    "repetitions": 1,
+    "seed": 73002,
+    "independent_test": false,
+    "model": "deepseek-v4.1-flash",
+    "endpoint_provider": "B.AI",
+    "proxy_configured": true,
+    "budget": {
+      "max_model_calls": 80,
+      "max_seconds": 1700,
+      "max_tokens": 2600000
+    },
+    "elapsed_ms": 1700033.8171,
+    "success_held_ticks": 0,
+    "source_sha256": "1b3e98c40b00cd8be8e937cabf769c3dce208b7eb304694c50694b0acd568006",
+    "candidate": "f39ee4d9bfa0+1b3e98c40b00",
+    "launcher_exit_code": 0,
+    "source_hash_check": "Launcher completed normal result validation and frozen-source check with exit code 0",
+    "registered_game_tests": 0,
+    "registered_tool_count": 42,
+    "test_tool_prefix_present": false,
+    "model_calls": 58,
+    "usage_reports": 45,
+    "attempts_without_usage_report": 13,
+    "usage_complete": false,
+    "tokens_observed": {
+      "input": 119837,
+      "output": 45084,
+      "cache_read": 2316288,
+      "cache_write": 0,
+      "total": 2481209
+    },
+    "cost": null,
+    "usage_limitation": "13 request attempts lack usage reports, including failed or cancelled attempts; observed token total is not full usage or a monetary cost.",
+    "milestones_reached": 1,
+    "milestones_total": 6,
+    "milestones": [
+      {
+        "id": "usable-tools",
+        "condition": {
+          "world": {
+            "usable_pickaxe": true,
+            "usable_hoe": true
+          }
+        },
+        "status": "reached",
+        "elapsed_ms": 865538.641,
+        "note": "World observer confirmed usable pickaxe and hoe; inventory still satisfies both at the end."
+      },
+      {
+        "id": "placed-workstations",
+        "condition": {
+          "world": {
+            "crafting_tables": 1,
+            "furnaces": 1
+          }
+        },
+        "status": "unreached",
+        "elapsed_ms": null,
+        "note": "Final nearby world has 1 crafting table and 0 placed furnaces; 1 furnace exists only in inventory."
+      },
+      {
+        "id": "growing-field",
+        "condition": {
+          "world": {
+            "growing_wheat": 8
+          }
+        },
+        "status": "unreached",
+        "elapsed_ms": null,
+        "note": "Final nearby world has 0 qualifying wheat plants."
+      },
+      {
+        "id": "harvest-and-replant",
+        "condition": {
+          "world": {
+            "replanted_wheat": 3
+          }
+        },
+        "status": "unreached",
+        "elapsed_ms": null,
+        "note": "No milestone reached; final attributed replant count is 0."
+      },
+      {
+        "id": "safe-food-reserve",
+        "condition": {
+          "world": {
+            "food_nutrition": 20
+          }
+        },
+        "status": "unreached",
+        "elapsed_ms": null,
+        "note": "No milestone reached; final safe-food nutrition reserve is 0."
+      },
+      {
+        "id": "safe-base",
+        "condition": {
+          "min_health": 10,
+          "min_food": 12,
+          "world": {
+            "shelter": true
+          }
+        },
+        "status": "unreached",
+        "elapsed_ms": null,
+        "note": "No milestone reached; final shelter reason is open_or_oversize_room."
+      }
+    ],
+    "final_alive": true,
+    "final_deaths": 0,
+    "final_health": 12.533333,
+    "final_food": 16,
+    "min_health_observed": 8.0,
+    "world_snapshot_count": 7755,
+    "final_world_observation": {
+      "usable_pickaxe": true,
+      "usable_hoe": true,
+      "crafting_tables": 1,
+      "furnaces": 0,
+      "growing_wheat": 0,
+      "replanted_wheat": 0,
+      "food_nutrition": 0,
+      "shelter": false
+    },
+    "transport_observations": {
+      "sse_idle_over_90000ms": 11,
+      "sse_launcher_log_lines": [
+        184,
+        274,
+        285,
+        319,
+        365,
+        547,
+        883,
+        936,
+        938,
+        945,
+        1008
+      ],
+      "tls_handshake_retries": 1,
+      "tls_launcher_log_lines": [
+        276
+      ],
+      "interpretation": "These delays occurred during the task but do not alone establish why every unreached milestone failed."
+    },
+    "self_preservation_observations": {
+      "automatic_defense_takeovers": 2,
+      "launcher_log_lines": [
+        746,
+        844
+      ],
+      "controlled_response_benchmark": false,
+      "interpretation": "Observed natural encounters; no injected attack scenario or reaction-latency correctness score."
+    },
+    "first_reply_ms": 95141.8508,
+    "first_token_ms": 142226.6213,
+    "correct_response_ms": null,
+    "response_correctness": "not_measured",
+    "limitations": [
+      "One exposed dev scenario and one seed; not independent testing or a population success-rate estimate.",
+      "Time budget exhausted with 1 of 6 milestones observed; not a claim of sustainable survival.",
+      "Crop regeneration, attributed replanting, adequate food reserve and safe shelter were not achieved.",
+      "Observed transport failures and incomplete task progress are both retained; causation is not assigned solely to the model or network.",
+      "Controlled follow, interruption, stopping and attack-response benchmarks remain unrun.",
+      "Full-night survival, repeated agricultural cycles and dragon progression remain untested."
+    ],
+    "copied_file_sha256": {
+      "request.json": "7644986d8f3cfc05d0c7f7462ca0650c8a25a9ff17c31fde136578c78d7886fe",
+      "run.json": "3dd619e72428e5148b4565471d597b80d9bf9f1bbf4ac8d4e4fe0b6df63bcb52",
+      "source-hashes.json": "6b4a9c916acb9e9803de4f09ad3572dbf95e04f3329147578030c992cef44f1d",
+      "launcher.log": "05cfd26bc64c7f1e59f89a826995077f828be6a4b98d88615930cd8274aa74dc",
+      "results/model.json": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9",
+      "results/progress.json": "368407a0469bdd71502fd99281cb8fee66ddbf3142fb184c4b2c5efa723c8bd3",
+      "results/result.json": "368407a0469bdd71502fd99281cb8fee66ddbf3142fb184c4b2c5efa723c8bd3"
+    },
+    "trace": {
+      "original_path": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/trace.jsonl",
+      "original_sha256": "46762fa9d89366ef213aa0dbf56f7381eb73510876dd1f04ecd13e0a5d94e352",
+      "archive": "baselines/deepseek-v4.1-flash-survival/results/trace.jsonl.gz",
+      "archive_sha256": "e25283a6440365e801976537f76f35c8124851b1b567f69fea69aea002eefbcf",
+      "compression": "gzip"
+    }
+  },
+  "secret_review": {
+    "private_profile_read_for_archive": false,
+    "scope": "Only explicitly allowed run artifacts and test logs; no game directory or credential file copied",
+    "exact_key_scan": "passed",
+    "exact_key_scan_scope": "All 1510 tracked or non-ignored working-tree files plus evals artifacts; all 5 gzip files also decompressed and checked against the selected private API key in memory. No matching credential found; credential value was not printed or stored in this record.",
+    "archive_integrity": "All three survival-stage archives match their original artifacts, including decompressed trace SHA256 values.",
+    "frozen_source_check": "All 1244 source manifest entries still match the formal run."
+  },
+  "real_survival_attempts_usage": {
+    "formal_observed_tokens": 2481209,
+    "interrupted_observed_tokens": 324318,
+    "combined_observed_tokens": 2805527,
+    "combined_request_attempts_observed": 72,
+    "combined_usage_reports_observed": 58,
+    "usage_complete": false,
+    "cost": null,
+    "synthetic_calibration_tokens_excluded": true,
+    "old_crafting_smoke_tokens_excluded": true,
+    "note": "Budget accounting combines both real survival attempts; capability scoring excludes the contaminated interrupted run."
+  }
+}

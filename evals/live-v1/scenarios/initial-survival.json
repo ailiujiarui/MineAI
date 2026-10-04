@@ -1,0 +1,26 @@
+{
+  "evaluation_version": "live-v1",
+  "case_id": "live.initial-survival",
+  "split": "dev",
+  "source": "Hand-authored exploratory long-task case; exposed to evaluator developers",
+  "prompt": "从空背包开始，独立探索并准备好石镐、熔炉、8 个火把和 3 个熟牛肉，全部留在你的背包中。过程中自己处理生存危险；完成时至少保有 10 点生命和 12 点饱食度。不需要向我索要物资或操作帮助。",
+  "seed": 73002,
+  "world_preset": "normal",
+  "setup": {"inventory": {}},
+  "success": {
+    "items": {
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:furnace": 1,
+      "minecraft:torch": 8,
+      "minecraft:cooked_beef": 3
+    },
+    "min_health": 10,
+    "min_food": 12
+  },
+  "milestones": [
+    {"id": "stone-tool", "condition": {"items": {"minecraft:stone_pickaxe": 1}}},
+    {"id": "furnace", "condition": {"items": {"minecraft:furnace": 1}}},
+    {"id": "lighting", "condition": {"items": {"minecraft:torch": 8}}},
+    {"id": "food-reserve", "condition": {"items": {"minecraft:cooked_beef": 3}}}
+  ]
+}

@@ -1,0 +1,1470 @@
+{
+  "evaluation_version": "survival-v2",
+  "case_id": "live.free-survival",
+  "run_directory": "build/evals/live-v1/free-survival-v2-budget-20261004",
+  "final_review": true,
+  "scope": "Read-only final evidence review. Only this ignored action-review.json was written; source, prompt, scenario, model, config, world and earlier archives were not changed. No paid/model/network/Gradle/browser actions.",
+  "sources": {
+    "result": "build/evals/live-v1/free-survival-v2-budget-20261004/results/result.json",
+    "trace": "build/evals/live-v1/free-survival-v2-budget-20261004/results/trace.jsonl",
+    "chat": "build/evals/live-v1/free-survival-v2-budget-20261004/results/chat.jsonl",
+    "launcher": "build/evals/live-v1/free-survival-v2-budget-20261004/launcher.log",
+    "source_manifest": "build/evals/live-v1/free-survival-v2-budget-20261004/source-hashes.json",
+    "prior_midrun_review": "build/evals/free-survival-v2-budget/partial-action-check.json"
+  },
+  "outcome": {
+    "status": "success",
+    "reason": "authoritative_success_criterion_met",
+    "elapsed_ms": 1260287.7338,
+    "success_held_ticks": 1202,
+    "model_calls": 186,
+    "usage_reports": 183,
+    "unknown_usage_reports": 0,
+    "usage_complete": false,
+    "tokens": {
+      "input": 251554,
+      "output": 74648,
+      "cache_read": 13159808,
+      "cache_write": 0,
+      "total": 13486010
+    },
+    "cost": null
+  },
+  "milestones": [
+    {
+      "id": "first-safe-food",
+      "elapsed_ms": 508386.6895,
+      "game_tick": 10233,
+      "elapsed_ticks": 10168,
+      "nutrition": 9,
+      "health": 20.0,
+      "food": 9
+    },
+    {
+      "id": "safe-food-reserve",
+      "elapsed_ms": 934442.5031,
+      "game_tick": 18754,
+      "elapsed_ticks": 18689,
+      "nutrition": 24,
+      "health": 20.0,
+      "food": 6
+    },
+    {
+      "id": "effective-refuel",
+      "elapsed_ms": 991687.5087,
+      "game_tick": 19899,
+      "elapsed_ticks": 19834,
+      "nutrition": 16,
+      "health": 20.0,
+      "food": 14
+    },
+    {
+      "id": "survived-first-cycle",
+      "elapsed_ms": 1200186.9896,
+      "game_tick": 24069,
+      "elapsed_ticks": 24004,
+      "nutrition": 24,
+      "health": 20.0,
+      "food": 14
+    }
+  ],
+  "real_refuel": {
+    "meal": {
+      "id": "minecraft:cooked_beef",
+      "count": 1,
+      "game_tick": 19897,
+      "dimension": "minecraft:overworld",
+      "food_before": 6,
+      "food_after": 14,
+      "saturation_before": 0.0,
+      "saturation_after": 12.8,
+      "safe_nutrition": 8,
+      "effective_safe_meal": true
+    },
+    "first_observed_trace_line": 5201,
+    "first_observed_elapsed_ms": 991687.5087,
+    "evidence_path": "result.final_snapshot.world.evidence.first_effective_safe_meal",
+    "safe_meals": 1,
+    "restored_food": 8,
+    "note": "One real cooked_beef consumption at tick19897 raised food6->14 and saturation0->12.8. Observer records the native consumption, not merely eat dispatch or model text. Final cooked_beef count2 remains after consuming one of the three cooked steaks.",
+    "cooking_and_consumption_tools": [
+      {
+        "trace_line": 4511,
+        "elapsed_ms": 858777.7317,
+        "tool": "inspect_gui",
+        "arguments": "{}",
+        "result": "{\"success\":true,\"message\":\"GUI: FurnaceMenu\\ncontainer slots:\\n  0: - [Slot]\\n  1: - [FurnaceFuelSlot]\\n  2: - [FurnaceResultSlot]\\nyour inventory (non-empty):\\n  3: coal x8\\n  4: beef x3\\n  5: porkchop x1\\n  6: egg x5\\n  25: stone_axe x1\\n  26: diorite x3\\n  27: stone_sword x1\\n  29: wheat_seeds x1\\n  30: oak_sapling x3\\n  31: oak_log x3\\n  32: dirt x13\\n  33: stone_pickaxe x1\\n  34: wooden_sword x1\\n  35: wooden_axe x1\\n  36: stick x8\\n  37: cobblestone x13\\n  38: oak_planks x12\\ncursor: -\\ndata values (machine state — progress/fuel/energy/…, meaning is GUI-specific): [0, 0, 0, 0]\\ntip: transfer {from} (no `to`) routes a whole stack to the other section; add `to` + `count` for an exact move into a specific slot.\"}"
+      },
+      {
+        "trace_line": 4547,
+        "elapsed_ms": 865515.1581,
+        "tool": "transfer",
+        "arguments": "{\"moves\": [{\"from\": 4, \"to\": 0, \"count\": 3}, {\"from\": 3, \"to\": 1, \"count\": 1}]}",
+        "result": "{\"success\":true,\"message\":\"1. moved 3 beef from slot 4 to slot 0 (slot 0 now 3; slot 4 emptied).\\n2. moved 1 coal from slot 3 to slot 1 (slot 1 now 1; 7 left in slot 3).\"}"
+      },
+      {
+        "trace_line": 4883,
+        "elapsed_ms": 929718.5822,
+        "tool": "inspect_gui",
+        "arguments": "{}",
+        "result": "{\"success\":true,\"message\":\"GUI: FurnaceMenu\\ncontainer slots:\\n  0: - [Slot]\\n  1: - [FurnaceFuelSlot]\\n  2: cooked_beef x3 [FurnaceResultSlot] [output]\\nyour inventory (non-empty):\\n  3: coal x7\\n  5: porkchop x1\\n  6: egg x5\\n  25: stone_axe x1\\n  26: diorite x3\\n  27: stone_sword x1\\n  29: wheat_seeds x1\\n  30: oak_sapling x3\\n  31: oak_log x3\\n  32: dirt x14\\n  33: stone_pickaxe x1\\n  34: wooden_sword x1\\n  35: wooden_axe x1\\n  36: stick x8\\n  37: cobblestone x13\\n  38: oak_planks x12\\ncursor: -\\ndata values (machine state — progress/fuel/energy/…, meaning is GUI-specific): [316, 1600, 0, 200]\\ntip: transfer {from} (no `to`) routes a whole stack to the other section; add `to` + `count` for an exact move into a specific slot.\"}"
+      },
+      {
+        "trace_line": 4909,
+        "elapsed_ms": 934356.1732,
+        "tool": "transfer",
+        "arguments": "{\"moves\": [{\"count\": null, \"from\": 2, \"to\": null}, {\"count\": 1, \"from\": 5, \"to\": 0}]}",
+        "result": "{\"success\":true,\"message\":\"1. routed 3 cooked_beef from slot 2 to the other section (deposit/take/feed).\\n2. moved 1 porkchop from slot 5 to slot 0 (slot 0 now 1; slot 5 emptied).\"}"
+      },
+      {
+        "trace_line": 5192,
+        "elapsed_ms": 989995.1738,
+        "tool": "eat",
+        "arguments": "{\"item_id\": \"minecraft:cooked_beef\"}",
+        "result": "{\"success\":true,\"message\":\"已受理,后台执行中。完成会自动收到 task_finished 事件,不要轮询;task_status 查进度,task_stop 叫停。\",\"data\":{\"async\":true,\"task_id\":\"t28\",\"task\":\"eat\",\"standing\":false}}"
+      },
+      {
+        "trace_line": 5331,
+        "elapsed_ms": 1015104.0144,
+        "tool": "inspect_gui",
+        "arguments": "{}",
+        "result": "{\"success\":true,\"message\":\"GUI: FurnaceMenu\\ncontainer slots:\\n  0: - [Slot]\\n  1: - [FurnaceFuelSlot]\\n  2: cooked_porkchop x1 [FurnaceResultSlot] [output]\\nyour inventory (non-empty):\\n  3: coal x7\\n  6: egg x5\\n  25: stone_axe x1\\n  26: diorite x3\\n  27: stone_sword x1\\n  28: dirt x13\\n  29: wheat_seeds x1\\n  30: oak_sapling x3\\n  31: oak_log x3\\n  32: cooked_beef x2\\n  33: stone_pickaxe x1\\n  34: wooden_sword x1\\n  35: wooden_axe x1\\n  36: stick x8\\n  37: cobblestone x13\\n  38: oak_planks x12\\ncursor: -\\ndata values (machine state — progress/fuel/energy/…, meaning is GUI-specific): [0, 1600, 0, 200]\\ntip: transfer {from} (no `to`) routes a whole stack to the other section; add `to` + `count` for an exact move into a specific slot.\"}"
+      },
+      {
+        "trace_line": 5354,
+        "elapsed_ms": 1019059.5386,
+        "tool": "transfer",
+        "arguments": "{\"moves\": [{\"count\": null, \"from\": 2, \"to\": null}]}",
+        "result": "{\"success\":true,\"message\":\"1. routed 1 cooked_porkchop from slot 2 to the other section (deposit/take/feed).\"}"
+      }
+    ]
+  },
+  "final_state": {
+    "alive": true,
+    "deaths": 0,
+    "health": 20.0,
+    "food": 14,
+    "food_nutrition": 24,
+    "food_evidence": [
+      {
+        "id": "minecraft:cooked_porkchop",
+        "count": 1,
+        "nutrition": 8
+      },
+      {
+        "id": "minecraft:cooked_beef",
+        "count": 2,
+        "nutrition": 16
+      }
+    ],
+    "elapsed_ticks": 25206,
+    "safe_state": true,
+    "safety": {
+      "valid": true,
+      "on_fire": false,
+      "in_lava": false,
+      "drowning": false,
+      "air_supply": 300,
+      "fully_frozen": false,
+      "harmful_effects": [],
+      "visible_attackers_within_16": []
+    },
+    "inventory": {
+      "minecraft:coal": 7,
+      "minecraft:cobblestone": 13,
+      "minecraft:cooked_beef": 2,
+      "minecraft:cooked_porkchop": 1,
+      "minecraft:diorite": 3,
+      "minecraft:dirt": 11,
+      "minecraft:egg": 5,
+      "minecraft:oak_log": 3,
+      "minecraft:oak_planks": 12,
+      "minecraft:oak_sapling": 3,
+      "minecraft:stick": 8,
+      "minecraft:stone_axe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_sword": 1,
+      "minecraft:wheat_seeds": 1,
+      "minecraft:wooden_axe": 1,
+      "minecraft:wooden_sword": 1
+    },
+    "position": [
+      295.51659313932447,
+      68.0,
+      -96.54056170359847
+    ],
+    "current_task": null,
+    "trace_line": 6718
+  },
+  "success_hold": {
+    "required_ticks": 1200,
+    "reported_held_ticks": 1202,
+    "threshold_snapshot_game_tick": 24069,
+    "final_game_tick": 25271,
+    "game_tick_difference": 1202,
+    "threshold_elapsed_ms": 1200186.9896,
+    "finish_elapsed_ms": 1260287.7338,
+    "observed_snapshots_in_hold": 277,
+    "all_observed_hold_snapshots_satisfy_final_predicate": true,
+    "note": "Milestones are latched history; authoritative success additionally confirms simultaneous final conditions held for1202 game ticks. Reserve briefly fell from24 to16 after the steak meal and was restored to24 by collecting cooked porkchop at1019.060s, well before the duration threshold."
+  },
+  "route": {
+    "observed": "Wood/stone/coal gathering, cow/pig hunting, collect drops, craft/put furnaces, cook3beef and1porkchop, eat1cooked_beef, retain2cooked_beef+1cooked_porkchop, wait through first actual cycle and hold.",
+    "agriculture_executed": false,
+    "agriculture_evidence": "No hoe, crop planting, farmland placement or harvest in207 finished tools. Wheat_seeds1 was incidental inventory.",
+    "dirt_shelter_free_choice": true,
+    "dirt_shelter_chat_line": 203,
+    "dirt_shelter_trace_line": 3485,
+    "dirt_shelter_reason": "Chat reasoning203 explicitly chose to build a small shelter before cooking because night and mobs might interrupt. Public prompt says no specified house shape; scoring checks current safety, food, meal and actual duration.",
+    "dirt_shelter_limitation": "The initial dirt enclosure obstructed furnace interaction at687.661s. Later repositioning/clearing recovered; this was a model route choice, not a compulsory building subtask.",
+    "phases": [
+      {
+        "event": "first_furnace_placement_dispatched",
+        "elapsed_ms": 336682.9099,
+        "trace_line": 1678
+      },
+      {
+        "event": "first_scored_food_observed",
+        "elapsed_ms": 508386.6895
+      },
+      {
+        "event": "second_furnace_and_dirt_enclosure_dispatched",
+        "elapsed_ms": 663285.4603,
+        "trace_line": 3485
+      },
+      {
+        "event": "furnace_successfully_inspected",
+        "elapsed_ms": 858777.7317,
+        "trace_line": 4511
+      },
+      {
+        "event": "three_beef_and_coal_inserted",
+        "elapsed_ms": 865515.1581,
+        "trace_line": 4547
+      },
+      {
+        "event": "reserve_first_reached",
+        "elapsed_ms": 934442.5031
+      },
+      {
+        "event": "real_effective_meal_observed",
+        "elapsed_ms": 991687.5087
+      },
+      {
+        "event": "cooked_porkchop_taken_reserve_restored24",
+        "elapsed_ms": 1019059.5386,
+        "trace_line": 5354
+      },
+      {
+        "event": "actual_cycle_threshold",
+        "elapsed_ms": 1200186.9896
+      },
+      {
+        "event": "success_after_hold",
+        "elapsed_ms": 1260287.7338
+      }
+    ]
+  },
+  "task_stop": {
+    "tool_calls": 1,
+    "trace_line": 3034,
+    "elapsed_ms": 573341.4206,
+    "assistant_chat_line": 183,
+    "tool_chat_line": 184,
+    "intent": "Intentional cancellation of slow last pig chase at4/5, followed by collect_items. Chat183 says last pig is taking long, hunger is6, and explicitly decides to stop then collect drops. This is not the earlier-v1 end-turn confusion.",
+    "receipt_chat_lines": [
+      184,
+      185,
+      186
+    ]
+  },
+  "tool_counts": {
+    "started": 207,
+    "finished": 207,
+    "counts": {
+      "attack": 2,
+      "build": 6,
+      "close_gui": 3,
+      "collect_items": 1,
+      "command": 109,
+      "craft": 13,
+      "eat": 1,
+      "get_self_status": 4,
+      "get_world_info": 8,
+      "goto": 7,
+      "inspect_block": 12,
+      "inspect_gui": 3,
+      "interact_at": 9,
+      "locate_biome": 1,
+      "locate_structure": 1,
+      "look_around": 6,
+      "mine": 3,
+      "scan_blocks": 2,
+      "scan_nearby_entities": 7,
+      "set_timer": 4,
+      "task_stop": 1,
+      "todowrite": 1,
+      "transfer": 3
+    },
+    "direct_task_status": 0,
+    "command_total": 109,
+    "command_task_status": 107,
+    "command_help": 2,
+    "help_commands": [
+      "numen task --help",
+      "numen --help"
+    ]
+  },
+  "query_cost": {
+    "status_model_responses": 107,
+    "status_total_tokens": 8661847,
+    "status_prompt_tokens_including_cache": 8648499,
+    "status_output_tokens": 13348,
+    "status_percent_of_reported_total": 64.228389,
+    "help_responses": 2,
+    "help_total_tokens": 64126,
+    "note": "Count command arguments, not just tool name. All107 task-status queries used command wrapper. Query tokens include repeated cached context reads. Success with larger budget does not remove the repeated-query inefficiency.",
+    "status_requests": [
+      {
+        "request": 21,
+        "trace_line": 1401,
+        "elapsed_ms": 287648.3424,
+        "launcher_line": 474,
+        "latency_ms": 2691,
+        "prompt_including_cache": 34883,
+        "output": 91,
+        "total": 34974
+      },
+      {
+        "request": 24,
+        "trace_line": 1455,
+        "elapsed_ms": 296452.0049,
+        "launcher_line": 514,
+        "latency_ms": 3408,
+        "prompt_including_cache": 35609,
+        "output": 99,
+        "total": 35708
+      },
+      {
+        "request": 32,
+        "trace_line": 1694,
+        "elapsed_ms": 339609.0357,
+        "launcher_line": 577,
+        "latency_ms": 2916,
+        "prompt_including_cache": 39857,
+        "output": 51,
+        "total": 39908
+      },
+      {
+        "request": 34,
+        "trace_line": 1758,
+        "elapsed_ms": 351469.0962,
+        "launcher_line": 594,
+        "latency_ms": 3386,
+        "prompt_including_cache": 40647,
+        "output": 221,
+        "total": 40868
+      },
+      {
+        "request": 35,
+        "trace_line": 1777,
+        "elapsed_ms": 354550.4107,
+        "launcher_line": 602,
+        "latency_ms": 3070,
+        "prompt_including_cache": 41061,
+        "output": 118,
+        "total": 41179
+      },
+      {
+        "request": 36,
+        "trace_line": 1802,
+        "elapsed_ms": 358928.9773,
+        "launcher_line": 614,
+        "latency_ms": 4362,
+        "prompt_including_cache": 41274,
+        "output": 225,
+        "total": 41499
+      },
+      {
+        "request": 37,
+        "trace_line": 1826,
+        "elapsed_ms": 362948.2305,
+        "launcher_line": 626,
+        "latency_ms": 4008,
+        "prompt_including_cache": 41582,
+        "output": 128,
+        "total": 41710
+      },
+      {
+        "request": 38,
+        "trace_line": 1849,
+        "elapsed_ms": 366951.4698,
+        "launcher_line": 634,
+        "latency_ms": 3988,
+        "prompt_including_cache": 41792,
+        "output": 151,
+        "total": 41943
+      },
+      {
+        "request": 39,
+        "trace_line": 1872,
+        "elapsed_ms": 370769.1541,
+        "launcher_line": 641,
+        "latency_ms": 3803,
+        "prompt_including_cache": 42025,
+        "output": 80,
+        "total": 42105
+      },
+      {
+        "request": 40,
+        "trace_line": 1889,
+        "elapsed_ms": 373456.6985,
+        "launcher_line": 649,
+        "latency_ms": 2670,
+        "prompt_including_cache": 42187,
+        "output": 50,
+        "total": 42237
+      },
+      {
+        "request": 41,
+        "trace_line": 1906,
+        "elapsed_ms": 376063.0189,
+        "launcher_line": 657,
+        "latency_ms": 2591,
+        "prompt_including_cache": 42319,
+        "output": 67,
+        "total": 42386
+      },
+      {
+        "request": 42,
+        "trace_line": 1925,
+        "elapsed_ms": 379040.4102,
+        "launcher_line": 665,
+        "latency_ms": 2959,
+        "prompt_including_cache": 42468,
+        "output": 78,
+        "total": 42546
+      },
+      {
+        "request": 43,
+        "trace_line": 1947,
+        "elapsed_ms": 382653.2791,
+        "launcher_line": 674,
+        "latency_ms": 3601,
+        "prompt_including_cache": 42628,
+        "output": 84,
+        "total": 42712
+      },
+      {
+        "request": 44,
+        "trace_line": 1967,
+        "elapsed_ms": 385860.453399,
+        "launcher_line": 682,
+        "latency_ms": 3191,
+        "prompt_including_cache": 42794,
+        "output": 64,
+        "total": 42858
+      },
+      {
+        "request": 45,
+        "trace_line": 1983,
+        "elapsed_ms": 388173.6693,
+        "launcher_line": 690,
+        "latency_ms": 2298,
+        "prompt_including_cache": 42940,
+        "output": 55,
+        "total": 42995
+      },
+      {
+        "request": 46,
+        "trace_line": 2009,
+        "elapsed_ms": 392639.527799,
+        "launcher_line": 700,
+        "latency_ms": 4452,
+        "prompt_including_cache": 43084,
+        "output": 85,
+        "total": 43169
+      },
+      {
+        "request": 48,
+        "trace_line": 2056,
+        "elapsed_ms": 400802.5232,
+        "launcher_line": 715,
+        "latency_ms": 2218,
+        "prompt_including_cache": 43907,
+        "output": 58,
+        "total": 43965
+      },
+      {
+        "request": 49,
+        "trace_line": 2076,
+        "elapsed_ms": 403950.512199,
+        "launcher_line": 737,
+        "latency_ms": 3132,
+        "prompt_including_cache": 44157,
+        "output": 84,
+        "total": 44241
+      },
+      {
+        "request": 50,
+        "trace_line": 2100,
+        "elapsed_ms": 408300.7616,
+        "launcher_line": 745,
+        "latency_ms": 4332,
+        "prompt_including_cache": 44323,
+        "output": 64,
+        "total": 44387
+      },
+      {
+        "request": 54,
+        "trace_line": 2263,
+        "elapsed_ms": 438356.3263,
+        "launcher_line": 770,
+        "latency_ms": 2578,
+        "prompt_including_cache": 48793,
+        "output": 69,
+        "total": 48862
+      },
+      {
+        "request": 55,
+        "trace_line": 2292,
+        "elapsed_ms": 443386.0969,
+        "launcher_line": 775,
+        "latency_ms": 5016,
+        "prompt_including_cache": 49055,
+        "output": 416,
+        "total": 49471
+      },
+      {
+        "request": 56,
+        "trace_line": 2313,
+        "elapsed_ms": 446827.1642,
+        "launcher_line": 780,
+        "latency_ms": 3429,
+        "prompt_including_cache": 49553,
+        "output": 134,
+        "total": 49687
+      },
+      {
+        "request": 57,
+        "trace_line": 2331,
+        "elapsed_ms": 449587.3794,
+        "launcher_line": 785,
+        "latency_ms": 2749,
+        "prompt_including_cache": 49769,
+        "output": 59,
+        "total": 49828
+      },
+      {
+        "request": 58,
+        "trace_line": 2354,
+        "elapsed_ms": 453376.9198,
+        "launcher_line": 790,
+        "latency_ms": 3773,
+        "prompt_including_cache": 49910,
+        "output": 79,
+        "total": 49989
+      },
+      {
+        "request": 59,
+        "trace_line": 2372,
+        "elapsed_ms": 456182.3967,
+        "launcher_line": 795,
+        "latency_ms": 2788,
+        "prompt_including_cache": 50071,
+        "output": 62,
+        "total": 50133
+      },
+      {
+        "request": 63,
+        "trace_line": 2545,
+        "elapsed_ms": 489570.764199,
+        "launcher_line": 874,
+        "latency_ms": 3704,
+        "prompt_including_cache": 52758,
+        "output": 107,
+        "total": 52865
+      },
+      {
+        "request": 64,
+        "trace_line": 2563,
+        "elapsed_ms": 492330.691199,
+        "launcher_line": 881,
+        "latency_ms": 2748,
+        "prompt_including_cache": 53048,
+        "output": 52,
+        "total": 53100
+      },
+      {
+        "request": 65,
+        "trace_line": 2582,
+        "elapsed_ms": 495478.6814,
+        "launcher_line": 887,
+        "latency_ms": 3130,
+        "prompt_including_cache": 53177,
+        "output": 54,
+        "total": 53231
+      },
+      {
+        "request": 66,
+        "trace_line": 2605,
+        "elapsed_ms": 499248.9254,
+        "launcher_line": 894,
+        "latency_ms": 3757,
+        "prompt_including_cache": 53308,
+        "output": 55,
+        "total": 53363
+      },
+      {
+        "request": 67,
+        "trace_line": 2623,
+        "elapsed_ms": 502167.4262,
+        "launcher_line": 937,
+        "latency_ms": 2900,
+        "prompt_including_cache": 53440,
+        "output": 82,
+        "total": 53522
+      },
+      {
+        "request": 68,
+        "trace_line": 2642,
+        "elapsed_ms": 505255.7518,
+        "launcher_line": 1002,
+        "latency_ms": 3070,
+        "prompt_including_cache": 53599,
+        "output": 66,
+        "total": 53665
+      },
+      {
+        "request": 69,
+        "trace_line": 2661,
+        "elapsed_ms": 508225.4397,
+        "launcher_line": 1059,
+        "latency_ms": 2955,
+        "prompt_including_cache": 53742,
+        "output": 95,
+        "total": 53837
+      },
+      {
+        "request": 70,
+        "trace_line": 2683,
+        "elapsed_ms": 512039.4665,
+        "launcher_line": 1130,
+        "latency_ms": 3800,
+        "prompt_including_cache": 53914,
+        "output": 70,
+        "total": 53984
+      },
+      {
+        "request": 71,
+        "trace_line": 2700,
+        "elapsed_ms": 514626.9283,
+        "launcher_line": 1176,
+        "latency_ms": 2573,
+        "prompt_including_cache": 54069,
+        "output": 77,
+        "total": 54146
+      },
+      {
+        "request": 72,
+        "trace_line": 2720,
+        "elapsed_ms": 517714.4683,
+        "launcher_line": 1237,
+        "latency_ms": 3069,
+        "prompt_including_cache": 54223,
+        "output": 95,
+        "total": 54318
+      },
+      {
+        "request": 73,
+        "trace_line": 2740,
+        "elapsed_ms": 520953.5686,
+        "launcher_line": 1308,
+        "latency_ms": 3225,
+        "prompt_including_cache": 54395,
+        "output": 57,
+        "total": 54452
+      },
+      {
+        "request": 74,
+        "trace_line": 2758,
+        "elapsed_ms": 524060.131899,
+        "launcher_line": 1376,
+        "latency_ms": 3096,
+        "prompt_including_cache": 54529,
+        "output": 85,
+        "total": 54614
+      },
+      {
+        "request": 75,
+        "trace_line": 2778,
+        "elapsed_ms": 527125.907399,
+        "launcher_line": 1443,
+        "latency_ms": 3049,
+        "prompt_including_cache": 54691,
+        "output": 87,
+        "total": 54778
+      },
+      {
+        "request": 76,
+        "trace_line": 2798,
+        "elapsed_ms": 530495.426499,
+        "launcher_line": 1517,
+        "latency_ms": 3353,
+        "prompt_including_cache": 54855,
+        "output": 87,
+        "total": 54942
+      },
+      {
+        "request": 77,
+        "trace_line": 2822,
+        "elapsed_ms": 534655.1142,
+        "launcher_line": 1557,
+        "latency_ms": 4146,
+        "prompt_including_cache": 55019,
+        "output": 193,
+        "total": 55212
+      },
+      {
+        "request": 78,
+        "trace_line": 2840,
+        "elapsed_ms": 537458.7285,
+        "launcher_line": 1563,
+        "latency_ms": 2789,
+        "prompt_including_cache": 55289,
+        "output": 64,
+        "total": 55353
+      },
+      {
+        "request": 79,
+        "trace_line": 2857,
+        "elapsed_ms": 540196.0876,
+        "launcher_line": 1595,
+        "latency_ms": 2723,
+        "prompt_including_cache": 55430,
+        "output": 88,
+        "total": 55518
+      },
+      {
+        "request": 80,
+        "trace_line": 2926,
+        "elapsed_ms": 554472.7847,
+        "launcher_line": 1668,
+        "latency_ms": 14263,
+        "prompt_including_cache": 55650,
+        "output": 1654,
+        "total": 57304
+      },
+      {
+        "request": 81,
+        "trace_line": 2953,
+        "elapsed_ms": 559257.4602,
+        "launcher_line": 1676,
+        "latency_ms": 4768,
+        "prompt_including_cache": 57381,
+        "output": 213,
+        "total": 57594
+      },
+      {
+        "request": 82,
+        "trace_line": 2979,
+        "elapsed_ms": 563757.479599,
+        "launcher_line": 1713,
+        "latency_ms": 4481,
+        "prompt_including_cache": 57671,
+        "output": 314,
+        "total": 57985
+      },
+      {
+        "request": 83,
+        "trace_line": 3000,
+        "elapsed_ms": 567444.5369,
+        "launcher_line": 1724,
+        "latency_ms": 3673,
+        "prompt_including_cache": 58062,
+        "output": 227,
+        "total": 58289
+      },
+      {
+        "request": 86,
+        "trace_line": 3102,
+        "elapsed_ms": 586569.8646,
+        "launcher_line": 1749,
+        "latency_ms": 9081,
+        "prompt_including_cache": 58964,
+        "output": 742,
+        "total": 59706
+      },
+      {
+        "request": 90,
+        "trace_line": 3359,
+        "elapsed_ms": 638144.5876,
+        "launcher_line": 1788,
+        "latency_ms": 3459,
+        "prompt_including_cache": 66096,
+        "output": 75,
+        "total": 66171
+      },
+      {
+        "request": 93,
+        "trace_line": 3500,
+        "elapsed_ms": 665994.380999,
+        "launcher_line": 1811,
+        "latency_ms": 2700,
+        "prompt_including_cache": 69166,
+        "output": 95,
+        "total": 69261
+      },
+      {
+        "request": 94,
+        "trace_line": 3524,
+        "elapsed_ms": 670015.282599,
+        "launcher_line": 1823,
+        "latency_ms": 4007,
+        "prompt_including_cache": 69443,
+        "output": 65,
+        "total": 69508
+      },
+      {
+        "request": 95,
+        "trace_line": 3544,
+        "elapsed_ms": 673341.4709,
+        "launcher_line": 1836,
+        "latency_ms": 3308,
+        "prompt_including_cache": 69577,
+        "output": 58,
+        "total": 69635
+      },
+      {
+        "request": 96,
+        "trace_line": 3583,
+        "elapsed_ms": 680452.753999,
+        "launcher_line": 1854,
+        "latency_ms": 7097,
+        "prompt_including_cache": 69714,
+        "output": 69,
+        "total": 69783
+      },
+      {
+        "request": 101,
+        "trace_line": 4179,
+        "elapsed_ms": 801861.104099,
+        "launcher_line": 1886,
+        "latency_ms": 3734,
+        "prompt_including_cache": 84417,
+        "output": 115,
+        "total": 84532
+      },
+      {
+        "request": 104,
+        "trace_line": 4253,
+        "elapsed_ms": 814465.989099,
+        "launcher_line": 1911,
+        "latency_ms": 3234,
+        "prompt_including_cache": 85668,
+        "output": 60,
+        "total": 85728
+      },
+      {
+        "request": 105,
+        "trace_line": 4276,
+        "elapsed_ms": 818302.178899,
+        "launcher_line": 1949,
+        "latency_ms": 3823,
+        "prompt_including_cache": 85913,
+        "output": 69,
+        "total": 85982
+      },
+      {
+        "request": 106,
+        "trace_line": 4293,
+        "elapsed_ms": 821035.7163,
+        "launcher_line": 1975,
+        "latency_ms": 2722,
+        "prompt_including_cache": 86059,
+        "output": 61,
+        "total": 86120
+      },
+      {
+        "request": 107,
+        "trace_line": 4311,
+        "elapsed_ms": 823910.9909,
+        "launcher_line": 2004,
+        "latency_ms": 2859,
+        "prompt_including_cache": 86197,
+        "output": 51,
+        "total": 86248
+      },
+      {
+        "request": 108,
+        "trace_line": 4333,
+        "elapsed_ms": 827717.2472,
+        "launcher_line": 2040,
+        "latency_ms": 3794,
+        "prompt_including_cache": 86325,
+        "output": 94,
+        "total": 86419
+      },
+      {
+        "request": 109,
+        "trace_line": 4356,
+        "elapsed_ms": 831627.3469,
+        "launcher_line": 2079,
+        "latency_ms": 3890,
+        "prompt_including_cache": 86496,
+        "output": 58,
+        "total": 86554
+      },
+      {
+        "request": 110,
+        "trace_line": 4375,
+        "elapsed_ms": 834787.0941,
+        "launcher_line": 2108,
+        "latency_ms": 3144,
+        "prompt_including_cache": 86631,
+        "output": 80,
+        "total": 86711
+      },
+      {
+        "request": 111,
+        "trace_line": 4394,
+        "elapsed_ms": 837852.2332,
+        "launcher_line": 2137,
+        "latency_ms": 3049,
+        "prompt_including_cache": 86788,
+        "output": 72,
+        "total": 86860
+      },
+      {
+        "request": 112,
+        "trace_line": 4423,
+        "elapsed_ms": 843048.8579,
+        "launcher_line": 2171,
+        "latency_ms": 5180,
+        "prompt_including_cache": 86937,
+        "output": 117,
+        "total": 87054
+      },
+      {
+        "request": 113,
+        "trace_line": 4445,
+        "elapsed_ms": 846828.1028,
+        "launcher_line": 2184,
+        "latency_ms": 3763,
+        "prompt_including_cache": 87129,
+        "output": 68,
+        "total": 87197
+      },
+      {
+        "request": 121,
+        "trace_line": 4828,
+        "elapsed_ms": 920377.4992,
+        "launcher_line": 2248,
+        "latency_ms": 14444,
+        "prompt_including_cache": 94538,
+        "output": 56,
+        "total": 94594
+      },
+      {
+        "request": 126,
+        "trace_line": 4982,
+        "elapsed_ms": 947857.9178,
+        "launcher_line": 2284,
+        "latency_ms": 4278,
+        "prompt_including_cache": 97423,
+        "output": 97,
+        "total": 97520
+      },
+      {
+        "request": 127,
+        "trace_line": 5005,
+        "elapsed_ms": 951841.257,
+        "launcher_line": 2293,
+        "latency_ms": 3971,
+        "prompt_including_cache": 97748,
+        "output": 55,
+        "total": 97803
+      },
+      {
+        "request": 130,
+        "trace_line": 5217,
+        "elapsed_ms": 994929.854399,
+        "launcher_line": 2323,
+        "latency_ms": 4929,
+        "prompt_including_cache": 102711,
+        "output": 105,
+        "total": 102816
+      },
+      {
+        "request": 132,
+        "trace_line": 5277,
+        "elapsed_ms": 1005819.4211,
+        "launcher_line": 2337,
+        "latency_ms": 4288,
+        "prompt_including_cache": 103494,
+        "output": 73,
+        "total": 103567
+      },
+      {
+        "request": 138,
+        "trace_line": 5477,
+        "elapsed_ms": 1042303.2228,
+        "launcher_line": 2376,
+        "latency_ms": 4848,
+        "prompt_including_cache": 106866,
+        "output": 257,
+        "total": 107123
+      },
+      {
+        "request": 144,
+        "trace_line": 5766,
+        "elapsed_ms": 1095207.8868,
+        "launcher_line": 2431,
+        "latency_ms": 10682,
+        "prompt_including_cache": 112519,
+        "output": 846,
+        "total": 113365
+      },
+      {
+        "request": 145,
+        "trace_line": 5790,
+        "elapsed_ms": 1099208.465199,
+        "launcher_line": 2437,
+        "latency_ms": 3986,
+        "prompt_including_cache": 113485,
+        "output": 114,
+        "total": 113599
+      },
+      {
+        "request": 146,
+        "trace_line": 5809,
+        "elapsed_ms": 1102457.854599,
+        "launcher_line": 2442,
+        "latency_ms": 3237,
+        "prompt_including_cache": 113719,
+        "output": 80,
+        "total": 113799
+      },
+      {
+        "request": 147,
+        "trace_line": 5836,
+        "elapsed_ms": 1107227.899799,
+        "launcher_line": 2447,
+        "latency_ms": 4755,
+        "prompt_including_cache": 113919,
+        "output": 100,
+        "total": 114019
+      },
+      {
+        "request": 148,
+        "trace_line": 5857,
+        "elapsed_ms": 1110731.8065,
+        "launcher_line": 2452,
+        "latency_ms": 3492,
+        "prompt_including_cache": 114139,
+        "output": 64,
+        "total": 114203
+      },
+      {
+        "request": 149,
+        "trace_line": 5881,
+        "elapsed_ms": 1114874.0283,
+        "launcher_line": 2457,
+        "latency_ms": 4129,
+        "prompt_including_cache": 114323,
+        "output": 67,
+        "total": 114390
+      },
+      {
+        "request": 150,
+        "trace_line": 5901,
+        "elapsed_ms": 1118379.2868,
+        "launcher_line": 2462,
+        "latency_ms": 3493,
+        "prompt_including_cache": 114510,
+        "output": 71,
+        "total": 114581
+      },
+      {
+        "request": 151,
+        "trace_line": 5923,
+        "elapsed_ms": 1122078.2792,
+        "launcher_line": 2467,
+        "latency_ms": 3681,
+        "prompt_including_cache": 114701,
+        "output": 72,
+        "total": 114773
+      },
+      {
+        "request": 152,
+        "trace_line": 5945,
+        "elapsed_ms": 1126011.045699,
+        "launcher_line": 2472,
+        "latency_ms": 3920,
+        "prompt_including_cache": 114893,
+        "output": 67,
+        "total": 114960
+      },
+      {
+        "request": 153,
+        "trace_line": 5973,
+        "elapsed_ms": 1131064.9435,
+        "launcher_line": 2477,
+        "latency_ms": 5041,
+        "prompt_including_cache": 115080,
+        "output": 74,
+        "total": 115154
+      },
+      {
+        "request": 154,
+        "trace_line": 5994,
+        "elapsed_ms": 1134571.9784,
+        "launcher_line": 2482,
+        "latency_ms": 3495,
+        "prompt_including_cache": 115274,
+        "output": 94,
+        "total": 115368
+      },
+      {
+        "request": 155,
+        "trace_line": 6024,
+        "elapsed_ms": 1140233.3429,
+        "launcher_line": 2487,
+        "latency_ms": 5647,
+        "prompt_including_cache": 115488,
+        "output": 307,
+        "total": 115795
+      },
+      {
+        "request": 156,
+        "trace_line": 6045,
+        "elapsed_ms": 1143665.700999,
+        "launcher_line": 2492,
+        "latency_ms": 3417,
+        "prompt_including_cache": 115915,
+        "output": 60,
+        "total": 115975
+      },
+      {
+        "request": 157,
+        "trace_line": 6066,
+        "elapsed_ms": 1147152.759099,
+        "launcher_line": 2497,
+        "latency_ms": 3477,
+        "prompt_including_cache": 116095,
+        "output": 65,
+        "total": 116160
+      },
+      {
+        "request": 158,
+        "trace_line": 6084,
+        "elapsed_ms": 1150227.5365,
+        "launcher_line": 2502,
+        "latency_ms": 3062,
+        "prompt_including_cache": 116280,
+        "output": 60,
+        "total": 116340
+      },
+      {
+        "request": 159,
+        "trace_line": 6105,
+        "elapsed_ms": 1153803.609,
+        "launcher_line": 2507,
+        "latency_ms": 3561,
+        "prompt_including_cache": 116460,
+        "output": 115,
+        "total": 116575
+      },
+      {
+        "request": 160,
+        "trace_line": 6124,
+        "elapsed_ms": 1156898.180099,
+        "launcher_line": 2512,
+        "latency_ms": 3075,
+        "prompt_including_cache": 116695,
+        "output": 71,
+        "total": 116766
+      },
+      {
+        "request": 161,
+        "trace_line": 6149,
+        "elapsed_ms": 1161132.926799,
+        "launcher_line": 2517,
+        "latency_ms": 4217,
+        "prompt_including_cache": 116886,
+        "output": 66,
+        "total": 116952
+      },
+      {
+        "request": 162,
+        "trace_line": 6182,
+        "elapsed_ms": 1167193.9614,
+        "launcher_line": 2522,
+        "latency_ms": 6042,
+        "prompt_including_cache": 117072,
+        "output": 243,
+        "total": 117315
+      },
+      {
+        "request": 163,
+        "trace_line": 6209,
+        "elapsed_ms": 1172011.357,
+        "launcher_line": 2527,
+        "latency_ms": 4801,
+        "prompt_including_cache": 117435,
+        "output": 80,
+        "total": 117515
+      },
+      {
+        "request": 164,
+        "trace_line": 6230,
+        "elapsed_ms": 1175537.4661,
+        "launcher_line": 2532,
+        "latency_ms": 3508,
+        "prompt_including_cache": 117635,
+        "output": 147,
+        "total": 117782
+      },
+      {
+        "request": 165,
+        "trace_line": 6253,
+        "elapsed_ms": 1179387.5845,
+        "launcher_line": 2537,
+        "latency_ms": 3839,
+        "prompt_including_cache": 117902,
+        "output": 64,
+        "total": 117966
+      },
+      {
+        "request": 166,
+        "trace_line": 6279,
+        "elapsed_ms": 1184117.769099,
+        "launcher_line": 2542,
+        "latency_ms": 4713,
+        "prompt_including_cache": 118086,
+        "output": 95,
+        "total": 118181
+      },
+      {
+        "request": 167,
+        "trace_line": 6300,
+        "elapsed_ms": 1187791.132699,
+        "launcher_line": 2547,
+        "latency_ms": 3658,
+        "prompt_including_cache": 118301,
+        "output": 78,
+        "total": 118379
+      },
+      {
+        "request": 168,
+        "trace_line": 6322,
+        "elapsed_ms": 1191463.265699,
+        "launcher_line": 2552,
+        "latency_ms": 3655,
+        "prompt_including_cache": 118499,
+        "output": 103,
+        "total": 118602
+      },
+      {
+        "request": 169,
+        "trace_line": 6347,
+        "elapsed_ms": 1195843.3628,
+        "launcher_line": 2557,
+        "latency_ms": 4364,
+        "prompt_including_cache": 118722,
+        "output": 68,
+        "total": 118790
+      },
+      {
+        "request": 170,
+        "trace_line": 6373,
+        "elapsed_ms": 1200414.0537,
+        "launcher_line": 2562,
+        "latency_ms": 4552,
+        "prompt_including_cache": 118910,
+        "output": 76,
+        "total": 118986
+      },
+      {
+        "request": 171,
+        "trace_line": 6395,
+        "elapsed_ms": 1204269.9161,
+        "launcher_line": 2567,
+        "latency_ms": 3837,
+        "prompt_including_cache": 119106,
+        "output": 117,
+        "total": 119223
+      },
+      {
+        "request": 172,
+        "trace_line": 6421,
+        "elapsed_ms": 1208836.069999,
+        "launcher_line": 2572,
+        "latency_ms": 4555,
+        "prompt_including_cache": 119343,
+        "output": 68,
+        "total": 119411
+      },
+      {
+        "request": 173,
+        "trace_line": 6448,
+        "elapsed_ms": 1213341.0031,
+        "launcher_line": 2577,
+        "latency_ms": 4491,
+        "prompt_including_cache": 119531,
+        "output": 70,
+        "total": 119601
+      },
+      {
+        "request": 174,
+        "trace_line": 6469,
+        "elapsed_ms": 1217003.9851,
+        "launcher_line": 2582,
+        "latency_ms": 3651,
+        "prompt_including_cache": 119721,
+        "output": 71,
+        "total": 119792
+      },
+      {
+        "request": 175,
+        "trace_line": 6491,
+        "elapsed_ms": 1220678.315099,
+        "launcher_line": 2587,
+        "latency_ms": 3659,
+        "prompt_including_cache": 119912,
+        "output": 71,
+        "total": 119983
+      },
+      {
+        "request": 176,
+        "trace_line": 6512,
+        "elapsed_ms": 1224236.197,
+        "launcher_line": 2592,
+        "latency_ms": 3543,
+        "prompt_including_cache": 120103,
+        "output": 68,
+        "total": 120171
+      },
+      {
+        "request": 177,
+        "trace_line": 6539,
+        "elapsed_ms": 1228910.4997,
+        "launcher_line": 2597,
+        "latency_ms": 4658,
+        "prompt_including_cache": 120291,
+        "output": 75,
+        "total": 120366
+      },
+      {
+        "request": 180,
+        "trace_line": 6644,
+        "elapsed_ms": 1247782.6797,
+        "launcher_line": 2618,
+        "latency_ms": 5503,
+        "prompt_including_cache": 121770,
+        "output": 106,
+        "total": 121876
+      },
+      {
+        "request": 181,
+        "trace_line": 6665,
+        "elapsed_ms": 1251399.0451,
+        "launcher_line": 2623,
+        "latency_ms": 3599,
+        "prompt_including_cache": 121990,
+        "output": 83,
+        "total": 122073
+      },
+      {
+        "request": 182,
+        "trace_line": 6689,
+        "elapsed_ms": 1255566.0472,
+        "launcher_line": 2628,
+        "latency_ms": 4143,
+        "prompt_including_cache": 122187,
+        "output": 63,
+        "total": 122250
+      },
+      {
+        "request": 183,
+        "trace_line": 6712,
+        "elapsed_ms": 1259790.5227,
+        "launcher_line": 2633,
+        "latency_ms": 4134,
+        "prompt_including_cache": 122364,
+        "output": 123,
+        "total": 122487
+      }
+    ]
+  },
+  "usage_interpretation": {
+    "completed_launcher_records": 183,
+    "completed_launcher_total_matches_result": true,
+    "first_completed_request": {
+      "launcher_line": 189,
+      "latency_ms": 4118,
+      "prompt_including_cache": 19085,
+      "output": 318,
+      "total": 19403
+    },
+    "last_completed_request": {
+      "launcher_line": 2633,
+      "latency_ms": 4134,
+      "prompt_including_cache": 122364,
+      "output": 123,
+      "total": 122487
+    },
+    "average_reported_tokens_per_completed_request": 73694.044,
+    "cache_read_percent_of_reported_total": 97.581182,
+    "output_percent_of_reported_total": 0.553522,
+    "median_completed_latency_ms": 4129,
+    "unreported_started_calls": 3,
+    "limitation": "186 started calls,183 usage reports, unknown_usage_reports0 and usage_complete=false. 13,486,010 is the sum of available183 reports, not a complete all-started-call cost. Three unreported calls are delegated to separate network analysis; no usage or monetary amount is imputed. cost=null."
+  },
+  "same_v2_budget_comparison": {
+    "control_run": "build/evals/live-v1/free-survival-v2-20261004",
+    "nonbudget_case_spec_exactly_equal": true,
+    "seed": 73002,
+    "old_budget": {
+      "max_model_calls": 80,
+      "max_seconds": 1700,
+      "max_tokens": 2600000
+    },
+    "new_budget": {
+      "max_model_calls": 400,
+      "max_seconds": 1700,
+      "max_tokens": 30000000
+    },
+    "old": {
+      "status": "budget_exhausted",
+      "reason": "max_tokens",
+      "elapsed_ms": 432195.586,
+      "calls": 70,
+      "usage_reports": 70,
+      "reported_tokens": 2645103,
+      "milestones": 2,
+      "health": 20.0,
+      "food": 16,
+      "reserve": 6,
+      "elapsed_ticks": 8644,
+      "hold_ticks": 0
+    },
+    "new": {
+      "status": "success",
+      "reason": "authoritative_success_criterion_met",
+      "elapsed_ms": 1260287.7338,
+      "calls": 186,
+      "usage_reports": 183,
+      "reported_tokens": 13486010,
+      "milestones": 4,
+      "health": 20.0,
+      "food": 14,
+      "reserve": 24,
+      "elapsed_ticks": 25206,
+      "hold_ticks": 1202
+    },
+    "source_manifest_changed_keys": [],
+    "production_or_skill_manifest_changed_keys": [],
+    "interpretation": "Same public v2 case and same1700s world-time budget. The70-call control was token-limited at432.2s before the required cycle could elapse. The larger-budget run reached objective success at1260.3s. These are two stochastic action trajectories, not a replay; one success under the larger budget does not establish a general success rate or isolate every causal effect. Do not compare these scores with different v1 objectives."
+  }
+}

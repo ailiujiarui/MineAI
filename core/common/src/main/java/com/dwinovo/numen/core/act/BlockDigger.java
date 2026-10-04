@@ -4,6 +4,7 @@ import com.dwinovo.numen.core.pathing.moves.AimGeometry;
 import com.dwinovo.numen.entity.InputDriver;
 
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.eval.WorldEvalObservers;
 import com.dwinovo.numen.core.act.ToolSelect;
 import com.dwinovo.numen.core.mixin.ServerPlayerGameModeAccessor;
 import com.dwinovo.numen.permission.Action;
@@ -135,7 +136,11 @@ public final class BlockDigger {
         if (!permit(target).allowed()) {
             return false;
         }
-        return player.gameMode.destroyBlock(target);
+        boolean destroyed = player.gameMode.destroyBlock(target);
+        if (destroyed && player.level().getBlockState(target) != state) {
+            WorldEvalObservers.blockBroken(player, target, state);
+        }
+        return destroyed;
     }
 
     /** Outcome of one {@link #digStep} tick — lets callers distinguish "still working"
@@ -339,6 +344,7 @@ public final class BlockDigger {
     /** 这一格的破坏落地了:记下挖掉的是哪一格,清掉挖掘状态。 */
     private DigResult broke(BlockState was, boolean targetBreak) {
         lastBroken = new Broken(pos.immutable(), was);
+        if (player.level().getBlockState(pos) != was) WorldEvalObservers.blockBroken(player, pos, was);
         reset();
         return targetBreak ? DigResult.BROKE_TARGET : DigResult.BROKE_OCCLUDER;
     }

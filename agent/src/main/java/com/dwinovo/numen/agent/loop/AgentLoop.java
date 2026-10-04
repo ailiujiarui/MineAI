@@ -95,6 +95,11 @@ public final class AgentLoop {
         listeners.add(listener);
     }
 
+    /** Remove an observer between transitions, never during an event callback. */
+    public void unsubscribe(Consumer<? super LoopEvent> listener) {
+        listeners.remove(listener);
+    }
+
     // ---- 输入 ----
 
     /**

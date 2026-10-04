@@ -148,4 +148,76 @@ class TransportCancelTest {
         Thread.sleep(1200);
         assertEquals(1, requests.get(), "退避期间取消,重试不该再发出去");
     }
+
+    @Test
+    void deniedBudgetSendsNoInitialRequest() throws Exception {
+        server.createContext("/sse", exchange -> {
+            requests.incrementAndGet();
+            exchange.sendResponseHeaders(500, -1);
+            exchange.close();
+        });
+        AtomicInteger permits = new AtomicInteger();
+        CancelToken cancel = new CancelToken();
+        cancel.requestPermit(() -> {
+            permits.incrementAndGet();
+            return false;
+        });
+
+        var future = transport().postSse(base + "/sse", "k", new JsonObject(), chunk -> { }, cancel);
+
+        assertInstanceOf(CancellationException.class, failureOf(future));
+        assertEquals(1, permits.get());
+        assertEquals(0, requests.get());
+        assertTrue(cancel.isCancelled());
+    }
+
+    @Test
+    void rateLimitRetryRequiresAnotherPermitAndDoesNotSendWhenDenied() throws Exception {
+        server.createContext("/sse", exchange -> {
+            requests.incrementAndGet();
+            exchange.getResponseHeaders().add("retry-after-ms", "10");
+            byte[] body = "{\"error\":\"rate limited\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(429, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        AtomicInteger permits = new AtomicInteger();
+        CancelToken cancel = new CancelToken();
+        cancel.requestPermit(() -> permits.incrementAndGet() <= 1);
+
+        var future = transport().postSse(base + "/sse", "k", new JsonObject(), chunk -> { }, cancel);
+
+        assertInstanceOf(CancellationException.class, failureOf(future));
+        assertEquals(2, permits.get(), "transport retries must pass the same budget gate");
+        assertEquals(1, requests.get(), "the denied retry must not reach even a local server");
+        assertTrue(cancel.isCancelled());
+    }
+
+    @Test
+    void permittedRetryIsCountedAndCanCompleteNormally() throws Exception {
+        server.createContext("/sse", exchange -> {
+            int count = requests.incrementAndGet();
+            if (count == 1) {
+                exchange.getResponseHeaders().add("retry-after-ms", "10");
+                exchange.sendResponseHeaders(429, -1);
+            } else {
+                exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+                byte[] body = "data: {\"answer\":\"done\"}\n\ndata: [DONE]\n\n".getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200, body.length);
+                exchange.getResponseBody().write(body);
+            }
+            exchange.close();
+        });
+        AtomicInteger permits = new AtomicInteger();
+        List<JsonObject> chunks = new CopyOnWriteArrayList<>();
+        CancelToken cancel = new CancelToken();
+        cancel.requestPermit(() -> permits.incrementAndGet() <= 2);
+
+        transport().postSse(base + "/sse", "k", new JsonObject(), chunks::add, cancel).get(5, TimeUnit.SECONDS);
+
+        assertEquals(2, permits.get());
+        assertEquals(2, requests.get());
+        assertEquals(1, chunks.size());
+        assertEquals("done", chunks.getFirst().get("answer").getAsString());
+    }
 }

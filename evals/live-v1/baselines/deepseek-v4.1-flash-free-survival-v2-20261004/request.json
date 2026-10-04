@@ -1,0 +1,73 @@
+{
+  "scenario": {
+    "evaluation_version": "survival-v2",
+    "case_id": "live.free-survival",
+    "split": "dev",
+    "source": "Hand-authored early-survival resupply dev case; public outcome criteria exposed to the model and evaluator developers; no prescribed food or building route",
+    "prompt": "在普通生存世界里独立活下来并解决前期食物补给。你从空背包、20点生命、14点饱食度、0饱和度开始；这是公开的初始饥饿状态，不会在任务中额外扣除你的饱食或给你物资。食物来源、探索方向、工具、烹饪、农业、建筑和避险方式都由你选择，不向我索要物资或操作帮助。\n\n公开成功标准：首次死亡即失败。你必须亲自完成至少一次有效的安全食物进食，让饱食度或饱和度实际上升；仅调用eat、开始咀嚼或声称吃过不算。安全食物指原版食物组件和物品实际效果中没有可能触发的负面效果，腐肉、河豚、毒马铃薯和带有害效果的可疑炖菜不计入有效补给或储备。\n\n最终你至少保有10点生命、12点饱食度，背包中安全食物的饱食恢复值乘数量合计至少20。没有指定食物种类，不要求种小麦、收割补种、持有锄头、放置工作台或熔炉，也不要求特定形状的房屋。\n\n从任务开始必须实际存活至少24000个游戏tick（正常20TPS时约20分钟）；睡觉可以用来避险，但跳过的昼夜时钟不会替代实际存活tick。最终你没有着火、处于岩浆、完全冰冻、在水下且剩余空气不超过40，或任何持续有害状态；16格内没有能直视你且正在以你为攻击目标的生物。你可以通过战斗、躲避、睡觉或利用地形满足这些现场条件。\n\n在达到最少存活时长后，上述生命、饱食、安全食物储备和现场安全条件还须同时连续保持1200个游戏tick（正常20TPS时约60秒）。你自行安排推进和等待，达到条件后告诉我。这个任务验证一次真实补给、剩余储备和前期持续生存，不要求无限期可再生食物循环或击杀末影龙。",
+    "seed": 73002,
+    "world_preset": "normal",
+    "world_observer": "free-survival-v2",
+    "success_hold_ticks": 1200,
+    "setup": {
+      "inventory": {},
+      "food_level": 14,
+      "saturation": 0
+    },
+    "success": {
+      "min_health": 10,
+      "min_food": 12,
+      "world": {
+        "safe_meals": 1,
+        "food_nutrition": 20,
+        "elapsed_ticks": 24000,
+        "safe_state": true
+      }
+    },
+    "milestones": [
+      {
+        "id": "first-safe-food",
+        "condition": {
+          "world": {
+            "food_nutrition": 4
+          }
+        }
+      },
+      {
+        "id": "effective-refuel",
+        "condition": {
+          "world": {
+            "safe_meals": 1
+          }
+        }
+      },
+      {
+        "id": "safe-food-reserve",
+        "condition": {
+          "world": {
+            "food_nutrition": 20
+          }
+        }
+      },
+      {
+        "id": "survived-first-cycle",
+        "condition": {
+          "min_health": 10,
+          "min_food": 12,
+          "world": {
+            "elapsed_ticks": 24000,
+            "safe_state": true
+          }
+        }
+      }
+    ],
+    "budget": {
+      "max_model_calls": 80,
+      "max_seconds": 1700,
+      "max_tokens": 2600000
+    }
+  },
+  "provider_id": "eval-model",
+  "output_dir": "E:\\mineAI\\build\\evals\\live-v1\\free-survival-v2-20261004\\results",
+  "world_name": "numen-eval-3ec0f4318f4c49bf888ab6c0f129d1a0"
+}

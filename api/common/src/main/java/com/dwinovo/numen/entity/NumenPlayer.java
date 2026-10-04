@@ -1,6 +1,7 @@
 package com.dwinovo.numen.entity;
 
 import com.dwinovo.numen.api.CompanionEvent;
+import com.dwinovo.numen.eval.WorldEvalObservers;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.UUIDUtil;
@@ -10,8 +11,10 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 import java.util.UUID;
 
@@ -96,6 +99,22 @@ public final class NumenPlayer extends ServerPlayer {
     public NumenPlayer(MinecraftServer server, ServerLevel level, GameProfile profile,
                         ClientInformation clientInformation) {
         super(server, level, profile, clientInformation);
+    }
+
+    /** 评测只记录原生进食实际扣掉的那一口,不以饥饿涨幅或容器返还推断。 */
+    @Override
+    public ItemStack eat(Level level, ItemStack stack, FoodProperties food) {
+        if (!WorldEvalObservers.isActive(this)) return super.eat(level, stack, food);
+        ItemStack meal = stack.copyWithCount(1);
+        int beforeCount = stack.getCount();
+        int foodBefore = getFoodData().getFoodLevel();
+        float saturationBefore = getFoodData().getSaturationLevel();
+        ItemStack result = super.eat(level, stack, food);
+        // 返回值可能是一只碗;实际扣掉食物的是传入的 stack。
+        if (stack.getCount() < beforeCount) {
+            WorldEvalObservers.foodConsumed(this, meal, foodBefore, saturationBefore);
+        }
+        return result;
     }
 
     /**
