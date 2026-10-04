@@ -11,6 +11,7 @@
 | `scenarios/free-survival.json` | 普通世界空背包、有些饥饿出发，自选食物和避险路线，实际进食、保有食物储备并持续存活 | `survival-v2`：原预算2/4未完成；扩大预算后4/4并满足保持条件，约21分钟成功 |
 | `scenarios/sustainable-survival.json` | 普通世界空背包出发，建立工具、工作站、小麦田、亲自收割与原地补种、食物储备和规定形状的据点 | `survival-v1` 指定农业据点专项：三次正式 dev 运行均为 1/6，保留历史，不代表自由生存能力 |
 | `scenarios/expedition-preparation.json` | 固定初期物资出发，穿戴全套铁甲并备齐镐、盾、水桶、食物、照明和便携工作站 | [第二阶段独立专项](#expedition-v1)：`expedition-v1` 已接入观察与判分，尚无真实模型成绩 |
+| `scenarios/end-resources.json` | 人工远征起点，当前末影之眼成品与原料可制作量 ≥16；保留补给、铁级以上穿戴和逐件 ≥50% 耐久，安全保持200 tick | [第三阶段独立专项](#end-resources-v1)：`end-resources-v1` 已接入，真实模型尚未运行 |
 | `scenarios/defeat-dragon.json` | 普通世界空背包出发，由同伴击杀至少一只末影龙 | 长程目标脚手架；[五阶段设计](#dragon-five-stage)已记录，阶段判分尚未完整实现，未运行 |
 
 成功条件由同伴的实际背包、生命、饱食、位置、击杀统计和场景指定的世界观察器检查，不能靠模型声称“完成”通过。多个条件必须同时满足，数量是“至少”；`items` 要求物品仍在同伴背包中，世界条件则按下面的观察协议检查。里程碑记录第一次达到条件的时间与快照，不要求按列表顺序完成，也不替代最终条件。只向模型发送 `prompt`，不把里程碑列表变成行动步骤；可持续生存场景的提示公开全部成功标准，由模型自行决定行动方案。
@@ -33,7 +34,7 @@
 | --- | --- | --- | --- |
 | **1. 建立基本生存条件** | 获取食物、工具，处理夜晚和危险 | 从空背包取得可用工具；真实进食、保有食物储备并维持生命；记录夜间或危险出现后采取的避险、自卫、补给及存活结果。允许自选食物与避险方式，不固定农业或房屋形状 | 已有自由生存专项的进食、储备、存活与安全观察；扩大预算运行成功 **4/4**。该专项不要求工具，也不单独判定夜间处置或可再生供给，因此仅覆盖本阶段部分能力，不能登记为通关阶段已完成 |
 | **2. 准备远征资源** | 装备、补给、工作站和库存统筹 | 出发前的装备与耐久、食物、工具和工作站可用性；消耗及余量变化；离开据点后能否补给、修理或重新制作。物资要求按冻结的评测规则检查，同一份消耗性材料不能重复分配给多个待办目标 | 已实现[固定起点远征准备专项](#expedition-v1)，观察全套护甲穿戴、耐久和随身物资；尚无真实模型成绩，未验证出发后的补给或上一阶段续跑 |
-| **3. 获取进入末地所需资源** | 跨区域探索、前置依赖、风险判断 | 实际获取并保有可用于定位、开启末地传送门的资源；记录探索区域、维度变化、资源取得与消耗。结合定位损耗和传送门缺口检查余量，观察资源点失效或遇险后能否继续推进 | 现有脚手架可记录至少 1 根烈焰棒、1 个末影之眼；完整资源需求、探索与风险处置的判分尚未实现，无真实运行成绩 |
+| **3. 获取进入末地所需资源** | 跨区域探索、前置依赖、风险判断 | 实际获取并保有可用于定位、开启末地传送门的资源；记录探索区域、维度变化、资源取得与消耗。结合定位损耗和传送门缺口检查余量，观察资源点失效或遇险后能否继续推进 | 已实现[固定远征起点资源专项](#end-resources-v1)，当前 ≥16 份可制作量和补给保持独立判分；真实换维、受伤与采样事实有证据，重规划未自动判分；真实模型尚未运行，不回填完整通关阶段成绩 |
 | **4. 找到并进入末地** | 长距离导航、补给安排、记住未完成目标 | 服务端确认找到实际要塞传送门位置、完成开启并进入末地；记录坐标、维度、往返和补给轨迹。中途离开补给或避险后，应能回到尚未完成的目标继续执行 | 尚无本阶段专用观察与判分，无真实运行成绩；模型声称“找到要塞”或背包有末影之眼不算进入末地 |
 | **5. 击杀末影龙** | 战斗执行、临场决策和最终目标验证 | 服务端确认末影龙死亡且击杀归属于同伴，保留同伴击杀统计变化和战斗事件；同时记录伤害、补给、撤退与死亡情况，区分最终击杀和中途战斗进展 | 已有 `dragon_kills >= 1` 最终成功条件；阶段战斗分析尚未实现，末地战斗能力与真实通关均未验证 |
 
@@ -89,6 +90,69 @@ python -B tools/calibrate_live_eval.py --scenario expedition-preparation `
 这是评分设施校准，`real_model=false`、`capability_baseline=false`；0/5 不能算模型失败。耐久边界、穿戴与不安全食物等正反例由 [ExpeditionEvalGameTests.java](../../core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ExpeditionEvalGameTests.java) 检验；本轮执行情况及证据归档在 [expedition-verification.json](expedition-verification.json)。
 
 本轮已通过双加载器构建、848 项可执行 JVM 测试、278 项 GameTest（新增 5 项远征校准）和 48 项 Python 测试。真实客户端负例校准也已通过：4 次 localhost 脚本请求后按调用数预算结束，0/5、初始食物营养 20，未把石工具或空护甲槽判为远征就绪；客户端注册 0 个 GameTest、42 个产品工具。**API 测试仍未跑通**：已有 `AdapterHandlersTest.java:72` 的 lambda 返回 `JsonObject`，而接口要求 `String`，编译阶段受阻；本次没有修改或跳过该测试。
+
+<a id="end-resources-v1"></a>
+
+## 第三阶段独立专项：末地资源 end-resources-v1
+
+[end-resources.json](scenarios/end-resources.json) 使用 `live.end-resources`，评分版本与观察器均为 `end-resources-v1`。这是开发者编写并已阅读的单一 dev 场景，**真实模型尚未运行**；本轮只建设设施及本地校准，没有自动优化循环，也没有读取或使用真实模型密钥。
+
+**公开人工远征起点，不是第二阶段存档。** 独立普通生存新世界，种子73004、普通难度、结构生成开启、原版默认规则、正常昼夜；主世界出生坐标固定为 `(0.5,84,32.5)`，复用第二阶段校准中已观察到的可站点。初始生命20、饱食20、饱和度5，主人保持旁观者。实际穿戴全新铁头盔／胸甲／护腿／靴，副手全新盾牌；背包全新铁镐／铁斧／铁剑各1、水桶1、普通火把32、工作台1、熔炉1、熟牛肉16（营养128）。装备条目每槽创建一件，不再复制进背包。没有眼、珍珠、粉、棒，没有预建门、点火器、钻石或黑曜石，也不恢复旧 Agent 记忆或目标。任务中不追加物资或救场；权限仍由现有层裁决，隔离世界放行采集、建造和丢物，禁止作弊命令。
+
+用户选择接受**成品与足够制作的原料混合**。只计算当前背包及副手的真实库存：
+
+`eye_equivalents = ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)`
+
+一颗珍珠和一份粉制作一个眼，一根棒可制作两份粉。成品已消耗的原料不再存在于库存，不能把历史取得量与当前库存相加。例：8眼+8珍珠+4棒为16份；16珍珠+7棒为14份；只有16珍珠或只有8棒都为0份。16份是冻结的资源储备门槛（最多12个门框缺口加4份定位余量），不保证任何距离的定位损耗都被覆盖。此阶段不要求找到要塞、投掷眼、开启门、进入末地或打龙，也不强迫战斗、交易或特定下界路线。
+
+| 最终条件 | 确定性判据 |
+| --- | --- |
+| 资源可制作量 ≥16 | 当前眼 + 珍珠与粉／棒的配对量；不计箱子、地面掉落、炉内和护甲槽的资源 |
+| 全套甲穿戴，镐与盾随身 | 对应铁／钻石／下界合金甲可混穿，镐同等级；盾在背包或副手；石或金装备不替代 |
+| 逐件耐久 ≥50% | 四件穿戴甲、所计入镐和盾各自检查整数耐久，不使用平均值；原 `expedition-v1` 仍是80% |
+| 保留远征物资 | 水桶≥1、普通火把≥32、工作台与熔炉各1、安全食物营养≥80，生命与饱食≥16 |
+| 同时安全保持200 tick | 服务端逐 tick 检查全部当前条件，`loadout_held_ticks` 记录连续合格时长；失效或服务端观察缺口重置。客户端保持值还受逐 tick 证据约束，快照缺口>20 tick也重置；首次死亡即失败 |
+
+五个内部诊断里程碑为 `pearl-supply`（眼+珍珠≥16）、`blaze-supply`（眼+粉+2×棒≥16）、`eye-materials-ready`（可配对量≥16）、`retained-expedition-supplies`（资源与全部随身物资）、`stage-ready`（全部末态条件首次同时满足）。历史首次达成保留，即使随后消耗或丢失也不抹除；**5/5仍需读取最终status和success_held_ticks**，不能替代当前库存或200 tick保持。一根棒或一个眼只记录真实局部库存，不构成阶段成功。
+
+[EndResourcesWorldObserver.java](../../core/common/src/main/java/com/dwinovo/numen/core/eval/EndResourcesWorldObserver.java) 只读当前库存，复用 [ExpeditionWorldObserver.java](../../core/common/src/main/java/com/dwinovo/numen/core/eval/ExpeditionWorldObserver.java) 的穿戴、逐件耐久、食物及安全事实；[LiveEvalRun.java](../../agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java) 组合条件、记录里程碑、保持与预算。`setup.equipment` 经 [LiveEvalWorld.java](../../api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java) 实际穿戴，新协议配对同时接入 Java 与 [Python启动器](../../tools/run_live_eval.py)。
+
+`world.evidence` 保留逐槽资源与装备证据、初始库存、时间／维度／坐标和有界事件；真实换维来自原版回执，真实受伤来自已结算的 `CompanionEvent.HURT`，伤害输入值不等于实际失血。约200ms的快照采样记录区域（维度+区块）、库存增减、进入／离开危险；不能从数量变化推断战斗或交易来源，采样间的短暂状态可能不出现在事件轨迹中。持续保持另由服务端逐 tick 检查，不靠这些稀疏事件推算。初始物资不是本轮取得事件；历史事件不贡献当前可制作量。未发生的换维、探索或遇险记 `not_covered`，发生只表示观察到事实，没有自动能力通过分。事件截断显式记录并保留首次证据。`risk_replanning` 与 `resource_site_replanning` 为 `not_measured`：安全恢复、换任务或路径重算不能自动证明模型重规划，任务回执／本能事件仍可从实际聊天与工具轨迹人工审查。
+
+### 产品能力审查与范围
+
+| 路线组成部分 | 当前实际支持与未验证部分 |
+| --- | --- |
+| 探索、结构定位、前置采集 | `goto/plan_route/locate_structure/locate_biome/mine` 已注册，有通用地形与定位测试；定位坐标不等于走过区域。铁镐不能采黑曜石，模型须自行取得更高镐或选择其他合法建门路线 |
+| 下界进入 | 通用 `build/interact_at/goto` 和下界技能文本可组成入口；已有直接换维回执测试，但自然建造→点火→穿门还无专项实战证据 |
+| 烈焰人、末影人及掉落 | `attack/collect_items` 有战斗和实际掉落结算；通用测试覆盖僵尸与猪，没有烈焰人／末影人专项实战证据 |
+| 合成资源 | `craft` 使用原版配方和真实库存增量；棒→粉→眼的完整自主采集制作路线尚未验证 |
+| 猪灵／村民路线 | `drop_items/collect_items` 可组成原版以物易物入口，猪灵连续资源获取未验证；村民可打开菜单，但缺少完整 offer 检查和交易选择接口，不能声称牧师交易已可可靠运行 |
+
+具体源码与受控测试证据见 [验证记录](end-resources-verification.json)。写出场景不证明 bot 能完成上述路线；没有真实模型第三阶段成绩，更没有同世界从零通关成绩。
+
+### 本地运行与校准
+
+仅准备场景、独立目录与源码摘要，不启动游戏、不读取模型配置、不调用模型：
+
+```powershell
+python -B tools/run_live_eval.py --prepare-only `
+  --scenario evals/live-v1/scenarios/end-resources.json `
+  --offline --neoforge-version 21.1.233
+```
+
+用 localhost 固定空行动回复驱动真实客户端，检查全套甲已穿、初始资源0且没有误判成功；4次脚本请求后预期 `budget_exhausted(max_model_calls)`、0/5。这是负例校准，合成用量与模型能力成绩分开记录：
+
+```powershell
+python -B tools/calibrate_live_eval.py --scenario end-resources `
+  --offline --neoforge-version 21.1.233
+```
+
+正反例由 [EndResourcesEvalGameTests.java](../../core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/EndResourcesEvalGameTests.java)、[LiveEvalRunTest.java](../../agent/src/test/java/com/dwinovo/numen/agent/acceptance/LiveEvalRunTest.java) 及 [test_run_live_eval.py](../../tools/test_run_live_eval.py) 校准：起始物资、成品／原料混合、配对不足、转换不膨胀、非随身资源、当前条件与历史里程碑、穿戴及逐件耐久和事件未覆盖。构建、测试、prepare-only、客户端结果和证据哈希归档在 [end-resources-verification.json](end-resources-verification.json)。真实模型运行需要另行指定provider与三项预算，本轮没有执行。
+
+2026-10-05（Asia/Shanghai）验证结果：双加载器构建通过；ai／agent／core common共851项可执行 JVM 校验通过（ai任务为Gradle匹配源码的缓存，其余执行通过）；289项必需 GameTest全部通过，含11项新增校准；59项 Python测试通过；prepare-only通过。首轮 GameTest为288/289，受伤校准在原版出生保护期内施加伤害被拒；参照现有测试等待70tick后，保留全部受伤／免疫／换维断言，完整重跑通过，原失败日志已归档。API测试仍在`AdapterHandlersTest.java:72`编译受阻，本轮未改动或跳过。
+
+localhost真实客户端负例通过：初始固定坐标、全套新铁甲实际穿戴、副手新盾牌、营养128、初末目标资源0和0/5里程碑，4次合成请求后按调用数预算结束。初末事件覆盖未发生的换维与跨区为`not_covered`，重规划为`not_measured`；注册0个GameTest、42个产品工具，源码冻结校验通过。这个结果校准了初始化、观察、判分和记录，**不计模型能力基线或第三阶段任务完成**。
 
 ## 自由前期生存与补给 survival-v2
 

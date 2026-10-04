@@ -11,6 +11,16 @@ import net.minecraft.world.item.Items;
 
 /** 远征准备的实际装备与补给:四件甲必须穿戴,各件耐久独立检查,不从原料推算成品。 */
 public final class ExpeditionWorldObserver implements WorldEvalObservers.Observer {
+    private final int minimumDurabilityPercent;
+
+    public ExpeditionWorldObserver() {
+        this(80);
+    }
+
+    ExpeditionWorldObserver(int minimumDurabilityPercent) {
+        this.minimumDurabilityPercent = minimumDurabilityPercent;
+    }
+
     @Override
     public JsonObject observe(NumenPlayer body) {
         JsonObject facts = new JsonObject();
@@ -69,9 +79,10 @@ public final class ExpeditionWorldObserver implements WorldEvalObservers.Observe
         return facts;
     }
 
-    private static boolean ready(ItemStack stack, Item... allowed) {
+    private boolean ready(ItemStack stack, Item... allowed) {
         if (stack.isEmpty() || !stack.isDamageableItem()
-                || (long) (stack.getMaxDamage() - stack.getDamageValue()) * 5 < (long) stack.getMaxDamage() * 4) {
+                || (long) (stack.getMaxDamage() - stack.getDamageValue()) * 100
+                < (long) stack.getMaxDamage() * minimumDurabilityPercent) {
             return false;
         }
         for (Item item : allowed) if (stack.is(item)) return true;

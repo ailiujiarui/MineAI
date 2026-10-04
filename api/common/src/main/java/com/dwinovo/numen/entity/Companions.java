@@ -359,6 +359,7 @@ public final class Companions {
      * spending a fresh LLM call just to note the move. Called from each loader's dimension-change hook.
      */
     public static void onDimensionChanged(NumenPlayer body) {
+        com.dwinovo.numen.eval.WorldEvalObservers.dimensionChanged(body);
         String dim = body.level().dimension().location().toString();
         com.dwinovo.numen.event.NumenEvents.emit(body,
                 com.dwinovo.numen.agent.inbox.EventTypes.DIMENSION_CHANGE,

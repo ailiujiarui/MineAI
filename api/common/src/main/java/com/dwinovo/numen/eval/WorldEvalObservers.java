@@ -15,8 +15,11 @@ import java.util.function.Supplier;
 public final class WorldEvalObservers {
     public interface Observer {
         JsonObject observe(NumenPlayer body);
+        default void tick(NumenPlayer body) {}
         default void broken(NumenPlayer body, BlockPos pos, BlockState previous) {}
         default void consumed(NumenPlayer body, ItemStack meal, int foodBefore, float saturationBefore) {}
+        default void dimensionChanged(NumenPlayer body) {}
+        default void hurt(NumenPlayer body, net.minecraft.world.damagesource.DamageSource source, float amount) {}
     }
 
     private static final Map<String, Supplier<Observer>> factories = new HashMap<>();
@@ -45,6 +48,24 @@ public final class WorldEvalObservers {
 
     public static boolean isActive(NumenPlayer body) {
         return active.containsKey(body.getUUID());
+    }
+
+    /** Server-thread observation after the body scheduler; inactive bodies perform no content scan. */
+    public static void tick(NumenPlayer body) {
+        Observer observer = active.get(body.getUUID());
+        if (observer != null) observer.tick(body);
+    }
+
+    /** Committed loader dimension-change event; observers must not infer a portal route. */
+    public static void dimensionChanged(NumenPlayer body) {
+        Observer observer = active.get(body.getUUID());
+        if (observer != null) observer.dimensionChanged(body);
+    }
+
+    /** Native damage accepted; amount is the reported value before mitigation. */
+    public static void hurt(NumenPlayer body, net.minecraft.world.damagesource.DamageSource source, float amount) {
+        Observer observer = active.get(body.getUUID());
+        if (observer != null) observer.hurt(body, source, amount);
     }
 
     /** Native consumption committed; the meal retains its components from before the body ate it. */

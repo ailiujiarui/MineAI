@@ -154,7 +154,7 @@ class LiveEvalRunTest {
     void originalObserverMappingsRemainAvailableAlongsideExpedition() {
         for (String[] pair : new String[][]{{"live-v1", "sustainable-survival-v1"},
                 {"survival-v1", "sustainable-survival-v1"}, {"survival-v2", "free-survival-v2"},
-                {"expedition-v1", "expedition-v1"}}) {
+                {"expedition-v1", "expedition-v1"}, {"end-resources-v1", "end-resources-v1"}}) {
             JsonObject spec = spec();
             spec.addProperty("evaluation_version", pair[0]);
             spec.addProperty("world_observer", pair[1]);
@@ -166,12 +166,12 @@ class LiveEvalRunTest {
 
     @Test
     void unknownProtocolVersionsAndObserversAreRejected() {
-        for (String version : new String[]{"live-v2", "survival-v0", "survival-v3", "expedition-v2", ""}) {
+        for (String version : new String[]{"live-v2", "survival-v0", "survival-v3", "expedition-v2", "end-resources-v2", ""}) {
             JsonObject spec = spec();
             spec.addProperty("evaluation_version", version);
             assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec), version);
         }
-        for (String version : new String[]{"live-v1", "survival-v1", "survival-v2", "expedition-v1"}) {
+        for (String version : new String[]{"live-v1", "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1"}) {
             for (String observer : new String[]{"unknown", "sustainable-survival-v2", "free-survival-v1", ""}) {
                 JsonObject spec = spec();
                 spec.addProperty("evaluation_version", version);
@@ -192,6 +192,123 @@ class LiveEvalRunTest {
             spec.addProperty("evaluation_version", pair[0]);
             spec.addProperty("world_observer", pair[1]);
             assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec), pair[0] + ":" + pair[1]);
+        }
+    }
+
+    @Test
+    void endResourcesRequiresCurrentResourcesAndSuppliesEvenAfterEveryMilestoneWasReached() {
+        JsonObject spec = spec();
+        spec.addProperty("evaluation_version", "end-resources-v1");
+        spec.addProperty("world_observer", "end-resources-v1");
+        spec.addProperty("success_hold_ticks", 200);
+        spec.add("success", json("""
+                {"world":{"eye_equivalents":16,"armor_ready":true,"safe_state":true,"food_nutrition":80},
+                 "items":{"minecraft:water_bucket":1,"minecraft:torch":32},"min_health":16,"min_food":16}
+                """));
+        spec.add("milestones", JsonParser.parseString("""
+                [{"id":"resources","condition":{"world":{"eye_equivalents":16}}},
+                 {"id":"ready","condition":{"world":{"eye_equivalents":16,"armor_ready":true,"safe_state":true}}}]
+                """));
+        JsonObject state = snapshot();
+        state.addProperty("game_tick", 0);
+        state.add("world", json("{\"eye_equivalents\":0,\"armor_ready\":true,\"safe_state\":true,\"food_nutrition\":128,\"loadout_held_ticks\":0}"));
+        state.add("inventory", json("{\"minecraft:water_bucket\":1,\"minecraft:torch\":32}"));
+        LiveEvalRun run = new LiveEvalRun(spec);
+        run.start(START, state);
+        assertEquals(0, run.report().getAsJsonArray("milestones").size(), "prepared starter gear is not stage-3 resources");
+        state.getAsJsonObject("world").addProperty("eye_equivalents", 16);
+        for (int tick = 20; tick <= 200; tick += 20) {
+            state.addProperty("game_tick", tick);
+            state.getAsJsonObject("world").addProperty("loadout_held_ticks", tick - 20);
+            run.observe(START + tick, state);
+        }
+        assertEquals(2, run.report().getAsJsonArray("milestones").size());
+        assertEquals(180, run.report().get("success_held_ticks").getAsInt());
+        assertFalse(run.finished(), "all historical milestones cannot replace the hold");
+        state.addProperty("game_tick", 220);
+        state.getAsJsonObject("world").addProperty("eye_equivalents", 15);
+        state.getAsJsonObject("world").addProperty("loadout_held_ticks", 0);
+        run.observe(START + 220, state);
+        assertEquals(0, run.report().get("success_held_ticks").getAsInt());
+        state.getAsJsonObject("world").addProperty("eye_equivalents", 16);
+        state.addProperty("game_tick", 240);
+        state.getAsJsonObject("inventory").remove("minecraft:water_bucket");
+        run.observe(START + 240, state);
+        assertEquals(0, run.report().get("success_held_ticks").getAsInt());
+        state.getAsJsonObject("inventory").addProperty("minecraft:water_bucket", 1);
+        state.getAsJsonObject("world").addProperty("safe_state", false);
+        state.addProperty("game_tick", 260);
+        run.observe(START + 260, state);
+        assertFalse(run.finished(), "restored resources cannot hide danger");
+        state.getAsJsonObject("world").addProperty("safe_state", true);
+        for (int tick = 280; tick <= 480; tick += 20) {
+            state.addProperty("game_tick", tick);
+            state.getAsJsonObject("world").addProperty("loadout_held_ticks", tick - 280);
+            run.observe(START + tick, state);
+            if (tick < 480) assertFalse(run.finished());
+        }
+        outcome(run, "success", "authoritative_success_criterion_met");
+        assertEquals(200, run.report().get("success_held_ticks").getAsInt());
+    }
+
+    @Test
+    void endResourceHoldRejectsBetweenSnapshotInterruptionsAndMissingTickEvidence() {
+        JsonObject spec = survivalSpec();
+        spec.addProperty("evaluation_version", "end-resources-v1");
+        spec.addProperty("world_observer", "end-resources-v1");
+        spec.add("success", json("{\"world\":{\"eye_equivalents\":16}}"));
+        JsonObject state = snapshot();
+        state.addProperty("game_tick", 100);
+        state.add("world", json("{\"eye_equivalents\":16,\"loadout_held_ticks\":0}"));
+        LiveEvalRun run = new LiveEvalRun(spec);
+        run.start(START, state);
+        state.addProperty("game_tick", 120);
+        state.getAsJsonObject("world").addProperty("loadout_held_ticks", 20);
+        run.observe(START + 1, state);
+        state.addProperty("game_tick", 140);
+        state.getAsJsonObject("world").addProperty("loadout_held_ticks", 1);
+        run.observe(START + 2, state);
+        assertFalse(run.finished(), "a lost-and-restored shield between snapshots must invalidate the apparent forty-tick hold");
+        assertEquals(1, run.report().get("success_held_ticks").getAsInt());
+        for (int tick : new int[]{160, 180}) {
+            state.addProperty("game_tick", tick);
+            state.getAsJsonObject("world").addProperty("loadout_held_ticks", tick - 139);
+            run.observe(START + tick, state);
+        }
+        outcome(run, "success", "authoritative_success_criterion_met");
+        for (String world : new String[]{"{\"eye_equivalents\":16}",
+                "{\"eye_equivalents\":16,\"loadout_held_ticks\":-1}",
+                "{\"eye_equivalents\":16,\"loadout_held_ticks\":1.5}",
+                "{\"eye_equivalents\":16,\"loadout_held_ticks\":true}"}) {
+            state.add("world", json(world));
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec).start(START, state), world);
+        }
+    }
+
+    @Test
+    void equipmentSetupIsExplicitAndCannotReinterpretOlderProtocols() {
+        JsonObject spec = spec();
+        spec.addProperty("evaluation_version", "end-resources-v1");
+        spec.add("setup", json("{\"equipment\":{\"head\":\"minecraft:iron_helmet\",\"offhand\":\"minecraft:shield\"}}"));
+        assertEquals(spec, new LiveEvalRun(spec).report().getAsJsonObject("spec"));
+        for (String setup : new String[]{"{\"equipment\":[]}", "{\"equipment\":null}",
+                "{\"equipment\":{\"mainhand\":\"minecraft:iron_pickaxe\"}}", "{\"equipment\":{\"head\":1}}",
+                "{\"equipment\":{\"head\":\"iron_helmet\"}}", "{\"equipment\":{\"head\":\"\"}}"}) {
+            spec.add("setup", json(setup));
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec), setup);
+        }
+        for (String version : new String[]{"live-v1", "survival-v1", "survival-v2", "expedition-v1"}) {
+            spec.addProperty("evaluation_version", version);
+            spec.add("setup", json("{\"equipment\":{}}"));
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec), version);
+            spec.addProperty("world_observer", "end-resources-v1");
+            spec.add("setup", json("{}"));
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec), version);
+        }
+        spec.addProperty("evaluation_version", "end-resources-v1");
+        for (String observer : new String[]{"expedition-v1", "free-survival-v2", "sustainable-survival-v1"}) {
+            spec.addProperty("world_observer", observer);
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec), observer);
         }
     }
 

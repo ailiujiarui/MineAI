@@ -20,7 +20,7 @@ from run_bot_eval import digest_files, git, source_files_for, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = "live-v1"
-SUPPORTED_VERSIONS = {VERSION, "survival-v1", "survival-v2", "expedition-v1"}
+SUPPORTED_VERSIONS = {VERSION, "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1"}
 RUNS = ROOT / "build/evals" / VERSION
 SCENARIOS = ROOT / "evals" / VERSION / "scenarios"
 CRITERIA = {"items", "min_health", "min_food", "dragon_kills", "within", "world"}
@@ -133,7 +133,8 @@ def validate_scenario(value):
     if (not isinstance(value.get("evaluation_version"), str)
             or value["evaluation_version"] not in SUPPORTED_VERSIONS):
         raise PreflightError("Scenario has the wrong evaluation_version")
-    observer = {"survival-v2": "free-survival-v2", "expedition-v1": "expedition-v1"}.get(
+    observer = {"survival-v2": "free-survival-v2", "expedition-v1": "expedition-v1",
+                "end-resources-v1": "end-resources-v1"}.get(
         value["evaluation_version"], "sustainable-survival-v1")
     if "world_observer" in value and value["world_observer"] != observer:
         raise PreflightError("Scenario has an unsupported world_observer")
@@ -156,6 +157,8 @@ def validate_scenario(value):
     setup_fields = {"spawn", "floor", "blocks", "inventory"}
     if value["evaluation_version"] == "survival-v2":
         setup_fields |= {"food_level", "saturation"}
+    if value["evaluation_version"] == "end-resources-v1":
+        setup_fields.add("equipment")
     if not isinstance(setup, dict) or set(setup) - setup_fields:
         raise PreflightError("Unsupported setup fields")
     if value["evaluation_version"] == "survival-v2":
@@ -172,6 +175,15 @@ def validate_scenario(value):
         position(setup["spawn"], "setup.spawn")
     if "inventory" in setup:
         item_counts(setup["inventory"], "setup.inventory")
+    if "equipment" in setup:
+        equipment = setup["equipment"]
+        if (not isinstance(equipment, dict)
+                or set(equipment) - {"head", "chest", "legs", "feet", "offhand"}):
+            raise PreflightError("setup.equipment needs supported equipment slots")
+        for item in equipment.values():
+            if not isinstance(item, str):
+                raise PreflightError("setup.equipment values must be item registry IDs")
+            item_counts({item: 1}, "setup.equipment")
     if "floor" in setup:
         floor = setup["floor"]
         if not isinstance(floor, dict) or set(floor) != {"from", "to", "block"}:
@@ -350,11 +362,20 @@ def validate_result(output, scenario):
             # even when no body-relative observer evidence can be collected.
             if not (status == "failed" and result["reason"] == "companion_died" and died):
                 world_evidence(snapshot, conditions, key)
+                if scenario["evaluation_version"] == "end-resources-v1":
+                    world = snapshot.get("world")
+                    if not isinstance(world, dict):
+                        raise PreflightError(f"{key}.world must contain required observer evidence")
+                    number(world.get("loadout_held_ticks"), key + ".world.loadout_held_ticks", integer=True)
         if status == "success":
             world_evidence(result["final_snapshot"], [scenario["success"]], "final_snapshot", require_met=True)
             if "success_hold_ticks" in scenario:
                 number(result.get("success_held_ticks"), "result.success_held_ticks",
                        minimum=scenario["success_hold_ticks"], integer=True)
+            if scenario["evaluation_version"] == "end-resources-v1":
+                number(result["final_snapshot"]["world"].get("loadout_held_ticks"),
+                       "final_snapshot.world.loadout_held_ticks",
+                       minimum=scenario.get("success_hold_ticks", 0), integer=True)
     if result.get("spec") != scenario:
         raise PreflightError("Client result does not match the exact requested scenario and budget")
     trace_path = output / "results/trace.json"
@@ -427,6 +448,7 @@ def main(argv=None):
         command = command_for(output, args.offline, args.neoforge_version)
         evaluation_files = [args.scenario.resolve(), Path(__file__).resolve(),
                             ROOT / "tools/run_bot_eval.py",
+                            ROOT / "tools/calibrate_live_eval.py",
                             *ROOT.glob("api/common/src/client/java/**/LiveEval*.java"),
                             ROOT / "core/neoforge/build.gradle"]
         # Reuse the repository benchmark's source manifest, which includes new

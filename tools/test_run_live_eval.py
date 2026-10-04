@@ -16,6 +16,9 @@ from unittest.mock import patch
 spec = importlib.util.spec_from_file_location("run_live_eval", Path(__file__).with_name("run_live_eval.py"))
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
+calibration_spec = importlib.util.spec_from_file_location("calibrate_live_eval", Path(__file__).with_name("calibrate_live_eval.py"))
+calibrator = importlib.util.module_from_spec(calibration_spec)
+calibration_spec.loader.exec_module(calibrator)
 
 
 class LiveLauncherTest(unittest.TestCase):
@@ -242,7 +245,12 @@ class LiveLauncherTest(unittest.TestCase):
                 scenario = runner.validate_scenario(json.loads(path.read_text(encoding="utf-8")))
                 stock = scenario["setup"].get("inventory", {})
                 requirements = scenario["success"].get("items", {})
-                if requirements:
+                if scenario["evaluation_version"] == "end-resources-v1":
+                    self.assertEqual(0, stock.get("minecraft:ender_eye", 0) + min(
+                        stock.get("minecraft:ender_pearl", 0), stock.get("minecraft:blaze_powder", 0)
+                        + 2 * stock.get("minecraft:blaze_rod", 0)))
+                    self.assertGreater(scenario["success"]["world"]["eye_equivalents"], 0)
+                elif requirements:
                     self.assertFalse(all(stock.get(item, 0) >= count for item, count in requirements.items()))
                 self.assertNotIn("budget", scenario)
 
@@ -277,10 +285,23 @@ class LiveLauncherTest(unittest.TestCase):
                         milestones=[{"id": "equipment", "condition": {"world": {"equipment_ready": True}}}])
         return scenario
 
+    def end_resources_scenario(self):
+        scenario = copy.deepcopy(self.scenario)
+        scenario.update(evaluation_version="end-resources-v1", case_id="live.end-resources",
+                        world_observer="end-resources-v1", success_hold_ticks=200,
+                        setup={"inventory": {"minecraft:iron_pickaxe": 1, "minecraft:cooked_beef": 16},
+                               "equipment": {"head": "minecraft:iron_helmet",
+                                             "chest": "minecraft:iron_chestplate",
+                                             "legs": "minecraft:iron_leggings", "feet": "minecraft:iron_boots",
+                                             "offhand": "minecraft:shield"}},
+                        success={"world": {"eye_equivalents": 16, "armor_ready": True}},
+                        milestones=[{"id": "eye-resources", "condition": {"world": {"eye_equivalents": 16}}}])
+        return scenario
+
     def test_supported_protocol_versions_preserve_the_scenario(self):
         legacy_observer = {**self.scenario, "world_observer": "sustainable-survival-v1"}
         for scenario in (self.scenario, legacy_observer, self.survival_scenario(),
-                         self.free_survival_scenario(), self.expedition_scenario()):
+                         self.free_survival_scenario(), self.expedition_scenario(), self.end_resources_scenario()):
             with self.subTest(version=scenario["evaluation_version"]):
                 self.assertEqual(scenario, runner.validate_scenario(copy.deepcopy(scenario)))
 
@@ -319,6 +340,52 @@ class LiveLauncherTest(unittest.TestCase):
         request = json.loads((self.output / "request.json").read_text(encoding="utf-8"))
         self.assertEqual({**scenario, "budget": self.read_run()["budget"]}, request["scenario"])
 
+    def test_end_resources_preparation_preserves_public_worn_equipment_without_reading_provider(self):
+        scenario_path = self.base / "end-resources.json"
+        scenario = self.end_resources_scenario()
+        runner.write_json(scenario_path, scenario)
+        with patch.object(runner, "select_provider", side_effect=AssertionError("Do not read credentials")):
+            code, launch, _ = self.main(["--prepare-only", "--scenario", str(scenario_path)])
+        self.assertEqual(0, code)
+        launch.assert_not_called()
+        self.assertEqual("end-resources-v1", self.read_run()["evaluation_version"])
+        self.assertIsNone(self.read_run()["success"])
+        request = json.loads((self.output / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual({**scenario, "budget": self.read_run()["budget"]}, request["scenario"])
+        self.assertNotIn("minecraft:shield", request["scenario"]["setup"]["inventory"])
+        self.assertFalse((self.output / "game/config/numen/providers.json").exists())
+
+    def test_end_resources_equipment_accepts_slot_registry_ids_and_preserves_omissions(self):
+        for equipment in (None, {}, {"head": "minecraft:iron_helmet"}, {"offhand": "minecraft:shield"}):
+            with self.subTest(equipment=equipment):
+                scenario = self.end_resources_scenario()
+                if equipment is None:
+                    del scenario["setup"]["equipment"]
+                else:
+                    scenario["setup"]["equipment"] = equipment
+                self.assertEqual(scenario, runner.validate_scenario(copy.deepcopy(scenario)))
+
+    def test_end_resources_equipment_rejects_unknown_slots_counts_and_malformed_ids(self):
+        for equipment in (None, [], "iron", {"mainhand": "minecraft:iron_pickaxe"},
+                          {"HEAD": "minecraft:iron_helmet"}, {"head": "iron_helmet"},
+                          {"head": "minecraft:"}, {"head": 1}, {"head": True},
+                          {"head": {"item": "minecraft:iron_helmet", "count": 2}},
+                          {"head": ["minecraft:iron_helmet"]}):
+            with self.subTest(equipment=equipment):
+                scenario = self.end_resources_scenario()
+                scenario["setup"]["equipment"] = equipment
+                with self.assertRaisesRegex(runner.PreflightError, "equipment"):
+                    runner.validate_scenario(scenario)
+
+    def test_existing_versions_cannot_gain_equipment_initialization(self):
+        for original in (self.scenario, self.survival_scenario(), self.free_survival_scenario(),
+                         self.expedition_scenario()):
+            with self.subTest(version=original["evaluation_version"]):
+                scenario = copy.deepcopy(original)
+                scenario["setup"]["equipment"] = {"offhand": "minecraft:shield"}
+                with self.assertRaisesRegex(runner.PreflightError, "setup fields"):
+                    runner.validate_scenario(scenario)
+
     def test_free_survival_food_setup_accepts_bounds_and_preserves_omissions(self):
         for food_setup in ({}, {"food_level": 14, "saturation": 0},
                            {"food_level": 0, "saturation": 0},
@@ -344,7 +411,8 @@ class LiveLauncherTest(unittest.TestCase):
                     runner.validate_scenario(scenario)
 
     def test_versions_other_than_survival_v2_reject_food_initialization_fields(self):
-        for original in (self.scenario, self.survival_scenario(), self.expedition_scenario()):
+        for original in (self.scenario, self.survival_scenario(), self.expedition_scenario(),
+                         self.end_resources_scenario()):
             for food_setup in ({"food_level": 14}, {"saturation": 0},
                                {"food_level": 14, "saturation": 0}):
                 with self.subTest(version=original["evaluation_version"], setup=food_setup):
@@ -356,9 +424,10 @@ class LiveLauncherTest(unittest.TestCase):
     def test_unknown_scenario_fields_versions_and_observers_are_rejected(self):
         changes = [{"unknown_field": True}]
         changes += [{"evaluation_version": value} for value in
-                    ("live-v2", "survival-v0", "survival-v3", "expedition-v2", None, 1, [])]
+                    ("live-v2", "survival-v0", "survival-v3", "expedition-v2", "end-resources-v2", None, 1, [])]
         changes += [{"world_observer": value} for value in ("unknown", "", None, True, [], {})]
-        for original in (self.survival_scenario(), self.free_survival_scenario(), self.expedition_scenario()):
+        for original in (self.survival_scenario(), self.free_survival_scenario(), self.expedition_scenario(),
+                         self.end_resources_scenario()):
             for change in changes:
                 with self.subTest(version=original["evaluation_version"], change=change):
                     scenario = copy.deepcopy(original)
@@ -373,7 +442,11 @@ class LiveLauncherTest(unittest.TestCase):
                                   ("live-v1", "expedition-v1"), ("survival-v1", "expedition-v1"),
                                   ("survival-v2", "expedition-v1"),
                                   ("expedition-v1", "sustainable-survival-v1"),
-                                  ("expedition-v1", "free-survival-v2")):
+                                  ("expedition-v1", "free-survival-v2"),
+                                  ("expedition-v1", "end-resources-v1"),
+                                  ("end-resources-v1", "expedition-v1"),
+                                  ("end-resources-v1", "sustainable-survival-v1"),
+                                  ("end-resources-v1", "free-survival-v2")):
             with self.subTest(version=version, observer=observer):
                 scenario = self.free_survival_scenario()
                 scenario.update(evaluation_version=version, world_observer=observer)
@@ -486,10 +559,141 @@ class LiveLauncherTest(unittest.TestCase):
                 with self.assertRaises(runner.PreflightError):
                     runner.validate_result(self.output, self.scenario)
 
+    def test_end_resources_initial_supplies_do_not_make_missing_resources_successful(self):
+        self.scenario = self.end_resources_scenario()
+        initial = {"world": {"eye_equivalents": 0, "armor_ready": True, "loadout_held_ticks": 0}}
+        evidence = {"initial_snapshot": initial, "final_snapshot": copy.deepcopy(initial)}
+        self.write_result(**evidence)
+        with self.assertRaisesRegex(runner.PreflightError, "criterion"):
+            runner.validate_result(self.output, self.scenario)
+        expected = self.write_result(status="budget_exhausted", success_held_ticks=0, **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_end_resources_success_needs_current_resources_even_after_historical_milestone(self):
+        self.scenario = self.end_resources_scenario()
+        evidence = {"initial_snapshot": {"world": {"eye_equivalents": 0, "armor_ready": True,
+                                                    "loadout_held_ticks": 0}},
+                    "final_snapshot": {"world": {"eye_equivalents": 16, "armor_ready": True,
+                                                  "loadout_held_ticks": 200}}}
+        expected = self.write_result(**evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        for change in ({"final_snapshot": {"world": {"eye_equivalents": 15, "armor_ready": True,
+                                                     "loadout_held_ticks": 200}}},
+                       {"final_snapshot": {"world": {"eye_equivalents": 16, "armor_ready": False,
+                                                     "loadout_held_ticks": 200}}},
+                       {"success_held_ticks": 199}):
+            with self.subTest(change=change):
+                self.write_result(**{**evidence, "milestones": [{"id": "eye-resources", "elapsed_ms": 1}], **change})
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_end_resources_alive_snapshots_require_nonnegative_integer_observer_hold(self):
+        self.scenario = self.end_resources_scenario()
+        for status in ("success", "failed", "budget_exhausted"):
+            for snapshot in ("initial_snapshot", "final_snapshot"):
+                for held in (None, -1, True, 1.5, "200", float("inf"), "missing"):
+                    with self.subTest(status=status, snapshot=snapshot, held=held):
+                        evidence = {"initial_snapshot": {"alive": True, "world": {
+                                        "eye_equivalents": 0, "armor_ready": True, "loadout_held_ticks": 0}},
+                                    "final_snapshot": {"alive": True, "world": {
+                                        "eye_equivalents": 16, "armor_ready": True, "loadout_held_ticks": 200}}}
+                        if held == "missing":
+                            del evidence[snapshot]["world"]["loadout_held_ticks"]
+                        else:
+                            evidence[snapshot]["world"]["loadout_held_ticks"] = held
+                        self.write_result(status=status, **evidence)
+                        with self.assertRaisesRegex(runner.PreflightError, "loadout_held_ticks"):
+                            runner.validate_result(self.output, self.scenario)
+
+    def test_end_resources_recovered_loadout_requires_a_fresh_uninterrupted_hold(self):
+        self.scenario = self.end_resources_scenario()
+        evidence = {"initial_snapshot": {"world": {"eye_equivalents": 0, "armor_ready": True,
+                                                    "loadout_held_ticks": 0}},
+                    "final_snapshot": {"world": {"eye_equivalents": 16, "armor_ready": True,
+                                                  "loadout_held_ticks": 1}}}
+        self.write_result(success_held_ticks=200, milestones=[{"id": "eye-resources", "elapsed_ms": 1}], **evidence)
+        with self.assertRaisesRegex(runner.PreflightError, "loadout_held_ticks"):
+            runner.validate_result(self.output, self.scenario)
+        expected = self.write_result(status="budget_exhausted", success_held_ticks=200, **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        evidence["final_snapshot"]["world"]["loadout_held_ticks"] = 200
+        expected = self.write_result(success_held_ticks=200, **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def end_resources_negative_evidence(self):
+        scenario = self.end_resources_scenario()
+        inventory = dict(scenario["setup"]["inventory"])
+        inventory.update({item: 1 for item in scenario["setup"]["equipment"].values()})
+        coverage = {field: {"status": "not_covered", "sampled_events": 0, "first_event": None}
+                    for field in ("dimension_change", "sampled_chunk_change", "inventory_change",
+                                  "danger_entered", "danger_cleared")}
+        coverage.update({field: {"status": "not_measured"}
+                         for field in ("risk_replanning", "resource_site_replanning")})
+        armor = {slot: {"id": item, "count": 1, "max_durability": 100, "remaining_durability": 100}
+                 for slot, item in scenario["setup"]["equipment"].items() if slot != "offhand"}
+        world = {field: 0 for field in ("eye_equivalents", "ender_eyes", "ender_pearls", "blaze_powder",
+                                       "blaze_rods", "pearl_units", "blaze_units")}
+        world.update(mining_tool_ready=True, shield_ready=True, armor_ready=True, food_nutrition=128,
+                     loadout_held_ticks=0, evidence={"armor": armor, "coverage": coverage,
+                         "inventory": [{"slot": 40, "id": "minecraft:shield", "count": 1,
+                                        "remaining_durability": 336, "max_durability": 336}]})
+        snapshot = {"inventory": inventory, "world": world}
+        return scenario, {"status": "budget_exhausted", "reason": "max_model_calls", "model_calls": 4,
+                          "milestones": [], "initial_snapshot": snapshot,
+                          "final_snapshot": copy.deepcopy(snapshot)}
+
+    def test_end_resources_idle_calibration_checks_actual_wearing_and_no_target_resources(self):
+        scenario, result = self.end_resources_negative_evidence()
+        self.assertTrue(calibrator.end_resources_negative_check(0, result, scenario)["passed"])
+        for initial, final in (({"eye_equivalents": 1}, {}), ({}, {"ender_pearl": 1})):
+            with self.subTest(initial=initial, final=final):
+                invalid = copy.deepcopy(result)
+                invalid["initial_snapshot"]["world"].update(initial)
+                if final:
+                    invalid["final_snapshot"]["inventory"]["minecraft:ender_pearl"] = 1
+                self.assertFalse(calibrator.end_resources_negative_check(0, invalid, scenario)["passed"])
+        invalid = copy.deepcopy(result)
+        invalid["initial_snapshot"]["world"]["evidence"]["armor"]["head"]["id"] = "minecraft:air"
+        self.assertFalse(calibrator.end_resources_negative_check(0, invalid, scenario)["passed"])
+        invalid = copy.deepcopy(result)
+        invalid["initial_snapshot"]["inventory"]["minecraft:shield"] = 2
+        self.assertFalse(calibrator.end_resources_negative_check(0, invalid, scenario)["passed"])
+        invalid = copy.deepcopy(result)
+        invalid["status"] = "success"
+        self.assertFalse(calibrator.end_resources_negative_check(0, invalid, scenario)["passed"])
+
+    def test_end_resources_idle_calibration_requires_one_full_durability_offhand_shield(self):
+        scenario, result = self.end_resources_negative_evidence()
+        for change in ({"slot": 0}, {"count": 2}, {"remaining_durability": 335},
+                       {"id": "minecraft:iron_pickaxe"}, {"max_durability": 0}):
+            with self.subTest(change=change):
+                invalid = copy.deepcopy(result)
+                invalid["initial_snapshot"]["world"]["evidence"]["inventory"][0].update(change)
+                self.assertFalse(calibrator.end_resources_negative_check(0, invalid, scenario)["passed"])
+        duplicate = copy.deepcopy(result)
+        duplicate["initial_snapshot"]["world"]["evidence"]["inventory"] *= 2
+        self.assertFalse(calibrator.end_resources_negative_check(0, duplicate, scenario)["passed"])
+
+    def test_end_resources_idle_calibration_does_not_pass_uncovered_events_or_claim_replanning(self):
+        scenario, result = self.end_resources_negative_evidence()
+        for field, change in (("dimension_change", {"status": "observed"}),
+                              ("danger_entered", {"status": "observed"}),
+                              ("risk_replanning", {"status": "observed"})):
+            with self.subTest(field=field):
+                invalid = copy.deepcopy(result)
+                invalid["final_snapshot"]["world"]["evidence"]["coverage"][field].update(change)
+                self.assertFalse(calibrator.end_resources_negative_check(0, invalid, scenario)["passed"])
+        # A sampled inventory change can be real even with idle replies because the body may eat.
+        changed = copy.deepcopy(result)
+        changed["final_snapshot"]["world"]["evidence"]["coverage"]["inventory_change"].update(
+            status="observed", sampled_events=1, first_event={"kind": "inventory_change", "game_tick": 20})
+        self.assertTrue(calibrator.end_resources_negative_check(0, changed, scenario)["passed"])
+
     def test_result_version_must_match_requested_scenario(self):
         for version, other in (("live-v1", "survival-v1"), ("survival-v1", "live-v1"),
                                ("survival-v2", "survival-v1"), ("survival-v1", "survival-v2"),
-                               ("expedition-v1", "survival-v2"), ("survival-v2", "expedition-v1")):
+                               ("expedition-v1", "survival-v2"), ("survival-v2", "expedition-v1"),
+                               ("end-resources-v1", "expedition-v1"), ("expedition-v1", "end-resources-v1")):
             with self.subTest(version=version):
                 self.scenario["evaluation_version"] = version
                 self.write_result(evaluation_version=other)

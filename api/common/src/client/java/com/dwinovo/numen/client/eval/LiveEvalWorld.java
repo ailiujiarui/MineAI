@@ -28,6 +28,7 @@ import net.minecraft.stats.Stats;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
@@ -151,6 +152,31 @@ public final class LiveEvalWorld {
                     body.getInventory().add(stack);
                     if (!stack.isEmpty()) throw new IllegalArgumentException("Setup inventory does not fit");
                 }
+            }
+        }
+        if (setup.has("equipment")) {
+            if (!"end-resources-v1".equals(spec.get("evaluation_version").getAsString())) {
+                throw new IllegalArgumentException("Equipment initialization requires end-resources-v1");
+            }
+            for (var entry : setup.getAsJsonObject("equipment").entrySet()) {
+                EquipmentSlot slot = switch (entry.getKey()) {
+                    case "head" -> EquipmentSlot.HEAD;
+                    case "chest" -> EquipmentSlot.CHEST;
+                    case "legs" -> EquipmentSlot.LEGS;
+                    case "feet" -> EquipmentSlot.FEET;
+                    case "offhand" -> EquipmentSlot.OFFHAND;
+                    default -> throw new IllegalArgumentException("Unknown setup equipment slot: " + entry.getKey());
+                };
+                ResourceLocation id = ResourceLocation.parse(entry.getValue().getAsString());
+                if (!BuiltInRegistries.ITEM.containsKey(id)) {
+                    throw new IllegalArgumentException("Unknown setup equipment item: " + id);
+                }
+                ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(id));
+                if (stack.isEmpty() || (slot != EquipmentSlot.OFFHAND && body.getEquipmentSlotForItem(stack) != slot)) {
+                    throw new IllegalArgumentException("Setup equipment does not fit slot " + entry.getKey() + ": " + id);
+                }
+                // Each public equipment entry creates one fresh stack, independently of the backpack entries.
+                body.setItemSlot(slot, stack);
             }
         }
         body.setHealth(body.getMaxHealth());

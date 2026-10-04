@@ -27,6 +27,7 @@ public final class LiveEvalRun {
     private final double maxSeconds;
     private final long maxTokens;
     private final long successHoldTicks;
+    private final boolean requiresTickHold;
     private long successSinceTick = -1;
     private long previousTick = -1;
     private long successHeldTicks;
@@ -56,12 +57,14 @@ public final class LiveEvalRun {
         if (spec == null) throw invalid("spec is required");
         this.spec = spec.deepCopy();
         String version = text(spec, "evaluation_version");
-        if (!Set.of("live-v1", "survival-v1", "survival-v2", "expedition-v1").contains(version)) {
+        if (!Set.of("live-v1", "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1").contains(version)) {
             throw invalid("unknown evaluation_version");
         }
+        requiresTickHold = "end-resources-v1".equals(version);
         String observer = switch (version) {
             case "survival-v2" -> "free-survival-v2";
             case "expedition-v1" -> "expedition-v1";
+            case "end-resources-v1" -> "end-resources-v1";
             default -> "sustainable-survival-v1";
         };
         if (spec.has("world_observer") && !observer.equals(text(spec, "world_observer"))) {
@@ -75,6 +78,18 @@ public final class LiveEvalRun {
             throw invalid("world_preset must be flat or normal");
         }
         JsonObject setup = object(spec, "setup");
+        if (setup.has("equipment")) {
+            if (!"end-resources-v1".equals(version)) throw invalid("equipment initialization requires end-resources-v1");
+            JsonObject equipment = object(setup, "equipment");
+            for (String slot : equipment.keySet()) {
+                if (!Set.of("head", "chest", "legs", "feet", "offhand").contains(slot)) {
+                    throw invalid("unknown equipment slot: " + slot);
+                }
+                if (!text(equipment, slot).matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) {
+                    throw invalid("invalid equipment item id: " + slot);
+                }
+            }
+        }
         if (setup.has("food_level") || setup.has("saturation")) {
             if (!"survival-v2".equals(version)) throw invalid("food initialization requires survival-v2");
             long foodLevel = setup.has("food_level") ? integer(setup, "food_level", 0, 20) : 20;
@@ -211,6 +226,11 @@ public final class LiveEvalRun {
             if (!successMet || (previousTick >= 0 && tick - previousTick > 20)) successSinceTick = -1;
             if (successMet && successSinceTick < 0) successSinceTick = tick;
             successHeldTicks = successSinceTick < 0 ? 0 : tick - successSinceTick;
+            // 第三阶段由服务端逐 tick 证据约束保持,防止两次客户端快照之间的短暂失效被漏算。
+            if (requiresTickHold) {
+                successHeldTicks = Math.min(successHeldTicks,
+                        integer(object(snapshot, "world"), "loadout_held_ticks", 0, Long.MAX_VALUE));
+            }
             previousTick = tick;
         }
         if (successMet && successHeldTicks >= successHoldTicks) {
@@ -331,6 +351,7 @@ public final class LiveEvalRun {
         if (!snapshot.get("alive").getAsBoolean()
                 || (started && snapshot.get("deaths").getAsInt() > initialDeaths)) return;
         if (successHoldTicks > 0) integer(snapshot, "game_tick", 0, Long.MAX_VALUE);
+        if (requiresTickHold) integer(object(snapshot, "world"), "loadout_held_ticks", 0, Long.MAX_VALUE);
         validateEvidence(success, snapshot);
         for (JsonObject condition : milestones.values()) validateEvidence(condition, snapshot);
     }

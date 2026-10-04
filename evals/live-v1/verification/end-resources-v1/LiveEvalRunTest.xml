@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" tests="43" skipped="0" failures="0" errors="0" timestamp="2026-10-04T16:01:12.441Z" hostname="YXR2025_" time="0.047">
+  <properties/>
+  <testcase name="missingOrMistypedSurvivalFactsAreObservationErrorsRatherThanFailedCapabilities()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.005"/>
+  <testcase name="deathAtTheHoldBoundaryWinsEvenIfTheBodyHasDisappearedOrRespawned()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="originalObserverMappingsRemainAvailableAlongsideExpedition()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.002"/>
+  <testcase name="originalProtocolStillScoresWithoutWorldFactsOrGameTicks()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="missingUsageCannotBeMistakenForFreeUnlimitedCalls()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="rejectsEmptyUnknownAndMalformedConditionsInsteadOfSilentlyPassing()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.003"/>
+  <testcase name="concurrentTransportAttemptsCannotOversubscribeTheBudget()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.002"/>
+  <testcase name="usageOverflowStopsEvaluationInsteadOfWrappingBelowTheBudget()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="milestonesKeepFirstObservedEvidenceAfterResourcesAreConsumed()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="survivalCriteriaCannotBeEmptyNegativeFalseOrNested()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="successRequiresSimultaneousAuthoritativeInventoryNotAnAssistantClaim()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="deathWinsOverACompletedInventoryEvenAfterRespawn()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="freeSurvivalProtocolScoresGenericWorldFactsWithoutAgriculturalRequirements()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="absentDeadBodyDoesNotRequireHealthOrPositionEvidence()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="cannotFinishWithSuccessWithoutWorldEvidence()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="budgetsMustBeExplicitPositiveAndIntegralWhereRequired()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.002"/>
+  <testcase name="survivalFactsMustCoexistEvenWhenSeparateMilestonesHaveBeenReached()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="expeditionPreparationRequiresCurrentSuppliesAndWorldFactsThroughoutTheHold()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="incrementalTracePreservesOrderAndDoesNotExposeStoredEvidence()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="cacheTokensCountTowardTheExplicitBudget()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="observersCannotReinterpretAnotherProtocolVersion()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="endResourceHoldRejectsBetweenSnapshotInterruptionsAndMissingTickEvidence()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="foodInitializationRejectsMalformedOrOutOfRangeValues()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="exactTokenBudgetStillAllowsCurrentToolsButNoFurtherRequest()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="foodInitializationIsAnExplicitV2FixtureWithoutRewritingDefaults()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="rewoundGameClockIsAnInfrastructureFailure()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="pausedWorldDoesNotContributeToTheSurvivalHold()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="missingWorldEvidenceIsInfrastructureFailureNotAZeroInventoryScore()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="endResourcesRequiresCurrentResourcesAndSuppliesEvenAfterEveryMilestoneWasReached()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="setupFailureCanBeRecordedWithoutAStartedWorld()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="lastAllowedModelCallAndItsToolsCanFinishBeforeAnotherCallIsDenied()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="foodInitializationCannotBeUsedOutsideSurvivalV2()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.002"/>
+  <testcase name="explicitFinishCannotReplaceObservedSurvivalTime()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="equipmentSetupIsExplicitAndCannotReinterpretOlderProtocols()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.002"/>
+  <testcase name="independentlyObservedSuccessSurvivesAnUnknownFinalUsageReport()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="allPhysicalConditionsMustHoldAtTheSameTime()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.002"/>
+  <testcase name="losingARequiredConditionRestartsTheEntireSurvivalHold()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="incrementalTraceRejectsInvalidOffsets()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="deniedNextCallEndsUnfinishedWorkOnObservation()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="wallClockDeadlineStopsEvenWhenNoModelReplyArrives()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="recordsAreDetachedAndFinishedEvidenceCannotBeRewritten()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <testcase name="unknownProtocolVersionsAndObserversAreRejected()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.001"/>
+  <testcase name="unobservedGameTimeCannotBeCountedAsContinuousSurvival()" classname="com.dwinovo.numen.agent.acceptance.LiveEvalRunTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
