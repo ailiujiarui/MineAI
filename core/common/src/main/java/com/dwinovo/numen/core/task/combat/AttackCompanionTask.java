@@ -24,6 +24,7 @@ import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.permission.Action;
 import com.dwinovo.numen.permission.Permission;
 import com.dwinovo.numen.permission.Verdict;
+import com.dwinovo.numen.spectator.SpectatorMenuBridge;
 import com.dwinovo.numen.task.Preparation;
 import com.dwinovo.numen.task.TaskState;
 
@@ -506,10 +507,12 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack stack = inventory.getItem(slot);
             if (stack.is(Items.SHIELD)) {
-                ItemStack shield = stack.split(1);
-                player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, shield);
-                player.inventoryMenu.broadcastChanges();
-                return shield;
+                try (var display = SpectatorMenuBridge.inventoryAction(player)) {
+                    ItemStack shield = stack.split(1);
+                    player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, shield);
+                    player.inventoryMenu.broadcastChanges();
+                    return shield;
+                }
             }
         }
         return ItemStack.EMPTY;

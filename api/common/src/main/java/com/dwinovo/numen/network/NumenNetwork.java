@@ -99,7 +99,7 @@ public final class NumenNetwork {
     /** 服务端收到一片:这位玩家的收件箱收齐了,就把原包交给它登记的处理器。 */
     public static void fragmentFromClient(FragmentPayload fragment, ServerPlayer from) {
         CustomPacketPayload whole = assembled(FROM_CLIENTS.computeIfAbsent(from.getUUID(),
-                id -> new Fragments.Inbox(Wire.TO_SERVER)), fragment);
+                id -> new Fragments.Inbox(Wire.TO_SERVER)), fragment, from.registryAccess());
         if (whole != null) {
             route(TO_SERVER, whole).handler().accept(whole, from);
         }
@@ -107,7 +107,12 @@ public final class NumenNetwork {
 
     /** 客户端收到一片:同 {@link #fragmentFromClient}。 */
     public static void fragmentFromServer(FragmentPayload fragment) {
-        CustomPacketPayload whole = assembled(FROM_SERVER, fragment);
+        RegistryAccess registries = ClientPayloadSink.registryAccess.get();
+        if (registries == null) {
+            FROM_SERVER.clear();
+            return;
+        }
+        CustomPacketPayload whole = assembled(FROM_SERVER, fragment, registries);
         if (whole != null) {
             route(TO_CLIENT, whole).handler().accept(whole);
         }
@@ -118,6 +123,12 @@ public final class NumenNetwork {
      * 可分片的包,拒收并丢弃,日志里写明——对端不是正当的 Numen,没有谁可答复。
      */
     public static CustomPacketPayload assembled(Fragments.Inbox inbox, FragmentPayload fragment) {
+        return assembled(inbox, fragment, RegistryAccess.EMPTY);
+    }
+
+    /** 注册表内容随接收连接解码;关闭连接之后的残片没有注册表来源,由接收入口丢弃。 */
+    public static CustomPacketPayload assembled(Fragments.Inbox inbox, FragmentPayload fragment,
+                                                RegistryAccess registries) {
         switch (inbox.accept(fragment)) {
             case Fragments.Pending pending -> {
                 return null;
@@ -129,7 +140,7 @@ public final class NumenNetwork {
             case Fragments.Complete whole -> {
                 CustomPacketPayload.Type<?> kind = new CustomPacketPayload.Type<>(whole.kind());
                 Route<?> route = inbox.direction() == Wire.TO_SERVER ? TO_SERVER.get(kind) : TO_CLIENT.get(kind);
-                CustomPacketPayload payload = route == null ? null : Fragments.decode(route.codec(), whole.bytes());
+                CustomPacketPayload payload = route == null ? null : Fragments.decode(route.codec(), whole.bytes(), registries);
                 if (!(payload instanceof Wire.Fragmentable)) {
                     Constants.LOG.warn("[numen-net] dropped a fragmented {}: not a payload that goes as fragments",
                             whole.kind());

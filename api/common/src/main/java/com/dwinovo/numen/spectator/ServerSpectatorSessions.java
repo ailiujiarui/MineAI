@@ -1,11 +1,14 @@
 package com.dwinovo.numen.spectator;
 
+import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.entity.CompanionRegistry;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.network.NumenNetwork;
+import com.dwinovo.numen.network.Wire;
 import com.dwinovo.numen.network.payload.SpectatorRequestPayload;
 import com.dwinovo.numen.network.payload.SpectatorStatePayload;
 import com.dwinovo.numen.platform.ServerLifecycle;
+import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -17,6 +20,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -121,6 +125,12 @@ public final class ServerSpectatorSessions {
                     SpectatorMenuBridge.closeInventory(owner, request.menuId());
                 }
             }
+            case SpectatorRequestPayload.RESUME_MENU -> {
+                if (current.target.equals(target) && current.body != null
+                        && current.body.isOwnedByPlayer(owner.getUUID())) {
+                    SpectatorMenuBridge.resumeMenu(owner, request.menuId());
+                }
+            }
             default -> { }
         }
     }
@@ -152,7 +162,10 @@ public final class ServerSpectatorSessions {
         session.maps.clear();
         ServerPlayer owner = session.owner;
         // 首包先于相机变化,客户端可以保留进入前的摄像机类型与数据来源。
-        sendState(session);
+        if (!sendState(session)) {
+            exit(owner);
+            return;
+        }
         owner.setGameMode(GameType.SPECTATOR);
         owner.setCamera(owner);
         owner.teleportTo(body.serverLevel(), body.getX(), body.getY(), body.getZ(), Set.of(),
@@ -209,7 +222,10 @@ public final class ServerSpectatorSessions {
             } else {
                 // 真实主人坐标负责区块流与实体追踪;不修改同伴的位置。
                 owner.serverLevel().getChunkSource().move(owner);
-                sendState(session);
+                if (!sendState(session)) {
+                    exit(owner);
+                    continue;
+                }
                 sendHeldMaps(session, body);
             }
             session.lastPosition = body.position();
@@ -241,7 +257,7 @@ public final class ServerSpectatorSessions {
         session.maps.keySet().retainAll(held);
     }
 
-    private static void sendState(Session session) {
+    private static boolean sendState(Session session) {
         NumenPlayer body = session.body;
         SpectatorStatePayload state;
         if (body == null) {
@@ -261,9 +277,24 @@ public final class ServerSpectatorSessions {
                     body.getAttackStrengthScale(0.0F));
         }
         if (!sameState(state, session.lastState)) {
-            NumenNetwork.sendToPlayer(session.owner, state);
+            if (!sendState(session.owner, state)) return false;
             session.lastState = state;
         }
+        return true;
+    }
+
+    private static boolean sendState(ServerPlayer owner, SpectatorStatePayload state) {
+        int bytes = Wire.size(SpectatorStatePayload.STREAM_CODEC, state,
+                () -> new RegistryFriendlyByteBuf(Unpooled.buffer(), owner.registryAccess()));
+        if (!Wire.TO_CLIENT.carries(bytes)) {
+            // 缺少首包会让客户端无法退出,更新丢失则会留下旧 HUD;调用方结束观看并恢复主人。
+            Constants.LOG.warn("[numen-spectator] ended viewing for {} (session {}): {} bytes exceeds "
+                            + "the {} byte message limit; body operation is unchanged",
+                    state.target(), state.sessionId(), bytes, Wire.MESSAGE_BYTES);
+            return false;
+        }
+        NumenNetwork.sendToPlayer(owner, state);
+        return true;
     }
 
     private static boolean sameState(SpectatorStatePayload a, SpectatorStatePayload b) {
@@ -302,7 +333,7 @@ public final class ServerSpectatorSessions {
         owner.fallDistance = session.fallDistance;
         owner.setOnGround(original.onGround());
         owner.inventoryMenu.sendAllDataToRemote();
-        NumenNetwork.sendToPlayer(owner, new SpectatorStatePayload(++nextId, session.target, owner.getCamera().getId(),
+        sendState(owner, new SpectatorStatePayload(++nextId, session.target, owner.getCamera().getId(),
                 original.level().dimension().location(), false, List.of(), 0,
                 0, 0, 0, 0, 0, 0, 0, 0));
     }

@@ -11,6 +11,8 @@ import com.dwinovo.numen.network.payload.NumenRespawnPayload;
 import com.dwinovo.numen.network.payload.PathDebugPayload;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import net.minecraft.core.RegistryAccess;
 
 /**
  * 下行(S2C)payload 的客户端处理挂点。record 与编解码器必须留在主源码集
@@ -22,6 +24,9 @@ import java.util.function.Consumer;
 public final class ClientPayloadSink {
 
     private ClientPayloadSink() {}
+
+    /** 接收连接的注册表,用于重组物品等下行载荷;断连时无来源。 */
+    public static volatile Supplier<RegistryAccess> registryAccess = () -> null;
 
     public static volatile Consumer<com.dwinovo.numen.network.payload.SpectatorStatePayload> receiveSpectatorState = p -> {};
     public static volatile Consumer<com.dwinovo.numen.network.payload.SpectatorMenuPayload> receiveSpectatorMenu = p -> {};

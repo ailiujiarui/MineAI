@@ -1,6 +1,7 @@
 package com.dwinovo.numen.network.payload;
 
 import com.dwinovo.numen.Constants;
+import com.dwinovo.numen.network.Wire;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.UUIDUtil;
@@ -17,7 +18,7 @@ public record SpectatorStatePayload(long sessionId, UUID target, int entityId,
                                     float health, float maxHealth, int food, float saturation,
                                     float experienceProgress, int experienceLevel,
                                     int totalExperience, float attackStrength)
-        implements CustomPacketPayload {
+        implements CustomPacketPayload, Wire.Fragmentable {
     public static final Type<SpectatorStatePayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "spectator_state"));
     public static final StreamCodec<RegistryFriendlyByteBuf, SpectatorStatePayload> STREAM_CODEC =

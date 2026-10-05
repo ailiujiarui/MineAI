@@ -20,6 +20,8 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.UUID;
@@ -27,9 +29,13 @@ import java.util.UUID;
 /** Native menu renderers consume a detached replica; no LocalPlayer inventory or menu pointer is replaced. */
 public final class SpectatorMenuClient {
     private static final MenuDisplayTimeline TIMELINE = new MenuDisplayTimeline();
+    private static final MenuActionPlayback<SpectatorMenuFrame> ACTION = new MenuActionPlayback<>();
     private static long sessionId = -1;
     private static UUID targetId;
     private static SpectatorMenuPayload pending;
+    private static SpectatorMenuPayload actionPayload;
+    private static SpectatorMenuPayload deferred;
+    private static SpectatorMenuFrame displayedFrame;
     private static AbstractContainerMenu menu;
     private static ReadOnlyScreen screen;
     private static boolean initializingRenderer;
@@ -45,28 +51,74 @@ public final class SpectatorMenuClient {
 
     public static void handle(SpectatorMenuPayload payload) {
         if (payload.sessionId() != sessionId || !payload.target().equals(targetId)) return;
-        if (!TIMELINE.accept(payload.menuId(), payload.revision(), payload.event() == SpectatorMenuPayload.OPEN,
-                payload.event() == SpectatorMenuPayload.CLOSE || payload.event() == SpectatorMenuPayload.DISMISS)) return;
+        boolean action = payload.event() == SpectatorMenuPayload.ACTION;
+        if (!TIMELINE.accept(payload.menuId(), payload.revision(), payload.event() == SpectatorMenuPayload.OPEN || action,
+                payload.event() == SpectatorMenuPayload.CLOSE || payload.event() == SpectatorMenuPayload.DISMISS
+                        || (action && payload.closeAfterAction()))) return;
         if (payload.event() == SpectatorMenuPayload.DISMISS) {
             dismiss(false);
             return;
         }
+        if (action) {
+            clearAction();
+            pending = null;
+            actionPayload = payload;
+            ACTION.replace(payload.actionFrames());
+            applyAction(Util.getMillis());
+            return;
+        }
+        if (ACTION.active() && actionPayload.menuId() == payload.menuId()
+                && payload.event() != SpectatorMenuPayload.OPEN) {
+            deferred = payload;
+            return;
+        }
+        clearAction();
         pending = payload;
         applyPending();
     }
 
     public static void tick() {
+        long now = Util.getMillis();
+        applyAction(now);
+        if (ACTION.finished(now)) {
+            pending = deferred;
+            clearAction();
+        }
         applyPending();
-        if (TIMELINE.expired(Util.getMillis())) dismiss(false);
+        if (TIMELINE.expired(Util.getMillis())) {
+            long completedMenuId = TIMELINE.menuId();
+            dismiss(false);
+            if (targetId != null) NumenNetwork.sendToServer(new SpectatorRequestPayload(targetId,
+                    SpectatorRequestPayload.RESUME_MENU, sessionId, completedMenuId));
+        }
+    }
+
+    private static void applyAction(long now) {
+        if (!ACTION.active() || SpectatorClient.target() == null) return;
+        SpectatorMenuFrame frame = ACTION.frameToApply(now);
+        if (frame == null) return;
+        if (!applyFrame(actionPayload, frame)) {
+            clearAction();
+            return;
+        }
+        long appliedAt = Util.getMillis();
+        ACTION.applied(appliedAt);
+        if (ACTION.lastFrame() && actionPayload.closeAfterAction()) TIMELINE.applied(appliedAt);
     }
 
     private static void applyPending() {
         if (pending == null || SpectatorClient.target() == null) return;
         SpectatorMenuPayload payload = pending;
+        pending = null;
+        if (applyFrame(payload, payload.frame())) TIMELINE.applied(Util.getMillis());
+    }
+
+    private static boolean applyFrame(SpectatorMenuPayload payload, SpectatorMenuFrame frame) {
         if (screen == null || screen.menuId != payload.menuId()) {
             if (viewingScreen()) Minecraft.getInstance().setScreen(null);
             screen = null;
             menu = null;
+            displayedFrame = null;
             Inventory inventory = new Inventory(SpectatorClient.target());
             Screen renderer;
             if (payload.inventory()) {
@@ -76,25 +128,33 @@ public final class SpectatorMenuClient {
                 MenuType<?> type = BuiltInRegistries.MENU.get(payload.menuType());
                 Object constructor = type == null ? null : MenuScreensAccessor.numen$constructors().get(type);
                 if (constructor == null || !payload.menuType().getNamespace().equals("minecraft")) {
-                    pending = null;
-                    return;
+                    return false;
                 }
                 menu = type.create(-1, inventory);
                 renderer = ((MenuScreenConstructorInvoker) constructor).numen$create(menu, inventory, payload.title());
             }
-            if (menu.slots.size() != payload.frame().slots().size()) {
+            if (menu.slots.size() != frame.slots().size()) {
                 menu = null;
-                pending = null;
-                return;
+                return false;
             }
             screen = new ReadOnlyScreen(renderer, payload.menuId());
             Minecraft.getInstance().setScreen(screen);
         }
-        for (int i = 0; i < menu.slots.size(); i++) menu.slots.get(i).set(payload.frame().slots().get(i).copy());
-        menu.setCarried(payload.frame().carried().copy());
-        for (int i = 0; i < payload.frame().data().size(); i++) menu.setData(i, payload.frame().data().get(i));
-        pending = null;
-        TIMELINE.applied(Util.getMillis());
+        if (menu.slots.size() != frame.slots().size()) return false;
+        for (int i = 0; i < menu.slots.size(); i++) menu.slots.get(i).set(frame.slots().get(i).copy());
+        menu.setCarried(frame.carried().copy());
+        for (int i = 0; i < frame.data().size(); i++) menu.setData(i, frame.data().get(i));
+        if (screen.renderer instanceof WatchedInventoryScreen inventoryScreen) {
+            inventoryScreen.showChanges(displayedFrame, frame);
+        }
+        displayedFrame = frame;
+        return true;
+    }
+
+    private static void clearAction() {
+        ACTION.clear();
+        actionPayload = null;
+        deferred = null;
     }
 
     public static boolean viewingScreen() { return Minecraft.getInstance().screen == screen && screen != null; }
@@ -109,6 +169,8 @@ public final class SpectatorMenuClient {
         screen = null;
         menu = null;
         pending = null;
+        displayedFrame = null;
+        clearAction();
         TIMELINE.dismiss();
     }
 
@@ -181,10 +243,25 @@ public final class SpectatorMenuClient {
     /** Vanilla survival inventory layout, including armor, offhand, 2x2 and the result slot. */
     private static final class WatchedInventoryScreen extends AbstractContainerScreen<InventoryMenu> {
         private static final ResourceLocation TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/inventory.png");
+        private boolean[] changedSlots = new boolean[0];
+        private int selectedHotbar = -1;
+        private long highlightUntil;
 
         WatchedInventoryScreen(InventoryMenu menu, Inventory inventory, Component title) {
             super(menu, inventory, title);
             titleLabelX = 97;
+        }
+
+        void showChanges(SpectatorMenuFrame previous, SpectatorMenuFrame current) {
+            selectedHotbar = current.selectedHotbar();
+            changedSlots = new boolean[current.slots().size()];
+            if (previous == null || previous.slots().size() != current.slots().size()) return;
+            boolean changed = false;
+            for (int i = 0; i < changedSlots.length; i++) {
+                changedSlots[i] = !ItemStack.matches(previous.slots().get(i), current.slots().get(i));
+                changed |= changedSlots[i];
+            }
+            if (changed) highlightUntil = Util.getMillis() + 1000;
         }
 
         @Override
@@ -195,9 +272,26 @@ public final class SpectatorMenuClient {
         @Override
         protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
             graphics.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight);
+            if (Util.getMillis() < highlightUntil) {
+                for (int i = 0; i < changedSlots.length; i++) {
+                    if (changedSlots[i]) drawSlotBorder(graphics, menu.slots.get(i), 0xFF42D9D2);
+                }
+            }
+            if (selectedHotbar >= 0 && selectedHotbar < 9) {
+                drawSlotBorder(graphics, menu.slots.get(36 + selectedHotbar), 0xFFFFD45A);
+            }
             if (SpectatorClient.target() != null) InventoryScreen.renderEntityInInventoryFollowsMouse(
                     graphics, leftPos + 26, topPos + 8, leftPos + 75, topPos + 78, 30,
                     0.0625f, mouseX, mouseY, SpectatorClient.target());
+        }
+
+        private void drawSlotBorder(GuiGraphics graphics, Slot slot, int color) {
+            int x = leftPos + slot.x;
+            int y = topPos + slot.y;
+            graphics.fill(x - 1, y - 1, x + 17, y, color);
+            graphics.fill(x - 1, y + 16, x + 17, y + 17, color);
+            graphics.fill(x - 1, y, x, y + 16, color);
+            graphics.fill(x + 16, y, x + 17, y + 16, color);
         }
 
         @Override

@@ -17,6 +17,7 @@ public record SpectatorRequestPayload(UUID target, int action, long sessionId, l
     public static final int EXIT = 1;
     public static final int INVENTORY = 2;
     public static final int CLOSE_INVENTORY = 3;
+    public static final int RESUME_MENU = 4;
 
     public static final Type<SpectatorRequestPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "spectator_request"));

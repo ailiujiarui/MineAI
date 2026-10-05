@@ -11,6 +11,7 @@
     "PlayerAdvancementsRewardMixin",
     "MenuDataSlotsAccessor",
     "SpectatorMenuCloseMixin",
+    "SpectatorHotbarActionMixin",
     "SpectatorInputMixin",
     "SpectatorPlayerListMixin",
     "SpectatorServerLifecycleMixin",

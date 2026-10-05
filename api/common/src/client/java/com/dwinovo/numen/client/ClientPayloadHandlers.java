@@ -40,6 +40,10 @@ public final class ClientPayloadHandlers {
      * 客户端启动钩子上。
      */
     public static void install() {
+        ClientPayloadSink.registryAccess = () -> {
+            var connection = net.minecraft.client.Minecraft.getInstance().getConnection();
+            return connection == null ? null : connection.registryAccess();
+        };
         ClientPayloadSink.receiveSpectatorState = com.dwinovo.numen.client.spectator.SpectatorClient::handle;
         ClientPayloadSink.receiveSpectatorMenu = com.dwinovo.numen.spectator.SpectatorMenuClient::handle;
         ClientPayloadSink.companionList = ClientPayloadHandlers::handleCompanionList;

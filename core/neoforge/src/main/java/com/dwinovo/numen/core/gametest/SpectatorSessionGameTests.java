@@ -5,11 +5,13 @@ import com.dwinovo.numen.entity.CompanionFactory;
 import com.dwinovo.numen.entity.CompanionRegistry;
 import com.dwinovo.numen.entity.FakeConnection;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.network.Wire;
 import com.dwinovo.numen.network.payload.SpectatorRequestPayload;
 import com.dwinovo.numen.network.payload.SpectatorStatePayload;
 import com.dwinovo.numen.spectator.OwnerLocation;
 import com.dwinovo.numen.spectator.ServerSpectatorSessions;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import io.netty.buffer.Unpooled;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +21,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
@@ -35,6 +38,7 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MapItem;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -395,6 +399,120 @@ public class SpectatorSessionGameTests {
             CompanionFactory.despawn(owner.getServer(), body);
             leave(owner);
         }).thenSucceed();
+    }
+
+    @GameTest(template = "floor16", timeoutTicks = 120)
+    public static void spectator_oversized_initial_state_does_not_leave_a_viewing_session(GameTestHelper helper) {
+        NumenPlayer body = spawnAt(helper, "spec_large_initial_body", new BlockPos(2, 2, 2), false);
+        ServerPlayer owner = presentOwner(helper, body, "spec_large_initial_owner");
+        steps(helper).thenExecuteAfter(20, () -> {
+            Vec3 original = at(helper, new BlockPos(13, 2, 13));
+            owner.teleportTo(helper.getLevel(), original.x, original.y, original.z, Set.of(), 37, -12);
+            owner.setGameMode(GameType.CREATIVE);
+            owner.getAbilities().flying = true;
+            owner.setDeltaMovement(new Vec3(0.1, 0.2, 0.3));
+            owner.fallDistance = 2.5F;
+            owner.setOnGround(true);
+            owner.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 7));
+            List<ItemStack> actual = oversizedInventory(helper, body);
+            Vec3 bodyPosition = body.position();
+            ServerSpectatorSessions.enter(owner, body.getUUID());
+            helper.assertTrue(!ServerSpectatorSessions.isViewing(owner)
+                            && ServerSpectatorSessions.sessionFor(body) == null,
+                    "oversized initial state left a session that its client could not exit");
+            helper.assertTrue(owner.getCamera() == owner && owner.gameMode.getGameModeForPlayer() == GameType.CREATIVE
+                            && owner.level() == helper.getLevel() && owner.position().distanceToSqr(original) < 0.001
+                            && owner.getYRot() == 37 && owner.getXRot() == -12 && owner.getAbilities().flying,
+                    "rejected initial state changed the owner's camera, mode, stand or orientation");
+            helper.assertTrue(owner.getDeltaMovement().equals(new Vec3(0.1, 0.2, 0.3))
+                            && owner.fallDistance == 2.5F && owner.onGround()
+                            && owner.getInventory().getItem(0).is(Items.DIAMOND)
+                            && owner.getInventory().getItem(0).getCount() == 7,
+                    "rejected initial state changed the owner's recovery state or inventory");
+            assertActualInventory(helper, body, actual);
+            helper.assertTrue(body.position().equals(bodyPosition), "state size check teleported the NPC");
+            List<SpectatorStatePayload> states = received(owner).stream()
+                    .filter(SpectatorStatePayload.class::isInstance).map(SpectatorStatePayload.class::cast).toList();
+            helper.assertTrue(states.size() == 1 && !states.getFirst().active()
+                            && states.getFirst().entityId() == owner.getId(),
+                    "rejected initial state failed to send a small authoritative exit acknowledgement");
+            helper.assertTrue(OwnerLocation.of(owner).position().equals(owner.position()),
+                    "rejected initial state retained the owner anchor");
+            CompanionFactory.despawn(owner.getServer(), body);
+            leave(owner);
+        }).thenSucceed();
+    }
+
+    @GameTest(template = "floor16", timeoutTicks = 120)
+    public static void spectator_oversized_update_exits_and_preserves_actual_inventory(GameTestHelper helper) {
+        NumenPlayer body = spawnAt(helper, "spec_large_update_body", new BlockPos(2, 2, 2), false);
+        ServerPlayer owner = presentOwner(helper, body, "spec_large_update_owner");
+        steps(helper).thenExecuteAfter(20, () -> {
+            Vec3 original = at(helper, new BlockPos(13, 2, 13));
+            owner.teleportTo(helper.getLevel(), original.x, original.y, original.z, Set.of(), -44, 16);
+            owner.setGameMode(GameType.CREATIVE);
+            owner.getAbilities().flying = true;
+            owner.getInventory().setItem(0, new ItemStack(Items.EMERALD, 11));
+            ServerSpectatorSessions.enter(owner, body.getUUID());
+            helper.assertTrue(ServerSpectatorSessions.isViewing(owner) && owner.getCamera() == body,
+                    "ordinary state did not begin the viewing fixture");
+            long sessionId = ServerSpectatorSessions.sessionFor(body).id();
+            received(owner);
+            List<ItemStack> actual = oversizedInventory(helper, body);
+            Vec3 bodyPosition = body.position();
+            ServerSpectatorSessions.tick(owner.getServer());
+            helper.assertTrue(!ServerSpectatorSessions.isViewing(owner)
+                            && ServerSpectatorSessions.sessionFor(body) == null,
+                    "oversized update retained an active session with a stale HUD");
+            helper.assertTrue(owner.getCamera() == owner && owner.gameMode.getGameModeForPlayer() == GameType.CREATIVE
+                            && owner.level() == helper.getLevel() && owner.position().distanceToSqr(original) < 0.001
+                            && owner.getYRot() == -44 && owner.getXRot() == 16 && owner.getAbilities().flying,
+                    "oversized update did not restore the owner's original state");
+            helper.assertTrue(owner.getInventory().getItem(0).is(Items.EMERALD)
+                            && owner.getInventory().getItem(0).getCount() == 11
+                            && owner.containerMenu == owner.inventoryMenu,
+                    "oversized update changed the owner inventory or left another menu data source");
+            assertActualInventory(helper, body, actual);
+            helper.assertTrue(body.position().equals(bodyPosition), "oversized update changed the actual NPC position");
+            List<SpectatorStatePayload> states = received(owner).stream()
+                    .filter(SpectatorStatePayload.class::isInstance).map(SpectatorStatePayload.class::cast).toList();
+            helper.assertTrue(states.size() == 1 && !states.getFirst().active()
+                            && states.getFirst().sessionId() > sessionId && states.getFirst().entityId() == owner.getId(),
+                    "oversized update failed to invalidate old client state with an exit acknowledgement");
+            helper.assertTrue(OwnerLocation.of(owner).position().equals(owner.position()),
+                    "oversized update retained the owner anchor");
+            CompanionFactory.despawn(owner.getServer(), body);
+            leave(owner);
+        }).thenSucceed();
+    }
+
+    private static List<ItemStack> oversizedInventory(GameTestHelper helper, NumenPlayer body) {
+        ItemStack item = new ItemStack(Items.COBBLESTONE, 64);
+        item.set(DataComponents.CUSTOM_NAME, Component.literal("n".repeat(50_000)));
+        item.set(DataComponents.LORE, new ItemLore(java.util.Collections.nCopies(100,
+                Component.literal("l".repeat(2_000)))));
+        List<ItemStack> actual = new ArrayList<>();
+        for (int slot = 0; slot < body.getInventory().getContainerSize(); slot++) {
+            body.getInventory().setItem(slot, item.copy());
+            actual.add(body.getInventory().getItem(slot).copy());
+        }
+        SpectatorStatePayload payload = new SpectatorStatePayload(1, body.getUUID(), body.getId(),
+                body.serverLevel().dimension().location(), true, actual, body.getInventory().selected,
+                body.getHealth(), body.getMaxHealth(), body.getFoodData().getFoodLevel(),
+                body.getFoodData().getSaturationLevel(), body.experienceProgress, body.experienceLevel,
+                body.totalExperience, body.getAttackStrengthScale(0));
+        int bytes = Wire.size(SpectatorStatePayload.STREAM_CODEC, payload,
+                () -> new RegistryFriendlyByteBuf(Unpooled.buffer(), body.registryAccess()));
+        helper.assertTrue(bytes > Wire.MESSAGE_BYTES, "large component fixture did not exceed the actual message limit");
+        return actual;
+    }
+
+    private static void assertActualInventory(GameTestHelper helper, NumenPlayer body, List<ItemStack> actual) {
+        helper.assertTrue(actual.size() == body.getInventory().getContainerSize(), "NPC inventory size changed");
+        for (int slot = 0; slot < actual.size(); slot++) {
+            helper.assertTrue(ItemStack.matches(actual.get(slot), body.getInventory().getItem(slot)),
+                    "viewing size handling changed actual NPC slot " + slot);
+        }
     }
 
     private static Vec3 at(GameTestHelper helper, BlockPos relative) {
