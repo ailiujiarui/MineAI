@@ -37,6 +37,7 @@ public final class Builtin {
         gate.open("kaleidoscope_cookery", "kaleidoscope",
                 skills -> () -> com.dwinovo.numen.plugins.kaleidoscope.NumenKaleidoscope.install(skills));
         gate.open("curios", () -> com.dwinovo.numen.plugins.curios.NumenCurios::install);
+        gate.open("ae2", "ae2", skills -> () -> com.dwinovo.numen.plugins.ae2.Ae2Plugin.install(skills));
         gate.open("ftbquests", "ftbquests",
                 skills -> () -> com.dwinovo.numen.plugins.ftbquests.NumenFtbQuests.install(skills));
     }

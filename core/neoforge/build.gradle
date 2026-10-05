@@ -22,6 +22,7 @@ dependencies {
     compileOnly project(':plugins:kaleidoscope')
     compileOnly project(':plugins:curios')
     compileOnly project(':plugins:ftbquests')
+    compileOnly project(':plugins:ae2')
     // Bundle it into core's jar (Jar-in-Jar) so players install one file and get both mods.
     jarJar(project(':api:neoforge'))
 }
@@ -137,6 +138,7 @@ tasks.named('jar', Jar) {
     from({ project(':plugins:kaleidoscope').sourceSets.main.output })
     from({ project(':plugins:curios').sourceSets.main.output })
     from({ project(':plugins:ftbquests').sourceSets.main.output })
+    from({ project(':plugins:ae2').sourceSets.main.output })
 }
 
 // 开发运行不读成品 jar,而内嵌联动的类只在上面那个 jar 块里平铺——所以 runClient 里 Builtin
