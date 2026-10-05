@@ -100,7 +100,7 @@ public final class GoalPrompts {
                 machine-checkable end state. It must be exactly one of these forms, one per line:
                 %s: have <item> [count]
                 %s: block <block> <x> <y> <z>
-                %s: machine <x> <y> <z> <setting> <value> [side]
+                %s: near <block> [radius]
                 Derive the claim from the condition and the measured facts — never invent one the \
                 facts do not show. If the end state cannot be machine-checked, write `%s: none`. \
                 Do not write a %s line when you answer %s or %s."""

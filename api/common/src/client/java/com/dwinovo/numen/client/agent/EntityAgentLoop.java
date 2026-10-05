@@ -5,6 +5,7 @@ import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.agent.goal.GoalPrompts;
 import com.dwinovo.numen.agent.goal.GoalState;
 import com.dwinovo.numen.agent.goal.GoalSteward;
+import com.dwinovo.numen.agent.goal.GoalVerifier;
 import com.dwinovo.numen.agent.http.CancelToken;
 import com.dwinovo.numen.agent.llm.NumenLlmClient;
 import com.dwinovo.numen.agent.llm.ConvoLog;
@@ -38,6 +39,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -70,8 +73,14 @@ import java.util.function.Consumer;
  */
 public final class EntityAgentLoop {
 
+    /**
+     * 目标核对程序的兜底时限(见 {@link #verifyGoalClaim})。核对是一次只读查询,本该秒回;到这个点还没回就当连接
+     * 出了问题,<b>放行</b>——一个会抽风的检查不该把本来就已经完成的目标卡死。
+     */
+    private static final long VERIFY_TIMEOUT_MS = 30_000L;
 
-
+    /** 程序里"世界不认这条宣称"的标记:回执里读到它就取后面那段 expected/actual 当判词(见 {@link #verifyCall})。 */
+    private static final String VERIFY_DENIED_MARK = "numen-verify-denied";
 
     private final UUID entityUuid;
     /** JSONL persistence under {@code config/numen/conversations/<uuid>.jsonl}. */
@@ -165,8 +174,10 @@ public final class EntityAgentLoop {
         this.compactor = new Compactor(entityUuid.toString(), convo, log, this::modelWindow);
         this.loop = new AgentLoop(entityUuid.toString(), model, dispatcher, convo, queue, compactor, new Host());
         // 目标跨重进游戏活着 —— 长期目标就该是长期的,重启不该把它弄丢。
+        // 判官说达成、又给了机检宣称时,经 verifyGoalClaim 拿宣称去量服务端的权威状态(见 GoalVerifier)。
         this.goals = new GoalSteward(entityUuid.toString(), loop, convo, queue, runtime::xml,
-                runtime::bodyOnFiniteTask, g -> CompanionHome.setGoal(entityUuid, g), CompanionHome.goal(entityUuid));
+                runtime::bodyOnFiniteTask, g -> CompanionHome.setGoal(entityUuid, g), CompanionHome.goal(entityUuid),
+                null, this::verifyGoalClaim);
         this.wasDriving = McpMode.instance().driving();
         // 内核只发事件,各管一摊的各自订阅:界面、台账、整理、目标、札记的重贴、她手上那件活的镜像
         loop.subscribe(presenter::on);
@@ -436,6 +447,139 @@ public final class EntityAgentLoop {
     /** 收工(见 {@link GoalSteward#clear})。 */
     public void clearGoal(String why) {
         goals.clear(why);
+    }
+
+    /**
+     * 目标核对(见 {@link GoalVerifier}):判官说达成、又给了机检宣称时,把宣称翻成一段只调用 {@code numen.verify.*}
+     * 的小程序,经 {@link com.dwinovo.numen.program.ProgramUplink} 送去服务端,读回程序结局当判词。
+     *
+     * <p>新模型下 {@code verify} 是一组服务端 API 函数(见 {@code core/.../verify/VerifyApi}),不再是工具;宣称因此
+     * 要翻译成程序里的一次调用。只认 {@code have}/{@code block}/{@code near} 三种;翻译不出来的宣称当作"宿主没能力量",
+     * 按放行处理,不去卡一个本来就会收工的目标。
+     *
+     * <p>放行优先,口径同 {@link GoalVerifier}:派发失败、超时、回执读不出判词都放行;只有程序明确抛出"世界不认"
+     * 的判词(带 {@link #VERIFY_DENIED_MARK})时,才把 expected/actual 交回,目标管家据此不收工、推一轮续跑。
+     *
+     * <p>回调可能在别的线程上,统一切回主线程再交给目标管家。
+     */
+    private void verifyGoalClaim(GoalState goal, String claim, Consumer<GoalVerifier.Result> onDone) {
+        String code = verifyProgram(claim);
+        if (code == null) {
+            onDone.accept(new GoalVerifier.Result(true, "no verify form for claim: " + claim));
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) {
+            onDone.accept(new GoalVerifier.Result(true, "no client to run verify"));
+            return;
+        }
+        CompletableFuture<GoalVerifier.Result> verdict = new CompletableFuture<>();
+        verdict.orTimeout(VERIFY_TIMEOUT_MS, TimeUnit.MILLISECONDS).whenComplete((result, err) ->
+                mc.execute(() -> onDone.accept(err == null ? result
+                        : new GoalVerifier.Result(true, "verify timed out"))));
+        mc.execute(() -> {
+            try {
+                com.dwinovo.numen.program.ProgramUplink.CONNECTION.run(entityUuid,
+                        "goal-verify-" + UUID.randomUUID(), code, run -> verdict.complete(readVerifyRun(run)));
+            } catch (RuntimeException ex) {
+                Constants.LOG.warn("[numen-entity#{}] 目标核对派发失败,放行:{} ({})", entityUuid, claim, ex.getMessage());
+                verdict.complete(new GoalVerifier.Result(true, "dispatch failed: " + ex.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * 一段核对程序的结局读成判词:跑完({@code OK})= 世界认;带 {@link #VERIFY_DENIED_MARK} 的报错 = 世界明确不认;
+     * 别的(没跑成、答非所问、被停下)= 跑了但没判词,交 {@link GoalVerifier.Result#unmeasured}。
+     */
+    private static GoalVerifier.Result readVerifyRun(com.dwinovo.numen.program.RunResult run) {
+        if (!(run instanceof com.dwinovo.numen.program.RunResult.Ended ended)) {
+            return GoalVerifier.Result.unmeasured("verify did not run to a verdict");
+        }
+        var outcome = ended.outcome();
+        if (outcome.ending().status() == com.dwinovo.numen.agent.script.ScriptCall.Status.OK) {
+            return new GoalVerifier.Result(true, "confirmed");
+        }
+        String message = com.dwinovo.numen.program.RunResult.messageOf(outcome.receipt());
+        int at = message.indexOf(VERIFY_DENIED_MARK);
+        return at < 0 ? GoalVerifier.Result.unmeasured("verify gave no verdict: " + message)
+                : new GoalVerifier.Result(false, message.substring(at + VERIFY_DENIED_MARK.length()).strip());
+    }
+
+    /** 把一条机检宣称翻成一段只调用 {@code numen.verify.*} 的程序;认不出的宣称回 {@code null}(放行)。 */
+    private static String verifyProgram(String claim) {
+        if (claim == null) {
+            return null;
+        }
+        String[] words = claim.strip().split("\\s+");
+        if (words.length == 0) {
+            return null;
+        }
+        return switch (words[0].toLowerCase(java.util.Locale.ROOT)) {
+            case "have" -> haveProgram(words);
+            case "block" -> blockProgram(words);
+            case "near" -> nearProgram(words);
+            default -> null;
+        };
+    }
+
+    private static String haveProgram(String[] words) {
+        if (words.length < 2 || !isVerifyId(words[1])) {
+            return null;
+        }
+        if (words.length == 2) {
+            return verifyCall("numen.verify.have(" + luaString(words[1]) + ")");
+        }
+        Integer count = words.length == 3 ? integer(words[2]) : null;
+        return count == null ? null
+                : verifyCall("numen.verify.have(" + luaString(words[1]) + ", " + count + ")");
+    }
+
+    private static String blockProgram(String[] words) {
+        if (words.length != 5 || !isVerifyId(words[1])) {
+            return null;
+        }
+        Integer x = integer(words[2]);
+        Integer y = integer(words[3]);
+        Integer z = integer(words[4]);
+        return x == null || y == null || z == null ? null
+                : verifyCall("numen.verify.block(" + luaString(words[1]) + ", " + x + ", " + y + ", " + z + ")");
+    }
+
+    private static String nearProgram(String[] words) {
+        if (words.length < 2 || words.length > 3 || !isVerifyId(words[1])) {
+            return null;
+        }
+        if (words.length == 2) {
+            return verifyCall("numen.verify.near(" + luaString(words[1]) + ")");
+        }
+        Integer radius = integer(words[2]);
+        return radius == null ? null
+                : verifyCall("numen.verify.near(" + luaString(words[1]) + ", " + radius + ")");
+    }
+
+    /** 一段核对程序:调一次 verify;世界不认就把 expected/actual 抛成带标记的错误,回执那一侧据此认判词。 */
+    private static String verifyCall(String call) {
+        return "local c = " + call + "\n"
+                + "if not c.holds then error(\"" + VERIFY_DENIED_MARK + " \" .. tostring(c.expected) .. \" — \" "
+                + ".. tostring(c.actual)) end";
+    }
+
+    /** 物品/方块 id 直接拼进程序前先在这里挡住别的东西:命名空间可省,路径不许有 shell/Lua 的怪字符。 */
+    private static boolean isVerifyId(String s) {
+        return s.matches("[A-Za-z0-9_]+:[A-Za-z0-9_./-]+") || s.matches("[A-Za-z0-9_]+");
+    }
+
+    private static Integer integer(String s) {
+        try {
+            return Integer.valueOf(s.strip());
+        } catch (NumberFormatException notANumber) {
+            return null;
+        }
+    }
+
+    private static String luaString(String s) {
+        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     /**
