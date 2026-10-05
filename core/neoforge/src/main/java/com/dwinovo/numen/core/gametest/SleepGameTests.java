@@ -21,7 +21,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import static com.dwinovo.numen.core.gametest.GameTestKit.*;
 
-/** 睡觉:{@code use sleep} 躺进够得着的床,睡没睡着以服务端为准,睡不了就把原版的理由递回去。 */
+/** 睡觉:{@code numen.use.sleep} 躺进够得着的床,睡没睡着以服务端为准,睡不了就把原版的理由递回去。 */
 @GameTestHolder(Constants.MOD_ID)
 @PrefixGameTestTemplate(false)
 public class SleepGameTests {
@@ -49,7 +49,7 @@ public class SleepGameTests {
     public static void sleep_in_a_bed_within_reach(GameTestHelper helper) {
         placeBed(helper, new BlockPos(5, 2, 5));
         NumenPlayer companion = spawnAt(helper, "gametest_sleeper", new BlockPos(4, 2, 5), false);
-        ToolRun sleep = command(companion, "use sleep");
+        ToolRun sleep = lua(companion, "numen.use.sleep()");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(sleep.done(), "use sleep has not replied");
@@ -65,7 +65,7 @@ public class SleepGameTests {
     public static void sleep_without_a_bed_but_carrying_one_says_place_it(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_camper", new BlockPos(4, 2, 5), false);
         companion.getInventory().add(new ItemStack(Items.WHITE_BED));
-        ToolRun sleep = command(companion, "use sleep");
+        ToolRun sleep = lua(companion, "numen.use.sleep()");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(sleep.done(), "use sleep has not replied");
@@ -82,7 +82,7 @@ public class SleepGameTests {
     public static void sleep_in_daylight_hands_back_the_reason(GameTestHelper helper) {
         placeBed(helper, new BlockPos(5, 2, 5));
         NumenPlayer companion = spawnAt(helper, "gametest_napper", new BlockPos(4, 2, 5), false);
-        ToolRun sleep = command(companion, "use sleep");
+        ToolRun sleep = lua(companion, "numen.use.sleep()");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(sleep.done(), "use sleep has not replied");
@@ -106,28 +106,29 @@ public class SleepGameTests {
     public static void sleep_at_coordinates_without_a_bed_says_so(GameTestHelper helper) {
         BlockPos floor = helper.absolutePos(new BlockPos(5, 1, 5));
         NumenPlayer companion = spawnAt(helper, "gametest_misled", new BlockPos(4, 2, 5), false);
-        ToolRun sleep = command(companion, "use sleep --x " + floor.getX() + " --y " + floor.getY() + " --z " + floor.getZ());
+        ToolRun sleep = lua(companion, "numen.use.sleep({at = {x = " + floor.getX() + ", y = " + floor.getY() + ", z = " + floor.getZ() + "}})");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(sleep.done(), "use sleep has not replied");
             helper.assertTrue(!sleep.succeeded() && sleep.outcome().contains("no bed at those coordinates")
-                            && sleep.outcome().contains("scan_blocks"),
+                            && sleep.outcome().contains("`numen.scan.blocks(\"#minecraft:beds\")`"),
                     "the reply does not say there is no bed there: " + sleep.outcome());
             CompanionFactory.despawn(helper.getLevel().getServer(), companion);
         });
     }
 
-    /** 只给了床的一部分坐标:不猜是哪张床,也不改用手边那张,如实说三个要一起给;她没躺下。 */
+    /** 只给了床的两个坐标:一格是三个数,命令读不通,不猜是哪张床,也不改用手边那张;她没躺下。 */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_sleep_night")
     public static void sleep_with_part_of_the_coordinates_says_give_all_three(GameTestHelper helper) {
         placeBed(helper, new BlockPos(5, 2, 5));
         BlockPos head = helper.absolutePos(new BlockPos(6, 2, 5));
         NumenPlayer companion = spawnAt(helper, "gametest_halfsure", new BlockPos(4, 2, 5), false);
-        ToolRun sleep = command(companion, "use sleep --x " + head.getX() + " --z " + head.getZ());
+        ToolRun sleep = lua(companion, "numen.use.sleep({at = {x = " + head.getX() + ", z = " + head.getZ() + "}})");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(sleep.done(), "use sleep has not replied");
-            helper.assertTrue(!sleep.succeeded() && sleep.outcome().contains("needs all of --x --y --z"),
+            helper.assertTrue(!sleep.succeeded() && "bad_argument".equals(sleep.kind())
+                            && sleep.outcome().contains("argument 'at': expected a Pos {x = …, y = …, z = …}"),
                     "the reply does not ask for all three coordinates: " + sleep.outcome());
             helper.assertTrue(!companion.isSleeping(), "she lay down in a bed she did not fully name");
             CompanionFactory.despawn(helper.getLevel().getServer(), companion);
@@ -145,7 +146,7 @@ public class SleepGameTests {
         zombie.setNoAi(true);
         helper.getLevel().addFreshEntity(zombie);
         NumenPlayer companion = spawnAt(helper, "gametest_wary", new BlockPos(4, 2, 5), false);
-        ToolRun sleep = command(companion, "use sleep");
+        ToolRun sleep = lua(companion, "numen.use.sleep()");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(sleep.done(), "use sleep has not replied");
@@ -165,7 +166,7 @@ public class SleepGameTests {
         BlockPos head = helper.absolutePos(new BlockPos(13, 2, 12));
         NumenPlayer companion = spawnAt(helper, "gametest_faraway", new BlockPos(3, 2, 3), false);
         BlockPos start = companion.blockPosition();
-        ToolRun sleep = command(companion, "use sleep --x " + head.getX() + " --y " + head.getY() + " --z " + head.getZ());
+        ToolRun sleep = lua(companion, "numen.use.sleep({at = {x = " + head.getX() + ", y = " + head.getY() + ", z = " + head.getZ() + "}})");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(sleep.done(), "use sleep has not replied");

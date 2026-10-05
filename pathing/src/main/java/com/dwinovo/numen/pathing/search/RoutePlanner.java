@@ -34,15 +34,27 @@ public final class RoutePlanner {
     /**
      * 一次候选查询。
      *
-     * @param wanted 要几条(1 到 {@link #MAX_CANDIDATES})
+     * @param wanted  要几条(1 到 {@link #MAX_CANDIDATES})
+     * @param arrival 走到起点的那一步(接着一条路线往下规划时,见 {@link Search#after});从身体脚下起为 null
      */
-    public record Query(SearchView view, CostModel model, BlockPos start, Goal goal, int budget, int wanted) {
+    public record Query(SearchView view, CostModel model, BlockPos start, Goal goal, int budget, int wanted,
+                        Route.Leg arrival) {
 
         public Query {
             if (wanted < 1 || wanted > MAX_CANDIDATES) {
                 throw new IllegalArgumentException("候选条数要在 1 到 " + MAX_CANDIDATES + " 之间:" + wanted);
             }
             start = start.immutable();
+        }
+
+        /** 从身体脚下起的一次查询。 */
+        public Query(SearchView view, CostModel model, BlockPos start, Goal goal, int budget, int wanted) {
+            this(view, model, start, goal, budget, wanted, null);
+        }
+
+        /** 这次查询按 {@code model} 的一次完整搜索。 */
+        Search search(CostModel model) {
+            return new Search(view, model, start, goal, budget, Favoring.NONE).after(arrival);
         }
     }
 
@@ -51,8 +63,10 @@ public final class RoutePlanner {
      *
      * @param candidates 找到的候选,按先后;可能为空
      * @param unreached  收工的那次搜索没到目标时它为什么停;攒够了候选才收工为 null
+     * @param partial    一条候选都没找到时,那次搜索朝目标推进的半程路线(离起点够远才有,见 {@link AStar});否则为 null
+     * @param breathless 收工的那次搜索因为憋不住气丢下过步子({@link SearchResult#breathless})
      */
-    public record Plan(List<Route> candidates, SearchResult.Stop unreached) {
+    public record Plan(List<Route> candidates, SearchResult.Stop unreached, Route partial, boolean breathless) {
 
         public Plan {
             candidates = List.copyOf(candidates);
@@ -68,10 +82,11 @@ public final class RoutePlanner {
         for (int i = 0; i < query.wanted(); i++) {
             CostModel model = query.model().withSpec(
                     spec.edit().positions(spec.positions().plus(penalty(searched))).build());
-            SearchResult result = AStar.run(
-                    new Search(query.view(), model, query.start(), query.goal(), query.budget(), Favoring.NONE), cancelled);
+            SearchResult result = AStar.run(query.search(model), cancelled);
             if (!result.arrived()) {
-                return new Plan(found, result.stop());
+                // 只有头一次(还没有加价)的半程路线是朝目标的真实推进;逼备选时搜出的半截不是
+                Route partial = found.isEmpty() && result.route() != null ? result.route().repriced(query.model()) : null;
+                return new Plan(found, result.stop(), partial, result.breathless());
             }
             Route route = result.route();
             if (!overlapsTooMuch(route, covered)) {
@@ -82,7 +97,7 @@ public final class RoutePlanner {
                 covered.add(node.asLong());
             }
         }
-        return new Plan(found, null);
+        return new Plan(found, null, null, false);
     }
 
     /** 已有候选经过的每个节点加价;同一节点被几条路经过就加几次。 */

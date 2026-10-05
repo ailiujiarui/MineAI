@@ -68,7 +68,6 @@ public final class AgentLoopRegistry {
      * 断线前排上的一句话会在标题画面上开起一次 run。
      */
     public static void tickAll() {
-        com.dwinovo.numen.client.eval.LiveEvalClient.tick();
         if (net.minecraft.client.Minecraft.getInstance().getConnection() == null) {
             return;
         }
@@ -88,6 +87,9 @@ public final class AgentLoopRegistry {
         for (EntityAgentLoop loop : ENTITY_LOOPS.values()) {
             loop.quiesce();
         }
+        // 服务端按主人断线清掉了他的模块缓存:这个连接上送过哪些正文的记录作废;服务端那头没发完的分片消息也不会再来了
+        com.dwinovo.numen.program.ProgramUplink.CONNECTION.disconnected();
+        com.dwinovo.numen.network.NumenNetwork.disconnectedFromServer();
     }
 
     /**

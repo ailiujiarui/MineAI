@@ -80,19 +80,31 @@ final class McpAccessPrompt {
                 - Reply and narrate with `say(companion, text)` — the words appear in-game as the \
                 companion's chat line, speech bubble, and voice. Keep your own conversation history; \
                 the game stores none for you.
-                - Long actions — the tools `move_goto` and `work_mine`, and commands such as `build at`, \
-                `work fish` or `fight attack` run through the `command` tool — are BACKGROUND tasks: \
-                they return a task id at once. The end of a task you started does NOT show up in \
-                `get_events`: run the command `task status` until the body is idle, then perceive to \
-                confirm what happened. `task_stop` cancels. Short actions (`inv craft`, `gear wear`, \
-                `use block`, …) return when they are done.
+                - Besides list_companions, create_companion, delete_companion, get_events and say there \
+                is one more tool, `%s`: a program whose functions are the companion's API. `numen.status.self()`, `numen.scan.blocks("iron_ore")`, \
+                `numen.move.to({x = 120, y = 12, z = -35}, {arrive = "dig"})`, `numen.work.dig({x = 120, y = 12, z = -35})`, \
+                `numen.fight.attack(184)`, `numen.inv.craft(...)`, … `numen.api.help("numen.work")` lists a group's functions and \
+                `numen.api.help("numen.work.dig")` gives one function's full help. One call is a one-line program; \
+                when a next step depends on what a call returned, write the steps as one program \
+                (`for _, c in ipairs(numen.scan.blocks("iron_ore")) do numen.work.mine(c) end`).
+                - A program waits for each body task it starts and returns one receipt when it ends: how \
+                it ended (on an error: the line, the call's error, usage and hint), then stderr (what the body \
+                did and what failed, one entry per call that had something to say; a body task's entry is its account \
+                of what it changed), what it returned and stdout (what it printed). A \
+                program stopped while a task runs leaves it running; that task's end arrives in `get_events` as a \
+                task_finished event. `numen.task.stop()` cancels the body's task.
                 - %s
-                - You're blind between calls: perceive with `status_self` / `scan_blocks` / \
-                `scan_entities` before and after acting.
-                - `scan_blocks` answers in groups of touching blocks, each with an id (g1, g2, …) and \
-                whether breaking it is allowed, needs the owner's consent, or is refused. `work_mine` with \
-                `groups` digs exactly those cells; an id is only good until the next `scan_blocks`.
-                - It's survival mode — the tools do only what a real player can. No give, no setblock.
+                - You're blind between calls: perceive with `numen.status.self()` / `numen.scan.blocks` / \
+                `numen.scan.entities` before and after acting.
+                - `numen.scan.blocks` returns the clusters of touching blocks it found, nearest first, each \
+                with its `blocks` (every Block, nearest first), its `nearest` Block and its `count`. Nothing is \
+                kept: the world is the state, so scan again to see what is left. `numen.work.dig` takes a \
+                cluster (or its blocks) as it is and digs the cells that still hold what the scan saw; cells ({x, y, z}) are dug \
+                whatever they hold. It digs only what the hand reaches from where the body stands, never walks and \
+                never picks up: `numen.move.to` the same cluster with arrive "dig" first (it stands where the hand \
+                reaches the most of it), then `numen.work.dig`, then `numen.work.collect()` for the drops. The \
+                built-in module function `numen.work.mine(cluster)` does all of that until the cluster is gone.
+                - It's survival mode — the API does only what a real player can. No give, no setblock.
 
                 One more thing: talk to me in the language I'm writing to you in, even though these \
                 instructions are in English.""".formatted(
@@ -106,6 +118,7 @@ final class McpAccessPrompt {
                                 ? "\"-y\", \"mcp-remote\", \"" + endpoint + "\""
                                 : "\"-y\", \"mcp-remote\", \"" + endpoint + "\", \"--header\", "
                                         + "\"Authorization: Bearer " + auth + "\"",
+                        com.dwinovo.numen.agent.script.ScriptEngine.IN_USE.toolName(),
                         McpServer.ONE_BODY);
     }
 }

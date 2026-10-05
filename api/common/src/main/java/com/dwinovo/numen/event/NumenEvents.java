@@ -4,10 +4,12 @@ import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.entity.EventOutbox;
 import com.dwinovo.numen.agent.inbox.EventQueue;
 import com.dwinovo.numen.agent.inbox.EventTypes;
+import com.dwinovo.numen.agent.script.ScriptCall;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.network.payload.NumenEventPayload;
 import com.dwinovo.numen.task.reflex.Reflex;
 import com.dwinovo.numen.network.NumenNetwork;
+import com.dwinovo.numen.task.TaskResult;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -60,8 +62,32 @@ public final class NumenEvents {
     public static void gotHungry(NumenPlayer companion, int foodLevel) {
         emit(companion, EventTypes.HUNGRY, null,
                 "you are hungry (" + foodLevel + "/20) and you do not eat on your own — "
-                        + "run inv eat with something from your inventory, or go get food",
+                        + "numen.inv.eat something from your inventory, or go get food",
                 true);
+    }
+
+    /**
+     * 她的背包一格空的都没有了,碰到的一件东西放不下、留在了地上。<b>急</b>——她不知道就会接着挖、接着捡,东西都落在地上。
+     * 判据与去抖在 {@code NumenPlayer.touchedItem} 与 {@code pollInventoryFull}:一轮满只发一条,背包又有空格才复位。
+     */
+    public static void inventoryFull(NumenPlayer companion, NumenPlayer.LeftBehind left) {
+        String item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(left.stack().getItem()).toString();
+        emit(companion, EventTypes.INVENTORY_FULL, Map.of("item", item),
+                "your backpack is full: " + item + " x" + left.stack().getCount() + " at "
+                        + com.dwinovo.numen.sdk.Positions.literal(left.pos()) + " did not fit and stayed on the ground, "
+                        + "and anything else that does not stack onto what you carry stays on the ground too. Make room "
+                        + "with numen.inv.drop (what you can spare) or by putting things into a chest (numen.use.block "
+                        + "opens it, w:put fills it); then numen.work.collect picks up what is still on the ground.",
+                true);
+    }
+
+    /**
+     * 她达成了一个进度,奖励进了她的身上。不急:东西已经在她背包里,她下次开口自然带上。{@code change} 是同一刻里她背包与经验实际的变化
+     * ({@code Belongings}),不是从进度配置推算的——战利品表每次抽的不一样。
+     */
+    public static void advancementReward(NumenPlayer companion, String id, String title, String change) {
+        emit(companion, EventTypes.ADVANCEMENT_REWARD, Map.of("id", id),
+                "you completed the advancement \"" + title + "\" and its reward reached you: " + change, false);
     }
 
     /**
@@ -94,33 +120,103 @@ public final class NumenEvents {
         emit(companion, EventTypes.OWNER_HURT, attrs, text, urgent);
     }
 
-    /** 异步任务收尾。{@code status} ∈ done / failed / timeout / stopped。
+    /**
+     * 服务端对她说了一句话(系统聊天或动作栏),原文照交。{@code repeats} 是这一句在上一次交出去之后又说了几遍——
+     * 同一句刷屏只在每个折叠窗口里交一次,收拢与窗口在 {@code ServerMessages}。不急,也不叫醒她:捎带投递,见类型表。
+     *
+     * @param overlay  显示在动作栏(屏幕中下方那一行)而不是聊天栏
+     * @param repeats  上次交出之后又说的遍数;0 = 头一回说
+     * @param window   折叠窗口有多长,秒;{@code repeats} 为 0 时不用
+     */
+    public static void serverMessage(NumenPlayer companion, String text, boolean overlay, int repeats, int window) {
+        emit(companion, EventTypes.SERVER_MESSAGE, Map.of("where", overlay ? "action_bar" : "chat"),
+                repeats == 0 ? text
+                        : text + " (said " + repeats + " more time" + (repeats == 1 ? "" : "s") + " in the last "
+                                + window + "s)",
+                false);
+    }
+
+    /** 异步任务收尾。{@code status} ∈ done / failed / timeout / stopped / interrupted。
      *  <p>done/failed/timeout 是急的:她派出去的活有了结果,该当场决定下一步。
-     *  stopped 是主人自己按的停止,他知道,不必吵他。 */
+     *  stopped 是主人自己按的停止,他知道,不必吵他。
+     *  <p>她读到的是它的实际账;整份结果(值、失败的种类与下一步)随条目一起到,给等这件活的程序。
+     *
+     *  @param fn 派它的 API 函数,值按它的返回类型写;不出自 API 函数的是 null */
     public static void taskFinished(NumenPlayer companion, String taskId, String tool,
-                                    String status, String message) {
+                                    String status, TaskResult result, com.dwinovo.numen.sdk.ApiFunction fn) {
         Map<String, String> attrs = new LinkedHashMap<>();
         attrs.put(TASK_ID, taskId);
         attrs.put("task", tool);
-        attrs.put("status", status);
-        emit(companion, EventTypes.TASK_FINISHED, attrs, message, !"stopped".equals(status));
+        attrs.put(STATUS, status);
+        emit(companion, EventTypes.TASK_FINISHED, attrs, result.message(), !"stopped".equals(status),
+                com.dwinovo.numen.sdk.Dispatcher.ended(result, fn));
     }
 
-    /** task_finished 里写着是哪件活的那个属性:{@link #taskFinished} 按它写,{@link #finishedTaskOf} 按它读。 */
+    /**
+     * 一段被切断的程序在服务端交出的回执,作为一条事件交给她:事件正文就是那份回执的文字,不另写一份。主人客户端在收到一份已经作废的
+     * 那一批的程序结果时造它。
+     *
+     * @param program 程序的编号
+     * @param receipt 回执的文字(服务端写的那一份)
+     */
+    public static EventQueue.Entry programStopped(long dayTime, String program, String receipt, long now) {
+        return entry(dayTime, EventTypes.PROGRAM_STOPPED, Map.of("program", program), receipt, now, false);
+    }
+
+    /** 服务端发出的每一条事件先交给它们:在服务端跑的程序等它派的活的收尾、也据此判断要不要停({@code ServerPrograms})。 */
+    private static final List<Watcher> WATCHERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** 看着服务端发出的每一条事件,按同伴。 */
+    @FunctionalInterface
+    public interface Watcher {
+
+        /**
+         * 一条事件发出了。
+         *
+         * @return 这条事件归了看着它的一方(程序等着的那件活的收尾,账写进了程序的回执):不再送给主人的大脑,一件活的收尾只说一次
+         */
+        boolean takes(UUID companion, EventQueue.Entry entry);
+    }
+
+    /** 看着服务端发出的每一条事件。 */
+    public static void watch(Watcher watcher) {
+        WATCHERS.add(watcher);
+    }
+
+    /** task_finished 里写着是哪件活、收尾成什么样的属性:{@link #taskFinished} 按它写,{@link #finishOf} 按它读。 */
     private static final String TASK_ID = "id";
-    /** 事件开头那一截里的这个属性;属性值经 {@link #escape} 转义过,里面不会有引号和尖括号。 */
-    private static final Pattern FINISHED_ID = Pattern.compile("^<event [^>]* " + TASK_ID + "=\"([^\"]*)\"");
+    private static final String STATUS = "status";
+    /** 事件开头那一截里的一个属性;属性值经 {@link #escape} 转义过,里面不会有引号和尖括号。 */
+    private static final Pattern HEAD = Pattern.compile("^<event [^>]*>");
+    /** 事件正文:开头之后到收尾标记之前。 */
+    private static final Pattern BODY = Pattern.compile("^<event [^>]*>(.*)</event>$", Pattern.DOTALL);
 
     /**
-     * 这条输入是哪件后台活的收尾:一条 task_finished 事件就是它的编号,别的输入是 null。事件的样子只在这里拼
-     * ({@link #compose}),也在这里读回;内脑的派发器据此知道它在等的那件活做完了。
+     * 这条输入是哪件后台活的收尾:一条 task_finished 事件就是它的编号、收尾状态与交代的话,别的输入是 null。事件的样子只在
+     * 这里拼({@link #compose}),也在这里读回;内脑的派发器据此知道它在等的那件活做完了、做成了没有。
      */
-    public static String finishedTaskOf(EventQueue.Entry entry) {
+    public static ScriptCall.Finish finishOf(EventQueue.Entry entry) {
         if (!EventTypes.TASK_FINISHED.equals(entry.type())) {
             return null;
         }
-        Matcher m = FINISHED_ID.matcher(entry.text());
-        return m.find() ? m.group(1) : null;
+        Matcher head = HEAD.matcher(entry.text());
+        if (!head.find()) {
+            return null;
+        }
+        String id = attribute(head.group(), TASK_ID);
+        if (id == null) {
+            return null;
+        }
+        Matcher body = BODY.matcher(entry.text());
+        String status = attribute(head.group(), STATUS);
+        return new ScriptCall.Finish(id, status == null ? "" : status, body.find() ? unescape(body.group(1)) : "",
+                entry.result());
+    }
+
+    /** 开头那一截里一个属性的值;没有是 null。 */
+    private static String attribute(String head, String name) {
+        Matcher m = Pattern.compile(" " + name + "=\"([^\"]*)\"").matcher(head);
+        return m.find() ? unescape(m.group(1)) : null;
     }
 
     /**
@@ -133,10 +229,34 @@ public final class NumenEvents {
      */
     public static void emit(NumenPlayer companion, String type, Map<String, String> attrs,
                             String text, boolean urgent) {
+        emit(companion, type, attrs, text, urgent, null);
+    }
+
+    /** 同上,条目另带一件身体活的结果({@link EventQueue.Entry#result})。 */
+    private static void emit(NumenPlayer companion, String type, Map<String, String> attrs,
+                             String text, boolean urgent, com.google.gson.JsonObject result) {
         MinecraftServer server = companion.level().getServer();
-        EventQueue.Entry entry = entry(server.overworld().getDayTime(), type, attrs, text,
+        EventQueue.Entry plain = entry(server.overworld().getDayTime(), type, attrs, text,
                 System.currentTimeMillis(), urgent);
+        EventQueue.Entry entry = new EventQueue.Entry(plain.type(), plain.text(), plain.ts(), plain.urgent(), result);
         UUID uuid = companion.getUUID();
+        boolean taken = false;
+        for (Watcher watcher : WATCHERS) {
+            taken |= watcher.takes(uuid, entry);
+        }
+        if (!taken) {
+            deliver(companion, entry);
+        }
+    }
+
+    /**
+     * 一条造好的事件送给主人的大脑:主人在线直接送达,离线进出箱等他回来。归了在跑的程序、之后程序却没能用上的收尾也经这里。
+     */
+    public static void deliver(NumenPlayer companion, EventQueue.Entry entry) {
+        MinecraftServer server = companion.level().getServer();
+        UUID uuid = companion.getUUID();
+        String type = entry.type();
+        boolean urgent = entry.urgent();
         ServerPlayer owner = companion.resolveOwnerPlayer();
         route(uuid, entry,
                 owner == null ? null : payload -> {
@@ -147,7 +267,7 @@ public final class NumenEvents {
                 kept -> {
                     // 主人不在:留着。他下线期间她照样在干活,回来该知道发生了什么。
                     EventOutbox outbox = EventOutbox.get(server);
-                    outbox.put(uuid, kept.type(), kept.text(), kept.ts(), kept.urgent());
+                    outbox.put(uuid, kept);
                     Constants.LOG.info("[numen-event] {} kind={}{} → 暂存(主人离线,已攒 {} 条)",
                             uuid, type, urgent ? " URGENT" : "", outbox.peek(uuid).size());
                 });
@@ -226,7 +346,7 @@ public final class NumenEvents {
 
     /**
      * 同一条事件换一段正文:开头的 {@code <event …>} 连同种类、时刻与编号原样留着,只把正文换成 {@code body}。
-     * 包装不下时缩短正文用它({@code NumenEventPayload#shrunk}),{@link #finishedTaskOf} 照样读得出是哪件活。
+     * 包装不下时缩短正文用它({@code NumenEventPayload#shrunk}),{@link #finishOf} 照样读得出是哪件活。
      * 不是 {@code <event>} 的条目没有开头可留,整段换成 {@code body}。
      */
     public static String withBody(String text, String body) {
@@ -241,6 +361,11 @@ public final class NumenEvents {
         long inDay = Math.floorMod(dayTime, 24000L);
         long minutes = (inDay * 60L / 1000L + 6L * 60L) % (24L * 60L);
         return String.format("%02d:%02d", minutes / 60L, minutes % 60L);
+    }
+
+    /** {@link #escape} 的反方向。 */
+    private static String unescape(String s) {
+        return s.replace("&quot;", "\"").replace("&gt;", ">").replace("&lt;", "<").replace("&amp;", "&");
     }
 
     /** XML 属性/正文转义——事件正文里可能有实体名、物品名,是玩家能控制的输入。 */

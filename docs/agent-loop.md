@@ -239,10 +239,13 @@ void end(RunEnd reason) {
 - **工具按顺序**(不照搬 pi 的并行):身体只有一个动作槽。顺序在 `SerialCalls`(agent 模块),
   `ToolDispatcher` 只管怎么执行一个调用与兜底超时;结果逐条经 `Transcript` 写入,一批全部结算后回调
   `onToolsSettled`。
-- **异步身体任务**:世界动作工具的"结果"是立刻回来的受理回执,真正完成是之后的 `task_finished`
-  事件。同一批后面还有调用时,派发器等这件活的 `task_finished` 进了队列才派下一个;这批还没结算时,
-  内核把入了队的条目连同急不急转给工具口(`ToolPort.arrived`),等的时候来了急件就不再等,余下的调用
-  逐条回"没执行"(规则见宪法 §六)。最后一件受理了这批就结算,所以 run 往往在身体还在干活时就结束了;
+- **程序整段在服务端跑**(`docs/shell.md` §十四):跑 Lua 的那个工具的调用(`ScriptTool`)是一整段程序,`SerialCalls.Port.invoke`
+  把它整段送去服务端(`ProgramUplink`),服务端在身体旁边跑完,回一张回执(连同每次 API 调用的结局与是不是被叫停的)。程序在服务端
+  跑的时候,这一批后面的调用等着;程序里每件身体活都在服务端等它收尾,所以回执回来时那些活已经做完。客户端不再逐次派发 API 调用、
+  不再等 `task_finished`(收尾归程序的那些在服务端就写进了回执)。
+- **等的时候来了急件**:这一批还没结算时,内核把入了队的条目连同急不急转给工具口(`ToolPort.arrived`);一段程序在服务端跑着,急件就让
+  `SerialCalls` 告诉服务端让它停在调用之间(`StopProgramPayload`),服务端交回的结局里带结构化的"为什么停",这一批余下的调用
+  逐条回"没执行"并写那个原因(规则见宪法 §六)。最后一件受理了这批就结算,所以 run 往往在身体还在干活时就结束了;
   `task_finished` 作为插话进队,下次 pump 开新 run。这正是 pi 的"闲时来消息就开 run"。
 - **没有轮数上限、没有循环检测**:保持现状(模型合理地连着派很多任务;失控由主人停止)。
 
@@ -386,9 +389,9 @@ record Type(String id,
 
 ```java
 void halt(HaltReason reason) {
+    List<String> orphans = tools.cancel(reason.stopsBody());   // 先收工具口:在跑的脚本交出停在哪一行的回执
     if (run != null) {
         run.cancel.cancel();
-        List<String> orphans = tools.cancel(reason.stopsBody());
         if (run.phase == TOOLS || run.phase == MODEL) transcript.addHalt(reason);   // §九
         Run cut = run; run = null;
         emit(RunEnded(cut, HALTED(reason)));
@@ -414,8 +417,8 @@ void halt(HaltReason reason) {
   现在接管后在飞的回复照样落地派工具、在飞的压缩照样替换历史。
 - **交还时不自动续跑**:halt 已记录中断标记,链条算结束;外接期间攒的事件由 pump 按熟度处理。
 - **`RESET_LOOPS` 先 halt 再清表**:现在直接清表,旧循环的在飞回合继续写同一个会话文件。
-- **只取消这个循环的调用**:`ToolPort.cancel` 按调用 id 取消,`ServerToolTransport.forget(entity)`
-  按同伴整批清空的做法删掉——现在内脑的打断会把外接模型挂着的调用一起丢掉。
+- **只取消这个循环的调用**:`ToolPort.cancel` 按调用 id 取消(在服务端跑着的程序先被叫停),按同伴整批清空的做法删掉——否则
+  内脑的打断会把外接模型挂着的调用一起丢掉。
 - **复活**:清 `dead`,推一条死亡事件(急件)进队,pump。补悬空结果交给 §九,不再在这里写。
 
 ---

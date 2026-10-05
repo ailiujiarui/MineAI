@@ -1,7 +1,8 @@
 package com.dwinovo.numen.task;
-import com.dwinovo.numen.cli.ServerSource;
+
 import com.dwinovo.numen.permission.ConsentDesk;
-import com.dwinovo.numen.task.TaskResult;
+import com.dwinovo.numen.sdk.ApiFunction;
+import com.dwinovo.numen.sdk.ServerCall;
 
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -46,8 +47,8 @@ public abstract class TaskRecord {
 
     private final long id;
     /**
-     * 这件活叫什么:模型调的那个东西——工具派的是工具名({@code NumenTool.name()}),命令派的是
-     * {@link ServerSource#taskName()}(快捷工具名,或"组 动作")。回执、{@code task_finished}、{@code <current_task>} 都写它。
+     * 这件活叫什么:派它的那个 API 函数的全名({@link ServerCall#fn()},{@code numen.work.dig})。{@code task_finished}、
+     * {@code <current_task>} 都写它。
      */
     private final String toolName;
     /**
@@ -75,11 +76,12 @@ public abstract class TaskRecord {
     /** 首次进入 RUNNING 的游戏刻;task status 用它报已耗时。-1 = 还没开跑。 */
     private long startedGameTime = -1;
     /**
-     * 同步动作的回信口:派它的那次调用给的({@link TaskDispatch#runSync} 绑上),结算后的结果只从这里回——模型的调用、
-     * {@code /numen drive} 的发令人、主人点过头的调用(回执末尾交代允许了什么)各自拿到自己的那一份。异步的活受理时
-     * 已经回执过,收尾走 task_finished,没有它。
+     * 同步动作的回信口:派它的那次调用给的({@link TaskDispatch#runSync} 绑上),结算后的结果只从这里回。异步的活受理时
+     * 已经回过编号,收尾走 task_finished,没有它。
      */
-    private Consumer<String> reply;
+    private Consumer<TaskResult> reply;
+    /** 派它的 API 函数:收尾时的值按它的返回类型写;不出自 API 函数的活(测试直接交的、本能)是 null。 */
+    private ApiFunction function;
 
     protected TaskRecord(String toolName, String toolCallId, long deadlineGameTime) {
         this.id = ID_SOURCE.incrementAndGet();
@@ -88,9 +90,9 @@ public abstract class TaskRecord {
         this.deadlineGameTime = deadlineGameTime;
     }
 
-    /** 命令派下的活:名字与调用 id 都取自这次调用的源,交给 {@link TaskDispatch#setTask(ServerSource, TaskRecord)}。 */
-    protected TaskRecord(ServerSource source, long deadlineGameTime) {
-        this(source.taskName(), source.toolCallId(), deadlineGameTime);
+    /** 一次 API 调用派下的活:名字是那个函数的全名,调用 id 是那次调用的。 */
+    protected TaskRecord(ServerCall call, long deadlineGameTime) {
+        this(call.fn(), call.callId(), deadlineGameTime);
     }
 
     public final long getId() { return id; }
@@ -110,22 +112,15 @@ public abstract class TaskRecord {
 
     public final void markAsync() { this.async = true; }
 
-    void replyTo(Consumer<String> reply) { this.reply = reply; }
-    Consumer<String> reply() { return reply; }
+    void replyTo(Consumer<TaskResult> reply) { this.reply = reply; }
+    Consumer<TaskResult> reply() { return reply; }
+
+    /** 派它的是 {@code fn}:收尾时的值按它的返回类型写。派发受理时绑上。 */
+    public final void calledAs(ApiFunction fn) { this.function = fn; }
+
+    /** 派它的 API 函数;不出自 API 函数的是 null。 */
+    public final ApiFunction function() { return function; }
     public final boolean isAsync() { return async; }
-
-    /**
-     * Prefix of the synthetic tool-call ids NumenActuator mints for external (MCP)
-     * invocations — disjoint from the LLM's ids. The async wind-down keys off this
-     * to route completion: internal tasks fire a task_finished event to the built-in
-     * brain; external ones don't (their driver polls task status instead).
-     */
-    public static final String EXTERNAL_CALL_PREFIX = "mcp-";
-
-    /** True if an external brain (MCP) dispatched this task, not the built-in LLM. */
-    public final boolean isExternalCall() {
-        return toolCallId != null && toolCallId.startsWith(EXTERNAL_CALL_PREFIX);
-    }
 
     /** 首次开跑打点(重复调用不覆盖——抢占恢复不算重新开始)。 */
     public final void markStarted(long gameTime) {
@@ -157,7 +152,7 @@ public abstract class TaskRecord {
      */
     public enum StopCause {
         OWNER("the owner pressed Stop", ConsentDesk.Withdrawal.OWNER_STOPPED),
-        TASK_STOP("you stopped it with task_stop", ConsentDesk.Withdrawal.TASK_ENDED),
+        TASK_STOP("you stopped it with numen.task.stop", ConsentDesk.Withdrawal.TASK_ENDED),
         COMMAND("stopped by a /numen command", ConsentDesk.Withdrawal.TASK_ENDED),
         REPLACED("a newer body action replaced it", ConsentDesk.Withdrawal.TASK_ENDED),
         BODY_LEFT("the body left the world", ConsentDesk.Withdrawal.BODY_LEFT);

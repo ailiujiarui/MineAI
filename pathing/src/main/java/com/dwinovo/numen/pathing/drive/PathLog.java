@@ -1,6 +1,7 @@
 package com.dwinovo.numen.pathing.drive;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -23,7 +24,7 @@ import net.minecraft.world.phys.Vec3;
  * 数字都写齐。直接写进 slf4j 的 {@code NumenPathing} 这一个记录器,开多少由宿主的日志配置定:
  * <ul>
  *   <li>INFO——结局与被叫停、每一次搜索与规划的结论、重搜、一步走不下去、卡住、计划内的坠落与落地、倒水接坠落与收水、
- *       动手被拒、下载具、不在推进、撤垫块的起止与留下的块;</li>
+ *       动手被拒、下载具、不在推进;</li>
  *   <li>DEBUG——出发、派搜索、路线上的每一步、每一步开始、每一下成功的挖与放与开关门、换目标、暂停、身体换手上的东西;</li>
  *   <li>WARN——主线程上寻路一刻用的时间超过 {@link #MAIN_THREAD_WARN_NANOS}。</li>
  * </ul>
@@ -110,9 +111,10 @@ public final class PathLog {
         return String.format(Locale.ROOT, "%.1f", value);
     }
 
-    /** 规格的要点:改地形的级别,与出厂值不同的上限与开关。 */
+    /** 规格的要点:挖不挖、放不放、要问的格算不算能走,与出厂值不同的上限与开关。 */
     public static String spec(RouteSpec spec) {
-        StringBuilder out = new StringBuilder("alter=").append(spec.alter().name().toLowerCase(Locale.ROOT));
+        StringBuilder out = new StringBuilder("dig=").append(spec.dig()).append(" place=").append(spec.place())
+                .append(" consent=").append(spec.consent() ? num(spec.consentMultiplier()) : "false");
         out.append(" maxFall=").append(spec.maxFallHeightNoWater());
         if (spec.budgeted()) {
             out.append(" alterBudget=").append(spec.alterBudget());
@@ -120,14 +122,26 @@ public final class PathLog {
         if (spec.parkour()) {
             out.append(" parkour");
         }
-        if (spec.takeBack()) {
-            out.append(" takeBack");
-        }
         return out.toString();
     }
 
-    /** 一条路线的要点:几步、各种走法几步、总代价、改几格、终点。 */
+    /** 一条路线的要点:几步、各种走法几步、总代价、改几格、起终点,有水下的加上几段、最长憋几刻、最少还剩几刻。 */
     public static String route(Route route) {
+        String dives = "";
+        double held = 0;
+        double left = Double.POSITIVE_INFINITY;
+        List<Route.Dive> under = route.dives();
+        for (Route.Dive dive : under) {
+            held = Math.max(held, dive.held());
+            left = Math.min(left, dive.left());
+        }
+        if (!under.isEmpty()) {
+            dives = " 水下 " + under.size() + " 段 最长憋 " + num(held) + " 刻 最少还剩 " + num(left) + " 刻";
+        }
+        return steps(route) + dives;
+    }
+
+    private static String steps(Route route) {
         Map<MoveKind, Integer> kinds = new EnumMap<>(MoveKind.class);
         for (Route.Leg leg : route.legs()) {
             kinds.merge(leg.maneuver().kind(), 1, Integer::sum);

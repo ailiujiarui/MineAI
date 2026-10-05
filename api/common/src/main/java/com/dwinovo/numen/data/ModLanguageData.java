@@ -285,9 +285,6 @@ public final class ModLanguageData {
         public static final String CONVO_EDIT_TITLE     = "numen.convo.edit_title";
 
         // 服务端发给主人的通知:发的是键与参数,主人客户端按他自己的语言显示
-        public static final String NOTICE_THROWAWAY       = "numen.notice.throwaway";
-        public static final String NOTICE_THROWAWAY_EMPTY = "numen.notice.throwaway.empty";
-        public static final String NOTICE_THROWAWAY_MORE  = "numen.notice.throwaway.more";
         public static final String NOTICE_TIMER           = "numen.notice.timer";
         public static final String NOTICE_CREATIVE_NEEDS_OP = "numen.notice.creative_needs_op";
         public static final String NOTICE_NAME_TAKEN      = "numen.notice.name_taken";
@@ -517,18 +514,7 @@ public final class ModLanguageData {
         adder.add("numen.chat.steps", "%s steps");
         adder.add("numen.chat.plan", "Plan %s/%s");
         // Tool-chip labels (convention: numen.tool.<tool name>; unknown/MCP tools fall back to the raw name).
-        adder.add("numen.tool.build", "Build");
-        adder.add("numen.tool.move_goto", "Go to");
-        adder.add("numen.tool.scan_around", "Look around");
-        adder.add("numen.tool.scan_block", "Inspect block");
-        adder.add("numen.tool.scan_blocks", "Scan blocks");
-        adder.add("numen.tool.scan_entities", "Scan entities");
-        adder.add("numen.tool.skill_load", "Load skill");
-        adder.add("numen.tool.status_owner", "Owner status");
-        adder.add("numen.tool.status_self", "Self status");
-        adder.add("numen.tool.todowrite", "Update plan");
-        adder.add("numen.tool.transfer", "Transfer items");
-        adder.add("numen.tool.work_mine", "Mine");
+        adder.add("numen.tool.lua", "Run");
         adder.add("numen.mcp.title", "Tool Extensions (MCP)");
         adder.add("numen.mcp.empty", "None · click ＋ Add (top-right)");
         adder.add("numen.mcp.add", "＋ Add");
@@ -809,6 +795,7 @@ public final class ModLanguageData {
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "block_entity", "functional block");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "contents",     "has things inside");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "owned",        "has an owner");
+        adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "self_owned",   "owned by herself");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "named",        "named");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "villager",     "villager");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "hostile",      "hostile");
@@ -833,9 +820,6 @@ public final class ModLanguageData {
         adder.add(Keys.SETTINGS_MESSAGE_NOTICES, "Message notifications (a card for chats you aren't viewing)");
         adder.add(Keys.EDIT_COMPANION_TITLE,   "Edit companion");
         adder.add(Keys.CONVO_EDIT_TITLE,       "Edit conversation");
-        adder.add(Keys.NOTICE_THROWAWAY,       "🧱 %s's throwaway blocks (%s): %s");
-        adder.add(Keys.NOTICE_THROWAWAY_EMPTY, "none");
-        adder.add(Keys.NOTICE_THROWAWAY_MORE,  "%s and %s more");
         adder.add(Keys.NOTICE_TIMER,           "⏱ %s: in %s s — %s");
         adder.add(Keys.NOTICE_CREATIVE_NEEDS_OP, "[Numen] Creative mode needs cheats or OP; set to Survival");
         adder.add(Keys.NOTICE_NAME_TAKEN,      "[Numen] The name \"%s\" is taken by a player who is online; pick another");
@@ -1049,18 +1033,7 @@ public final class ModLanguageData {
         adder.add("numen.chat.steps", "%s 步");
         adder.add("numen.chat.plan", "计划 %s/%s");
         // 工具 chip 标签(约定键 numen.tool.<工具名>;未知/MCP 工具回落原名)。
-        adder.add("numen.tool.build", "建造");
-        adder.add("numen.tool.move_goto", "前往");
-        adder.add("numen.tool.scan_around", "环顾四周");
-        adder.add("numen.tool.scan_block", "查看方块");
-        adder.add("numen.tool.scan_blocks", "扫描方块");
-        adder.add("numen.tool.scan_entities", "扫描实体");
-        adder.add("numen.tool.skill_load", "加载技能");
-        adder.add("numen.tool.status_owner", "主人状态");
-        adder.add("numen.tool.status_self", "自身状态");
-        adder.add("numen.tool.todowrite", "更新计划");
-        adder.add("numen.tool.transfer", "转移物品");
-        adder.add("numen.tool.work_mine", "挖掘");
+        adder.add("numen.tool.lua", "执行");
         adder.add("numen.mcp.title", "工具扩展 (MCP)");
         adder.add("numen.mcp.empty", "无 · 点右上「＋ 添加」");
         adder.add("numen.mcp.add", "＋ 添加");
@@ -1342,6 +1315,7 @@ public final class ModLanguageData {
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "block_entity", "功能方块");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "contents",     "装着东西");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "owned",        "有主人");
+        adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "self_owned",   "主人是她自己");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "named",        "起了名字");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "villager",     "村民");
         adder.add(Keys.PERMISSION_SIGNAL_PREFIX + "hostile",      "敌对");
@@ -1366,9 +1340,6 @@ public final class ModLanguageData {
         adder.add(Keys.SETTINGS_MESSAGE_NOTICES, "消息通知(没在看的会话里她说了话,右下角弹一张卡)");
         adder.add(Keys.EDIT_COMPANION_TITLE,   "编辑同伴");
         adder.add(Keys.CONVO_EDIT_TITLE,       "编辑会话");
-        adder.add(Keys.NOTICE_THROWAWAY,       "🧱 %s 的 throwaway 垫路料(%s):%s");
-        adder.add(Keys.NOTICE_THROWAWAY_EMPTY, "空");
-        adder.add(Keys.NOTICE_THROWAWAY_MORE,  "%s 等 %s 种");
         adder.add(Keys.NOTICE_TIMER,           "⏱ %s:%s 秒后 —— %s");
         adder.add(Keys.NOTICE_CREATIVE_NEEDS_OP, "[Numen] 创造档需要作弊/OP 权限,已按生存");
         adder.add(Keys.NOTICE_NAME_TAKEN,      "[Numen] 名字「%s」已被在线玩家占用,换一个吧");

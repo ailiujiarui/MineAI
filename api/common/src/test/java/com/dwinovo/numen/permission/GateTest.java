@@ -3,6 +3,7 @@ package com.dwinovo.numen.permission;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.Level;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -111,7 +113,8 @@ class GateTest {
                         + " & !#minecraft:trapdoors & !#minecraft:fence_gates)",
                 "break(self_placed & !contents)",
                 "place(!hazard_item)", "place(hazard_item & !near_placed)",
-                "attack(!owned & !named & !villager)", "use_block(*)", "use_entity(!owned)", "take(*)",
+                "attack(!owned & !named & !villager)", "use_block(*)", "use_entity(!owned)", "use_entity(self_owned)",
+                "take(*)",
                 "command(help)", "command(list)", "command(me)", "command(msg)",
                 "command(teammsg)", "command(seed)", "command(random)"),
                 RuleSet.FACTORY_ALLOW);
@@ -180,7 +183,8 @@ class GateTest {
         assertTrue(neighbours.asks(), "别人家同伴放的照旧问");
         assertEquals("break(placed)", neighbours.rule().toString());
         // 同一格换一个要动手的人:另一只同伴拆她的,是别人放的
-        Gate bea = new Gate(OTHER_COMPANION.id(), Mode.ASK, RuleSet.EMPTY, RuleSet.factory(), placed, List.of());
+        Gate bea = new Gate(OTHER_COMPANION.id(), Mode.ASK, RuleSet.EMPTY, RuleSet.factory(),
+                placed, List.of());
         placed.record(POS.north(), HERSELF);
         world.set(POS.north(), Blocks.COBBLESTONE.defaultBlockState());
         assertTrue(bea.judge(Action.breakBlock(POS.north(), world.getBlockState(POS.north())), world).asks());
@@ -413,13 +417,13 @@ class GateTest {
         Action digFirst = Action.breakBlock(first, world.getBlockState(first));
         ConsentItem grant = ungranted.consentItem(digFirst, ungranted.judge(digFirst, world), world);
 
-        Gate granted = new Gate(null, Mode.ASK, RuleSet.EMPTY, RuleSet.factory(), placed,
-                List.of(grant));
+        Gate granted = new Gate(null, Mode.ASK, RuleSet.EMPTY, RuleSet.factory(), placed, List.of(grant));
         assertTrue(granted.judge(digFirst, world).allowed());
         assertTrue(granted.judge(Action.breakBlock(second, world.getBlockState(second)), world).allowed(),
                 "同一行规则问出来的同一种方块:挖一堆只问一次");
         assertTrue(granted.judge(Action.breakBlock(stone, world.getBlockState(stone)), world).asks(),
                 "换一种方块另问");
-        assertEquals(Verdict.Kind.DENY, new Gate(null, Mode.OBSERVE, RuleSet.EMPTY, RuleSet.factory(), placed, List.of(grant)).judge(digFirst, world).kind(), "授权只把问变成放行,解不开拒绝");
+        assertEquals(Verdict.Kind.DENY, new Gate(null, Mode.OBSERVE, RuleSet.EMPTY, RuleSet.factory(),
+                placed, List.of(grant)).judge(digFirst, world).kind(), "授权只把问变成放行,解不开拒绝");
     }
 }

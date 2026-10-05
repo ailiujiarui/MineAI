@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.dwinovo.numen.pathing.plan.BodySnapshot;
+import com.dwinovo.numen.pathing.plan.Breath;
 import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.Materials;
 import com.dwinovo.numen.pathing.plan.TerrainPolicy;
@@ -52,7 +53,8 @@ public final class Fixtures {
     }
 
     public static BodySnapshot body(BodyStats stats, GameType mode, float health, List<ItemStack> inventory) {
-        return new BodySnapshot(stats, mode, health, 3, 1, 20, 0, inventory, BodySnapshot.Mining.VANILLA);
+        return new BodySnapshot(stats, mode, health, 3, 1, 20, 0, inventory, BodySnapshot.Mining.VANILLA,
+                Breath.VANILLA);
     }
 
     /** 这份规格,原版身体,什么都放行,身上没料,没有生物。 */
@@ -65,9 +67,9 @@ public final class Fixtures {
         return CostModel.of(spec, body(), TerrainPolicy.ALLOW_ALL, COBBLE, Threats.NONE);
     }
 
-    /** 能改自然地形({@code alter=natural})的规格。 */
+    /** 许挖许放、要问主人的格当墙的规格。 */
     public static RouteSpec natural() {
-        return RouteSpec.defaults().edit().alter(RouteSpec.Alter.NATURAL).build();
+        return RouteSpec.defaults().edit().changes(true).consent(false).build();
     }
 
     /** 在这个世界里按这份成本模型从 {@code start} 搜到 {@code goal}。 */

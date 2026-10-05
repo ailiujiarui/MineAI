@@ -1,14 +1,20 @@
 package com.dwinovo.numen.permission;
 
+
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * 一次裁决用的快照:模式、两层规则、这一维度的放置记录、主人答应下来的任务期授权。主线程建
- * ({@link Permission#gateFor}),之后任何线程只读——寻路工作线程拿着它给每条边定价。
+ * 一次裁决用的快照:模式、两层规则、所在维度的放置记录、主人答应下来的任务期授权。
+ * 主线程建({@link Permission#gateFor}),之后任何线程只读——寻路工作线程拿着它给每条边定价。
  *
  * <h2>查的顺序</h2>
  * 第一个命中即定:模式 → 主人层(deny → allow → ask)→ 出厂层(deny → allow → ask,出厂 deny 表
@@ -37,9 +43,9 @@ public final class Gate {
     /**
      * @param actor   要动手的同伴是谁;测试可传 null
      * @param owner   主人自己写的规则层({@link PermissionStore#rules});没有主人是 {@link RuleSet#EMPTY}
-     * @param factory 出厂规则层({@link RuleSet#factory})
-     * @param placed  这一维度的放置记录
-     * @param granted 主人答应下来的任务期授权({@link ConsentDesk#granted})
+     * @param factory   出厂规则层({@link RuleSet#factory})
+     * @param placed    她所在维度的放置记录:这份快照裁决的动作都发生在那里
+     * @param granted   主人答应下来的任务期授权({@link ConsentDesk#granted})
      */
     public Gate(UUID actor, Mode mode, RuleSet owner, RuleSet factory, PlacedBlocks placed,
                 List<ConsentItem> granted) {

@@ -6,6 +6,7 @@ import com.dwinovo.numen.pathing.body.Controls;
 import com.dwinovo.numen.pathing.body.Physics;
 
 import com.mojang.authlib.GameProfile;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
@@ -13,9 +14,12 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -42,7 +46,6 @@ import java.util.UUID;
 public final class NumenPlayer extends ServerPlayer implements Body {
 
     private static final String NBT_KEY_OWNER = "NumenOwner";
-    private static final String NBT_KEY_ID_NUMBER = "NumenIdNumber";
 
     /** Owner's player UUID. Null only transiently before the first assignment. */
     private UUID ownerUuid;
@@ -147,6 +150,93 @@ public final class NumenPlayer extends ServerPlayer implements Body {
         return true;
     }
 
+    /**
+     * 这一轮"背包满了"已经说过了。背包满是持续状态,掉落物每刻都在碰她——不去抖就是每刻一条;背包里又有空格了才重新武装。
+     */
+    private boolean fullReported;
+
+    /** 因背包放不下而留在地上、还没说出去的那一件;没有是 null。 */
+    private LeftBehind leftBehind;
+
+    /** 一件因背包放不下而留在地上的东西:是什么、几个、在哪一格。 */
+    public record LeftBehind(ItemStack stack, BlockPos pos) {}
+
+    /**
+     * 一件掉落物碰到了她,原版正要往背包里放(由 {@code ItemEntityTouchMixin} 交来)。放不放得下照原版背包找格子的两步:有一格还能
+     * 叠上它({@code getSlotWithRemainingSpace}),或者有空格({@code getFreeSlot});创造模式什么都收。放不下的记下来,由
+     * {@link #pollInventoryFull} 交出去。"满了"只在这里判:挖、捡、合成这些活不各自判。
+     */
+    public void touchedItem(ItemEntity item) {
+        if (fullReported || leftBehind != null || hasInfiniteMaterials()) {
+            return;
+        }
+        Inventory inventory = getInventory();
+        ItemStack stack = item.getItem();
+        if (inventory.getSlotWithRemainingSpace(stack) != -1 || inventory.getFreeSlot() != -1) {
+            return;
+        }
+        leftBehind = new LeftBehind(stack.copy(), item.blockPosition());
+    }
+
+    /**
+     * 这一刻该不该跟主人说"背包满了、东西留在了地上"。每服务端 tick 问一次(见 {@code CompanionTickDispatcher})。<b>一轮只说
+     * 一次</b>,复位见 {@link #rearmInventoryFull}。
+     */
+    public LeftBehind pollInventoryFull() {
+        if (leftBehind == null) {
+            return null;
+        }
+        LeftBehind told = leftBehind;
+        leftBehind = null;
+        fullReported = true;
+        return told;
+    }
+
+    /**
+     * 背包里又有了空格就重新武装:有空格就什么都放得下,下一回再满、再有东西放不下时再说;还没说出去的那一件也作废。在自己的
+     * 实体刻里、捡东西之前看——腾出的那一格要是这一刻就被捡起的东西占上,事后再看就看不见它空过。
+     */
+    private void rearmInventoryFull() {
+        if (getInventory().getFreeSlot() != -1) {
+            fullReported = false;
+            leftBehind = null;
+        }
+    }
+
+    /** 一件在她身上用坏的装备:是什么、坏在哪个装备位。 */
+    public record BrokenGear(Item item, EquipmentSlot slot) {}
+
+    /** 最近用坏的装备,按先后;只留最近 {@link #BROKEN_KEPT} 件。 */
+    private final java.util.ArrayList<BrokenGear> brokenGear = new java.util.ArrayList<>();
+    /** 到现在一共用坏过几件:{@link #brokenGearMark} 读它,{@link #brokenGearSince} 拿它算新坏的是哪几件。 */
+    private long brokenGearTotal;
+    private static final int BROKEN_KEPT = 16;
+
+    /**
+     * 原版装备耐久耗尽、碎掉的那一刻(挖掘、打击、盾挡、鞘翅……都经 {@code ItemStack.hurtAndBreak} 到这里)。记下来,
+     * 干活的人事后用 {@link BodyDelta} 说给她听;这里只记流水,不替谁下结论。
+     */
+    @Override
+    public void onEquippedItemBroken(Item item, EquipmentSlot slot) {
+        super.onEquippedItemBroken(item, slot);
+        if (brokenGear.size() == BROKEN_KEPT) {
+            brokenGear.remove(0);
+        }
+        brokenGear.add(new BrokenGear(item, slot));
+        brokenGearTotal++;
+    }
+
+    /** 此刻用坏过几件的读数;之后问 {@link #brokenGearSince} 就是这个读数以来新坏的。 */
+    public long brokenGearMark() {
+        return brokenGearTotal;
+    }
+
+    /** 读数 {@code mark} 以来用坏的装备,按先后。 */
+    public List<BrokenGear> brokenGearSince(long mark) {
+        int fresh = (int) Math.min(brokenGearTotal - mark, brokenGear.size());
+        return List.copyOf(brokenGear.subList(brokenGear.size() - fresh, brokenGear.size()));
+    }
+
     /** 主人血量的看护(纯判定在 {@link OwnerHurtWatch},便于无头单测)。 */
     private final OwnerHurtWatch ownerWatch = new OwnerHurtWatch();
 
@@ -209,7 +299,7 @@ public final class NumenPlayer extends ServerPlayer implements Body {
     }
 
     /**
-     * 内容包挂在这具身体上的同伴级状态,按类型各一份(路线簿之类)。
+     * 挂在这具身体上的同伴级状态,按类型各一份(征询登记处、等主人答复的调用之类)。
      *
      * <p>与 {@link #pausedReflexes} 同一原则——<b>跟着身体走,不进静态表</b>:身体没了状态
      * 就没了,休眠回来是新身体、新状态,不用给每一种状态各配一套离场清理;引擎不认识
@@ -220,20 +310,6 @@ public final class NumenPlayer extends ServerPlayer implements Body {
     /** 取(首次取时建)这具身体上的一份同伴级状态。 */
     public <T> T state(Class<T> type, java.util.function.Supplier<T> init) {
         return type.cast(bodyState.computeIfAbsent(type, k -> init.get()));
-    }
-
-    /** 这只同伴发给模型的编号已经用到第几号;跟着 {@code .dat} 落盘。 */
-    private long idNumber;
-
-    /**
-     * 给模型看的编号取下一个数字(路线 r7、团 g8 里的那个数)。一只同伴一条,单调递增,各种编号共用,
-     * 存在身体自己的 {@code .dat} 里:休眠、死亡复活、服务器重启之后接着往上数。
-     *
-     * <p>编号挂在 {@link #state} 那些簿子上的内容会随身体重建清空,数字却不能重来——模型的对话历史跨过
-     * 这些都还在,旧编号要是从 1 重数,就会悄悄指向新的一条路线、新的一团方块。
-     */
-    public long nextIdNumber() {
-        return ++idNumber;
     }
 
     /** The loaded companion body with this UUID, or {@code null} if not spawned. */
@@ -260,17 +336,21 @@ public final class NumenPlayer extends ServerPlayer implements Body {
     }
 
     /**
-     * The owner's name for people to read: the online owner's, else the server's profile cache; empty when
-     * there is no owner or the name is unknown.
+     * The owner's name for people to read ({@link #playerName}); empty when there is no owner or the name is unknown.
      */
     public String ownerName() {
-        if (ownerUuid == null) {
-            return "";
-        }
-        ServerPlayer online = resolveOwnerPlayer();
+        return ownerUuid == null ? "" : playerName(getServer(), ownerUuid);
+    }
+
+    /**
+     * A player's name for people to read: the online player's (a companion is one too), else the server's profile
+     * cache; empty when the name is unknown.
+     */
+    public static String playerName(net.minecraft.server.MinecraftServer server, UUID player) {
+        ServerPlayer online = server.getPlayerList().getPlayer(player);
         return online != null ? online.getGameProfile().getName()
-                : java.util.Optional.ofNullable(getServer().getProfileCache())
-                        .flatMap(cache -> cache.get(ownerUuid))
+                : java.util.Optional.ofNullable(server.getProfileCache())
+                        .flatMap(cache -> cache.get(player))
                         .map(com.mojang.authlib.GameProfile::getName)
                         .orElse("");
     }
@@ -363,6 +443,7 @@ public final class NumenPlayer extends ServerPlayer implements Body {
             Companions.onDeath(this);
             return;
         }
+        rearmInventoryFull();
         try {
             super.tick();
         } catch (RuntimeException ex) {
@@ -410,13 +491,11 @@ public final class NumenPlayer extends ServerPlayer implements Body {
         if (ownerUuid != null) {
             output.putUUID(NBT_KEY_OWNER, ownerUuid);   // 1.21.4: no CompoundTag.store(Codec)
         }
-        output.putLong(NBT_KEY_ID_NUMBER, idNumber);
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag input) {
         super.readAdditionalSaveData(input);
         if (input.hasUUID(NBT_KEY_OWNER)) this.ownerUuid = input.getUUID(NBT_KEY_OWNER);
-        this.idNumber = input.getLong(NBT_KEY_ID_NUMBER);
     }
 }

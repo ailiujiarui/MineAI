@@ -149,10 +149,9 @@ class BuildTaskRecordTest {
         assertEquals(Blocks.OAK_STAIRS.defaultBlockState()
                         .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST)
                         .setValue(BlockStateProperties.HALF, Half.TOP),
-                com.dwinovo.numen.core.build.BuildPalette
-                        .parse("oak_stairs[facing=east,half=top]").first().state());
-        assertThrows(IllegalArgumentException.class, () -> com.dwinovo.numen.core.build.BuildPalette
-                .parse("stone[facing=north]"));
+                com.dwinovo.numen.core.build.BuildStates.resolve("oak_stairs[facing=east,half=top]").state());
+        assertThrows(IllegalArgumentException.class, () -> com.dwinovo.numen.core.build.BuildStates
+                .resolve("stone[facing=north]"));
     }
 
     @Test
@@ -190,13 +189,4 @@ class BuildTaskRecordTest {
                 .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST)));
     }
 
-    /**
-     * 施工路上放下的非图纸块收场时都要拆掉,所以走向外圈的路线规格要说"要拆回":放一块的价钱连拆它的那一下一起算,
-     * 定价只在寻路的成本模型一处(见模块的 {@code CostModelTest}),施工这边不自己加价。
-     */
-    @Test
-    void theBuildRouteTakesBackWhatItLaysDown() {
-        assertTrue(BuildCompanionTask.SPEC.takeBack(), "施工的路线规格要说明路上放下的块事后要拆");
-        assertEquals(RouteSpec.Alter.NATURAL, BuildCompanionTask.SPEC.alter());
-    }
 }

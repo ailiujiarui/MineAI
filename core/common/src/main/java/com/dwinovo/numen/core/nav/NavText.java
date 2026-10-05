@@ -5,18 +5,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.dwinovo.numen.sdk.Place;
 import com.dwinovo.numen.core.FailureType;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.pathing.api.Outcome;
 import com.dwinovo.numen.pathing.body.BodyAction;
 import com.dwinovo.numen.pathing.body.Hotbar;
 import com.dwinovo.numen.pathing.drive.Blockage;
+import com.dwinovo.numen.pathing.drive.DiveLog;
 import com.dwinovo.numen.pathing.drive.EditLedger;
 import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.plan.Permit;
 import com.dwinovo.numen.pathing.plan.Reason;
-import com.dwinovo.numen.pathing.search.Route;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.permission.ConsentItem;
 import com.dwinovo.numen.permission.Listing;
@@ -32,9 +33,8 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * 寻路交出来的事实怎么对模型说,全在这里,只此一处:结局({@link Outcome})说成一句英文、归到哪一种 {@link FailureType};
- * 路上真改了什么(实际账)与身体为走路做了什么({@link BodyAction});一条候选路线要动哪些格(预算账),以及候选清单。
- * goto、follow、{@code move route} 与各件活的回执说的都是这一份。方块按种类归堆,坐标点名的写法与征询清单同一种
- * ({@link Listing})。
+ * 路上真改了什么(实际账)与身体为走路做了什么({@link BodyAction});一份计划要动哪些格(预算账)。走路线、跟随与各件活的
+ * 回执说的都是这一份。方块按种类归堆,坐标点名的写法与征询清单同一种({@link Listing})。
  */
 public final class NavText {
 
@@ -52,49 +52,89 @@ public final class NavText {
             case Outcome.OverAlterBudget over -> FailureType.NO_PATH;
             case Outcome.Stranded stranded -> FailureType.BOXED_IN;
             case Outcome.Blocked blocked -> FailureType.BOXED_IN;
-            case Outcome.NeedsAlter needs -> FailureType.TERRAIN_BLOCKED;
+            case Outcome.NeedsChanges needs -> FailureType.TERRAIN_BLOCKED;
             case Outcome.NoMaterials none -> FailureType.NO_MATERIAL;
             case Outcome.Denied denied -> FailureType.REFUSED;
             case Outcome.NoLineOfSight sight -> FailureType.OCCLUDED;
+            case Outcome.Breathless breathless -> FailureType.HAZARD;
         };
     }
 
     /**
-     * 没走到时的那句话:从哪儿、朝哪儿、多远,为什么,下一步能试什么。
+     * 没走到时的那句话:从哪儿、朝哪儿、多远,为什么,下一步能试什么。每一种结局各说各的原因与下一步,走路与各件活
+     * (挖矿、建造……)没走到时都原样说这一句,不另写、不并成一句"到不了"。要改的是这一趟的描述时,下一步写成描述里的那几项
+     * (如 {@code costs = {dig = true, place = true}}),再规划一次。
      *
-     * @param from   她此刻脚下那一格
-     * @param toward 要去的那一格(给人看的方向)
+     * @param from      她此刻脚下那一格
+     * @param toward    要去的那一格(给人看的方向)
+     * @param materials 这一趟愿意垫的料(说"没料"时列出来)
      */
-    public static String failure(Outcome outcome, NumenPlayer player, BlockPos from, BlockPos toward, RouteSpec spec) {
+    public static String failure(Outcome outcome, NumenPlayer player, BlockPos from, BlockPos toward, RouteSpec spec,
+                                 List<Item> materials) {
         String where = where(from, toward);
         return switch (outcome) {
             case Outcome.Arrived arrived -> "arrived";
+            // 诊断在许挖许放、设想有料时也没搜出路才给这个结局:这条规格下从这里就是过不去
             case Outcome.NoRoute noRoute -> "found no path to target (" + where + "; every reachable cell was searched"
-                    + (spec.alter().mayAlter() ? ", digging, bridging and pillaring included" : "") + ")";
+                    + (spec.changes() ? ", digging, bridging and pillaring included" : "")
+                    + "): there is no way there from here, pick another destination";
             case Outcome.OutOfBudget budget -> "found no path to target (" + where + "; the search used up its budget"
-                    + " before finding one, so this is not proof there is none; a nearer waypoint in that direction"
+                    + " before finding one, so this is not proof there is none; a nearer stop in that direction"
                     + " gets further)";
             case Outcome.Unloaded unloaded -> "found no path to target (" + where + "; the search reached chunks that"
                     + " are not loaded, so what lies past them is unknown; walk toward it and try again)";
             case Outcome.OverAlterBudget over -> "found no path to target (" + where + "; "
-                    + overBudget(spec.alterBudget(), over.needed()) + ")";
-            case Outcome.NeedsAlter needs -> needs.level() == RouteSpec.Alter.NATURAL
-                    ? "found no path to target without altering terrain (" + where + "; a route that digs, bridges or"
-                            + " pillars through natural terrain exists, changing " + needs.alterations() + " block(s):"
-                            + " walk with alter:'natural' to take it)"
-                    : "found no route without touching what needs the owner's consent (" + where + "; one exists"
-                            + " that changes " + needs.alterations() + " block(s), some of them someone's: walk with"
-                            + " alter:'any' to ask the owner first)";
+                    + overBudget(spec.alterBudget(), over.needed()) + "): plan it again with costs = {max_changes = "
+                    + over.needed() + "} to allow it";
+            case Outcome.NeedsChanges needs -> needsChanges(needs, spec, where);
             case Outcome.NoMaterials none -> "found no path to target (" + where + "; every way needs blocks to"
-                    + " pillar or bridge with)." + ThrowawayBlocks.shortageAdvice(player);
+                    + " pillar or bridge with)." + ThrowawayBlocks.shortageAdvice(player, materials);
             case Outcome.Denied denied -> "had to stop: changing " + Listing.coords(denied.cell()) + " is refused ("
-                    + reason(denied.reason()) + ")";
+                    + reason(denied.reason()) + "); that is not mine to get around, so plan a way that keeps out of it"
+                    + " (avoid = {" + com.dwinovo.numen.sdk.LuaCodecs.literal(denied.cell()) + "}) or ask your owner";
             case Outcome.Stranded stranded -> "can't set off: I can't stand where I am (" + name(stranded.block())
-                    + " at " + Listing.coords(stranded.cell()) + ")";
-            case Outcome.Blocked blocked -> "gave up: " + blockage(blocked.blockage());
+                    + " at " + Listing.coords(stranded.cell()) + "); free me first (break that block: `numen.work.dig("
+                    + com.dwinovo.numen.sdk.LuaCodecs.literal(stranded.cell()) + ")`) or wait until I land";
+            case Outcome.Blocked blocked -> "gave up: " + blockage(blocked.blockage())
+                    + "; try again, and pick another destination if it keeps failing";
             case Outcome.NoLineOfSight sight -> "arrived, but " + Listing.coords(sight.target())
-                    + " is not in sight from there";
+                    + " went out of sight after the walk was planned (something now stands in between); "
+                    + gotoCall(Place.cell(sight.target()), "arrive = \"use\"") + " again picks a spot that sees it";
+            case Outcome.Breathless b -> "found no path to target (" + where + "; the way there swims under water"
+                    + " from " + Listing.coords(b.from()) + " to " + Listing.coords(b.to()) + " with no air on the way,"
+                    + " about " + seconds(b.held()) + " without a breath, longer than I can safely hold mine now (about "
+                    + seconds(b.spare()) + "): with water breathing (a potion of water breathing, or a turtle shell on"
+                    + " my head) I could take it, otherwise pick another destination";
         };
+    }
+
+    /**
+     * 这一趟的描述不许的改动,有了才有路:那条路要改什么,描述里该改哪几项——诊断为找出这条路打开了哪几样就说哪几样(挖与放
+     * 一起打开,要问主人的格算能走)。只点那条路用到的一样不行:诊断设想身上有料,只许放的计划在没料时仍然走不通。
+     */
+    private static String needsChanges(Outcome.NeedsChanges needs, RouteSpec spec, String where) {
+        List<String> knobs = new ArrayList<>();
+        if (!spec.dig()) {
+            knobs.add("dig = true");
+        }
+        if (!spec.place()) {
+            knobs.add("place = true");
+        }
+        boolean asking = needs.asks() && !spec.consent();
+        if (asking) {
+            knobs.add("consent = " + (int) RouteSpec.CONSENT_MULTIPLIER);
+        }
+        String what = knobs.size() == 1 && asking ? "touching what needs the owner's consent"
+                : "changing terrain";
+        return "found no path to target without " + what + " (" + where + "; a way exists that changes "
+                + needs.alterations() + " block(s) — " + planned(needs.changes()) + "): plan it again with costs = {"
+                + String.join(", ", knobs) + "}"
+                + (needs.asks() ? "; walking it asks your owner when I get to each of those cells" : "");
+    }
+
+    /** 刻数说成秒:{@code 14 s},不足一秒说 {@code under 1 s}。憋气的几处(回执、结局、计划)都这么说。 */
+    public static String seconds(int ticks) {
+        return ticks < 20 ? "under 1 s" : Math.round(ticks / 20.0) + " s";
     }
 
     private static String where(BlockPos from, BlockPos toward) {
@@ -104,13 +144,19 @@ public final class NavText {
 
     /** 预算内无路:两处回执共用,数字口径一致。 */
     public static String overBudget(int budget, int cheapest) {
-        return String.format("no route within an alter_budget of %d (the cheapest found would change %d blocks)",
+        return String.format("no route within max_changes = %d (the cheapest found would change %d blocks)",
                 budget, cheapest);
     }
 
     /** 许可或动手时被拒的理由:权限层的裁决说它自己的话,别的(服务端退回)照实说。 */
     private static String reason(Object refusal) {
-        return refusal instanceof Verdict verdict ? verdict.reason() : "the server would not let it happen";
+        Verdict verdict = CompanionHands.verdict(refusal);
+        return verdict != null ? verdict.reason() : "the server would not let it happen";
+    }
+
+    /** 一格改不得的原因:许可拒绝的({@code detail} 是它的裁决)说权限层自己的话,别的按 {@link Reason} 说。 */
+    public static String refused(Reason reason, Object detail) {
+        return reason == Reason.DENIED ? reason(detail) : reason(reason);
     }
 
     /** 一步走不下去的那一句:哪一格、什么方块、哪种走法、为什么。 */
@@ -149,10 +195,11 @@ public final class NavText {
             case EXCLUDED -> "this walk keeps out of that kind of cell";
             case TRAMPLES -> "landing there would trample it";
             case FORBIDDEN -> "this walk may not touch that cell";
-            case NEEDS_ALTER -> "it would change the terrain, which this walk may not";
-            case NO_MATERIALS -> "it needs a block to place and I carry none of my throwaway blocks";
+            case NO_DIGGING -> "it would dig, which this walk may not";
+            case NO_PLACING -> "it would place a block, which this walk may not";
+            case NO_MATERIALS -> "it needs a block to place and I carry none of the blocks this walk may spend";
             case DENIED -> "changing it is refused";
-            case NEEDS_CONSENT -> "changing it needs the owner's consent";
+            case NEEDS_CONSENT -> "changing it needs the owner's consent, and this walk keeps out of such cells";
             case EDIT_RESTRICTED -> "my game mode can't change blocks";
             case UNBREAKABLE -> "it can't be broken";
             case WOULD_FLOOD -> "breaking it would let liquid in";
@@ -164,6 +211,7 @@ public final class NavText {
             case NO_FACE -> "there is nothing to place against";
             case OCCUPIED -> "my own body is in that cell";
             case OUT_OF_REACH -> "it is out of my reach";
+            case OUT_OF_BREATH -> "with the air I have left I could not reach air before drowning";
         };
     }
 
@@ -174,22 +222,22 @@ public final class NavText {
             case NO_FACE -> "I could not point at a face to place against";
             case NO_MATERIALS -> "I could not get the block into my hand";
             case DIVERTED -> "the ground changed and the step would land somewhere else";
+            case FELL_BACK -> "I kept ending up back where the step before it started";
         };
     }
 
     // ==================== 实际账与身体动作 ====================
 
     /**
-     * 回执末尾那一段:路上挖了什么、放了什么(与倒下又收回的水),身体为走路做了什么;什么都没有是空串。
+     * 回执末尾那一段:路上挖了什么、放了什么(与倒下又收回的水),身体为走路做了什么,潜过几段水;什么都没有是空串。
      * 例如 {@code En route I had to break 2 oak_planks (120,64,-33; 120,65,-33) and place 1 cobblestone (121,64,-33).
-     * I also stepped off the boat.}
+     * I also stepped off the boat. I went under water once: 12 s without a breath from 10,40,5 to 20,40,5, air down to
+     * 60/300.}
      */
-    public static String journey(List<EditLedger.Entry> entries, List<BodyAction> actions) {
+    public static String journey(List<EditLedger.Entry> entries, List<BodyAction> actions, List<DiveLog.Dive> dives) {
         String edits = edits(entries);
         String done = actions(actions);
-        if (edits.isEmpty() && done.isEmpty()) {
-            return "";
-        }
+        String under = dives(dives);
         StringBuilder sb = new StringBuilder();
         if (!edits.isEmpty()) {
             sb.append("En route I had to ").append(edits).append('.');
@@ -197,7 +245,30 @@ public final class NavText {
         if (!done.isEmpty()) {
             sb.append(sb.length() > 0 ? " I also " : "En route I ").append(done).append('.');
         }
+        if (!under.isEmpty()) {
+            sb.append(sb.length() > 0 ? " " : "").append(under);
+        }
         return sb.toString();
+    }
+
+    /**
+     * 路上潜过的水:几段,憋得最久的那一段从哪儿到哪儿、憋了多久、氧气最低到多少。没潜过是空串。例如
+     * {@code I went under water 2 times; the longest: 12 s without a breath from 10,40,5 to 20,40,5, air down to 60/300.}
+     */
+    static String dives(List<DiveLog.Dive> dives) {
+        if (dives.isEmpty()) {
+            return "";
+        }
+        DiveLog.Dive longest = dives.get(0);
+        for (DiveLog.Dive dive : dives) {
+            if (dive.ticks() > longest.ticks()) {
+                longest = dive;
+            }
+        }
+        return "I went under water " + (dives.size() == 1 ? "once: " : dives.size() + " times; the longest: ")
+                + seconds(longest.ticks()) + " without a breath from " + Listing.coords(longest.from()) + " to "
+                + Listing.coords(longest.to()) + ", air down to " + Math.max(0, longest.lowestAir()) + "/"
+                + longest.maxAir() + ".";
     }
 
     /** 实际账的正文:挖掉的、放下的、倒下的液体与收回的,各按方块归堆。空账是空串。 */
@@ -256,97 +327,86 @@ public final class NavText {
         };
     }
 
-    // ==================== 预算账与候选清单 ====================
+    // ==================== 预算账 ====================
+
 
     /**
-     * 一条候选里的一行:id、步数、要挖的格(要问主人的缀上为什么问)、要放的格,例如
-     * {@code   r3  12 steps  break 2 oak_planks (120,64,-33; 120,65,-33) needing consent (placed by a player)  place 1 cobblestone}。
+     * 计划要动什么(预算账),与实际账同一种写法:要挖的格按方块归堆,要问主人的缀上为什么问;要放的格按方块归堆。例如
+     * {@code break 2 oak_planks (120,64,-33; 120,65,-33) needing consent (placed by a player); place 1 cobblestone (121,64,-33)}。
+     * 一格都不动是 {@code no terrain change}。
+     *
+     * @param digs   要挖的格 → 那里规划时的方块,按先后
+     * @param places 要放的格 → 打算放下的方块,按先后
+     * @param asks   其中要问主人的格 → 为什么要问
      */
-    static String line(String id, Route route) {
-        int steps = route.legs().size();
-        return "  " + id + "  " + steps + (steps == 1 ? " step  " : " steps  ") + planned(route);
-    }
-
-    /** 一条候选要动什么,紧凑的一句;一格都不动是 {@code no terrain change}。 */
-    static String planned(Route route) {
-        Map<String, List<BlockPos>> digs = new LinkedHashMap<>();
-        Map<String, String> labels = new LinkedHashMap<>();
-        Map<Block, List<BlockPos>> places = new LinkedHashMap<>();
-        for (Edit edit : route.edits()) {
-            switch (edit) {
-                case Edit.Dig dig -> {
-                    String cause = dig.permit() instanceof Permit.Ask ask && ask.credential() instanceof ConsentItem item
-                            ? item.cause() : "";
-                    String key = name(dig.state()) + '|' + cause;
-                    digs.computeIfAbsent(key, k -> new ArrayList<>()).add(dig.pos());
-                    labels.putIfAbsent(key, cause.isEmpty() ? "" : " needing consent (" + cause + ")");
-                }
-                case Edit.Place place -> heap(places, place.block(), place.pos());
-                case Edit.Catch caught -> heap(places, net.minecraft.world.level.block.Blocks.WATER, caught.pos());
-                case Edit.Door door -> {
-                }
-            }
-        }
+    public static String planned(Map<BlockPos, Block> digs, Map<BlockPos, Block> places, Map<BlockPos, String> asks) {
         if (digs.isEmpty() && places.isEmpty()) {
             return "no terrain change";
         }
-        StringBuilder sb = new StringBuilder();
+        List<String> parts = new ArrayList<>();
         if (!digs.isEmpty()) {
-            List<String> parts = new ArrayList<>();
-            digs.forEach((key, cells) -> parts.add(Listing.part(key.substring(0, key.indexOf('|')), cells.size(), cells)
-                    + labels.get(key)));
-            sb.append("break ").append(String.join(", ", parts));
+            parts.add("break " + consented(digs, asks));
         }
         if (!places.isEmpty()) {
-            sb.append(sb.length() > 0 ? "  " : "").append("place ").append(heaps(places));
+            parts.add("place " + consented(places, asks));
         }
-        return sb.toString();
+        return String.join("; ", parts);
     }
 
-    /** 候选清单:每条一行,按给定的顺序(先出的先列)。 */
-    static String listing(List<RouteBook.Entry> routes) {
-        StringBuilder sb = new StringBuilder();
-        for (RouteBook.Entry r : routes) {
-            if (sb.length() > 0) {
-                sb.append('\n');
+    /**
+     * 一条路要改的格,读成三张表:要挖的格 → 那里原来的方块,要放的格 → 放的方块(倒水接坠落记水),其中要问主人的格 → 许可给的
+     * 为什么问。规划写计划、回执说要改什么,读的都是这一份。
+     */
+    public record Changes(Map<BlockPos, Block> digs, Map<BlockPos, Block> places, Map<BlockPos, String> asks) {
+
+        public static Changes of(List<Edit> edits) {
+            Map<BlockPos, Block> digs = new LinkedHashMap<>();
+            Map<BlockPos, Block> places = new LinkedHashMap<>();
+            Map<BlockPos, String> asks = new LinkedHashMap<>();
+            for (Edit edit : edits) {
+                Permit permit = switch (edit) {
+                    case Edit.Dig dig -> {
+                        digs.put(dig.pos(), dig.state().getBlock());
+                        yield dig.permit();
+                    }
+                    case Edit.Place place -> {
+                        places.put(place.pos(), place.block());
+                        yield place.permit();
+                    }
+                    case Edit.Catch caught -> {
+                        places.put(caught.pos(), net.minecraft.world.level.block.Blocks.WATER);
+                        yield caught.permit();
+                    }
+                    case Edit.Door door -> null;
+                };
+                if (permit instanceof Permit.Ask ask && ask.credential() instanceof ConsentItem item) {
+                    asks.put(edit.pos(), item.cause());
+                }
             }
-            sb.append(line(r.id(), r.route()));
+            return new Changes(digs, places, asks);
         }
-        return sb.toString();
     }
 
-    /**
-     * "按这次的规格没有路"的回执:哪儿到哪儿、多远,接着是候选清单,末尾告诉模型怎么选。goto 与 follow 的
-     * {@link FailureType#TERRAIN_BLOCKED} 只此一种说法。
-     *
-     * @param alteringAllowed 这次的规格本来就许改自然地形(候选是连要主人同意的格也算进去查出来的)
-     */
-    static String noCleanRoute(BlockPos from, BlockPos toward, boolean alteringAllowed, List<RouteBook.Entry> routes) {
-        return "found no route without " + (alteringAllowed ? "touching what needs the owner's consent"
-                : "altering terrain") + " (" + where(from, toward) + "; every reachable cell was searched). candidates:\n"
-                + listing(routes) + "\nchoose one with move_goto route:<id>, or pick another destination. A route with"
-                + " cells needing consent asks the owner before I set off.";
+    /** 一条路要改的格,与 {@link #planned(Map, Map, Map)} 同一种写法。 */
+    static String planned(List<Edit> edits) {
+        Changes changes = Changes.of(edits);
+        return planned(changes.digs(), changes.places(), changes.asks());
     }
 
-    /**
-     * 只搜不走却一条候选都没有的回执({@code move route} 是命令,教的是命令的写法):按这次的规格要改地形才有路,就说放宽到
-     * 哪一档再规划一次能看到那几条;其余与走路没走到同一句话。
-     */
-    public static String unplanned(Outcome outcome, NumenPlayer player, BlockPos from, BlockPos toward, RouteSpec spec) {
-        if (outcome instanceof Outcome.NeedsAlter needs) {
-            String level = needs.level() == RouteSpec.Alter.NATURAL ? "natural" : "any";
-            return "found no route " + (needs.level() == RouteSpec.Alter.NATURAL ? "without altering terrain"
-                    : "without touching what needs the owner's consent") + " (" + where(from, toward) + "; one exists"
-                    + " that changes " + needs.alterations() + " block(s)): plan again with --alter " + level
-                    + " to see what it would take, or pick another destination";
-        }
-        return failure(outcome, player, from, toward, spec);
-    }
-
-    /** 只搜不走的回执:找到几条、从哪儿到哪儿,接着是候选清单,末尾告诉模型怎么用。 */
-    public static String plannedRoutes(BlockPos from, BlockPos toward, List<RouteBook.Entry> routes) {
-        return routes.size() + (routes.size() == 1 ? " route " : " routes ") + where(from, toward) + ":\n"
-                + listing(routes) + "\nwalk one with move_goto route:<id>; ids stay valid while I stay near here.";
+    /** 按方块归堆,同一种方块里要问主人的按为什么问再分一堆,缀上 {@code needing consent (…)}。 */
+    private static String consented(Map<BlockPos, Block> cells, Map<BlockPos, String> asks) {
+        Map<String, List<BlockPos>> heaps = new LinkedHashMap<>();
+        Map<String, String> labels = new LinkedHashMap<>();
+        cells.forEach((pos, block) -> {
+            String cause = asks.getOrDefault(pos, "");
+            String key = name(block) + '|' + cause;
+            heaps.computeIfAbsent(key, k -> new ArrayList<>()).add(pos);
+            labels.putIfAbsent(key, cause.isEmpty() ? "" : " needing consent (" + cause + ")");
+        });
+        List<String> parts = new ArrayList<>();
+        heaps.forEach((key, at) -> parts.add(Listing.part(key.substring(0, key.indexOf('|')), at.size(), at)
+                + labels.get(key)));
+        return andJoined(parts);
     }
 
     // ==================== 小工具 ====================
@@ -368,11 +428,19 @@ public final class NavText {
         return String.join(", ", parts.subList(0, parts.size() - 1)) + " and " + parts.get(parts.size() - 1);
     }
 
-    static String name(BlockState state) {
+    /**
+     * 一句能照抄的去一处,带反引号:{@code `numen.move.to({x = 1, y = 2, z = 3}, {arrive = "use"})`};{@code options} 是路线描述里的那几项,
+     * 可以为空。
+     */
+    public static String gotoCall(Place to, String options) {
+        return "`numen.move.to(" + com.dwinovo.numen.sdk.LuaCodecs.literal(to) + (options.isEmpty() ? "" : ", {" + options + "}") + ")`";
+    }
+
+    public static String name(BlockState state) {
         return name(state.getBlock());
     }
 
-    static String name(Block block) {
+    public static String name(Block block) {
         return BuiltInRegistries.BLOCK.getKey(block).getPath();
     }
 

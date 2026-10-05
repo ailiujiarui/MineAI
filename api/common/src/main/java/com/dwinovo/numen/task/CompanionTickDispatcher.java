@@ -17,8 +17,8 @@ import java.util.UUID;
  * UUID), not on the body.
  *
  * <p>Each tick, for every live {@link NumenPlayer}, the brain ticks the
- * highest-priority active chain and ships finished LLM results back to the owner
- * as {@code TaskResultPayload}. Registered from core's end-of-tick hooks;
+ * highest-priority active chain and runs the server-side calls the companion's programs queued
+ * ({@code ServerPrograms.tick}). Registered from core's end-of-tick hooks;
  * finalised on body removal / death / owner-abort via the engine's
  * {@code CompanionLifecycle} seam.
  *
@@ -49,6 +49,8 @@ public final class CompanionTickDispatcher {
      * 每个服务器都该重新证一次(它正是当初暴露这个 bug 的那把尺子)。
      */
     static void dropAll() {
+        // 还在准备的调用随世界作废:在飞的搜索停下,不回结果(调用它的那一方随世界一起没了)
+        BRAINS.values().forEach(brain -> brain.preparing.drop());
         BRAINS.clear();
         duplicateWarned.clear();
         heartbeatLogged = false;
@@ -69,8 +71,13 @@ public final class CompanionTickDispatcher {
     }
 
     /** 换掉她现在在做的事(首次使用时建脑),见 {@link CompanionBrain#assign}。 */
-    static void assign(NumenPlayer companion, TaskRecord record) {
-        brainFor(companion.getUUID()).assign(companion, record);
+    static void assign(NumenPlayer companion, TaskRecord record, Task runner) {
+        brainFor(companion.getUUID()).assign(companion, record, runner);
+    }
+
+    /** 开始准备一次调用(首次使用时建脑):她原来在准备的那一件被它顶替,见 {@link Preparing}。 */
+    static void prepare(NumenPlayer companion, Preparing.Call call) {
+        brainFor(companion.getUUID()).preparing.begin(call);
     }
 
     /**
@@ -96,6 +103,8 @@ public final class CompanionTickDispatcher {
         // 登录时只记了一笔,恢复放在这儿做——那时 placeNewPlayer 早已返回,同伴出什么事
         // 都落不到主人的入场流程上。见 Companions.scheduleRestoreFor。
         Companions.restorePending(server);
+        // 她们的程序排着的服务端调用:在预算里执行,主线程不等任何程序
+        com.dwinovo.numen.program.ServerPrograms.tick();
         Companions.tickRespawns(server);   // timed death recoveries
         TimerRegistry.tick(server);        // 她自己定的表,到点发事件
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
@@ -131,6 +140,11 @@ public final class CompanionTickDispatcher {
                     com.dwinovo.numen.event.NumenEvents.gotHungry(
                             ap, ap.getFoodData().getFoodLevel());
                 }
+                // 背包满了、东西留在了地上说一声:判据只在身体上一处,挖、捡、合成这些活不各自判。
+                NumenPlayer.LeftBehind leftBehind = ap.pollInventoryFull();
+                if (leftBehind != null) {
+                    com.dwinovo.numen.event.NumenEvents.inventoryFull(ap, leftBehind);
+                }
                 // 主人挨打了说一声——通知不接管,去不去救是她的决定。
                 NumenPlayer.OwnerHurt hurt = ap.pollOwnerHurt(ownerPlayer, server.getTickCount());
                 if (hurt != null) {
@@ -140,13 +154,13 @@ public final class CompanionTickDispatcher {
                 // 等主人点头的那条征询:主人下线或到点就按拒绝收尾,发起的任务下一刻读到结论。
                 com.dwinovo.numen.permission.ConsentDesk.of(ap).tick();
                 // 等主人点头的指令这一刻就读结论:允许的接着执行,拒绝的回执。
-                com.dwinovo.numen.cli.PendingCommands.tick(ap);
+                com.dwinovo.numen.sdk.Consents.tick(ap);
                 CompanionBrain brain = brainFor(ap.getUUID());
                 if (!brain.boundTo(ap) && !brain.boundBodyGone()) {
                     // 同一个 UUID 同时有两具身体:上一具还在世界里,来的这具是重影。
                     // 【不拆不建】—— 拆建会在两具之间无限自旋,每刻两次,每次还重放
                     // 一遍她手上的活。这里只吵一句就跳过;病根在"她被复活了两次",
-                    // 见 ExecuteToolPayload。
+                    // 见 OwnedBody。
                     if (duplicateWarned.add(ap.getUUID())) {
                         com.dwinovo.numen.Constants.LOG.warn(
                                 "[numen-task] {} 同时有两具身体在玩家列表里,忽略后来的那具", ap.getUUID());
@@ -179,7 +193,7 @@ public final class CompanionTickDispatcher {
     public static void clearActiveTask(NumenPlayer player) {
         CompanionBrain brain = BRAINS.get(player.getUUID());   // never create: a late death
         if (brain != null) brain.dropActiveNoResult(player);   // event must not leak a brain
-        com.dwinovo.numen.cli.PendingCommands.drop(player);
+        com.dwinovo.numen.sdk.Consents.drop(player);
     }
 
     /** 她现在在做的那件事,null = 槽空(她站着)。task status 用。 */
@@ -213,14 +227,16 @@ public final class CompanionTickDispatcher {
         return target;
     }
 
-    /** Owner pressed Stop: cancel the pending queue and the running task (finalized next tick).
+    /** Owner pressed Stop: cancel the call being prepared, the pending queue and the running task (finalized next tick).
      *  The 取消边沿 also releases the task-scoped MAINHAND intent pin immediately —
      *  the explicit-hold session dies with the task it served (constitution §5). */
     public static void cancelFor(NumenPlayer player) {
         // 等主人点头的指令不在槽里,同一下叫停(撤掉征询,回执说被主人叫停)。
-        com.dwinovo.numen.cli.PendingCommands.stop(player, TaskRecord.StopCause.OWNER);
+        com.dwinovo.numen.sdk.Consents.stop(player, TaskRecord.StopCause.OWNER);
         CompanionBrain brain = BRAINS.get(player.getUUID());   // never create: a late cancel
         if (brain == null) return;                             // packet must not leak a brain
+        // 还在准备、没受理的那次调用同一下作罢,回执说被主人叫停、没有开始
+        brain.preparing.withdraw(TaskRecord.StopCause.OWNER.words());
         brain.sync.cancel(TaskRecord.StopCause.OWNER);
         brain.current.cancel(TaskRecord.StopCause.OWNER);
         TaskSessionHooks.fireSessionEnd(player);
@@ -239,7 +255,8 @@ public final class CompanionTickDispatcher {
         if (brain != null) {
             brain.finalizeActive(player);
         }
-        com.dwinovo.numen.cli.PendingCommands.stop(player, TaskRecord.StopCause.BODY_LEFT);
+        com.dwinovo.numen.sdk.Consents.stop(player, TaskRecord.StopCause.BODY_LEFT);
+        com.dwinovo.numen.program.ServerPrograms.stop(player);
         BRAINS.remove(id);   // the body is gone; don't leak its brain
     }
 }

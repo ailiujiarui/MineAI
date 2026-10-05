@@ -37,7 +37,7 @@ import java.util.List;
  * <b>不存在"错过的排空"</b>,也就不需要记住"我刚才想排空"这种会出错的状态。
  *
  * <h2>上限</h2>
- * {@value #DEFAULT_CAP} 条,满了丢最老的并记账,排空时如实补一句。消费者可能很久
+ * {@value #DEFAULT_CAP} 条,满了先丢最老的捎带、没有捎带再丢最老的,并记账,排空时如实补一句。消费者可能很久
  * 不来取(外接大脑失联、她死着躺一晚上),不设上限就会涨到把上下文撑爆;但丢弃
  * 不能无声无息——主人得知道自己看到的是全部还是残片。
  *
@@ -48,8 +48,18 @@ public final class EventQueue {
     /** 队列默认上限;服务端暂存与客户端收件共用这一个数。 */
     public static final int DEFAULT_CAP = 200;
 
-    /** 一条待处理的输入。{@code type} 查 {@link EventTypes};{@code ts} 是真实时间。 */
-    public record Entry(String type, String text, long ts, boolean urgent) {}
+    /**
+     * 一条待处理的输入。{@code type} 查 {@link EventTypes};{@code ts} 是真实时间。
+     *
+     * @param result 一件身体活收尾(task_finished)时它的结果({@code success}、{@code message}、{@code kind}、{@code hint}、
+     *               {@code data}),随条目一起到,给等这件活的程序;不进她读的文字、不落盘。别的条目是 null
+     */
+    public record Entry(String type, String text, long ts, boolean urgent, com.google.gson.JsonObject result) {
+
+        public Entry(String type, String text, long ts, boolean urgent) {
+            this(type, text, ts, urgent, null);
+        }
+    }
 
     /** 落盘口。队列不知道自己被存成 JSON 还是 NBT,存在哪。 */
     public interface Journal {
@@ -91,19 +101,24 @@ public final class EventQueue {
     // ---- 进 ----
 
     /**
-     * 收一条。满了丢最老的并记账。急不急按 {@link #urgent} 生效,条目记下的是生效后的结果,
+     * 收一条。满了按 {@link #evictee} 丢一条并记账。急不急按 {@link #urgent} 生效,条目记下的是生效后的结果,
      * 落盘、转发、熟度判断都只认它。
      *
      * @return 这条是否作为急件入队;空白输入不入队,返回 {@code false}
      */
     public boolean push(String type, String text, long now, boolean urgent) {
+        return push(type, text, now, urgent, null);
+    }
+
+    /** 同上,条目带着一件身体活的结果({@link Entry#result})入队;结果只在内存里,落盘的不带它。 */
+    public boolean push(String type, String text, long now, boolean urgent, com.google.gson.JsonObject result) {
         if (text == null || text.isBlank()) {
             return false;
         }
         boolean effective = urgent(EventTypes.get(type), urgent);
-        entries.add(new Entry(type, text, now, effective));
+        entries.add(new Entry(type, text, now, effective, result));
         while (entries.size() > cap) {
-            entries.remove(0);
+            entries.remove(evictee());
             dropped++;
         }
         journal.save(entries);
@@ -118,6 +133,20 @@ public final class EventQueue {
     }
 
     /**
+     * 满了先丢哪一条:最老的一条捎带({@link EventTypes.Delivery#AMBIENT}——不叫醒她、也不是控制命令)先让位;队里没有捎带的,
+     * 才丢最老的那条。捎带的话本来就只是顺路听见的,一阵广播刷屏不能把任务收尾、急件挤出去。
+     */
+    private int evictee() {
+        for (int i = 0; i < entries.size(); i++) {
+            EventTypes.Delivery d = delivery(entries.get(i));
+            if (!d.wakes() && !d.control()) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /**
      * 条目生效后的急不急。急件的意思是"立刻叫醒她",所以只有投递档声明会叫醒她的条目
      * ({@link EventTypes.Delivery#wakes})才可能急——旁听的话不唤醒是群聊的不变量,控制命令由循环闲时自己执行,
      * 两者靠发送方自觉守不住,发送方怎么标都一样。其余:类型表说恒急就急,否则听发送方的。
@@ -125,6 +154,14 @@ public final class EventQueue {
      */
     private static boolean urgent(EventTypes.Type kind, boolean asSent) {
         return kind.delivery().wakes() && (kind.alwaysUrgent() || asSent);
+    }
+
+    /**
+     * 一条 {@code type} 类型、发送方标了 {@code asSent} 的输入,生效后急不急:队列、在服务端跑的程序判"要不要停在调用之间"
+     * 都用这一条。
+     */
+    public static boolean isUrgent(String type, boolean asSent) {
+        return urgent(EventTypes.get(type), asSent);
     }
 
     // ---- 急件叫醒 ----
@@ -199,6 +236,14 @@ public final class EventQueue {
         }
         out.addAll(owner);
         return out;
+    }
+
+    /**
+     * 主人的话交给模型的样子:包进 {@code <query>}。模型靠这个标记分清哪句是主人亲口说的、哪些是一同注入的事件与状态;
+     * 面板与日志认它只在 {@code ConvoLog.queries} 一处。
+     */
+    public static String query(String words) {
+        return "<query>" + words + "</query>";
     }
 
     /** 溢出丢弃的说明文本——服务端暂存与客户端收件共用一句话。kind 就是这条条目的类型 {@link EventTypes#DROPPED}。 */

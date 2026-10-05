@@ -4,11 +4,12 @@ package com.dwinovo.numen.core.task.base;
 import com.dwinovo.numen.core.nav.Journey;
 import com.dwinovo.numen.core.nav.Trip;
 import com.dwinovo.numen.pathing.api.Report;
-import com.dwinovo.numen.pathing.drive.EditLedger;
+import com.dwinovo.numen.task.Preparation;
 import com.dwinovo.numen.task.Task;
 import com.dwinovo.numen.core.FailureType;
 import com.dwinovo.numen.task.TaskRecord;
 import com.dwinovo.numen.task.TaskState;
+import com.dwinovo.numen.entity.BodyDelta;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.permission.Action;
 import com.dwinovo.numen.permission.ConsentAnswer;
@@ -20,9 +21,7 @@ import com.dwinovo.numen.task.TaskResult;
 import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * The shared skeleton every reactive companion task grows on — the single place
@@ -45,9 +44,12 @@ import java.util.Map;
  *
  * <h2>Lifecycle (all {@code final}, so subclasses can't break the contract)</h2>
  * <ul>
- *   <li>{@link #start} runs the {@link #preconditions()} in order; the first
- *       that reports a {@link Precondition.Failure} terminates the task
- *       immediately (via {@link #fail}); otherwise {@link #onStart()} runs.</li>
+ *   <li>{@link #prepare} (before the work is accepted, see {@link Preparation}) runs the {@link #preconditions()} in
+ *       order; the first that reports a {@link Precondition.Failure} refuses the call with its message, no task id,
+ *       no task_finished. Then {@link #preparation()} judges the rest (world facts, a plan).</li>
+ *   <li>{@link #start} runs the {@link #preconditions()} itself when nothing prepared the task (a synchronous action,
+ *       a child sub-goal); the first failure terminates the task immediately (via {@link #fail}); otherwise
+ *       {@link #onStart()} runs.</li>
  *   <li>{@link #tick} short-circuits to the terminal state a {@code fail(...)}
  *       (or a start-time precondition) parked in {@code pendingTerminal};
  *       otherwise it delegates to {@link #onTick()}.</li>
@@ -86,6 +88,8 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
     private String doneReason = "done";
     /** Structured cause of the last failure, for a parent ladder to branch on. */
     private FailureType failType = FailureType.UNKNOWN;
+    /** 最近一次 {@link #fail} 给的下一步;没给是 null。 */
+    private String failHint;
     /**
      * A terminal state decided out-of-band (a start-time precondition, or a
      * {@link #fail} called from anywhere): {@link #tick} returns it verbatim
@@ -98,6 +102,12 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
     /** 主人点头的那几次,回执末尾交代。 */
     private final List<String> allowances = new ArrayList<>();
 
+    /** 开工那一刻的身体;收场时据此说这件活里有没有装备用坏。没开过工是 null。 */
+    private BodyDelta bodyAtStart;
+
+    /** 受理之前准备过,见 {@link #prepare}。 */
+    private boolean prepared;
+
     /** 身体真在干活的刻数,见 {@link #workTicks()}。 */
     private long workTicks;
     /** 这一刻任务说它在等一次后台搜索({@link #awaitSearch});每刻开头清掉。 */
@@ -108,6 +118,10 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
     private Task child;
     /** Whether {@link #child}'s {@code start()} has been called yet. */
     private boolean childStarted;
+    /**
+     * 征询记在谁名下:自己的任务记录;作为子活跑时是派它的那件活的(它收尾时一并清掉,主人答应过的对整件活都算)。
+     */
+    private Object consentScope;
 
     protected AbstractCompanionTask(NumenPlayer player, R record) {
         this.player = player;
@@ -118,16 +132,30 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
     // Lifecycle (final — the frozen contract)
     // ---------------------------------------------------------------------
 
+    /**
+     * 受理之前的准备:前置条件按顺序判,第一条不过就是这次调用的错误结果;都过了再交给 {@link #preparation()}。准备过的任务
+     * 开工时不再判前置条件。
+     */
+    @Override
+    public final Preparation prepare(NumenPlayer companion) {
+        Precondition.Failure f = firstFailure();
+        if (f != null) {
+            // 前提不成立时这件活还没开始,没有进度可交:只有种类、那句话与下一步
+            return Preparation.refused(TaskResult.fail(f.type().kind(), f.message(), f.hint()));
+        }
+        prepared = true;
+        return preparation();
+    }
+
     @Override
     public final void start(NumenPlayer companion) {
-        for (Precondition p : preconditions()) {
-            Precondition.Failure f = p.check();
-            if (f != null) {
-                fail(f.message(), f.type());
-                r.setState(TaskState.FAILED);   // same-tick finalization (old dispatcher semantics)
-                return;
-            }
+        Precondition.Failure f = prepared ? null : firstFailure();
+        if (f != null) {
+            fail(f.message(), f.type(), f.hint());
+            r.setState(TaskState.FAILED);   // same-tick finalization (old dispatcher semantics)
+            return;
         }
+        bodyAtStart = BodyDelta.open(player);
         try {
             onStart();
         } catch (RuntimeException e) {
@@ -159,8 +187,8 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
             return TaskState.FAILED;
         }
         // 这一刻身体在等就不算干活:期限往后推一刻(与调度层被生存链抢占时的 freeze 同一原则),
-        // 干活的刻数不走。
-        if (waiting()) {
+        // 干活的刻数不走。子活在跑时它按自己的期限走,这件活的期限同样冻住
+        if (waiting() || child != null) {
             r.extendDeadlineTo(r.getDeadlineGameTime() + 1);
         } else {
             workTicks++;
@@ -190,9 +218,14 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
         return (nav != null && nav.waiting()) || consent != null || awaitingSearch;
     }
 
+    /** 征询记在谁名下,见 {@link #consentScope}。 */
+    private Object scope() {
+        return consentScope != null ? consentScope : r;
+    }
+
     /**
-     * 导航扣着一段要问主人的路时,这一刻归征询:身体站住、问主人;答应了放行那段路接着跑
-     * {@link #onTick},拒绝了按 {@link FailureType#REFUSED} 收场。任何带导航的任务都一样,
+     * 导航走到一格要问主人的地方停下时,这一刻归征询:身体站住、问主人;答应了那一格放行、接着跑
+     * {@link #onTick},拒绝了按 {@link FailureType#REFUSED} 收场,下一步由 {@link #refusedHint} 给。任何带导航的任务都一样,
      * 不各写各的。
      *
      * @return 这一刻的终态或 RUNNING;不用等(没有扣着的路,或刚放行)时为 null
@@ -211,10 +244,15 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
             return TaskState.RUNNING;
         }
         if (!answer.allowed()) {
-            fail(answer.refusal(needed), FailureType.REFUSED);
+            fail(answer.refusal(needed), FailureType.REFUSED, refusedHint(needed));
             return TaskState.FAILED;
         }
         nav.consentGranted();
+        return null;
+    }
+
+    /** 主人不答应路上那一格时,能照抄的下一步;没有为 null。 */
+    protected String refusedHint(List<ConsentItem> refused) {
         return null;
     }
 
@@ -293,7 +331,7 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
             consent = null;
         }
         if (consent == null) {
-            consent = ConsentDesk.of(player).ask(r, items);
+            consent = ConsentDesk.of(player).ask(scope(), items);
         }
         ConsentAnswer answer = consent.poll();
         if (answer == null) {
@@ -348,18 +386,26 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
 
     @Override
     public final TaskResult result(TaskState finalState) {
+        if (child != null) {
+            endChild(TaskState.CANCELLED);
+        }
         cleanup();
-        // 路上真动过的地形跟着每一种收场走:成功也好失败也罢,拆了什么就说什么;收场时又动了什么接着说;主人点过头的也说
-        String closing = closingNote();
+        // 路上真动过的地形跟着每一种收场走:成功也好失败也罢,挖了什么、放了什么就说什么;主人点过头的也说
         String travelled = journey.describe();
+        String broken = bodyAtStart == null ? "" : bodyAtStart.broken(player);
         String enRoute = (travelled.isEmpty() ? "" : " " + travelled)
-                + (closing.isEmpty() ? "" : " " + closing)
-                + (allowances.isEmpty() ? "" : " " + String.join("; ", allowances) + ".");
+                + (allowances.isEmpty() ? "" : " " + String.join("; ", allowances) + ".")
+                + (broken.isEmpty() ? "" : " " + broken);
+        return outcome(finalState, enRoute);
+    }
+
+    /** 收场的回执:按终态取那一句,后面接上 {@code tail}。 */
+    private TaskResult outcome(TaskState finalState, String tail) {
         return switch (finalState) {
-            case SUCCESS   -> TaskResult.ok(successMessage() + enRoute, resultData());
-            case TIMEOUT   -> new TaskResult(false, timeoutMessage() + enRoute, true, false, resultData());
-            case CANCELLED -> new TaskResult(false, cancelledMessage() + enRoute, false, true, resultData());
-            default        -> TaskResult.fail(doneReason + enRoute, resultData());   // FAILED and any stray state
+            case SUCCESS   -> TaskResult.ok(successMessage() + tail, value());
+            case TIMEOUT   -> TaskResult.timeout(timeoutMessage() + tail, value());
+            case CANCELLED -> TaskResult.cancelled(cancelledMessage() + tail, value());
+            default        -> TaskResult.fail(failType.kind(), doneReason + tail, failHint, value());
         };
     }
 
@@ -367,9 +413,33 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
     // Hooks (override the ones a concrete task needs)
     // ---------------------------------------------------------------------
 
-    /** Ordered start-time gates; the first {@link Precondition.Failure} wins. Default: none. */
+    /** Ordered gates checked before the work begins; the first {@link Precondition.Failure} wins. Default: none. */
     protected List<Precondition> preconditions() {
         return List.of();
+    }
+
+    /** 第一条不过的前置条件;都过了为 null。 */
+    private Precondition.Failure firstFailure() {
+        for (Precondition p : preconditions()) {
+            Precondition.Failure f = p.check();
+            if (f != null) {
+                return f;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 前置条件之后、受理之前还要判的:世界事实、一次只搜不走的规划(见 {@link Preparation})。结论就绪时查到的东西存在
+     * 任务上,开工({@link #onStart()})接着用;准备得出的错误结果与开工后才冒出来时说的是同一句话。默认当场就绪。
+     */
+    protected Preparation preparation() {
+        return Preparation.READY;
+    }
+
+    /** 这件活受理之前准备过({@link #prepare}):开工时准备查到的东西已经在任务上了。 */
+    protected final boolean prepared() {
+        return prepared;
     }
 
     /** First-tick setup (build the nav, snapshot baselines, …). Default: no-op. */
@@ -384,16 +454,11 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
     }
 
     /**
-     * 收场时身体又对世界做了什么(在 {@link #cleanup()} 之后读,紧跟在路上那段账后面):每一种收场都带上,不论成败、
-     * 叫停还是超时。默认什么都没做,空串。
+     * 交给程序的值:类型是派它的 API 函数声明的返回类型({@code Job<R>} 的 {@code R});失败时它是错误值的 {@code data}(做到了哪)。
+     * 不交回值是 null(默认)。
      */
-    protected String closingNote() {
-        return "";
-    }
-
-    /** Structured payload for the result envelope. Default: a fresh empty (mutable) map. */
-    protected Map<String, Object> resultData() {
-        return new HashMap<>();
+    protected Object value() {
+        return null;
     }
 
     /** Message for a SUCCESS result. */
@@ -419,11 +484,17 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
      * {@link #onTick()} pair this with {@code return TaskState.FAILED;}.
      */
     protected void fail(String why, FailureType t) {
+        fail(why, t, null);
+    }
+
+    /** 同上,另给脚本一个能照抄的下一步({@link TaskResult#hint}),比如走过去的那一行。 */
+    protected void fail(String why, FailureType t, String hint) {
         // 终局必须留声:任务凭什么收场是排障的第一现场,不能只活在返回值里
         com.dwinovo.numen.core.Constants.LOG.info("[numen-task] {} FAILED({}) {}",
                 getClass().getSimpleName(), t, why);
         this.doneReason = why;
         this.failType = t;
+        this.failHint = hint;
         this.pendingTerminal = TaskState.FAILED;
     }
 
@@ -470,14 +541,6 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
         return soFar().broke(pos);
     }
 
-    /**
-     * 这件活一路上放下、之后没再挖掉的方块:历次导航的实际账,加上还在走的这一趟的账,按放下的先后。和
-     * {@link #brokeOnTheWay} 同一本账,只读;放下之后世界里又怎样了,由问的一方自己看。
-     */
-    protected final List<EditLedger.Placed> placedOnTheWay() {
-        return soFar().placedBlocks();
-    }
-
     /** 旅程账加上还在走的这一趟。 */
     private Journey soFar() {
         return nav == null ? journey : journey.plus(nav.reports());
@@ -498,7 +561,7 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
     // ---------------------------------------------------------------------
 
     /**
-     * Delegate this tick to a child {@link CompanionTask} representing a bounded
+     * Delegate this tick to a child {@link Task} representing a bounded
      * SUB-goal, driving its {@code start → tick} lifecycle for the parent.
      *
      * <p>Re-invoking with the SAME child instance continues it; passing a
@@ -508,30 +571,45 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
      * precondition) is observed on the very first {@link #tick} — no special
      * "state after start" path is needed.
      *
-     * @return the child's terminal {@link TaskState} on the tick it finishes (its
-     *         structured failure, if it exposes one, is copied up so this task's
-     *         {@link #lastFailure()} reflects the child's cause); or {@code null}
-     *         while the child is still running.
+     * <p>子活是这件活的一部分:它问主人的记在这件活名下;它跑的时候这件活的期限冻住,它按自己记录上的期限走,到了就按超时
+     * 收场;它收场时它的实际账(路上挖的放的、身体做的)与主人点过的头并进这件活,由这件活收场时说一次——所以交回的那句话
+     * 不带它自己的路上那一段。
+     *
+     * @return 子活收场的那一刻交回它的回执(它的失败类型抄上来,{@link #lastFailure()} 说的就是它的原因);还在跑是 null
      */
-    protected TaskState runChild(Task c) {
+    protected TaskResult runChild(Task c) {
         if (child != c) {
             child = c;
             childStarted = false;
+            if (c instanceof AbstractCompanionTask<?> a) {
+                a.consentScope = scope();
+            }
         }
         if (!childStarted) {
             child.start(player);
             childStarted = true;
         }
         TaskState st = child.tick(player);
-        if (st.isTerminal()) {
-            if (child instanceof AbstractCompanionTask<?> a) {
-                this.failType = a.lastFailure();
-            }
-            child = null;
-            childStarted = false;
-            return st;
+        if (!st.isTerminal() && child instanceof AbstractCompanionTask<?> a
+                && player.level().getGameTime() >= a.r.getDeadlineGameTime()) {
+            st = TaskState.TIMEOUT;
         }
-        return null;   // still running
+        return st.isTerminal() ? endChild(st) : null;
+    }
+
+    /** 子活收场:它自己收尾,账并进这件活,交回它不带路上那一段的回执。 */
+    private TaskResult endChild(TaskState st) {
+        Task ended = child;
+        child = null;
+        childStarted = false;
+        if (!(ended instanceof AbstractCompanionTask<?> a)) {
+            return ended.result(st);
+        }
+        a.cleanup();
+        this.failType = a.lastFailure();
+        journey.add(a.journey);
+        allowances.addAll(a.allowances);
+        return a.outcome(st, "");
     }
 
     // ---------------------------------------------------------------------

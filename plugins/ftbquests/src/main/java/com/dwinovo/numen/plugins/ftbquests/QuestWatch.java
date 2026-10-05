@@ -1,5 +1,6 @@
 package com.dwinovo.numen.plugins.ftbquests;
 
+import com.dwinovo.numen.entity.Belongings;
 import com.dwinovo.numen.entity.NumenPlayer;
 import dev.architectury.event.EventResult;
 import dev.ftb.mods.ftbquests.api.FTBQuestsAPI;
@@ -132,9 +133,7 @@ final class QuestWatch {
     }
 
     /**
-     * 这一刻里 FTB 可能替她结算过奖励:先把刚刚完成的任务里、FTB 不会自动发的手动个人奖励替她领掉
-     * ({@link QuestClaim#autoClaimPersonal},领奖时刻就记这一毫秒),再照常翻领奖记录,
-     * 于是这些代领的奖励和 FTB 自动发的走同一条事件报给她。
+     * 这一刻里 FTB 可能替她结算过奖励:翻领奖记录,把新出现的报给她。
      *
      * @return 领取时刻恰好是 {@code now} 这一毫秒、这次已经说过的奖励——下一刻的账从 now 开始,别再说一遍
      */
@@ -145,11 +144,6 @@ final class QuestWatch {
             return Set.of();
         }
         TeamData data = maybe.get();
-        if (!data.isLocked()) {
-            for (Quest quest : finished) {
-                QuestClaim.autoClaimPersonal(her, data, quest, now);
-            }
-        }
         List<String> mine = new ArrayList<>();
         List<String> team = new ArrayList<>();
         Set<Long> toldNow = new HashSet<>();
@@ -198,9 +192,7 @@ final class QuestWatch {
         }
 
         static Ledger of(NumenPlayer her, long now) {
-            Belongings before = new Belongings(her.getInventory().getContainerSize());
-            before.copyFrom(her);
-            return new Ledger(before, now);
+            return new Ledger(Belongings.of(her), now);
         }
 
         boolean isNew(long claimedAt, long rewardId) {

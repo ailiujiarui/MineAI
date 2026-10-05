@@ -5,6 +5,7 @@ import com.dwinovo.numen.api.gear.GearSlot;
 import com.dwinovo.numen.core.FailureType;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.pathing.body.Hotbar;
+import com.dwinovo.numen.sdk.Doc;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -14,10 +15,8 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -41,23 +40,48 @@ public final class Wardrobe {
 
     private Wardrobe() {}
 
+    /** 一次穿、拿、脱动了什么:{@code numen.gear.*} 交给程序的值。 */
+    @Doc("What a wear, hold or remove changed.")
+    public record Change(@Doc("The item it was about.") Optional<String> item,
+                         @Doc("The slot it ended in.") Optional<String> slot,
+                         @Doc("What came off into your backpack.") List<String> removed,
+                         @Doc("What stayed on (no room in your backpack, or it refuses to come off).")
+                         List<String> stillWorn) {}
+
+    /** 一次穿脱一路记下的。 */
+    private static final class Sheet {
+        String item;
+        String slot;
+        List<String> removed = List.of();
+        List<String> stillWorn = List.of();
+
+        Change change() {
+            return new Change(Optional.ofNullable(item), Optional.ofNullable(slot), removed, stillWorn);
+        }
+    }
+
     /**
      * 一次穿脱的结论。
      *
      * @param ok      成功与否
      * @param message 给模型看的那一句
      * @param failure 失败的归类;成功时为 {@code null}
-     * @param data    回执里的结构化字段
+     * @param change  动了什么:交给程序的值
      */
-    public record Outcome(boolean ok, String message, FailureType failure, Map<String, Object> data) {
+    public record Outcome(boolean ok, String message, FailureType failure, Change change) {
 
-        static Outcome done(String message, Map<String, Object> data) {
-            return new Outcome(true, message, null, data);
+        static Outcome done(String message, Sheet sheet) {
+            return new Outcome(true, message, null, sheet.change());
         }
 
-        static Outcome failed(String message, FailureType failure, Map<String, Object> data) {
-            return new Outcome(false, message, failure, data);
+        static Outcome failed(String message, FailureType failure, Sheet sheet) {
+            return new Outcome(false, message, failure, sheet.change());
         }
+    }
+
+    /** 不点名哪只手时拿到哪只手:照原版的规矩,盾这类副手物进副手,其余进主手。 */
+    public static String handFor(NumenPlayer body, ItemStack stack) {
+        return body.getEquipmentSlotForItem(stack) == EquipmentSlot.OFFHAND ? OFFHAND : MAINHAND;
     }
 
     /** 卸下时一个 {@code slot} 指的是哪些槽名:{@code armor} 展开成原版四件甲,其余就是它自己。 */
@@ -72,15 +96,14 @@ public final class Wardrobe {
     /**
      * 把背包里的一件 {@code item} 穿上或拿到手上。
      *
-     * @param slot {@code null} = 自动选位:归某类穿戴位置管的进那类位置,不归任何来源管的交给手(按原版
-     *             的规矩,盾这类副手物进副手,其余进主手);否则是 {@code mainhand}、{@code offhand} 或
-     *             {@code <worn>} 里的槽名
+     * @param slot {@code null} = 自动选位:归某类穿戴位置管的进那类位置,不归任何来源管的不是穿的东西,如实失败;
+     *             否则是 {@code mainhand}、{@code offhand}(拿到手上,见 {@link #handFor})或 {@code <worn>} 里的槽名
      */
     public static Outcome wear(NumenPlayer body, Item item, String slot) {
         Inventory inv = body.getInventory();
         String label = label(item);
-        Map<String, Object> data = new HashMap<>();
-        data.put("item", label);
+        Sheet data = new Sheet();
+        data.item = label;
         int src = carriedSlot(inv, item);
         if (src < 0) {
             return Outcome.failed("no " + label + " in inventory to equip", FailureType.NO_MATERIAL, data);
@@ -92,7 +115,8 @@ public final class Wardrobe {
         if (where == null) {
             Set<String> kinds = NumenPlugins.gearKinds(body, one);
             if (kinds.isEmpty()) {
-                where = body.getEquipmentSlotForItem(one) == EquipmentSlot.OFFHAND ? OFFHAND : MAINHAND;
+                return Outcome.failed(label + " is not something you wear — numen.gear.hold(\""
+                        + BuiltInRegistries.ITEM.getKey(item) + "\") takes it in hand", FailureType.UNKNOWN, data);
             } else {
                 candidates = named(body, kinds);
                 if (candidates.isEmpty()) {
@@ -103,7 +127,7 @@ public final class Wardrobe {
         }
         if (MAINHAND.equals(where)) {
             Hotbar.hold(body, src);
-            data.put("slot", MAINHAND);
+            data.slot = MAINHAND;
             return Outcome.done("holding " + label + " in main hand", data);
         }
         if (OFFHAND.equals(where)) {
@@ -144,7 +168,7 @@ public final class Wardrobe {
             if (swappable == null) swappable = s;
         }
         if (empty == null && same != null) {
-            data.put("slot", same.name());
+            data.slot = same.name();
             return Outcome.done(label + " already equipped in " + same.name(), data);
         }
         GearSlot target = empty != null ? empty : swappable;
@@ -163,7 +187,7 @@ public final class Wardrobe {
             inv.add(old);
         }
         inv.setChanged();
-        data.put("slot", target.name());
+        data.slot = target.name();
         return Outcome.done("equipped " + label + " in " + target.name(), data);
     }
 
@@ -183,7 +207,7 @@ public final class Wardrobe {
         if (MAINHAND.equals(slot)) {
             return freeMainHand(body);
         }
-        Map<String, Object> data = new HashMap<>();
+        Sheet data = new Sheet();
         String label = slot != null ? slot : label(item);
         List<GearSlot> slots;
         if (OFFHAND.equals(slot)) {
@@ -235,8 +259,8 @@ public final class Wardrobe {
             removed.add(what);
         }
         inv.setChanged();
-        if (!removed.isEmpty()) data.put("removed", List.copyOf(removed));
-        if (!stillWorn.isEmpty()) data.put("still_worn", List.copyOf(stillWorn));
+        if (!removed.isEmpty()) data.removed = List.copyOf(removed);
+        if (!stillWorn.isEmpty()) data.stillWorn = List.copyOf(stillWorn);
 
         if (removed.isEmpty() && stillWorn.isEmpty()) {
             return Outcome.done("nothing to take off — " + label + " already empty", data);
@@ -259,7 +283,7 @@ public final class Wardrobe {
      */
     private static Outcome freeMainHand(NumenPlayer body) {
         Inventory inv = body.getInventory();
-        Map<String, Object> data = new HashMap<>();
+        Sheet data = new Sheet();
         ItemStack held = inv.getItem(inv.selected);
         if (held.isEmpty()) {
             return Outcome.done("nothing to take off — " + MAINHAND + " already empty", data);
@@ -269,20 +293,20 @@ public final class Wardrobe {
             if (inv.getItem(i).isEmpty()) {
                 inv.selected = i;
                 String freed = "main hand freed (switched to an empty hotbar slot, still carrying " + name + ")";
-                data.put("removed", List.of(freed));
+                data.removed = List.of(freed);
                 return Outcome.done("took off " + freed, data);
             }
         }
         int free = inv.getFreeSlot();   // 快捷栏全满:空位只可能在主背包区
         if (free < 0) {
-            data.put("still_worn", List.of(name + " (" + MAINHAND + ")"));
+            data.stillWorn = List.of(name + " (" + MAINHAND + ")");
             return Outcome.failed("inventory is full — no room to stow " + MAINHAND, FailureType.NO_SPACE, data);
         }
         inv.setItem(free, held.copy());
         inv.setItem(inv.selected, ItemStack.EMPTY);
         inv.setChanged();
         String freed = "main hand freed (stowed " + name + ")";
-        data.put("removed", List.of(freed));
+        data.removed = List.of(freed);
         return Outcome.done("took off " + freed, data);
     }
 

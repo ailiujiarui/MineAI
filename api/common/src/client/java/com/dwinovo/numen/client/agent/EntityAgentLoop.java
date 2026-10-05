@@ -2,14 +2,9 @@ package com.dwinovo.numen.client.agent;
 
 import com.dwinovo.numen.data.ModLanguageData.Keys;
 import com.dwinovo.numen.Constants;
-import com.dwinovo.numen.NumenPaths;
-import com.dwinovo.numen.agent.decision.DecisionConfig;
-import com.dwinovo.numen.agent.decision.JevDecisionProvider;
 import com.dwinovo.numen.agent.goal.GoalPrompts;
 import com.dwinovo.numen.agent.goal.GoalState;
 import com.dwinovo.numen.agent.goal.GoalSteward;
-import com.dwinovo.numen.agent.goal.GoalVerifier;
-import com.dwinovo.numen.agent.goal.JevGoalJudge;
 import com.dwinovo.numen.agent.http.CancelToken;
 import com.dwinovo.numen.agent.llm.NumenLlmClient;
 import com.dwinovo.numen.agent.llm.ConvoLog;
@@ -28,14 +23,12 @@ import com.dwinovo.numen.agent.loop.ModelPort;
 import com.dwinovo.numen.agent.loop.ModelRequest;
 import com.dwinovo.numen.agent.loop.Phase;
 import com.dwinovo.numen.agent.provider.Usage;
-import com.dwinovo.numen.agent.tool.ClientToolContext;
-import com.dwinovo.numen.agent.tool.NumenTool;
-import com.dwinovo.numen.agent.tool.ToolCall;
-import com.dwinovo.numen.agent.tool.ToolRegistry;
+import com.dwinovo.numen.agent.request.AgentRequestContext;
+import com.dwinovo.numen.agent.request.MemoryPreamble;
+import com.dwinovo.numen.agent.request.RuntimeState;
+import com.dwinovo.numen.agent.request.SystemPromptComposer;
 import com.dwinovo.numen.data.ModLanguageData;
 import com.dwinovo.numen.mcp.server.McpMode;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.language.I18n;
@@ -45,8 +38,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -79,18 +70,15 @@ import java.util.function.Consumer;
  */
 public final class EntityAgentLoop {
 
-    /**
-     * 目标核对(判官说达成时拿宣称去量真实世界)的兜底时限。核对是一次查询,本该秒回;
-     * 到这个点还没回就当服务端/连接出了问题,<b>放行</b>——一个会抽风的检查不该把已完成的目标卡死。
-     */
-    private static final long VERIFY_TIMEOUT_MS = 30_000L;
+
+
 
     private final UUID entityUuid;
     /** JSONL persistence under {@code config/numen/conversations/<uuid>.jsonl}. */
     private final ConvoLog log;
     private final ConvoState convo;
-    /** 她自己写的札记;索引作为 {@code <memory>} 注入。 */
-    private final com.dwinovo.numen.agent.memory.NoteBook notes;
+    /** 她自己写的札记的索引,作为 {@code <memory>} 注入。 */
+    private final MemoryPreamble memory;
     /**
      * 她此刻在哪个会话里——最后一次是被哪个会话叫醒的。<b>null = 就他俩</b>(她的单成员会话)。
      *
@@ -100,10 +88,6 @@ public final class EntityAgentLoop {
      */
     private volatile String conversation;
 
-    /** 札记索引上次贴进历史时的版本。 */
-    private int memoryRevisionInHistory = -1;
-    /** 历史里那份还在不在:开一局时不在,压缩/清空把它吃掉之后也不在。 */
-    private boolean memoryInHistory;
     /**
      * 收件箱(宪法 §4):主人的话与世界事件的统一进箱口,内核按类型表的投递方式取件。
      * 条目、落盘、年龄标注、熟度规则全在 {@link EventQueue};这里直接用它的只有外接模型取件口
@@ -164,60 +148,32 @@ public final class EntityAgentLoop {
     private final AgentLoop loop;
     /** 上一个 tick 驾驶席在不在外接模型手里——只用来找"翻转成外接"的那一下。 */
     private boolean wasDriving;
-    /** JEV 判卷开着没有:开了就把主人每句话自动立成目标,收尾由 JEV 判卷(见 {@link #enqueueOwnerWords})。 */
-    private final boolean jevGoal;
-    private java.util.function.BooleanSupplier requestPermit;
-
-    /** Passive observation and optional bounded execution, installed before submitting a live eval. */
-    public void observe(Consumer<? super com.dwinovo.numen.agent.loop.LoopEvent> observer) {
-        loop.subscribe(observer);
-    }
-
-    public void unobserve(Consumer<? super com.dwinovo.numen.agent.loop.LoopEvent> observer) {
-        loop.unsubscribe(observer);
-    }
-
-    public void executionBudget(java.util.function.BooleanSupplier requests,
-                                java.util.function.BooleanSupplier tools) {
-        requestPermit = requests;
-        dispatcher.executionPermit(tools);
-    }
 
     EntityAgentLoop(UUID entityUuid) {
         this.entityUuid = entityUuid;
         this.log = ConvoLog.atFile(CompanionHome.chat(entityUuid));
         this.convo = new ConvoState(msg -> log.append(msg, conversation));
-        this.notes = com.dwinovo.numen.agent.memory.NoteBook.of(entityUuid);
-        this.runtime = new RuntimeState(entityUuid);
+        this.memory = new MemoryPreamble(com.dwinovo.numen.agent.memory.NoteBook.of(entityUuid));
+        this.runtime = new RuntimeState(entityUuid,
+                () -> com.dwinovo.numen.client.data.ClientNumenState.get(entityUuid).orElse(null));
         this.queue = new EventQueue(JsonlJournal.atFile(CompanionHome.inbox(entityUuid)));
         this.providerEntryId = CompanionHome.binding(entityUuid).providerId();
-        this.dispatcher = new ToolDispatcher(entityUuid, this::resolveEntity);
+        this.dispatcher = new ToolDispatcher(entityUuid, this::resolveEntity, this::receiptAfterCut);
         this.presenter = new TurnPresenter(entityUuid, this::status, this::personaName);
         this.tokens = new TokenLedger(entityUuid);
         this.model = new Model();
         this.compactor = new Compactor(entityUuid.toString(), convo, log, this::modelWindow);
         this.loop = new AgentLoop(entityUuid.toString(), model, dispatcher, convo, queue, compactor, new Host());
         // 目标跨重进游戏活着 —— 长期目标就该是长期的,重启不该把它弄丢。
-        // 判官:配了 JEV(config/numen/decision.json)就让它当"系统一",否则退回另开一次模型调用(LlmGoalJudge)。
-        // 配置目录要经平台服务;单测这类没有平台的 JVM 里 NumenPaths 初始化会失败,那种环境退回 LLM 判官即可。
-        DecisionConfig jevDecision = null;
-        try {
-            jevDecision = DecisionConfig.fromFile(NumenPaths.config().resolve("decision.json"));
-        } catch (Throwable noPlatform) {
-            // 没有平台服务/配置目录:退回 LLM 判官
-        }
-        this.jevGoal = jevDecision != null && jevDecision.usable();
         this.goals = new GoalSteward(entityUuid.toString(), loop, convo, queue, runtime::xml,
-                runtime::bodyOnFiniteTask, g -> CompanionHome.setGoal(entityUuid, g), CompanionHome.goal(entityUuid),
-                jevGoal ? new JevGoalJudge(new JevDecisionProvider(jevDecision), jevDecision.minConfidence()) : null,
-                this::verifyGoalClaim);
+                runtime::bodyOnFiniteTask, g -> CompanionHome.setGoal(entityUuid, g), CompanionHome.goal(entityUuid));
         this.wasDriving = McpMode.instance().driving();
         // 内核只发事件,各管一摊的各自订阅:界面、台账、整理、目标、札记的重贴、她手上那件活的镜像
         loop.subscribe(presenter::on);
         loop.subscribe(tokens::on);
         loop.subscribe(compactor::on);
         loop.subscribe(goals::on);
-        loop.subscribe(this::onTranscriptBoundary);
+        loop.subscribe(memory::on);
         loop.subscribe(runtime::on);
         restoreFromDisk();
     }
@@ -230,17 +186,6 @@ public final class EntityAgentLoop {
     /** 她此刻在哪个会话里;null = 就他俩。 */
     public String conversation() {
         return conversation;
-    }
-
-    /**
-     * 整理或清空之后,历史里那份札记索引没了(摘要把它嚼掉了),下一次注入得重贴一份完整的。
-     *
-     * <p>真源在磁盘上,历史里的只是复述——所以复述丢了不要紧,照着真源再念一遍就行。
-     */
-    private void onTranscriptBoundary(com.dwinovo.numen.agent.loop.LoopEvent event) {
-        if (event instanceof com.dwinovo.numen.agent.loop.LoopEvent.TranscriptBoundary) {
-            memoryInHistory = false;
-        }
     }
 
     /**
@@ -351,7 +296,7 @@ public final class EntityAgentLoop {
      *         所以 {@code Delivery} 在那种情况下单报 {@code TO_EXTERNAL_BRAIN}。
      */
     public boolean submitPrompt(String text) {
-        return enqueueOwnerWords("<query>" + text + "</query>", text);
+        return enqueueOwnerWords(EventQueue.query(text), text);
     }
 
     /**
@@ -370,7 +315,7 @@ public final class EntityAgentLoop {
      * @param expanded 客户端替他展开的内容(技能正文等);空则退化成一句普通的话
      */
     public boolean submitCommand(String echo, String expanded) {
-        String wire = "<query>" + echo + "</query>"
+        String wire = EventQueue.query(echo)
                 + (expanded == null || expanded.isBlank() ? "" : "\n" + expanded);
         return enqueueOwnerWords(wire, echo);
     }
@@ -387,19 +332,8 @@ public final class EntityAgentLoop {
         }
         // Wrap the owner's words in <query> so the model can always tell real user input apart from
         // anything else numen injects into the same user turn (events, and future world-state/reminders).
-        boolean held = deliver(new EventQueue.Entry(EventTypes.QUERY, wire + audienceLine(),
+        return deliver(new EventQueue.Entry(EventTypes.QUERY, wire + audienceLine(),
                 System.currentTimeMillis(), false));
-        // 自动目标:主人一开口、还没有目标、且 JEV 判卷开着,就把这句话立成目标。
-        // 之后每轮 run 收尾由 JEV 判"办完没有"——不用 /goal,也不再叫大模型当判官(快得多)。
-        if (jevGoal && goals.goal() == null && logged != null && !logged.isBlank()) {
-            GoalState auto = GoalState.of(logged, System.currentTimeMillis());
-            if (goals.set(auto)) {
-                // 只补"这是长期目标、不许自称完成"的规矩,不复述主人那句话(聊天里已经有气泡)
-                deliver(new EventQueue.Entry(EventTypes.QUERY, GoalPrompts.initialDirective(auto),
-                        System.currentTimeMillis(), false));
-            }
-        }
-        return held;
     }
 
     /**
@@ -505,77 +439,6 @@ public final class EntityAgentLoop {
     }
 
     /**
-     * 目标判官说达成、并给了机检宣称时,拿宣称去量一遍真实世界(见 {@link GoalVerifier})。
-     *
-     * <p>派发一个一次性的 {@code verify} 调用,读回执里的 {@code verified}。走 {@link ClientToolContext}
-     * 直发,不占循环那个串行工具队列——这一步发生在一次 run 收尾之后、下一次 run 开始之前。
-     *
-     * <p>放行优先:工具不在册、派发抛错、超时,都当已验证并把原因写进 detail(宿主没能力量,不该卡死)。
-     * 但回执里读不出判词时<b>不</b>放行——工具在、只是没回答,就按"没核对上"交回 {@link GoalVerifier.Result#unmeasured},
-     * 由目标管家不收工、推一轮续跑。
-     */
-    private void verifyGoalClaim(GoalState goal, String claim, Consumer<GoalVerifier.Result> onDone) {
-        NumenTool tool = ToolRegistry.resolve("verify");
-        if (tool == null) {
-            Constants.LOG.warn("[numen-entity#{}] verify 工具不在册,目标核对放行:{}", entityUuid, claim);
-            onDone.accept(new GoalVerifier.Result(true, "verify tool not registered"));
-            return;
-        }
-        CompletableFuture<GoalVerifier.Result> result = new CompletableFuture<>();
-        JsonObject args = new JsonObject();
-        args.addProperty("claim", claim);
-        ToolCall handle = new ToolCall("goal-verify-" + UUID.randomUUID(), tool.name(), args.toString(),
-                new ClientToolContext(resolveEntity(), entityUuid),
-                json -> result.complete(readVerifyResult(json)));
-        try {
-            tool.invoke(handle);
-        } catch (RuntimeException ex) {
-            Constants.LOG.warn("[numen-entity#{}] 目标核对派发失败,放行:{} ({})", entityUuid, claim, ex.getMessage());
-            onDone.accept(new GoalVerifier.Result(true, "dispatch failed: " + ex.getMessage()));
-            return;
-        }
-        result.orTimeout(VERIFY_TIMEOUT_MS, TimeUnit.MILLISECONDS).whenComplete((r, err) -> {
-            if (err == null) {
-                onDone.accept(r);   // 回执从服务端经主线程回来
-                return;
-            }
-            Constants.LOG.warn("[numen-entity#{}] 目标核对超时/出错,放行:{} ({})", entityUuid, claim, err.getMessage());
-            GoalVerifier.Result giveUp = new GoalVerifier.Result(true, "verify timed out");
-            Minecraft mc = Minecraft.getInstance();
-            if (mc == null) {
-                return;
-            }
-            mc.execute(() -> onDone.accept(giveUp));   // 超时回调在定时线程上,切回主线程再动目标
-        });
-    }
-
-    /** 从 {@code verify} 的回执里读 {@code data.verified} 和 expected/actual;读不动就当放行。 */
-    private static GoalVerifier.Result readVerifyResult(String json) {
-        try {
-            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-            JsonObject data = root.has("data") && root.get("data").isJsonObject()
-                    ? root.getAsJsonObject("data") : null;
-            if (data == null || !data.has("verified")) {
-                return GoalVerifier.Result.unmeasured("verify returned no verdict");
-            }
-            boolean verified = data.get("verified").getAsBoolean();
-            String expected = stringOf(data, "expected");
-            String actual = stringOf(data, "actual");
-            String message = stringOf(root, "message");
-            String detail = (actual == null || actual.isBlank() || "unknown".equals(actual))
-                    ? (message == null || message.isBlank() ? expected : message)
-                    : "expected " + expected + ", actual " + actual;
-            return new GoalVerifier.Result(verified, detail == null ? "" : detail);
-        } catch (RuntimeException ex) {
-            return GoalVerifier.Result.unmeasured("unreadable verify result: " + ex.getMessage());
-        }
-    }
-
-    private static String stringOf(JsonObject o, String key) {
-        return o != null && o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : null;
-    }
-
-    /**
      * 现在不能整理记忆的理由;{@code null} = 能。
      *
      * <p>判据只有这一份。{@code /compact} 的补全行要把理由写出来,而"能不能"和"为什么
@@ -666,6 +529,16 @@ public final class EntityAgentLoop {
         queue.removeUrgentListener(listener);
     }
 
+    /**
+     * 外接大脑跑一段程序:交给她自己的工具口,与内脑同一个派发器({@code AgentLoop#runAside}),不进会话历史。
+     *
+     * @return 收下了;内脑正在干活、或已有一段外接程序在跑时为 false
+     */
+    public boolean runExternal(com.dwinovo.numen.agent.provider.LlmToolCall program,
+                               java.util.function.Consumer<String> done) {
+        return loop.runAside(program, done);
+    }
+
     /** 外接大脑替她说话(say 工具)——画法与内脑说话同一套表现层,见 {@link TurnPresenter#sayExternal}。 */
     public void externalSay(String text) {
         presenter.sayExternal(text);
@@ -719,15 +592,6 @@ public final class EntityAgentLoop {
      * <p>死着也照收:每条都盖着真实时间戳,复活后模型看得出哪些发生在死亡之前。
      */
     public void pushEvents(List<EventQueue.Entry> entries) {
-        // 失败收尾顺手写一条 lesson 札记(Reflexion):写在入队之前,这一轮她就能在 <memory> 里看见。
-        // 单条兜住:反思写不成不该把这一批事件卡在外面。
-        for (EventQueue.Entry entry : entries) {
-            try {
-                ReflectionRecorder.record(notes, entry);
-            } catch (RuntimeException e) {
-                Constants.LOG.warn("[numen-entity#{}] 失败反思没写成: {}", entityUuid, e.toString());
-            }
-        }
         loop.push(entries);
     }
 
@@ -845,6 +709,13 @@ public final class EntityAgentLoop {
 
 
     /** 事件时间戳用的游戏内时刻;身体不在客户端视野里时记 0。 */
+    /** 切断后服务端交出的程序回执:这一批已经作废,她仍必须知道切断前做了什么,所以作为一条事件进收件箱。 */
+    private void receiptAfterCut(String program, String receipt) {
+        Minecraft.getInstance().execute(() -> loop.push(List.of(com.dwinovo.numen.event.NumenEvents.programStopped(
+                gameDayTime(), program, com.dwinovo.numen.program.RunResult.messageOf(receipt),
+                System.currentTimeMillis()))));
+    }
+
     private long gameDayTime() {
         AbstractClientPlayer body = resolveEntity();
         return body != null ? body.level().getDayTime() : 0L;
@@ -864,19 +735,11 @@ public final class EntityAgentLoop {
             return endpointProblem();
         }
 
-        /**
-         * <b>发给模型的就是这一份</b>——会话上下文加上这一轮临时挂载的运行期状态
-         * ({@code <runtime_state>}/{@code <current_task>})。源会话与落盘日志一个字不动。
-         * 可调工具集从同一份消息里算:展开闸按模型这一次看见了什么判。
-         */
+        /** 这一轮的请求:组装只在 {@link AgentRequestContext#turn} 一处,评测调的也是它。 */
         @Override
         public ModelRequest turnRequest() {
-            List<ConvoState.Msg> messages = AgentRequestContext.attach(convo.snapshot(), runtime.xml());
-            // 工具表是全份:装在模组里的、联动插件带的、接进来的 MCP,一并发出去。
-            // 分批披露那套已经退役——她得先搜一次才能用的工具,省下的那点前缀是缓存本来就
-            // 不收钱的部分,换来的却是每次压缩之后重搜一遍。
-            List<NumenTool> tools = ToolRegistry.all();
-            return new ModelRequest(messages, tools, SystemPromptComposer.compose(personaText()));
+            return AgentRequestContext.turn(convo.snapshot(), runtime.xml(), personaText(),
+                    com.dwinovo.numen.script.Modules.of(entityUuid));
         }
 
         /**
@@ -886,7 +749,6 @@ public final class EntityAgentLoop {
         @Override
         public void call(ModelRequest request, CancelToken cancel, Consumer<Delta> onDelta,
                          Consumer<ModelOutcome> onDone) {
-            if (requestPermit != null) cancel.requestPermit(requestPermit);
             Minecraft mc = Minecraft.getInstance();
             java.util.concurrent.CompletableFuture<NumenLlmClient.ChatResult> result;
             try {
@@ -950,22 +812,10 @@ public final class EntityAgentLoop {
             return McpMode.instance().driving();
         }
 
-        /**
-         * {@code <memory>} 索引随注入的 user 消息进历史,不放系统提示:她一 remember 它就变了,
-         * 放系统提示会打碎请求前缀的 prompt cache。
-         *
-         * <p>贴的是<b>全份</b>,但只在"历史里那份没了或者过时了"的时候贴:开一局、压缩/清空
-         * 之后、她刚写过。没变就不重贴——历史里已经躺着一份,再贴一份是白花的 token。
-         */
+        /** {@code <memory>} 索引,贴不贴见 {@link MemoryPreamble}。 */
         @Override
         public String injectionPreamble() {
-            int revision = notes.revision();
-            if (memoryInHistory && revision == memoryRevisionInHistory) {
-                return "";
-            }
-            memoryInHistory = true;
-            memoryRevisionInHistory = revision;
-            return notes.formatXml();
+            return memory.next();
         }
 
         @Override

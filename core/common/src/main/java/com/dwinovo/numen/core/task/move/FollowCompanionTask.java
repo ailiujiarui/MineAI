@@ -1,40 +1,46 @@
 package com.dwinovo.numen.core.task.move;
 
+import com.dwinovo.numen.task.TaskResult;
+import com.dwinovo.numen.core.nav.Feet;
+import com.dwinovo.numen.core.nav.NavText;
+import com.dwinovo.numen.core.nav.Survey;
 import com.dwinovo.numen.core.nav.Terrain;
+import com.dwinovo.numen.core.nav.ThrowawayBlocks;
 import com.dwinovo.numen.core.nav.Trip;
 import com.dwinovo.numen.core.task.base.AbstractCompanionTask;
 import com.dwinovo.numen.pathing.search.Goal;
 import com.dwinovo.numen.pathing.search.Goals;
+import com.dwinovo.numen.pathing.search.Route;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.task.Preparation;
 import com.dwinovo.numen.task.TaskState;
 import com.dwinovo.numen.core.FailureType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 
+import java.util.List;
+
 /**
- * 跟着走——第一个<b>常驻</b>任务。默认跟主人,点名了就跟那一只。
- *
- * <h2>它跟一次性任务差在哪</h2>
- * 只差一行:{@link #onTick} <b>永远不返终态</b>。同一个槽、同一套派发、同一个接口,
- * 「挖 64 块」干完腾位,而它一直占着,直到主人给她别的事做。
+ * 跟着走一阵。默认跟主人,点名了就跟那一只;到点({@link FollowTaskRecord#forTicks})就以成功收场,睡着的也醒来收这个尾
+ * ({@link #canRun})。
  *
  * <h2>跟到了就休眠,不是结束</h2>
- * 跟到了(这一趟的目标自己说到了,{@link Goals#near} 落脚点附近 {@code keepWithin} 格)之后
+ * 跟到了(这一趟的目标自己说到了,{@link Goals#within} 落脚点附近 {@code keepWithin} 格)之后
  * {@link #canRun} 返 false:身体让给别人(她可以站着看你、可以被反射拿去吃东西),主人一走远
  * 它自己就醒过来。这跟原版 {@code Goal.canUse()} 是同一个道理——<b>休眠不是失败</b>,不发结果、
  * 不腾槽、不惊动模型。到没到只看目标,这里不另拿距离判"差不多到了";离主人多远只决定要不要起步。
  *
  * <h2>够不着就报出去</h2>
- * 跟着走从不动世界(路线规格 alter=NONE,没有开关),于是"没有路"多半不是暂时的:隔着断崖、
- * 在屋里、差几格高——退避多少次都一样。那就以失败收场,把原因连同候选路线清单交给
- * 模型,它决定先 goto 一条开路、换个办法、或者告诉主人。一个明确的失败原因不能攥在手里
+ * 跟着走从不动世界(出厂路线规格,不挖不放,没有开关),于是"没有路"多半不是暂时的:隔着断崖、
+ * 在屋里、差几格高——退避多少次都一样。那就以失败收场,把原因交给模型,它决定先
+ * {@code numen.move.to} 一条开路、换个办法、或者告诉主人。一个明确的失败原因不能攥在手里
  * 站着空算。主人飞在半空时跟的是他脚下能站的地方({@link #anchor}),一般够得着;真够不着
- * 也照样报。
+ * 也照样报。派下来那一刻就够不着的,受理之前就判({@link #preparation}),当场回、不受理。
  *
  * <h2>目标没了,主人和别人不一样</h2>
- * <b>主人下线是暂时的</b>——他会回来,所以休眠等着,这也是常驻该有的样子。而点名跟的
+ * <b>主人下线是暂时的</b>——他会回来,所以休眠等着,到点为止。而点名跟的
  * 那只羊死了、或者走出加载范围被卸载了,再等也不会回来:那时收尾报给模型,让它决定下
  * 一步。一套逻辑通吃的话,要么她对着一只死羊站到天荒地老,要么主人一下线任务就没了。
  *
@@ -58,12 +64,20 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
     /** 他挪出上次的落脚点这么远(格)才把新目标交给在走的这一趟。 */
     private static final double RETARGET_DISTANCE = 2.0;
 
+    /** 受理之前的准备规划到的那条路:第一趟照它走;没有、或已经用过为 null。 */
+    private Route seed;
+    /** 到点的那一刻(游戏刻);开工之前是 -1。 */
+    private long endsAt = -1;
+
     public FollowCompanionTask(NumenPlayer player, FollowTaskRecord record) {
         super(player, record);
     }
 
     @Override
     public boolean canRun(NumenPlayer companion) {
+        if (timeUp()) {
+            return true;
+        }
         Entity target = target(companion);
         if (target == null) {
             // 点名的目标没了:要放它跑一刻才收得了尾(canRun 返 false 的任务不会 tick,
@@ -78,13 +92,62 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
         return companion.position().distanceTo(target.position()) > r.keepWithin + RESUME_MARGIN;
     }
 
+    /**
+     * 受理之前:要跟的人此刻离她远到要起步时,一次只搜不走地规划过去的路——按同一份只走不改的规格走不到,就是开工后第一趟会
+     * 报的那句"跟不上",当场回,不受理;走得到的那条路是第一趟的开头({@link Trip#prepared})。就在身边、主人不在线,当场就绪。
+     */
+    @Override
+    protected Preparation preparation() {
+        Entity target = target(player);
+        if (target == null || !canRun(player)) {
+            return Preparation.READY;
+        }
+        BlockPos anchor = anchor(target);
+        Survey survey = Survey.of(player, List.of(new Survey.Leg(goal(anchor), TERRAIN)), ThrowawayBlocks.factory());
+        return new Preparation() {
+            @Override
+            public Preparation.Readiness poll() {
+                List<Survey.Found> found = survey.poll();
+                if (found == null) {
+                    return null;
+                }
+                Survey.Found leg = found.get(0);
+                if (leg.reached()) {
+                    seed = leg.route();
+                    return Preparation.Readiness.READY;
+                }
+                return Preparation.Readiness.refused(TaskResult.fail(com.dwinovo.numen.agent.script.ErrorKind.NO_PATH,
+                        "can't keep up: " + NavText.failure(leg.outcome(), player, Feet.cell(player), anchor, TERRAIN,
+                                ThrowawayBlocks.factory()),
+                        null, value()));
+            }
+
+            @Override
+            public void cancel() {
+                survey.cancel();
+            }
+        };
+    }
+
     @Override
     protected void onStart() {
         moving = false;
+        if (endsAt < 0) {
+            endsAt = player.level().getGameTime() + r.forTicks;
+        }
+    }
+
+    /** 到点了。 */
+    private boolean timeUp() {
+        return endsAt >= 0 && player.level().getGameTime() >= endsAt;
     }
 
     @Override
     protected TaskState onTick() {
+        if (timeUp()) {
+            stopNav();
+            return TaskState.SUCCESS;
+        }
         Entity target = target(player);
         if (target == null) {
             if (r.target == null) {
@@ -97,9 +160,11 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
         }
         BlockPos anchor = anchor(target);
         if (nav == null) {
-            // 只走不改;跟不上的时候回执里要有候选路线的清单
+            // 只走不改;跟不上的时候回执照实说要改几格才过得去
             heading = anchor;
-            nav = Trip.to(player, goal(anchor), TERRAIN, anchor).probing();
+            // 受理之前规划好的那条只用在第一趟
+            nav = Trip.prepared(player, goal(anchor), TERRAIN, seed, anchor);
+            seed = null;
         } else if (anchor.distSqr(heading) > RETARGET_DISTANCE * RETARGET_DISTANCE) {
             heading = anchor;
             nav.retarget(goal(anchor), anchor);
@@ -120,7 +185,7 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
                 return TaskState.FAILED;
             }
         }
-        // 不返终态就是"常驻"的全部含义;只有够不着和目标没了才收场。
+        // 到点之前不返终态;只有够不着和目标没了才提前收场。
         return TaskState.RUNNING;
     }
 
@@ -141,7 +206,7 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
 
     /** 跟到落脚点 {@code anchor} 附近 {@code keepWithin} 格内。 */
     private Goal goal(BlockPos anchor) {
-        return Goals.near(anchor, r.keepWithin);
+        return Goals.within(Goals.at(anchor), 0, r.keepWithin);
     }
 
     /** 跟随的路线规格:只走不改,没有开关。 */
@@ -155,9 +220,19 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
         return Terrain.of(player).settle(target.blockPosition());
     }
 
+    /** {@code numen.move.follow} 交回的值。 */
+    @com.dwinovo.numen.sdk.Doc("Where a follow ended.")
+    public record Followed(@com.dwinovo.numen.sdk.Doc("Where you stand at the end.") net.minecraft.world.phys.Vec3 pos) {}
+
+    /** 收尾时她站在哪。 */
+    @Override
+    protected Followed value() {
+        return new Followed(player.position());
+    }
+
     @Override
     protected String successMessage() {
-        // 常驻任务走不到 SUCCESS;真被换掉时走的是 cancelledMessage。
-        return "跟随结束";
+        // 到点走到 SUCCESS;被换掉、被叫停走的是 cancelledMessage。
+        return "followed " + r.who() + " for " + r.forTicks / 20 + " s";
     }
 }

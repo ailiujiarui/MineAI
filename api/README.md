@@ -27,6 +27,7 @@
 引擎提供这些东西：
 
 - **客户端对话回路**（`EntityAgentLoop`）——听一句话 → 选一个工具 → 干活 → 看结果 → 决定下一步。这条回路跑在**玩家自己的游戏客户端**上，用**玩家自己的 API key**。
+- **程序在服务端跑**——跑 Lua 的那个工具的调用是一整段程序：客户端把程序、她的模块清单与服务端还没有的模块正文发上去，服务端在身体旁边跑完、回一张回执；只有客户端才有数据的 `ClientCall` 函数由服务端向主人客户端发反向请求。详见 `docs/shell.md` §十四。
 - **工具契约**——`NumenTool` / `ToolRegistry` / `ToolCall` / `TaskResult`。工具就是同伴能调用的一种能力；引擎负责调度它，并把结果送回对话。
 - **兼容 OpenAI 接口的模型接入**——DeepSeek、DashScope（通义千问）、OpenAI、Moonshot（Kimi）、Zhipu（GLM）、Minimax、SiliconFlow、Volcengine（豆包）。传输层用 JDK 自带的 `HttpClient` + Gson 手搓，**不带任何第三方运行时依赖**。
 - **对话记忆**——跨存档持久化，聊长了自动摘要压缩（Claude Code 式的压缩策略）。
@@ -216,6 +217,6 @@ gh workflow run publish.yml --ref 1.21.1 -f channel=beta
 
 - **源代码 —— [LGPL-3.0](../LICENSE)。** 你分发的修改版必须以同协议继续开源。
 - **插件与兼容模组可以采用任何协议。** 单独发布、通过 API 使用 Numen 的作品不受 LGPL 约束，商业闭源项目也可以。
-- **美术与资源 —— [保留所有权利](../LICENSE-ASSETS)。** "Numen" / "言出法随" 名称亦予保留。
+- **美术与资源 —— [保留所有权利](../licenses/ASSETS.txt)。** "Numen" / "言出法随" 名称亦予保留。
 
 基于 [MultiLoader Template](https://github.com/jaredlll08/MultiLoader-Template) 构建。

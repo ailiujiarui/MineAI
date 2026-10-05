@@ -1,199 +1,124 @@
 package com.dwinovo.numen.core.build;
 
-import com.dwinovo.numen.cli.ArgType;
-import com.dwinovo.numen.cli.CommandArgs;
-import com.dwinovo.numen.cli.NumenCli;
+import com.dwinovo.numen.agent.script.ScriptType;
+import com.dwinovo.numen.sdk.BadValue;
+import com.dwinovo.numen.sdk.Codec;
+import com.dwinovo.numen.sdk.LuaCodecs;
+import com.dwinovo.numen.sdk.Positions;
+import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.UUID;
-import java.util.regex.Pattern;
+import java.util.Map;
 
 /**
- * 一份设计:有名字、存盘的一串原语,坐标相对原点 {@code (0,0,0)}。它像一个函数,可以在任何地方、盖任意多次
- * ({@code build at})。
+ * 要盖成的样子({@code numen.build.place}、{@code numen.build.diff} 收的那一个参数):一串格(Cells,每一格是那一格要放的方块,照
+ * {@code /setblock} 的写法),或一份蓝图文件摆在哪儿({@code numen.build.blueprint} 交回的那张表:文件名、原点、转了多少度)。两样恰好
+ * 一样。蓝图只记在哪、怎么摆,格子留在文件里,用到时才读。
  *
- * <h2>文本就是命令</h2>
- * 设计的正文每行一条原语命令({@code build layer 0 0 0 ### #.# ### --block stone_bricks}),和她当场执行的写法一字不差;
- * 开头几行 {@code #} 注释记着名字、作者、所属主人、创建时间。读与写都过同一个解析器({@link NumenCli#read}):读的时候每一行
- * 按命令树读成原语与参数(方块名与状态在读的时候就认,见 {@link BuildPalette#ARG})、画一遍,写不通、画不出来就整份不认,
- * 报出是第几行;写的时候先把要写的文本照读的规矩读一遍,读得回来才写。{@code build step} 与 {@code build insert} 写来的那一步
- * 是那一行命令的一个参数({@link #STEP}),由读那一行的同一棵树读。所以设计文本的语法就是命令的语法,没有第二份。
- *
- * <h2>只存现状</h2>
- * 改了就是新的现状,没有版本。一栋已经盖好的房子由哪些格子组成,是那栋房子自己的记录({@link Built}),不靠设计的旧版推。
- *
- * @param owner     所属主人;只有这位主人的同伴能改、能删。文件里没写主人是 null,谁都改不了,只能照着盖
- * @param ownerName 所属主人的名字,给人看的
- * @param author    写它的那位同伴的名字
- * @param created   创建时间(ISO-8601),给人看的
- * @param steps     每一步的命令行,按顺序
- * @param drawn     按顺序画完的样子,坐标相对原点
+ * @param cells     一串格;是蓝图时为 null
+ * @param blueprint 一份蓝图;是一串格时为 null
  */
-public record Design(String name, UUID owner, String ownerName, String author, String created,
-                     List<String> steps, Canvas drawn) {
+public record Design(List<Cell> cells, Blueprint blueprint) {
 
-    /** 设计名:小写字母、数字、下划线、连字符,用作文件名,也是建成的房子的名字的前半({@code house#1})。 */
-    private static final Pattern NAME = Pattern.compile("[a-z0-9][a-z0-9_-]{0,47}");
-    private static final String HEAD = "# ";
-    private static final String OWNER = "owner: ";
-    private static final String AUTHOR = "author: ";
-    private static final String CREATED = "created: ";
-    /** 设计里每一步都是 {@code build} 组的一个原语。 */
-    public static final String GROUP = "build";
-
-    /**
-     * 写进设计的一步,当命令参数用:组名之后的那一截({@code layer 0 1 0 ### --block oak_planks}),由读外面那一行的同一棵树
-     * 读成原语与参数({@link ArgType#command}),再认它是一个原语({@link #step(NumenCli.Reading)})。
-     */
-    public static final ArgType<Step> STEP = ArgType.command().as("primitive",
-            "the rest of the line: one build primitive without build and without --into",
-            Design::step, Step::reading);
-
-    /** 合不合设计名的规矩。 */
-    public static boolean isName(String name) {
-        return name != null && NAME.matcher(name).matches();
-    }
-
-    /** 设计名合规就原样返回,否则说清能用什么字。 */
-    public static String checkedName(String name) {
-        if (!isName(name)) {
-            throw new IllegalArgumentException("a design name is lowercase letters, digits, _ and -, starting with a "
-                    + "letter or digit, at most 48 long; got \"" + name + "\"");
+    public Design {
+        if ((cells == null) == (blueprint == null)) {
+            throw new IllegalArgumentException("cells or a blueprint, exactly one of them");
         }
-        return name;
-    }
-
-    /** 一份还没有步骤的新设计。 */
-    public static Design fresh(String name, UUID owner, String ownerName, String author, String created) {
-        return new Design(checkedName(name), owner, ownerName, author, created, List.of(),
-                new Canvas(Canvas.Ground.NOTHING));
-    }
-
-    /** 同一份设计换一串步骤:每一步照读的规矩读一遍、画一遍,画不出来就不认。 */
-    public Design withSteps(List<String> steps) {
-        List<String> labels = new ArrayList<>();
-        for (int i = 0; i < steps.size(); i++) {
-            labels.add("step " + (i + 1));
-        }
-        return new Design(name, owner, ownerName, author, created, List.copyOf(steps), drawOf(steps, labels));
+        cells = cells == null ? null : List.copyOf(cells);
     }
 
     /**
-     * 读一行原语,不画:按命令树读成原语与参数,确认是 {@code build} 组的原语。设计文件里的一步、{@code build step} 与
-     * {@code build insert} 写来的那一步,都经这里。
+     * 一格:在哪,放什么。
      *
-     * @throws IllegalArgumentException 读不通,或不是原语
+     * @param block 照 {@code /setblock} 写的方块;只给了位置为 null
      */
-    public static Step step(String line) {
-        return step(NumenCli.read(line));
+    public record Cell(BlockPos pos, String block) {
+
+        public Cell {
+            pos = pos.immutable();
+        }
     }
 
     /**
-     * 读好的一行认成一步:它得是 {@code build} 组的一个原语、带着参数,不带 {@code --into}。
+     * 一份蓝图文件摆在哪儿。
      *
-     * @throws IllegalArgumentException 不是原语,或带着 {@code --into}
+     * @param name     文件名(不带扩展名)
+     * @param origin   文件里的原点(它的最低西北角)落在哪一格
+     * @param rotation 俯视顺时针转了多少度:0、90、180 或 270
      */
-    public static Step step(NumenCli.Reading reading) {
-        String[] path = reading.path().split(" ");
-        Primitive primitive = path.length == 2 && path[0].equals(GROUP) && reading.args() != null
-                ? Primitive.named(path[1]) : null;
-        if (primitive == null) {
-            throw new IllegalArgumentException("a design step is one build primitive (build set, place, line, layer, "
-                    + "cylinder, sphere or copy), not " + reading.path());
-        }
-        if (reading.args().get(Primitive.Params.INTO) != null) {
-            throw new IllegalArgumentException("--into names the design a step goes into; a step inside a design "
-                    + "does not carry it");
-        }
-        return new Step(primitive, reading.args());
-    }
+    public record Blueprint(String name, BlockPos origin, int rotation) {
 
-    /** 读好的一步:哪个原语、什么参数。 */
-    public record Step(Primitive primitive, CommandArgs args) {
-
-        /** 写回一行命令:原语的参数表按声明顺序写,只写这一步给了的。 */
-        public String line() {
-            return args.write(GROUP + " " + primitive.action, primitive.params());
-        }
-
-        /** 这一步当一行读好的命令看:{@link #STEP} 写回时用。 */
-        NumenCli.Reading reading() {
-            return new NumenCli.Reading(GROUP + " " + primitive.action, true, args);
+        public Blueprint {
+            origin = origin.immutable();
         }
     }
 
     /**
-     * 这一串步骤按顺序画在一张空的底子上;哪一步读不通、画不出来,报出它是哪一步。
-     *
-     * @param labels 每一步怎么称呼:文件里是"第几行",改设计时是"第几步"
+     * 带 {@code blueprint} 名字的表是一份蓝图(其余字段不看);别的是一串格:一团、一串 Block 或 Pos、或一格。写回去照原样。
      */
-    private static Canvas drawOf(List<String> steps, List<String> labels) {
-        Canvas canvas = new Canvas(Canvas.Ground.NOTHING);
-        for (int i = 0; i < steps.size(); i++) {
-            try {
-                Step step = step(steps.get(i));
-                step.primitive().draw(step.args(), canvas);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException(labels.get(i) + " (" + steps.get(i) + "): " + e.getMessage(), e);
-            }
+    public static final Codec<Design> CODEC = new Codec<>() {
+        @Override
+        public ScriptType type() {
+            return ScriptType.union(LuaCodecs.CELLS.type(), new ScriptType.Named("Blueprint"));
         }
-        return canvas;
-    }
 
-    /** 存盘的文本:几行 {@code #} 注释,接着每行一步。 */
-    public String text() {
-        StringBuilder sb = new StringBuilder(HEAD).append("Numen design ").append(name).append('\n');
-        sb.append(HEAD).append(AUTHOR).append(author).append('\n');
-        if (owner != null) {
-            sb.append(HEAD).append(OWNER).append(owner).append(ownerName.isEmpty() ? "" : " " + ownerName).append('\n');
-        }
-        sb.append(HEAD).append(CREATED).append(created).append('\n');
-        for (String step : steps) {
-            sb.append(step).append('\n');
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 读一份设计的文本(文件里的,或手改过的):{@code #} 打头的是注释,认得出的几行是主人、作者、创建时间;空行跳过;
-     * 其余每行一步。整份读完画完才认;哪一行不行,报出是文件的第几行。
-     */
-    public static Design parse(String name, String text) {
-        UUID owner = null;
-        String ownerName = "";
-        String author = "";
-        String created = "";
-        List<String> steps = new ArrayList<>();
-        List<String> labels = new ArrayList<>();
-        String[] lines = text.split("\r?\n", -1);
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i].strip();
-            if (line.isEmpty()) {
-                continue;
-            }
-            if (line.startsWith("#")) {
-                String note = line.substring(1).strip();
-                if (note.startsWith(OWNER)) {
-                    String[] parts = note.substring(OWNER.length()).strip().split(" ", 2);
-                    try {
-                        owner = UUID.fromString(parts[0]);
-                    } catch (IllegalArgumentException e) {
-                        throw new IllegalArgumentException("line " + (i + 1) + ": the owner is a player UUID, got \""
-                                + parts[0] + "\"");
-                    }
-                    ownerName = parts.length > 1 ? parts[1] : "";
-                } else if (note.startsWith(AUTHOR)) {
-                    author = note.substring(AUTHOR.length()).strip();
-                } else if (note.startsWith(CREATED)) {
-                    created = note.substring(CREATED.length()).strip();
+        @Override
+        public Design decode(Object value) {
+            if (value instanceof Map<?, ?> t && t.get("blueprint") instanceof String name) {
+                Object turned = t.get("rotation");
+                if (turned != null && !(turned instanceof Long)) {
+                    throw new BadValue("expected a Blueprint's rotation to be 0, 90, 180 or 270; got "
+                            + BadValue.given(turned));
                 }
-                continue;
+                BlockPos origin;
+                try {
+                    origin = Positions.cell(t.get("origin"));
+                } catch (BadValue bad) {
+                    throw bad.in("the Blueprint's origin");
+                }
+                return new Design(null, new Blueprint(name, origin, turned == null ? 0 : ((Long) turned).intValue()));
             }
-            steps.add(line);
-            labels.add("line " + (i + 1));
+            List<Cell> cells = new ArrayList<>();
+            List<Object> items = Positions.items(value);
+            for (int i = 0; i < items.size(); i++) {
+                Object item = items.get(i);
+                try {
+                    cells.add(new Cell(Positions.cell(item),
+                            item instanceof Map<?, ?> m && m.get("name") instanceof String block ? block : null));
+                } catch (BadValue bad) {
+                    throw items.size() == 1 ? bad : bad.in("item " + (i + 1));
+                }
+            }
+            if (cells.isEmpty()) {
+                throw new BadValue("expected Cells (Blocks: the block for each cell, written as /setblock takes it) "
+                        + "or a Blueprint from numen.build.blueprint; got " + BadValue.given(value));
+            }
+            return new Design(cells, null);
         }
-        return new Design(checkedName(name), owner, ownerName, author, created, List.copyOf(steps),
-                drawOf(steps, labels));
-    }
+
+        @Override
+        public Object encode(Design value) {
+            if (value.blueprint != null) {
+                Map<String, Object> out = new LinkedHashMap<>();
+                out.put("blueprint", value.blueprint.name());
+                out.put("origin", Positions.value(value.blueprint.origin()));
+                out.put("rotation", (long) value.blueprint.rotation());
+                return out;
+            }
+            List<Object> out = new ArrayList<>();
+            for (Cell cell : value.cells) {
+                if (cell.block() == null) {
+                    out.add(Positions.value(cell.pos()));
+                } else {
+                    Map<String, Object> block = new LinkedHashMap<>();
+                    block.put("name", cell.block());
+                    block.put("pos", Positions.value(cell.pos()));
+                    out.add(block);
+                }
+            }
+            return out;
+        }
+    };
 }

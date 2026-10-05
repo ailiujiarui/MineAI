@@ -5,10 +5,9 @@ import com.dwinovo.numen.core.task.base.AbstractCompanionTask;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.task.TaskState;
 
-import java.util.Map;
 
 /**
- * {@code gear wear} on the player body: runs {@link Wardrobe#wear} in the body's task slot. The
+ * {@code gear wear} and {@code gear hold} on the player body: runs {@link Wardrobe#wear} in the body's task slot. The
  * wearing, the auto-choosing of a slot and the refusals all live there; this task only carries the
  * outcome into the result envelope. One-tick (all work in {@link #onStart()}).
  *
@@ -43,8 +42,8 @@ public final class EquipCompanionTask extends AbstractCompanionTask<EquipTaskRec
     protected void cleanup() {}
 
     @Override
-    protected Map<String, Object> resultData() {
-        return outcome == null ? super.resultData() : outcome.data();
+    protected com.dwinovo.numen.core.gear.Wardrobe.Change value() {
+        return outcome == null ? null : outcome.change();
     }
 
     @Override

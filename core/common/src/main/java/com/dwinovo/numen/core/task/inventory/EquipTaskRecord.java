@@ -1,15 +1,16 @@
 package com.dwinovo.numen.core.task.inventory;
 
-import com.dwinovo.numen.cli.ServerSource;
+import com.dwinovo.numen.sdk.ServerCall;
 import com.dwinovo.numen.task.TaskRecord;
 import net.minecraft.world.item.Item;
 
 /**
- * Typed task descriptor for {@code gear wear}: "take this item out of my inventory and wear/wield it."
+ * Typed task descriptor for {@code gear wear} and {@code gear hold}: "take this item out of my inventory and
+ * wear/wield it."
  * Completes in a single tick — no pathing.
  *
- * <p>{@link #slot} is {@code null} for auto-choosing, or a slot name the LLM forces:
- * {@code mainhand}, {@code offhand} or a name from {@code <worn>}. Slot names depend on the
+ * <p>{@link #slot} is {@code null} for auto-choosing a worn slot, a hand ({@code mainhand}, {@code offhand},
+ * from {@code gear hold}) or a name from {@code <worn>}. Slot names depend on the
  * body (mods add slots), so they are resolved when the task runs, not here.
  */
 public final class EquipTaskRecord extends TaskRecord {
@@ -24,8 +25,8 @@ public final class EquipTaskRecord extends TaskRecord {
     /** Human-readable label for messages / debug overlay (e.g. "wooden_pickaxe"). */
     public final String label;
 
-    public EquipTaskRecord(ServerSource source, Item item, String slot, String label) {
-        super(source, source.companion().level().getGameTime() + TIMEOUT_TICKS);
+    public EquipTaskRecord(ServerCall source, Item item, String slot, String label) {
+        super(source, source.her().level().getGameTime() + TIMEOUT_TICKS);
         this.item = item;
         this.slot = slot;
         this.label = label;

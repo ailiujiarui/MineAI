@@ -1,7 +1,7 @@
 package com.dwinovo.numen.core.task.interact;
 import com.dwinovo.numen.core.task.MouseButton;
 
-import com.dwinovo.numen.cli.ServerSource;
+import com.dwinovo.numen.sdk.ServerCall;
 import com.dwinovo.numen.task.TaskRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -10,7 +10,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
 /**
- * Typed descriptor for {@code use block} and {@code use ahead} — the point-aimed half of the native
+ * Typed descriptor for {@code use block} and {@code use item} — the point-aimed half of the native
  * crosshair interaction (the BLOCK and AIR columns of vanilla's
  * {@code startAttack}/{@code startUseItem}; the ENTITY column is {@code use entity}).
  *
@@ -22,9 +22,10 @@ import net.minecraft.world.item.Items;
  *       — when the aim is clear air — use the held item in that direction (throw an ender
  *       pearl, eat, draw a bow).</li>
  * </ul>
- * {@code aim} null ({@code use ahead}) = use the body's CURRENT facing (in-air use with no target).
+ * {@code aim} null ({@code use item}) = use the body's CURRENT facing (in-air use with no target).
  * {@code holdTicks}: 0 = a single press; &gt;0 = hold that many ticks (modded crank / bow draw);
  * -1 = hold until the action self-completes or the task times out.
+ * {@code sneak}: hold sneak while pressing ({@code --sneak}).
  */
 public final class InteractAtTaskRecord extends TaskRecord {
 
@@ -35,13 +36,16 @@ public final class InteractAtTaskRecord extends TaskRecord {
     public final BlockPos aim;     // null → current facing (in-air use)
     public final int holdTicks;
     public final Item item;        // null → use whatever is already in hand; else equip this first
+    public final boolean sneak;
 
-    public InteractAtTaskRecord(ServerSource source, MouseButton button, BlockPos aim, int holdTicks, Item item) {
-        super(source, source.companion().level().getGameTime() + TIMEOUT_TICKS);
+    public InteractAtTaskRecord(ServerCall source, MouseButton button, BlockPos aim, int holdTicks, Item item,
+                                boolean sneak) {
+        super(source, source.her().level().getGameTime() + TIMEOUT_TICKS);
         this.button = button;
         this.aim = aim != null ? aim.immutable() : null;
         this.holdTicks = holdTicks;
         this.item = item;
+        this.sneak = sneak;
     }
 
     /**
@@ -55,11 +59,11 @@ public final class InteractAtTaskRecord extends TaskRecord {
         }
         if (item.components().has(DataComponents.FOOD)) {
             return BuiltInRegistries.ITEM.getKey(item).getPath()
-                    + " is a consumable — use inv eat (using it through the world body wouldn't heal you).";
+                    + " is a consumable — use numen.inv.eat (using it through the world body wouldn't heal you).";
         }
         if (item == Items.ENDER_PEARL) {
-            return "ender_pearl teleportation is body-bound and not supported — to travel use move_goto, "
-                    + "to find a stronghold use locate structure minecraft:stronghold.";
+            return "ender_pearl teleportation is body-bound and not supported — to travel use numen.move.to, "
+                    + "to find a stronghold use numen.locate.structure(\"minecraft:stronghold\").";
         }
         return null;
     }
@@ -69,6 +73,6 @@ public final class InteractAtTaskRecord extends TaskRecord {
         return getToolName() + " " + (button == MouseButton.LEFT ? "left" : "right")
                 + (item != null ? " " + BuiltInRegistries.ITEM.getKey(item).getPath() : "")
                 + (aim != null ? " @" + aim.getX() + "," + aim.getY() + "," + aim.getZ() : " (forward)")
-                + (holdTicks != 0 ? " hold=" + holdTicks : "");
+                + (holdTicks != 0 ? " hold=" + holdTicks : "") + (sneak ? " sneak" : "");
     }
 }

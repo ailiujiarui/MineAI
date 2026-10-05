@@ -30,11 +30,6 @@ public final class MenuOrigin {
             MenuOrigin origin = body.state(MenuOrigin.class, MenuOrigin::new);
             origin.menu = body.containerMenu;
             origin.block = block == null ? null : block.immutable();
-            // 开了一次新界面 = 顺带把这台机器学下来(菜单 + 槽位角色),写进 auto-learned.json。
-            // 学习自己保证不抛出、撞见已认得的机器就跳过,这里不必再兜一层。
-            if (body.level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
-                com.dwinovo.numen.core.adapter.LearnedAdapters.learn(serverLevel, body, origin.block);
-            }
         }
     }
 

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,11 +53,12 @@ class NumenEventsTest {
         attrs.put("status", "done");
         EventQueue.Entry finished = NumenEvents.entry(0L, EventTypes.TASK_FINISHED, attrs,
                 "set 1 cell; the id=\"t9\" in this text is not the task", 1L, true);
-        assertEquals("t3", NumenEvents.finishedTaskOf(finished));
+        assertEquals(new com.dwinovo.numen.agent.script.ScriptCall.Finish("t3", "done",
+                "set 1 cell; the id=\"t9\" in this text is not the task", null), NumenEvents.finishOf(finished));
 
         EventQueue.Entry hungry = NumenEvents.entry(0L, EventTypes.HUNGRY, Map.of("id", "t3"), "hungry", 1L, true);
-        assertEquals(null, NumenEvents.finishedTaskOf(hungry), "别的种类不是收尾");
-        assertEquals(null, NumenEvents.finishedTaskOf(new EventQueue.Entry(EventTypes.QUERY,
+        assertEquals(null, NumenEvents.finishOf(hungry), "别的种类不是收尾");
+        assertEquals(null, NumenEvents.finishOf(new EventQueue.Entry(EventTypes.QUERY,
                 "<query>t3 做完了吗</query>", 1L, false)));
     }
 
@@ -74,7 +76,7 @@ class NumenEventsTest {
 
         EventQueue.Entry shrunk = cut.entries().get(0);
         assertTrue(shrunk.text().endsWith("so its text was not delivered.</event>"), shrunk.text());
-        assertEquals("t3", NumenEvents.finishedTaskOf(shrunk));
+        assertEquals("t3", NumenEvents.finishOf(shrunk).task());
     }
 
     @Test
@@ -161,5 +163,19 @@ class NumenEventsTest {
     @Test
     void nullTextIsEmptyNotTheWordNull() {
         assertEquals("", NumenEvents.escape(null));
+    }
+
+    /** 被切断的程序交出的回执作为事件交给她:正文就是回执的文字,种类是登记过的世界的事,不叫醒她。 */
+    @Test
+    void aCutOffProgramsReceiptIsAnEventWhoseBodyIsTheReceiptItself() {
+        EventQueue.Entry e = NumenEvents.programStopped(0L, "call_7", "The script stopped at line 2: this turn was cut off",
+                5L);
+        assertEquals(EventTypes.PROGRAM_STOPPED, e.type());
+        assertTrue(e.text().contains("program=\"call_7\""), e.text());
+        assertTrue(e.text().contains("The script stopped at line 2: this turn was cut off"), e.text());
+        assertFalse(e.urgent());
+        assertFalse(EventTypes.get(EventTypes.PROGRAM_STOPPED).delivery().wakes(), "she did not ask for it and is not woken");
+        assertEquals(EventTypes.Delivery.Joins.ANY_CALL, EventTypes.get(EventTypes.PROGRAM_STOPPED).delivery().joins(),
+                "but it rides along with the next call");
     }
 }

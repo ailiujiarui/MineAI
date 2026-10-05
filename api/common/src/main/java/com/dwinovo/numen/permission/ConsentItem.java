@@ -29,10 +29,10 @@ import java.util.Map;
  *                     它走一步清单就不该变,否则同一件事会被当成新的征询重发
  * @param entityId     实体动作的实体 id;其余为 {@link #NO_ENTITY}
  * @param subject      方块、实体种类或物品的 id 路径({@code oak_log}、{@code wolf}、{@code diamond});指令是带 {@code /}
- *                     的整行({@code /setblock 1 64 2 stone})
- * @param icon         给主人看的图标:方块的物品形态、物品本身;实体、指令与没有物品形态的方块为 null
+ *                     的整行({@code /setblock 1 64 2 stone});改区域是区域名({@code house})
+ * @param icon         给主人看的图标:方块的物品形态、物品本身;实体、指令、区域与没有物品形态的方块为 null
  * @param name         给主人看的名字(没有图标时显示):方块、物品的名字,实体的名字(起了名的就是那个名字),
- *                     指令的整行
+ *                     指令的整行,区域名
  * @param rule         问的是哪一行规则的原文;没有任何一行覆盖时为空串
  * @param cause        为什么要问:那一行规则的自述({@code placed by a player})
  * @param shownCause   给主人看的为什么要问:命中那行规则就这个动作说的那一版({@link Rule#shown}),哪一行都没说到就说没有规则
@@ -127,12 +127,22 @@ public record ConsentItem(Action.Kind kind, BlockPos pos, int entityId, String s
      * @param hit 这个动作此刻命中的那行 ask 规则;没有任何一行覆盖时为 null
      */
     public boolean covers(Action action, Rule hit) {
-        if (action.kind() != kind || !rule.equals(hit == null ? "" : hit.toString())) {
+        return covers(action.kind(), hit == null ? "" : hit.toString(),
+                action.entity() != null ? action.entity().getId() : NO_ENTITY, Subject.of(action).id);
+    }
+
+    /** 主人对这一条的同意覆盖不覆盖另一条征询:与 {@link #covers(Action, Rule)} 同一个判据。 */
+    public boolean covers(ConsentItem other) {
+        return covers(other.kind, other.rule, other.entityId, other.subject);
+    }
+
+    private boolean covers(Action.Kind otherKind, String otherRule, int otherEntity, String otherSubject) {
+        if (otherKind != kind || !rule.equals(otherRule)) {
             return false;
         }
         return switch (kind) {
-            case ATTACK, USE_ENTITY -> action.entity() != null && action.entity().getId() == entityId;
-            default -> subject.equals(Subject.of(action).id);
+            case ATTACK, USE_ENTITY -> otherEntity != NO_ENTITY && otherEntity == entityId;
+            default -> subject.equals(otherSubject);
         };
     }
 
@@ -169,7 +179,7 @@ public record ConsentItem(Action.Kind kind, BlockPos pos, int entityId, String s
         return String.join("; ", texts);
     }
 
-    /** 方块、物品与指令动作的对象:挖、右键、拿看格子上的方块,放、丢看物品,指令就是那一整行。 */
+    /** 方块、物品、指令与区域动作的对象:挖、右键、拿看格子上的方块,放、丢看物品,指令就是那一整行,改区域是那块区域的名字。 */
     private record Subject(String id, Item icon, Component name) {
 
         static Subject of(Action action) {

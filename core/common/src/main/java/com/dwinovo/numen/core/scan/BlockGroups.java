@@ -1,7 +1,5 @@
 package com.dwinovo.numen.core.scan;
 
-import com.dwinovo.numen.permission.Verdict;
-
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
@@ -10,7 +8,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -20,12 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 把一次搜索的命中分成"团":按 3×3×3 邻域相连(对角也算),并且"挖掉这一格"权限层给出同样说法的格子,
- * 算同一团。说法就是整份 {@link Verdict}——放行、要问(连同命中的那一行规则)、拒绝(连同理由)——所以
- * 玩家放的原木柱贴着一棵野树,是两团。
- *
- * <p>这里只做几何与记账,不判权限:每格的裁决由调用方拿挖掘落点会提交的同一个动作去问权限层,再交进来。
- * 也不猜"这是不是谁的建筑"——团只由相连与说法定。
+ * 把一次搜索的命中分成"团":按 3×3×3 邻域相连(对角也算)的格子算同一团。这里只做几何与记账,不判权限,也不猜"这是不是谁的建筑"
+ * ——团只由相连定。
  *
  * <p>{@link #add} 时就把新格与已收的邻格并起来(并查集),分团的活因此可以逐格跨 tick 摊开做。
  */
@@ -33,45 +26,36 @@ public final class BlockGroups {
 
     /**
      * 超过这么多格的团按 section 立方体(16³,与区块对齐)切成几块,各自成团;不超过的整团保留,跨区块边界
-     * 也不切。取 256:一棵巨型云杉或丛林树的原木、一条大矿脉都在这之内,切开就把"一棵树"拆成两个编号;
+     * 也不切。取 256:一棵巨型云杉或丛林树的原木、一条大矿脉都在这之内,切开就把"一棵树"拆成两团;
      * 比这还大的已经是地形(一片水域、一整层石头),按 section 分块说"在哪一片"比一个横跨上百格的包围盒
-     * 有用,也让 mine 点名一团时量有个边。
+     * 有用,也让一团的量有个边。
      */
     public static final int SPLIT_ABOVE = 256;
 
     /**
      * 一团。
      *
-     * @param cells      每一格和它的方块,由近及远
-     * @param verdict    挖掉其中任何一格,权限层的说法
-     * @param nearest    离中心最近的那一格
-     * @param distance   那一格离中心的距离
-     * @param min        包围盒的小角
-     * @param max        包围盒的大角
-     * @param counts     每种方块的格数,由多到少
-     * @param fluidCells 带流体的格数
-     * @param sources    其中是流体源头的格数
+     * @param cells    每一格和看到的方块状态,由近及远
+     * @param nearest  离中心最近的那一格
+     * @param distance 那一格离中心的距离
      */
-    public record Group(Map<BlockPos, Block> cells, Verdict verdict, BlockPos nearest, double distance,
-                       BlockPos min, BlockPos max, Map<Block, Integer> counts, int fluidCells, int sources) {}
+    public record Group(Map<BlockPos, BlockState> cells, BlockPos nearest, double distance) {}
 
     private final Long2IntOpenHashMap indexOf = new Long2IntOpenHashMap();
     private final LongArrayList cells = new LongArrayList();
     private final List<BlockState> states = new ArrayList<>();
-    private final List<Verdict> verdicts = new ArrayList<>();
     private final IntArrayList parent = new IntArrayList();
 
     public BlockGroups() {
         indexOf.defaultReturnValue(-1);
     }
 
-    /** 收一格:它的方块状态,和挖掉它权限层怎么说。 */
-    public void add(BlockPos pos, BlockState state, Verdict verdict) {
+    /** 收一格和它的方块状态。 */
+    public void add(BlockPos pos, BlockState state) {
         long key = pos.asLong();
         int i = cells.size();
         cells.add(key);
         states.add(state);
-        verdicts.add(verdict);
         parent.add(i);
         indexOf.put(key, i);
         for (int dx = -1; dx <= 1; dx++) {
@@ -81,7 +65,7 @@ public final class BlockGroups {
                         continue;
                     }
                     int j = indexOf.get(BlockPos.offset(key, dx, dy, dz));
-                    if (j >= 0 && verdicts.get(j).equals(verdict)) {
+                    if (j >= 0) {
                         union(i, j);
                     }
                 }
@@ -135,40 +119,13 @@ public final class BlockGroups {
     private Group build(IntArrayList piece, BlockPos center) {
         int[] members = piece.toIntArray();
         IntArrays.quickSort(members, (a, b) -> Long.compare(distSq(a, center), distSq(b, center)));
-        Map<BlockPos, Block> byCell = new LinkedHashMap<>();
-        Map<Block, Integer> counts = new LinkedHashMap<>();
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        int fluidCells = 0;
-        int sources = 0;
+        Map<BlockPos, BlockState> byCell = new LinkedHashMap<>();
         for (int i : members) {
-            BlockPos pos = BlockPos.of(cells.getLong(i));
-            BlockState state = states.get(i);
-            byCell.put(pos, state.getBlock());
-            counts.merge(state.getBlock(), 1, Integer::sum);
-            minX = Math.min(minX, pos.getX());
-            minY = Math.min(minY, pos.getY());
-            minZ = Math.min(minZ, pos.getZ());
-            maxX = Math.max(maxX, pos.getX());
-            maxY = Math.max(maxY, pos.getY());
-            maxZ = Math.max(maxZ, pos.getZ());
-            if (!state.getFluidState().isEmpty()) {
-                fluidCells++;
-                if (state.getFluidState().isSource()) {
-                    sources++;
-                }
-            }
-        }
-        List<Map.Entry<Block, Integer>> byCount = new ArrayList<>(counts.entrySet());
-        byCount.sort(Collections.reverseOrder(Map.Entry.comparingByValue()));
-        Map<Block, Integer> sortedCounts = new LinkedHashMap<>();
-        for (Map.Entry<Block, Integer> e : byCount) {
-            sortedCounts.put(e.getKey(), e.getValue());
+            byCell.put(BlockPos.of(cells.getLong(i)), states.get(i));
         }
         int first = members[0];
-        return new Group(Collections.unmodifiableMap(byCell), verdicts.get(first), BlockPos.of(cells.getLong(first)),
-                Math.sqrt(distSq(first, center)), new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ),
-                Collections.unmodifiableMap(sortedCounts), fluidCells, sources);
+        return new Group(Collections.unmodifiableMap(byCell), BlockPos.of(cells.getLong(first)),
+                Math.sqrt(distSq(first, center)));
     }
 
     private long distSq(int i, BlockPos center) {

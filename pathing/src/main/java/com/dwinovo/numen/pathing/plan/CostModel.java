@@ -32,7 +32,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * 不许继承;任务要改价,只能换一份路线规格({@link #withSpec}),或在规格的按位置代价表里加减。
  *
  * <p>挖与放能不能进路线、放一块与挖一格多少钱,都只在这里定:{@link #admitDig}、{@link #admitPlace}、{@link #digCost}、
- * {@link #placeCost}。放一块的价钱在规格要求事后拆回时连拆的那一下一起算,也只在 {@link #placeCost} 里。
+ * {@link #placeCost}。
  */
 public final class CostModel {
 
@@ -159,12 +159,12 @@ public final class CostModel {
     }
 
     /**
-     * 挖 {@code pos} 能不能进路线,依次问:规格许不许改地形、按位置与按种类禁不禁、物理上挖不挖得了({@link DigRules})、
-     * 许可怎么答——拒绝不进,要问的只在 {@code alter=any} 下进。
+     * 挖 {@code pos} 能不能进路线,依次问:这一趟挖不挖、按位置与按种类禁不禁、物理上挖不挖得了({@link DigRules})、
+     * 许可怎么答——拒绝不进,要问的只在规格把要问的格算能走({@link RouteSpec#consent})时进。
      */
     public Admission admitDig(WorldView view, BlockPos pos, BlockState state) {
-        if (!spec.alter().mayAlter()) {
-            return Admission.refuse(Reason.NEEDS_ALTER);
+        if (!spec.dig()) {
+            return Admission.refuse(Reason.NO_DIGGING);
         }
         if (forbids(Use.DIG, pos.asLong()) || spec.bans().breaking().contains(state.getBlock())) {
             return Admission.refuse(Reason.FORBIDDEN);
@@ -177,13 +177,13 @@ public final class CostModel {
     }
 
     /**
-     * 往 {@code pos}(此刻是 {@code current})放一块垫路料能不能进路线,依次问:规格许不许改地形、按位置与按种类禁不禁、
+     * 往 {@code pos}(此刻是 {@code current})放一块垫路料能不能进路线,依次问:这一趟放不放、按位置与按种类禁不禁、
      * 身上有没有料、游戏模式与世界边界、这一格放不放得进去({@link Replaceable})、有没有能点的面({@link Faces})、许可怎么答。
-     * "不许改地形"与"没有料"分成两个原因,不合成一个。
+     * "这一趟不放"与"没有料"分成两个原因,不合成一个。
      */
     public Admission admitPlace(WorldView view, BlockPos pos, BlockState current) {
-        if (!spec.alter().mayAlter()) {
-            return Admission.refuse(Reason.NEEDS_ALTER);
+        if (!spec.place()) {
+            return Admission.refuse(Reason.NO_PLACING);
         }
         if (forbids(Use.PLACE, pos.asLong()) || spec.bans().placingInto().contains(current.getBlock())) {
             return Admission.refuse(Reason.FORBIDDEN);
@@ -218,8 +218,8 @@ public final class CostModel {
         if (!body.carriesWaterBucket() || view.ultraWarm()) {
             return Admission.refuse(Reason.TOO_FAR_TO_FALL);
         }
-        if (!spec.alter().mayAlter()) {
-            return Admission.refuse(Reason.NEEDS_ALTER);
+        if (!spec.place()) {
+            return Admission.refuse(Reason.NO_PLACING);
         }
         if (spec.bans().placingInto().contains(current.getBlock())) {
             return Admission.refuse(Reason.FORBIDDEN);
@@ -243,7 +243,7 @@ public final class CostModel {
         Permit permit = terrain.judge(change, pos.immutable(), state, view);
         return switch (permit) {
             case Permit.Allow allow -> new Admission(permit, null, null);
-            case Permit.Ask ask -> spec.alter() == RouteSpec.Alter.ANY
+            case Permit.Ask ask -> spec.consent()
                     ? new Admission(permit, null, null)
                     : Admission.refuse(Reason.NEEDS_CONSENT);
             case Permit.Deny deny -> new Admission(null, Reason.DENIED, deny.reason());
@@ -254,39 +254,61 @@ public final class CostModel {
 
     /**
      * 挖一格:用挑中的工具挖掉它手上要花的刻数(挖到碎,加碎了之后缓手的那几刻,{@link ToolChoice#handTicks}),加规格的挖掘罚分
-     * 与这一格的按位置加价;许可要问的乘 {@link ActionCosts#CONSENT_MULTIPLIER}。
+     * 与这一格的按位置加价;许可要问的乘规格的 {@link RouteSpec#consentMultiplier}。
      */
     public double digCost(Edit.Dig dig) {
         double cost = tools.handTicks(dig.state(), dig.eyeInWater(), dig.grounded()) + spec.breakPenalty()
                 + extra(Use.DIG, dig.pos().asLong());
-        return dig.permit() instanceof Permit.Ask ? cost * ActionCosts.CONSENT_MULTIPLIER : cost;
+        return dig.permit() instanceof Permit.Ask ? cost * spec.consentMultiplier() : cost;
     }
 
     /**
-     * 放一块:规格的放置罚分加这一格的按位置加价,许可要问的乘 {@link ActionCosts#CONSENT_MULTIPLIER};规格要求事后拆回时,
-     * 再加上挖掉这块料手上要花的刻数(站在地上、眼睛不在水里挖,{@link ToolChoice#handTicks})。
+     * 挖掉 {@code state} 至少要多少钱:{@link #digCost} 在最省的情形下——眼睛不在水里、脚踏实地、没有按位置加价、许可放行。
+     * 挖不动的(硬度为负)是无穷大。搜索的估价拿它给"绕不开的挖掘"定下界({@code search.Burial})。
+     */
+    public double digFloor(BlockState state) {
+        double ticks = tools.handTicks(state, false, true);
+        return ticks >= Integer.MAX_VALUE ? Double.POSITIVE_INFINITY : ticks + spec.breakPenalty();
+    }
+
+    /**
+     * 放一块:规格的放置罚分加这一格的按位置加价,许可要问的乘规格的 {@link RouteSpec#consentMultiplier}。
      */
     public double placeCost(Edit.Place place) {
         double cost = spec.placeCost() + extra(Use.PLACE, place.pos().asLong());
         if (place.permit() instanceof Permit.Ask) {
-            cost *= ActionCosts.CONSENT_MULTIPLIER;
-        }
-        if (spec.takeBack()) {
-            cost += tools.handTicks(place.block().defaultBlockState(), false, true);
+            cost *= spec.consentMultiplier();
         }
         return cost;
     }
 
     /**
-     * 倒一桶水接住坠落:与放一块同样的罚分(许可要问的乘 {@link ActionCosts#CONSENT_MULTIPLIER}),再加上落定之后把水收回桶里的
+     * 倒一桶水接住坠落:与放一块同样的罚分(许可要问的乘规格的 {@link RouteSpec#consentMultiplier}),再加上落定之后把水收回桶里的
      * 那一下。按位置的"放"加价管的是留在世界上的方块,水当场收回,不加。
      */
     public double catchCost(Edit.Catch caught) {
         double cost = spec.placeCost();
         if (caught.permit() instanceof Permit.Ask) {
-            cost *= ActionCosts.CONSENT_MULTIPLIER;
+            cost *= spec.consentMultiplier();
         }
         return cost + ActionCosts.SCOOP_WATER;
+    }
+
+    /**
+     * 一步里手上的活真要花的刻数:挖一格按挑中的工具挖到碎连同缓手({@link ToolChoice#handTicks}),倒水接坠落加上收水那一下;
+     * 放一块、开关门不另计时。{@link #overhead} 里这些刻数连同罚分一起算进价钱,这里只要刻数(憋气按它算)。
+     */
+    public double workTicks(Maneuver m) {
+        double ticks = 0;
+        for (Edit edit : m.edits()) {
+            ticks += switch (edit) {
+                case Edit.Dig dig -> tools.handTicks(dig.state(), dig.eyeInWater(), dig.grounded());
+                case Edit.Catch caught -> ActionCosts.SCOOP_WATER;
+                case Edit.Place place -> 0;
+                case Edit.Door door -> 0;
+            };
+        }
+        return ticks;
     }
 
     /**

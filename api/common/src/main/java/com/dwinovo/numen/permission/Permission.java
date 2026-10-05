@@ -4,6 +4,7 @@ import com.dwinovo.numen.entity.NumenPlayer;
 
 import net.minecraft.server.level.ServerLevel;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -19,8 +20,8 @@ public final class Permission {
     private Permission() {}
 
     /**
-     * 主线程:取这只同伴此刻的裁决快照——模式、主人层与出厂层规则、所在维度的放置记录、主人答应
-     * 下来的任务期授权。快照不可变,任何线程可读。
+     * 主线程:取这只同伴此刻的裁决快照——模式、主人层与出厂层规则、所在维度的放置记录、主人答应下来的任务期授权。
+     * 快照不可变,任何线程可读。
      */
     public static Gate gateFor(NumenPlayer companion) {
         ServerLevel level = (ServerLevel) companion.level();

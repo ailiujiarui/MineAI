@@ -1,6 +1,7 @@
 package com.dwinovo.numen.pathing.gametest;
 
 import static com.dwinovo.numen.pathing.gametest.Trial.ARENA;
+import static com.dwinovo.numen.pathing.gametest.Trial.TALL;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.function.Consumer;
 import com.dwinovo.numen.pathing.api.NavRequest;
 import com.dwinovo.numen.pathing.api.Outcome;
 import com.dwinovo.numen.pathing.api.PlanQuery;
+import com.dwinovo.numen.pathing.body.Aim;
 import com.dwinovo.numen.pathing.body.BodyAction;
 import com.dwinovo.numen.pathing.body.PlayerHands;
 import com.dwinovo.numen.pathing.body.Snapshots;
@@ -30,7 +32,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ExperienceOrb;
-import net.minecraft.world.entity.animal.Pig;
+import net.minecraft.world.entity.animal.Chicken;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -39,6 +41,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -47,7 +50,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 /**
  * 挖掘:头顶是沙子沙砾、挖了会漏水漏岩浆、冰,都不挖;挑对工具;空手挖原木、水下挖掘的耗时与原版、与定价一致;背包深处的好工具
  * 被计价也被用上;红石矿、修补附魔都不让挖掘重开;隧道里每一格只开挖一次;实体挡住准星时停手不打它;破坏事件被取消时以
- * 拒绝收场;慢挖硬方块不被当成卡住;创造模式五格交互距离。
+ * 拒绝收场;慢挖硬方块不被当成卡住;创造模式五格交互距离;要挖的那一格同样够得着的几个站位里,停在挡得少的那一处;
+ * 埋在石头深处、藏在石山里的矿,出厂预算的一次规划就搜到头,照着挖过去。
  */
 @GameTestHolder("numen")
 @PrefixGameTestTemplate(false)
@@ -55,7 +59,7 @@ public class DigGameTests {
 
     private static final String BATCH = "pathing_dig";
 
-    private static final RouteSpec NATURAL = RouteSpec.defaults().edit().alter(RouteSpec.Alter.NATURAL).build();
+    private static final RouteSpec NATURAL = RouteSpec.defaults().edit().changes(true).consent(false).build();
 
     @BeforeBatch(batch = BATCH)
     public static void settle(ServerLevel level) {
@@ -105,7 +109,7 @@ public class DigGameTests {
     }
 
     /**
-     * 三格高的泥土墙横贯场地,手上木锹,许改自然地形:挖开身体高的两格穿过去。上一格碎了之后手要缓几刻(原版客户端的
+     * 三格高的泥土墙横贯场地,手上木锹,许挖许放:挖开身体高的两格穿过去。上一格碎了之后手要缓几刻(原版客户端的
      * {@code destroyDelay})才开挖下一格,缓的正是规划给挖一格定价时加上的那几刻({@link DigTime#cooldown})。
      */
     @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 500)
@@ -380,45 +384,40 @@ public class DigGameTests {
     }
 
     /**
-     * 撤回桥上的块时,正挖着,一头猪挡到了眼睛与那一块之间:准星落在猪身上,手停下,不打猪;猪走开之后接着挖完,四块都撤掉。
+     * 挖穿一堵石墙时,正挖着,一只鸡挡到了眼睛与正在挖的那一格之间:准星落在鸡身上,手停下,不打它;鸡走开之后接着挖完,
+     * 走到墙那边。她贴着墙挖,眼睛离墙面只有半格,鸡放在视线上离眼睛四分之一格处,身子不碰墙(碰了会闷伤,就分不清是谁伤的)。
      */
-    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 1500)
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 1200)
     public static void pauses_while_a_mob_blocks_the_crosshair(GameTestHelper helper) {
         Trial t = new Trial(helper).floor();
-        t.fill(0, 1, 0, 9, 4, 39, Blocks.BEDROCK);
-        t.fill(14, 1, 0, 39, 4, 39, Blocks.BEDROCK);
-        TestBody body = t.body(6, 5, 5);
-        Trial.give(body, new ItemStack(Items.COBBLESTONE, 16));
-        t.materials = Trial.carried(body, Blocks.COBBLESTONE);
+        t.fill(10, 1, 0, 10, 6, 39, Blocks.STONE);
+        TestBody body = t.body(4, 1, 5);
+        body.getInventory().setItem(0, new ItemStack(Items.WOODEN_PICKAXE));
         DigWatch watch = new DigWatch(body);
         t.hands = watch::wrap;
-        Pig[] pig = {null};
+        Chicken[] mob = {null};
         int[] shownAt = {-1};
-        t.go(body, Goals.at(t.at(17, 5, 5)), NATURAL.edit().takeBack(true).build()).within(1400).arrives()
+        t.go(body, Goals.at(t.at(14, 1, 5)), NATURAL).within(1000)
                 .during(r -> {
-                    if (r.teardown == null) {
-                        return;
-                    }
-                    if (pig[0] == null && watch.digging()) {
-                        pig[0] = EntityType.PIG.create(t.level);
-                        pig[0].setNoAi(true);
-                        BlockPos at = t.at(15, 5, 5);
-                        pig[0].moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
-                        t.level.addFreshEntity(pig[0]);
+                    if (mob[0] == null && watch.digging()) {
+                        Vec3 eye = r.body.getEyePosition();
+                        Vec3 on = eye.add(Vec3.atCenterOf(watch.current()).subtract(eye).normalize().scale(0.25));
+                        mob[0] = EntityType.CHICKEN.create(t.level);
+                        mob[0].setNoAi(true);
+                        mob[0].setNoGravity(true);
+                        mob[0].moveTo(on.x, on.y - mob[0].getBbHeight() / 2, on.z, 0, 0);
+                        t.level.addFreshEntity(mob[0]);
                         shownAt[0] = r.ticks;
-                    } else if (pig[0] != null && !pig[0].isRemoved() && r.ticks - shownAt[0] >= 30) {
-                        if (pig[0].getHealth() < pig[0].getMaxHealth() || pig[0].getLastHurtByMob() != null) {
-                            throw new GameTestAssertException("打了挡在准星上的猪");
+                    } else if (mob[0] != null && !mob[0].isRemoved() && r.ticks - shownAt[0] >= 30) {
+                        if (mob[0].getHealth() < mob[0].getMaxHealth() || mob[0].getLastHurtByMob() != null) {
+                            throw new GameTestAssertException("挡在准星上的鸡受了伤:" + mob[0].getLastDamageSource());
                         }
-                        pig[0].discard();
+                        mob[0].discard();
                     }
                 })
-                .takesBack(RouteSpec.defaults(), r -> {
-                    if (pig[0] == null || !pig[0].isRemoved()) {
-                        throw new GameTestAssertException("猪没挡上,场景没起作用");
-                    }
-                    if (r.teardown.taken().size() != 4 || !r.teardown.left().isEmpty()) {
-                        throw new GameTestAssertException("应当撤掉桥上四块:" + r.teardown);
+                .arrives().then(r -> {
+                    if (mob[0] == null || !mob[0].isRemoved()) {
+                        throw new GameTestAssertException("鸡没挡上,场景没起作用");
                     }
                 });
     }
@@ -470,12 +469,84 @@ public class DigGameTests {
         TestBody body = t.body(2, 1, 5);
         body.setGameMode(GameType.CREATIVE);
         BlockPos target = t.at(10, 1, 5);
-        t.later(2, () -> t.go(body, Goals.reach(target, Snapshots.of(body).stats()), RouteSpec.defaults())
+        t.later(2, () -> t.go(body, Goals.dig(target, Snapshots.of(body).stats()), RouteSpec.defaults())
                 .within(300).arrives().then(r -> {
                     double distance = Math.sqrt(new AABB(target).distanceToSqr(r.body.getEyePosition()));
                     if (distance <= 4.5 || distance >= 5) {
                         throw new GameTestAssertException("应当停在四格半到五格之间:" + distance);
                     }
                 }));
+    }
+    /**
+     * 要挖的铁矿嵌在三格厚的石墙里、离墙面一格,墙上从南边凿了一道缝通到它的南面。正对着它的墙前最近,可隔着一格石头;
+     * 往南挪一格就能从缝里看见它:同样够得着,停在不挡的那一处。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 400)
+    public static void stands_where_fewer_blocks_hide_the_target(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.fill(8, 1, 0, 10, 3, 12, Blocks.STONE);
+        t.set(9, 2, 6, Blocks.IRON_ORE);
+        t.set(8, 2, 7, Blocks.AIR).set(9, 2, 7, Blocks.AIR);
+        BlockPos ore = t.at(9, 2, 6);
+        TestBody body = t.body(3, 1, 6);
+        t.go(body, Goals.dig(ore, Snapshots.of(body).stats()), RouteSpec.defaults()).within(300).arrives()
+                .then(r -> {
+                    if (Aim.point(r.body, ore) == null) {
+                        throw new GameTestAssertException("停下的地方看不见它:" + t.rel(r.body.blockPosition()));
+                    }
+                });
+    }
+
+    /**
+     * 脚下四十层石头,正下方二十七格深处埋着一块铁矿,手上一把铁镐,许挖许放。挖一格的价钱是估价里落一格的十几倍,
+     * 估价加上埋深(绕不开的挖掘)之后,出厂预算的一次规划就搜到头,路线从脚下直直往下挖;照着这条路走,挖到够得着它。
+     */
+    @GameTest(template = TALL, batch = BATCH, timeoutTicks = 1600)
+    public static void plans_straight_down_to_an_ore_buried_deep(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.fill(0, 1, 0, 15, 40, 15, Blocks.STONE);
+        t.set(8, 14, 8, Blocks.IRON_ORE);
+        TestBody body = t.body(8, 41, 8);
+        body.getInventory().setItem(0, new ItemStack(Items.IRON_PICKAXE));
+        BlockPos ore = t.at(8, 14, 8);
+        NavRequest request = NavRequest.to(Goals.dig(ore, Snapshots.of(body).stats()), NATURAL);
+        t.plan(body, PlanQuery.of(request.goal(), request.spec(), 1), plan -> {
+            if (plan.candidates().isEmpty()) {
+                throw new GameTestAssertException("出厂预算内没规划到头:" + plan.outcome());
+            }
+            Route route = plan.candidates().get(0).route();
+            for (BlockPos node : route.nodes()) {
+                if (node.getX() != ore.getX() || node.getZ() != ore.getZ()) {
+                    throw new GameTestAssertException("没有直直往下挖:" + t.rel(node));
+                }
+            }
+            t.go(body, request.following(route)).within(1400).arrives();
+        });
+    }
+
+    /**
+     * 一座横贯场地的石山(二十格高,身上没有垫路料,翻不过去),铁矿藏在离山面六格深处,手上一把铁镐:出厂预算的一次规划就
+     * 搜到头,只从正面挖进去几格、够得着就停;照着走,够着它。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 900)
+    public static void plans_into_a_hill_to_an_ore_inside(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.fill(10, 1, 0, 39, 20, 39, Blocks.STONE);
+        t.set(16, 2, 20, Blocks.IRON_ORE);
+        TestBody body = t.body(4, 1, 20);
+        body.getInventory().setItem(0, new ItemStack(Items.IRON_PICKAXE));
+        BlockPos ore = t.at(16, 2, 20);
+        NavRequest request = NavRequest.to(Goals.dig(ore, Snapshots.of(body).stats()), NATURAL);
+        t.plan(body, PlanQuery.of(request.goal(), request.spec(), 1), plan -> {
+            if (plan.candidates().isEmpty()) {
+                throw new GameTestAssertException("出厂预算内没规划到头:" + plan.outcome());
+            }
+            Route route = plan.candidates().get(0).route();
+            long digs = route.edits().stream().filter(e -> e instanceof Edit.Dig).count();
+            if (digs == 0 || digs > 8) {
+                throw new GameTestAssertException("该从正面挖进去几格,却挖 " + digs + " 格:" + route);
+            }
+            t.go(body, request.following(route)).within(800).arrives();
+        });
     }
 }

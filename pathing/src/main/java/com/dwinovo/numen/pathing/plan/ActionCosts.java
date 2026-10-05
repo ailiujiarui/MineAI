@@ -71,15 +71,15 @@ public final class ActionCosts {
     /** 摔掉一点血折多少刻:摔得起的高度也是路,只是疼;有不疼的走法时它自然让位。 */
     public static final double FALL_DAMAGE_PER_POINT = 20.0;
     /**
-     * 许可答"要问"的格在规格 {@code alter=any} 下的倍率:乘在这一格的挖或放的价钱上。要有限,这样的路才搜得到;要贵到
-     * 长度相当的自然路线都胜出。
-     */
-    public static final double CONSENT_MULTIPLIER = 10.0;
-    /**
      * 身体走进的格紧挨着一格伤身的方块(岩浆、火、仙人掌),加这么多刻:没碰上,可身子歪一点、被推一下就碰上了。
      * 有稍远一点的路时走远一点,没有也照样走。
      */
     public static final double EXPOSED_SIDE = 2 * WALK_ONE_BLOCK;
     /** 身体进入一只生物危险半径里的一格,加这么多刻:穿过去约等于多绕十来格,够让路线绕开,又不至于宁可挖穿一座山。 */
     public static final double DANGER_PER_CELL = 3 * WALK_ONE_BLOCK;
+    /**
+     * 挖一格时站位与它之间每隔着一格硬遮挡,停在那儿加这么多刻:先得挖开它才看得见。约等于拿镐挖开一格石头再缓手的工夫;
+     * 同样够得着的几个站位里挑挡得少的,多走三四格去一处挡得少的也值。
+     */
+    public static final double SIGHT_BLOCKER = 4 * WALK_ONE_BLOCK;
 }

@@ -27,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * costmap practice in autonomous-driving navigation (e.g. Occ3D; ROS Nav2
  * costmap_2d). Sparse far-field objects are left to {@code scan blocks} /
  * {@code scan entities}; this map is the dense near-field half. The command and its
- * shortcut ({@code scan around} / {@code scan_around}) are declared in {@link ScanCommands}.
+ * shortcut ({@code scan map}) are declared in {@link ScanCommands}.
  *
  * <p>Where she can stand and where her body fits are read off her {@link Terrain} — the pathing module's terrain
  * geometry (layer 0) bound to her body, the very rules the route planner walks by, so the map and the walk never
@@ -56,8 +56,11 @@ final class LookAround {
 
     private LookAround() {}
 
-    /** The map of the {@code (2 * radius + 1)}-wide square around her feet; {@code radius} is clamped to 4-16. */
-    static String render(NumenPlayer self, int asked) {
+    /**
+     * The map of the {@code (2 * radius + 1)}-wide square around her feet; {@code radius} is clamped to 4-16: the map row
+     * by row (north first), the cell it is centred on, her facing and the legend.
+     */
+    static ScanApi.GroundMap render(NumenPlayer self, int asked) {
         int radius = Math.clamp(asked, MIN_RADIUS, MAX_RADIUS);
         Terrain view = Terrain.of(self);
         BlockPos center = Feet.cell(self);
@@ -78,23 +81,20 @@ final class LookAround {
         }
         inflateHazards(grid, size);
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("scan_around center=(").append(cx).append(',').append(cy).append(',').append(cz)
-                .append(") facing=").append(self.getDirection().getName())
-                .append(" | 1 cell = 1 block, @ = you, North = up (-Z), East = right (+X)\n\n");
+        java.util.List<String> rows = new java.util.ArrayList<>();
         for (int r = 0; r < size; r++) {
+            StringBuilder row = new StringBuilder();
             for (int c = 0; c < size; c++) {
-                sb.append(grid[r][c]);
+                row.append(grid[r][c]);
                 if (c < size - 1) {
-                    sb.append(' ');
+                    row.append(' ');
                 }
             }
-            sb.append('\n');
+            rows.add(row.toString());
         }
-        sb.append("\nlegend: @ you | . flat | ^ step-up 1 | , step-down 1-2 | v drop>=").append(DROP_DEPTH)
-                .append(" | # wall/blocked | ~ water | ! lava/hazard | x caution | T tree | ? unloaded\n")
-                .append("to route: trace cell by cell (. ^ , are walkable; # ~ ! v x block or endanger you).\n");
-        return sb.toString();
+        String legend = "@ you | . flat | ^ step-up 1 | , step-down 1-2 | v drop>=" + DROP_DEPTH
+                + " | # wall/blocked | ~ water | ! lava/hazard | x caution | T tree | ? unloaded";
+        return new ScanApi.GroundMap(rows, center, self.getDirection().getName(), legend);
     }
 
     /** Semantic-pool the column at (x,z) to one movement-affordance glyph at the companion's Y band. */

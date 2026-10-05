@@ -64,6 +64,17 @@ public final class EventTypes {
     public static final String DEATH = "death";
     /** 饿了 —— 她不会自己吃,得主人给或者叫她去弄。恒为急件。 */
     public static final String HUNGRY = "hungry";
+    /**
+     * 背包一格空的都没有了,碰到的东西放不下、留在了地上。恒为急件:她不知道的话,接着挖、接着捡,东西都落在地上。
+     * 一轮满只发一次,背包又有空格才复位。
+     */
+    public static final String INVENTORY_FULL = "inventory_full";
+    /**
+     * 她达成了一个进度,奖励的物品或经验进了她的背包。不是她哪次调用要的结果,所以发事件。
+     *
+     * <p>走 {@link Delivery#AMBIENT}——不叫醒她:东西已经在她身上,不知道也不会做错事,随下一次调模型捎上就够。不进聊天流。
+     */
+    public static final String ADVANCEMENT_REWARD = "advancement_reward";
     /** 主人挨打了(只报实体攻击)。急不急由发送方按主人血线分档。 */
     public static final String OWNER_HURT = "owner_hurt";
     /** 她自己定的表到点了。恒为急件:提醒而已,不代表那件事完成了。 */
@@ -74,6 +85,25 @@ public final class EventTypes {
     public static final String DIMENSION_CHANGE = "dimension_change";
     /** 某个本能替身体做了一件事(溺水自救、下落放水、防御……),条目里带着是哪个本能。急不急由发送方定。 */
     public static final String REFLEX = "reflex";
+    /**
+     * 服务端对她说的一句话:原版与模组发给她的系统聊天与动作栏("只能在夜间睡觉"、模组的提示与警告)。
+     *
+     * <p>走 {@link Delivery#AMBIENT}——不叫醒她:这些话多半是她刚做的事的回音,她按了床、回执回来之后的那次调模型
+     * 自然捎上;闲着时躺在队里,等别的事叫醒她时一起交。走插话档的话,非急件也会凑够条数、等够时长自己开一轮,
+     * 回合里本来要停时还会为它多调一次模型——一句"只能夜里睡"就多花一轮。
+     *
+     * <p>不进聊天流。
+     * 她自己执行的指令说的话在那条指令的回执里,玩家聊天另走群聊,都不是这一种。
+     */
+    public static final String SERVER_MESSAGE = "server_message";
+    /**
+     * 她的一段程序被切断(主人按停止、外接接管、遣散……)、这一批已经作废之后,服务端为它交出的那份回执:程序切断前做了什么、停在哪。
+     * 正文就是服务端写的那份有界回执本身。
+     *
+     * <p>走 {@link Delivery#AMBIENT}——她没要求这份回执,但身体做了的事必须让她知道:随下一次调模型捎带。不叫醒她:切断本来就是主人
+     * 的决定(停止键之后停牌要等主人再开口),为一份"你刚才被打断时做了什么"多开一轮没有意义。不进聊天流:对话里主人已经看见自己按了停止。
+     */
+    public static final String PROGRAM_STOPPED = "program_stopped";
     /** 队列满了丢掉了几条——丢弃可以,无声消失不行。 */
     public static final String DROPPED = "dropped";
     /**
@@ -235,6 +265,8 @@ public final class EventTypes {
         register(event(TASK_FINISHED, false));
         register(event(DEATH, true));
         register(event(HUNGRY, true));
+        register(event(INVENTORY_FULL, true));
+        register(new Type(ADVANCEMENT_REWARD, s -> s, s -> null, false, false, Delivery.AMBIENT, false));
         register(event(OWNER_HURT, false));
         register(event(TIMER, true));
         register(event(WOKE, true));
@@ -244,6 +276,10 @@ public final class EventTypes {
         // 旁听到的话:捎带投递、不进聊天流,其余与世界的事同一行(原文、打断不清、不是主人说的)。
         register(new Type(TALK, s -> s, s -> null, false, false, Delivery.AMBIENT, false));
         register(new Type(LEFT, s -> s, s -> null, false, false, Delivery.AMBIENT, false));
+        // 服务端对她说的话:同一行,捎带投递,随下一次调模型交出去,自己不开一轮。
+        register(new Type(SERVER_MESSAGE, s -> s, s -> null, false, false, Delivery.AMBIENT, false));
+        // 被切断的程序交出的回执:同一行,捎带投递
+        register(new Type(PROGRAM_STOPPED, s -> s, s -> null, false, false, Delivery.AMBIENT, false));
     }
 
     private EventTypes() {}

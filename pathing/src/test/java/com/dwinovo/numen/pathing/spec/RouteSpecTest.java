@@ -68,10 +68,12 @@ class RouteSpecTest {
     @Test
     void theDefaultsOnlyWalk() {
         RouteSpec d = RouteSpec.defaults();
-        assertEquals(RouteSpec.Alter.NONE, d.alter());
-        assertFalse(d.alter().mayAlter());
+        assertFalse(d.dig());
+        assertFalse(d.place());
+        assertFalse(d.changes());
+        assertTrue(d.consent(), "要问的格算能走,许挖或许放时才用得上");
+        assertEquals(RouteSpec.CONSENT_MULTIPLIER, d.consentMultiplier());
         assertFalse(d.budgeted());
-        assertFalse(d.takeBack());
         assertTrue(d.positions().isEmpty());
         assertTrue(d.bans().isEmpty());
     }
@@ -87,8 +89,10 @@ class RouteSpecTest {
 
     @Test
     void editingKeepsEverythingElse() {
-        RouteSpec edited = RouteSpec.defaults().edit().alter(RouteSpec.Alter.NATURAL).alterBudget(4).build();
-        assertEquals(RouteSpec.Alter.NATURAL, edited.alter());
+        RouteSpec edited = RouteSpec.defaults().edit().changes(true).consent(false).alterBudget(4).build();
+        assertTrue(edited.dig());
+        assertTrue(edited.place());
+        assertFalse(edited.consent());
         assertTrue(edited.budgeted());
         assertEquals(RouteSpec.defaults().jumpPenalty(), edited.jumpPenalty());
         assertEquals(RouteSpec.defaults().excluded(), edited.excluded());
@@ -102,6 +106,9 @@ class RouteSpecTest {
                 () -> RouteSpec.defaults().edit().placeCost(Double.POSITIVE_INFINITY).build());
         assertThrows(IllegalArgumentException.class, () -> RouteSpec.defaults().edit().alterBudget(-1).build());
         assertThrows(IllegalArgumentException.class, () -> RouteSpec.defaults().edit().maxFallHeightNoWater(-1).build());
+        assertThrows(IllegalArgumentException.class, () -> RouteSpec.defaults().edit().consentMultiplier(0.5).build());
+        assertThrows(IllegalArgumentException.class,
+                () -> RouteSpec.defaults().edit().consentMultiplier(Double.POSITIVE_INFINITY).build());
     }
 
     @Test
@@ -127,6 +134,49 @@ class RouteSpecTest {
         assertTrue(sum.forbids(Use.DIG, cell));
         assertTrue(sum.forbids(Use.PLACE, cell));
         assertSame(a, a.plus(PositionCosts.EMPTY));
+    }
+
+    /** "只许这几格":这一栏别的格一律禁止,别的栏不受影响;两份"只许"叠在一起取交集,空集就是一格都不许。 */
+    @Test
+    void aConfinedUseForbidsEveryOtherCellAndTwoConfinementsIntersect() {
+        long a = AT.asLong();
+        long b = AT.above().asLong();
+        long c = AT.east().asLong();
+        PositionCosts only = PositionCosts.builder().confine(Use.DIG, LongSet.of(a, b)).build();
+        assertFalse(only.forbids(Use.DIG, a));
+        assertFalse(only.forbids(Use.DIG, b));
+        assertTrue(only.forbids(Use.DIG, c));
+        assertFalse(only.forbids(Use.PLACE, c), "只管挖这一栏");
+        assertFalse(only.isEmpty());
+        PositionCosts both = only.plus(PositionCosts.builder().confine(Use.DIG, LongSet.of(b, c)).build());
+        assertTrue(both.forbids(Use.DIG, a));
+        assertFalse(both.forbids(Use.DIG, b));
+        assertTrue(both.forbids(Use.DIG, c));
+        PositionCosts none = PositionCosts.builder().confine(Use.PLACE, LongSet.of()).build();
+        assertTrue(none.forbids(Use.PLACE, a));
+        assertTrue(only.plus(PositionCosts.protect(LongSet.of(a))).forbids(Use.DIG, a), "禁令照旧取并集");
+    }
+
+    /** 整片禁止:只问"在不在",几百万格也不逐格展开;只管给了的那一栏,合并时与逐格的禁令一样取并集。 */
+    @Test
+    void aForbiddenRegionIsAskedCellByCellWithoutBeingSpelledOut() {
+        int[] asked = {0};
+        // 一片 x ≥ 0 的半个世界:逐格展开根本装不下,判定只是比一个数
+        PositionCosts.Region east = cell -> {
+            asked[0]++;
+            return BlockPos.getX(cell) >= 0;
+        };
+        PositionCosts half = PositionCosts.builder().forbid(Use.PASS, east).forbid(Use.STAND, east).build();
+        assertFalse(half.isEmpty());
+        assertTrue(half.forbids(Use.PASS, new BlockPos(3_000_000, 64, -7).asLong()));
+        assertTrue(half.forbids(Use.STAND, AT.asLong()));
+        assertFalse(half.forbids(Use.PASS, new BlockPos(-1, 64, 0).asLong()));
+        assertFalse(half.forbids(Use.DIG, AT.asLong()), "只管给了的那几栏");
+        assertTrue(asked[0] > 0);
+        PositionCosts both = half.plus(PositionCosts.builder().forbid(Use.PASS, AT.west().asLong()).build());
+        assertTrue(both.forbids(Use.PASS, AT.west().asLong()), "逐格的禁令照旧");
+        assertTrue(both.forbids(Use.PASS, AT.asLong()), "整片的禁令合并后还在");
+        assertFalse(both.forbids(Use.PASS, AT.west(2).asLong()));
     }
 
     @Test

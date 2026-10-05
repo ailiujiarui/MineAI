@@ -21,9 +21,8 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 
 /**
  * 一道菜的做法——森罗的一条配方读成同伴看得懂的样子。
@@ -32,7 +31,7 @@ import java.util.Map;
  * ({@code flex_*},同一组料按投料比例判品质)。两张表的记录是四个互不相干的 record,
  * 这里是唯一一处把它们摊平的地方。
  *
- * @param id          配方 id,{@code kaleidoscope cook} 点菜用的就是它
+ * @param id          配方 id,{@code kaleidoscope.pot.fill} 与 {@code kaleidoscope.pot.cook} 点菜用的就是它
  * @param cookware    哪口锅做
  * @param result      出锅的东西
  * @param ingredients 要的料(已剔掉配方表里的空位)
@@ -210,38 +209,24 @@ public record Dish(ResourceLocation id, Cookware cookware, ItemStack result, Lis
         return base == null ? soupBase.toString() : idOf(base.getDisplayStack().getItem());
     }
 
-    /** {@code kaleidoscope recipes} 的一行。 */
-    public Map<String, Object> row(ServerLevel level) {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("recipe", id.toString());
-        row.put("dish", idOf(result.getItem()) + (result.getCount() > 1 ? " x" + result.getCount() : ""));
+    /** {@code kaleidoscope.pot.recipes} 的一项。 */
+    public KaleidoscopeApi.Recipe row(ServerLevel level) {
         List<String> needs = new ArrayList<>();
         int[] want = portions(level);
         for (int i = 0; i < ingredients.size(); i++) {
             needs.add(names(ingredients.get(i)) + " x" + (want == null ? 1 : want[i]));
         }
-        row.put("ingredients", needs);
-        if (!carrier.isEmpty()) {
-            row.put("carrier", names(carrier));
-        }
-        if (soupBase != null) {
-            row.put("soup_base", soupBaseName());
-        }
-        row.put("kitchenware", cookware == Cookware.POT
-                ? List.of("kaleidoscope_cookery:kitchen_shovel", "#kaleidoscope_cookery:oil")
-                : List.of("kaleidoscope_cookery:stockpot_lid"));
-        row.put("cook_ticks", time);
-        if (cookware == Cookware.POT) {
-            row.put("stir_fries", stirFry);
-        }
-        if (!flex) {
-            row.put("quality", "fixed recipe — always the same, portions above are exact");
-        } else if (want == null) {
-            row.put("quality", "flex recipe, but no mix within the pot's 9 slots grades SUPERB on this world"
-                    + " — the portions above are a guess, treat them as unknown");
-        } else {
-            row.put("quality", "flex recipe — the portions above ARE this world's golden ratio (grades SUPERB)");
-        }
-        return row;
+        String quality = !flex ? "fixed recipe — always the same, portions above are exact"
+                : want == null ? "flex recipe, but no mix within the pot's 9 slots grades SUPERB on this world"
+                        + " — the portions above are a guess, treat them as unknown"
+                : "flex recipe — the portions above ARE this world's golden ratio (grades SUPERB)";
+        return new KaleidoscopeApi.Recipe(id.toString(),
+                idOf(result.getItem()) + (result.getCount() > 1 ? " x" + result.getCount() : ""), needs,
+                carrier.isEmpty() ? Optional.empty() : Optional.of(names(carrier)),
+                Optional.ofNullable(soupBaseName()),
+                cookware == Cookware.POT
+                        ? List.of("kaleidoscope_cookery:kitchen_shovel", "#kaleidoscope_cookery:oil")
+                        : List.of("kaleidoscope_cookery:stockpot_lid"),
+                time, cookware == Cookware.POT ? Optional.of(stirFry) : Optional.empty(), quality);
     }
 }

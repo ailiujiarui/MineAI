@@ -75,6 +75,8 @@ public final class AgentLoop {
     private boolean pumping;
     /** {@link #pump} 期间有人又要求推进(run 当场结束、订阅者推了新输入):那一圈做完接着再看一眼。 */
     private boolean pumpAgain;
+    /** 外接大脑交来、正借用工具口的那一个调用的回报口({@link #runAside});没有是 {@code null}。 */
+    private Consumer<String> aside;
 
     /**
      * @param name       日志里认这只同伴用的名字
@@ -113,7 +115,7 @@ public final class AgentLoop {
      * 只带走已经到的那几条。
      *
      * <p>一批工具调用还没结算时,入了队的每一条都转给工具口({@link ToolPort#arrived}),带着队列的急件规则算出的急不急:
-     * 它在等身体收尾时,收尾让它接着派下一个,急件让它不再等。
+     * 一段程序在服务端跑着,急件让它停在调用之间。她派的活的收尾在服务端就交给了等它的程序(写进回执),不会作为一条输入到这里。
      *
      * <p>来自主人的插话解开 {@link Hold.Release#OWNER_SPOKE} 那几种停牌,急件解开 FAILED。死着、外接驾驶时也照收:
      * 条目盖着真实时间戳,之后模型看得出哪些是那期间发生的。
@@ -135,7 +137,7 @@ public final class AgentLoop {
             ownerSpoke |= EventTypes.get(e.type()).ownerWords();
         }
         // 转给工具口可能让这一批当场结算、调下一次模型,那之后就不是它的事了
-        for (int i = 0; i < queued.size() && run != null && run.phase == Phase.TOOLS; i++) {
+        for (int i = 0; i < queued.size() && toolsRunning(); i++) {
             tools.arrived(queued.get(i).entry(), queued.get(i).urgent());
         }
         if (ownerSpoke) {
@@ -146,6 +148,46 @@ public final class AgentLoop {
         }
         announceHold(null);
         pump();
+    }
+
+    /** 工具口手上有一批没结算的调用:内脑这一轮的,或外接大脑借用的那一个。 */
+    private boolean toolsRunning() {
+        return (run != null && run.phase == Phase.TOOLS) || aside != null;
+    }
+
+    /**
+     * 外接大脑的一次调用(一段程序):内核闲着时交给同一个工具口执行,结果交给 {@code done},不进会话历史。执行期间入队的条目
+     * 同样转给工具口——等身体收尾、被急件停在调用之间,和内脑自己的调用是同一个等法;这期间内核不开 run。切断({@link #halt})
+     * 照样收工具口,程序交出停在哪一行的回执。
+     *
+     * @return 收下了;内核手上有 run、或已有一个外接调用在跑时不收,{@code done} 不会被调
+     */
+    public boolean runAside(LlmToolCall call, Consumer<String> done) {
+        if (run != null || aside != null) {
+            return false;
+        }
+        aside = done;
+        tools.run(List.of(call), new ToolPort.Sink() {
+            @Override
+            public void started(LlmToolCall c) {
+            }
+
+            @Override
+            public void finished(LlmToolCall c, String resultJson) {
+                Consumer<String> reply = aside;
+                aside = null;
+                if (reply != null) {
+                    reply.accept(resultJson);
+                }
+            }
+
+            @Override
+            public void settled() {
+                aside = null;
+                pump();
+            }
+        });
+        return true;
     }
 
     /** 身体复活了。复活的叙事事件由调用方在这之前推进队列,解开后一起走。 */
@@ -208,8 +250,8 @@ public final class AgentLoop {
      * @return 这一步动了队列或停牌(开了 run、执行了控制条目),值得再看一眼;什么也没做、或者被端点挡下是 {@code false}
      */
     private boolean step() {
-        if (run != null) {
-            return false;   // run 里的边界自己取队列
+        if (run != null || aside != null) {
+            return false;   // run 里的边界自己取队列;外接大脑的调用借着工具口时不开 run
         }
         Hold hold = hold();
         if (hold == Hold.DEAD || hold == Hold.EXTERNAL) {
@@ -370,6 +412,21 @@ public final class AgentLoop {
                     turn(true);   // 工具结果等着回应
                 }
             }
+
+            @Override
+            public void ended(LlmToolCall program, com.dwinovo.numen.agent.script.ScriptCall.Ending ending,
+                              java.util.List<com.dwinovo.numen.agent.script.ScriptCall.Called> calls) {
+                if (current(id)) {
+                    emit(new LoopEvent.ProgramEnded(id, program, ending, calls.size()));
+                }
+            }
+
+            @Override
+            public void called(LlmToolCall program, com.dwinovo.numen.agent.script.ScriptCall.Called called) {
+                if (current(id)) {
+                    emit(new LoopEvent.ApiCalled(id, program, called));
+                }
+            }
         };
     }
 
@@ -515,11 +572,12 @@ public final class AgentLoop {
      */
     public void halt(HaltReason reason, String detail) {
         Run cut = run;
+        // 先收工具口、再作废 run:在跑的脚本这时交出它停在哪一行的回执,还记在这次 run 名下进历史
+        List<String> abandoned = tools.cancel(reason.stopsBody());
         if (cut != null) {
             run = null;
             cut.cancel.cancel();
         }
-        List<String> abandoned = tools.cancel(reason.stopsBody());
         if (cut != null) {
             // 切断的是一次模型回复或一批工具往返才记切断点:悬空调用的结果、给模型的说明由下一次请求的
             // ProtocolView 按它现算。整理记忆被切断时对话本身没断,不记。

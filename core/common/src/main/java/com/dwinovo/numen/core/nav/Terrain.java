@@ -5,12 +5,13 @@ import java.util.Set;
 import com.dwinovo.numen.pathing.body.Snapshots;
 import com.dwinovo.numen.pathing.drive.LiveWorld;
 import com.dwinovo.numen.pathing.plan.Stance;
+import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.pathing.world.BodyStats;
 import com.dwinovo.numen.pathing.world.Clearance;
 import com.dwinovo.numen.pathing.world.Footing;
 import com.dwinovo.numen.pathing.world.Semantics;
-import com.dwinovo.numen.pathing.world.Stepping;
+import com.dwinovo.numen.pathing.world.Sight;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
@@ -65,6 +66,23 @@ public final class Terrain {
         return Stance.at(world, body, cell) != null;
     }
 
+    /** 这一格有没有可点的轮廓(第 0 层 {@link Sight#clickable}):空气、流体没有。 */
+    public boolean clickable(BlockPos pos) {
+        return Sight.clickable(world, pos);
+    }
+
+    /** 此刻她站在 {@code block} 上时脚所在的节点({@link Goals#standingOn});站不上去为 null。 */
+    public BlockPos standingOn(BlockPos block) {
+        return Goals.standingOn(world, body, block);
+    }
+
+    /**
+     * 用 {@code target} 这一格:按此刻的世界列出她的候选站位({@link Goals#use})。要先确认它可点({@link #clickable})。
+     */
+    public Goals.Use use(BlockPos target) {
+        return Goals.use(world, body, target);
+    }
+
     /** 落到 {@code cell} 那一列里她待得住的节点({@link Stance#settle});那一列都待不住就是它自己。 */
     public BlockPos settle(BlockPos cell) {
         return Stance.settle(world, body, cell);
@@ -92,40 +110,4 @@ public final class Terrain {
     public Set<BlockPos> supports(AABB box) {
         return Footing.supports(world, body, box);
     }
-
-    /**
-     * 从脚在 {@code feetY} 的 {@code (fromX, fromZ)} 这一列贴地走进相邻的 {@code (x, z)} 那一列:平走、上一级、下一级三选一,按这个
-     * 先后。落脚处她待得住而且是站着,从这一列迈进那一列是走过去或跳上去——与寻路判一步同一套几何;落脚、托脚、身体经过的
-     * 格都不是 {@code keepOff} 里的种类。走不进去为 null;再高再深的都不算。
-     *
-     * @param bodyY 身体此刻脚的高度:出发那一列算不出落脚高度时(她正悬在边上)从这里起步
-     */
-    public Step step(int fromX, int fromZ, int feetY, double bodyY, int x, int z, Set<Semantics.Kind> keepOff) {
-        double fromFeet = Footing.height(world, body, fromX, feetY, fromZ);
-        if (Double.isNaN(fromFeet)) {
-            fromFeet = bodyY;
-        }
-        for (int dy : new int[]{0, 1, -1}) {
-            int y = feetY + dy;
-            Stance stance = Stance.at(world, body, x, y, z);
-            if (stance == null || !stance.grounded() || isAny(stance.support(x, z), keepOff)
-                    || isAny(new BlockPos(x, y, z), keepOff) || isAny(new BlockPos(x, y + 1, z), keepOff)) {
-                continue;
-            }
-            Stepping.Step step = Stepping.between(world, body, fromX, fromFeet, fromZ, Integer.signum(x - fromX),
-                    Integer.signum(z - fromZ), stance.feetY());
-            if (step != Stepping.Step.BLOCKED) {
-                return new Step(y, step == Stepping.Step.JUMP);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 迈进相邻一列的那一步。
-     *
-     * @param y    落脚那一格的高度
-     * @param jump 要起跳才上得去
-     */
-    public record Step(int y, boolean jump) {}
 }

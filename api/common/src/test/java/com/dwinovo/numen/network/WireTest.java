@@ -2,22 +2,16 @@ package com.dwinovo.numen.network;
 
 import com.dwinovo.numen.agent.inbox.EventQueue;
 import com.dwinovo.numen.agent.inbox.EventTypes;
-import com.dwinovo.numen.agent.tool.ServerToolTransport;
-import com.dwinovo.numen.agent.tool.ToolCall;
 import com.dwinovo.numen.network.payload.CompanionListPayload;
 import com.dwinovo.numen.network.payload.CurrentTaskPayload;
-import com.dwinovo.numen.network.payload.ExecuteToolPayload;
 import com.dwinovo.numen.network.payload.NumenDeathPayload;
 import com.dwinovo.numen.network.payload.NumenEventPayload;
-import com.dwinovo.numen.network.payload.TaskResultPayload;
-import com.dwinovo.numen.task.TaskResult;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
-import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -27,7 +21,6 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -60,52 +53,47 @@ class WireTest {
         com.mojang.brigadier.exceptions.CommandSyntaxException.BUILT_IN_EXCEPTIONS = brigadierWords;
     }
 
-    /** 两个数对着原版核:原版把它们写成私有常量,改了版本这里先红。 */
+    /** 下行一个包的数就是原版给自定义载荷定的那个;改了版本这里先红。 */
     @Test
-    void theBudgetsAreVanillasOwnCustomPayloadLimitsPerDirection() throws ReflectiveOperationException {
-        assertEquals(vanilla(ClientboundCustomPayloadPacket.class), Wire.TO_CLIENT.bytes());
-        assertEquals(vanilla(ServerboundCustomPayloadPacket.class), Wire.TO_SERVER.bytes());
-    }
-
-    private static int vanilla(Class<?> packet) throws ReflectiveOperationException {
-        Field field = packet.getDeclaredField("MAX_PAYLOAD_SIZE");
+    void theDownlinkBudgetIsVanillasCustomPayloadLimit() throws ReflectiveOperationException {
+        Field field = ClientboundCustomPayloadPacket.class.getDeclaredField("MAX_PAYLOAD_SIZE");
         field.setAccessible(true);
-        return field.getInt(null);
+        assertEquals(field.getInt(null), Wire.TO_CLIENT.bytes());
     }
 
+    /** 上行的数是各加载器与 CC: Tweaked 共同的安全线 32767,1.20.1 的原版对所有上行自定义载荷就卡它。 */
     @Test
-    void aResultThatFitsGoesOutUntouched() {
-        TaskResultPayload small = new TaskResultPayload(A, "call-1", TaskResult.ok("done").toJson());
-        assertSame(small, fit(small));
+    void theUplinkBudgetIsTheSafeLineEveryLoaderSplitsAt() {
+        assertEquals(32767, Wire.TO_SERVER.bytes());
     }
 
-    /** 事故那一种:回执比一个下行包大。换成同一次调用的一条失败,说清多大、上限多少、怎么要少一点。 */
+    /**
+     * 一条消息的总上限要大过正当消息的最大值:服务端为一位主人缓存的模块正文至多 4 MB,缺了整批重送时加上程序与清单也装得下。
+     */
     @Test
-    void aResultTooBigForOnePayloadBecomesAFailureForTheSameCall() {
-        String huge = TaskResult.ok("x".repeat(Wire.TO_CLIENT.bytes() + 10)).toJson();
-        TaskResultPayload sent = fit(new TaskResultPayload(A, "call-7", huge));
-
-        assertEquals("call-7", sent.toolCallId(), "回给的还是那一次调用");
-        JsonObject result = JsonParser.parseString(sent.resultJson()).getAsJsonObject();
-        assertFalse(result.get("success").getAsBoolean());
-        String message = result.get("message").getAsString();
-        assertTrue(message.startsWith("The result of this call came to "), message);
-        assertTrue(message.contains("more than the 1048576 bytes one message to your client can carry, so it was "
-                + "not delivered."), message);
-        assertTrue(message.contains("--page"), "说怎么要少一点: " + message);
-        int bytes = result.getAsJsonObject("data").get("result_bytes").getAsInt();
-        assertTrue(bytes > Wire.TO_CLIENT.bytes(), "报的是整包的真实大小: " + bytes);
-        assertEquals(Wire.TO_CLIENT.bytes(), result.getAsJsonObject("data").get("limit_bytes").getAsInt());
-        encodes(TaskResultPayload.STREAM_CODEC, sent);
+    void aMessageCanCarryAWholeModuleCachePlusAProgram() {
+        assertTrue(Wire.MESSAGE_BYTES >= com.dwinovo.numen.program.ProgramLimits.MODULE_CACHE_BYTES * 2);
+        assertTrue(Wire.TO_SERVER.carries(Wire.MESSAGE_BYTES));
+        assertFalse(Wire.TO_SERVER.carries(Wire.MESSAGE_BYTES + 1));
+        assertFalse(Wire.TO_SERVER.holds(Wire.TO_SERVER.bytes() + 1));
     }
 
-    /** 多字节的字也按字节算:一万个汉字不到上限的字符数,字节数早就超了。 */
+    /**
+     * 判据:每个方向的整包上限加上包头(包 id 与各字段的长度前缀,留 1 KB)仍在三字节长度前缀能写的一帧以内,
+     * NeoForge 才不拆包、Fabric 才不断开。
+     */
     @Test
-    void theBudgetCountsEncodedBytesNotCharacters() {
-        String chinese = "字".repeat(Wire.TO_CLIENT.bytes() / 3 + 100);
-        assertTrue(chinese.length() < Wire.TO_CLIENT.bytes());
-        TaskResultPayload sent = fit(new TaskResultPayload(A, "call-8", TaskResult.ok(chinese).toJson()));
-        assertFalse(JsonParser.parseString(sent.resultJson()).getAsJsonObject().get("success").getAsBoolean());
+    void everyDirectionsBudgetPlusItsHeaderFitsOneFrame() {
+        int header = 1024;
+        for (Wire wire : Wire.values()) {
+            assertTrue(wire.bytes() + header <= Wire.FRAME_BYTES, wire + " " + wire.bytes());
+        }
+        ByteBuf length = Unpooled.buffer();
+        net.minecraft.network.VarInt.write(length, Wire.FRAME_BYTES);
+        assertEquals(3, length.readableBytes(), "一帧的最大长度正好写满三字节的前缀");
+        ByteBuf over = Unpooled.buffer();
+        net.minecraft.network.VarInt.write(over, Wire.FRAME_BYTES + 1);
+        assertEquals(4, over.readableBytes());
     }
 
     @Test
@@ -133,7 +121,7 @@ class WireTest {
     @Test
     void aTaskDescriptionOrADeathCauseTooBigIsReplacedBySayingSo() {
         String big = "z".repeat(Wire.TO_CLIENT.bytes() + 1);
-        CurrentTaskPayload task = fit(new CurrentTaskPayload(A, "t1", "work mine", big, false, 1200L));
+        CurrentTaskPayload task = fit(new CurrentTaskPayload(A, "t1", "work dig", big, false, 1200L));
         assertEquals("t1", task.taskId());
         assertEquals(1200L, task.elapsedMs());
         assertTrue(task.describe().startsWith("Its description came to "), task.describe());
@@ -153,45 +141,21 @@ class WireTest {
         assertTrue(e.getMessage().startsWith("numen_api:companion_list came to "), e.getMessage());
     }
 
-    /** 上行的工具调用装不下:不送,就地回给模型一条失败——服务端根本不知道这次调用,不会有结果回来。 */
+    /** 收的一方以整条消息的上限为防线:一个字段比整条消息还长,那不是 Numen 发的;比一个包长的字段(分片的消息里)读得下。 */
     @Test
-    void aToolCallTooBigForTheServerIsAnsweredOnTheClientAndNotSent() {
-        AtomicReference<String> completed = new AtomicReference<>();
-        String args = "{\"command\":\"build layer 0 0 0 " + "#".repeat(Wire.TO_SERVER.bytes()) + "\"}";
-        ServerToolTransport.ship(new ToolCall("call-9", "command", args, () -> A, completed::set));
-
-        JsonObject result = JsonParser.parseString(completed.get()).getAsJsonObject();
-        assertFalse(result.get("success").getAsBoolean());
-        String message = result.get("message").getAsString();
-        assertTrue(message.startsWith("This call came to "), message);
-        assertTrue(message.contains("more than the 32767 bytes one message to the server can carry, so it was not "
-                + "sent."), message);
-        assertTrue(message.contains("several shorter calls"), message);
-    }
-
-    @Test
-    void aToolCallThatFitsTheServerRoundTrips() {
-        String args = "{\"command\":\"build layer 0 0 0 " + "#".repeat(20_000) + "\"}";
-        ExecuteToolPayload call = new ExecuteToolPayload(A, "call-10", "command", args);
-        ByteBuf buf = Unpooled.buffer();
-        ExecuteToolPayload.STREAM_CODEC.encode(buf, call);
-        assertTrue(Wire.TO_SERVER.holds(buf.readableBytes()));
-        assertEquals(call, ExecuteToolPayload.STREAM_CODEC.decode(buf), "从前 16384 字符就拦下,现在按整包的字节算");
-    }
-
-    /** 收的一方以整包上限为防线:一个字段比整包还长,那不是 Numen 发的。 */
-    @Test
-    void aReceivedTextLongerThanTheWholeBudgetIsRejected() {
+    void aReceivedTextLongerThanTheWholeMessageIsRejectedButOneLongerThanAPacketIsRead() {
         ByteBuf buf = Unpooled.buffer();
         Wire.TO_SERVER.text().encode(buf, "q".repeat(Wire.TO_SERVER.bytes() + 1));
-        assertThrows(DecoderException.class, () -> Wire.TO_SERVER.text().decode(buf));
+        assertEquals(Wire.TO_SERVER.bytes() + 1, Wire.TO_SERVER.text().decode(buf).length());
+        ByteBuf over = Unpooled.buffer();
+        Wire.TO_SERVER.text().encode(over, "q".repeat(Wire.MESSAGE_BYTES + 1));
+        assertThrows(DecoderException.class, () -> Wire.TO_SERVER.text().decode(over));
     }
 
     private static <T extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> T fit(T payload) {
         @SuppressWarnings("unchecked")
         net.minecraft.network.codec.StreamCodec<ByteBuf, T> codec = (net.minecraft.network.codec.StreamCodec<ByteBuf, T>)
                 (Object) switch (payload) {
-                    case TaskResultPayload p -> TaskResultPayload.STREAM_CODEC;
                     case NumenEventPayload p -> NumenEventPayload.STREAM_CODEC;
                     case CurrentTaskPayload p -> CurrentTaskPayload.STREAM_CODEC;
                     case NumenDeathPayload p -> NumenDeathPayload.STREAM_CODEC;

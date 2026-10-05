@@ -35,22 +35,18 @@ include('ai')
 // numen-agent:大脑本身(队列、目标),纯 JVM,依赖 ai、被 api 依赖(详见 agent/build.gradle 头注)。
 include('agent')
 include('ui')
+// numen-lua:沙箱里的 Lua 5.2,纯 JVM,不依赖 Minecraft 与 Numen(详见 lua/build.gradle 头注与 lua/README.md)。
+include('lua')
 // numen-pathing:寻路,只依赖原版 Minecraft,Numen 经端口接入(详见 pathing/build.gradle 头注)。
 include('pathing')
+
+// numen-bench:真模型评测(docs/bench.md)。:bench 是纯 JVM 的记录与统计,:bench:game 是游戏里那一半;都不发布、不进发行 jar。
+include('bench')
+include('bench:game')
 
 // 联动模块:一个联动一个,各自独立,内嵌发布不单独发坐标。见 buildSrc 的 numen-plugin.gradle
 include('plugins:ysm')
 include('plugins:tlm')
 include('plugins:kaleidoscope')
 include('plugins:curios')
-include('plugins:mekanism')
-include('plugins:ae2')
-include('plugins:jei')
 include('plugins:ftbquests')
-// 只编译、不内嵌:证明第三方能对着瘦 api jar 实现并注册适配器处理器(不被 core 引用,不进成品)
-include('plugins:adaptertest')
-
-// 社区适配器:整合包作者/第三方自写的真实模组插件。每个是一个独立 mod,独自发布、
-// 由玩家放进 mods/,不经 core 内嵌;只对着瘦 api jar + 目标模组公开 API 编译。
-include('community-adapters:beyonddimensions')
-include('community-adapters:curios')

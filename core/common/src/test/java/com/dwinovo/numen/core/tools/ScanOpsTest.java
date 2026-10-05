@@ -2,9 +2,7 @@ package com.dwinovo.numen.core.tools;
 
 import com.dwinovo.numen.core.scan.BlockGroups;
 import com.dwinovo.numen.core.scan.BlockSearch;
-import com.dwinovo.numen.permission.Rule;
-import com.dwinovo.numen.permission.Verdict;
-import com.google.gson.JsonObject;
+import com.dwinovo.numen.sdk.BlockAt;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import org.junit.jupiter.api.BeforeAll;
@@ -93,9 +91,9 @@ class ScanOpsTest {
         assertTrue(note.contains("cut off"), note);
     }
 
-    /** A small group lists every cell; a group over the listing limit is only summarised. */
+    /** 一团是它的每一格(近的在前,各是一个 Block),最近的那一格,格数;大团也一格不少。 */
     @Test
-    void aSmallGroupListsItsCellsAndABigOneIsSummarised() {
+    void aClusterIsEveryBlockNearestFirstWithItsNearestAndCount() {
         assumeTrue(booted, "Minecraft 引导不可用,跳过团回执钉桩");
         BlockPos center = new BlockPos(0, 64, 0);
         BlockGroups groups = new BlockGroups();
@@ -103,42 +101,27 @@ class ScanOpsTest {
         for (int d = 1; d <= 3; d++) {
             for (BlockPos p : List.of(new BlockPos(3 + d, 64, 4), new BlockPos(3 + d, 64, 8),
                     new BlockPos(3, 64, 4 + d), new BlockPos(7, 64, 4 + d))) {
-                groups.add(p, Blocks.END_PORTAL_FRAME.defaultBlockState(), Verdict.allow());
+                groups.add(p, Blocks.END_PORTAL_FRAME.defaultBlockState());
             }
         }
-        for (int i = 0; i < ScanOps.LIST_CELLS_UP_TO + 1; i++) {
-            groups.add(new BlockPos(-40 - i, 70, 0), Blocks.OAK_LOG.defaultBlockState(), Verdict.allow());
+        for (int i = 0; i < 200; i++) {
+            groups.add(new BlockPos(-40 - i, 70, 0), Blocks.OAK_LOG.defaultBlockState());
         }
         List<BlockGroups.Group> grouped = groups.grouped(center);
         assertEquals(2, grouped.size());
 
-        JsonObject small = ScanOps.groupJson("g7", grouped.get(0), center);
-        assertEquals("g7", small.get("id").getAsString());
-        assertEquals(12, small.get("cells").getAsInt());
-        assertEquals(12, small.getAsJsonArray("positions").size());
-        assertEquals("4,64,4", small.getAsJsonArray("positions").get(0).getAsString());
-        assertEquals("3,64,4..7,64,8", small.get("box").getAsString());
-        assertEquals("allow", small.get("permission").getAsString());
-        assertFalse(small.has("reason"));
-        assertFalse(small.has("sources"));
-        assertEquals("south-east", small.getAsJsonObject("nearest").get("direction").getAsString());
+        ScanOps.Cluster small = ScanOps.cluster(grouped.get(0));
+        assertEquals(12, small.count());
+        assertEquals(12, small.blocks().size());
+        BlockAt first = small.blocks().get(0);
+        assertEquals("minecraft:end_portal_frame", first.name());
+        assertEquals(new BlockPos(4, 64, 4), first.pos(), "近的在前,每格是 Block");
+        assertEquals(new BlockAt("minecraft:end_portal_frame", new BlockPos(4, 64, 4)), small.nearest(),
+                "最近一格带着看到的方块与它的 pos,原样能交给 numen.work.dig");
 
-        JsonObject big = ScanOps.groupJson("g8", grouped.get(1), center);
-        assertEquals(ScanOps.LIST_CELLS_UP_TO + 1, big.get("cells").getAsInt());
-        assertFalse(big.has("positions"));
-        assertEquals("-56,70,0..-40,70,0", big.get("box").getAsString());
-        assertEquals("west, 6 up", big.getAsJsonObject("nearest").get("direction").getAsString());
-    }
-
-    /** A group that is not allowed carries the permission layer's own reason. */
-    @Test
-    void aGroupThatNeedsConsentSaysWhy() {
-        assumeTrue(booted, "Minecraft 引导不可用,跳过团回执钉桩");
-        BlockPos center = new BlockPos(0, 64, 0);
-        BlockGroups groups = new BlockGroups();
-        groups.add(new BlockPos(1, 64, 0), Blocks.OAK_LOG.defaultBlockState(), Verdict.ask(Rule.parse("break(placed)")));
-        JsonObject json = ScanOps.groupJson("g1", groups.grouped(center).get(0), center);
-        assertEquals("ask", json.get("permission").getAsString());
-        assertTrue(json.get("reason").getAsString().contains("placed by a player"), json.toString());
+        ScanOps.Cluster big = ScanOps.cluster(grouped.get(1));
+        assertEquals(200, big.count());
+        assertEquals(200, big.blocks().size(), "大团也一格不少");
+        assertEquals(new BlockPos(-40, 70, 0), big.nearest().pos());
     }
 }

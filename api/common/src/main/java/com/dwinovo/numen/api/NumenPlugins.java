@@ -2,13 +2,8 @@ package com.dwinovo.numen.api;
 
 import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.agent.inbox.EventTypes;
-import com.dwinovo.numen.agent.tool.NumenTool;
-import com.dwinovo.numen.agent.tool.ToolRegistry;
-import com.dwinovo.numen.api.adapter.AdapterHandlers;
 import com.dwinovo.numen.api.gear.GearSlot;
 import com.dwinovo.numen.api.gear.GearSource;
-import com.dwinovo.numen.cli.CommandGroup;
-import com.dwinovo.numen.cli.NumenCli;
 import com.dwinovo.numen.entity.CompanionEvents;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.event.NumenEvents;
@@ -29,7 +24,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * 插件的登记处:{@code NumenPlugins.register(numen -> …)}。
+ * 插件的登记处:{@code NumenPlugins.register("mymod", numen -> …)}。
+ *
+ * <h2>名字空间由登记者给出</h2>
+ * 插件登记时写自己的 id(一般就是 mod id 或它的简写:{@code tlm}、{@code ftbquests}),拿到的那扇门只往这个名字空间里登记:组
+ * {@code maid} 就是 {@code tlm.maid},模块 {@code skin.lua} 就是 {@code tlm.skin}。引擎自己的内容用 {@link #NUMEN}。
  *
  * <h2>时机不必你操心</h2>
  * 插件在自己模组的构造期登记就行。引擎内部该就绪的东西各有各的时机(工具注册表在
@@ -50,18 +49,23 @@ public final class NumenPlugins {
     /** 客户端接上来了没有。它同时就是"我现在是不是客户端"的答案。 */
     private static volatile boolean clientReady;
 
-    private static final NumenApi API = new Impl();
+    /** 引擎自己的名字空间:core 与引擎登记的组与模块都在它下面。 */
+    public static final String NUMEN = "numen";
 
     private NumenPlugins() {}
 
-    /** 登记一个插件。可在任何时候调用,通常在你模组的构造期。 */
-    public static void register(NumenPlugin plugin) {
+    /**
+     * 登记一个插件。可在任何时候调用,通常在你模组的构造期。
+     *
+     * <p>登记里有一处会破坏系统(名字写不出来、组已经有主、函数绑定不了……),异常原样抛出,启动就此失败;那句话写着是哪个函数、
+     * 哪一条。写法上的问题不拦,看 {@code ApiTester.lint} 的报告。
+     *
+     * @param namespace 你的名字空间:小写字母开头,只含 [a-z0-9_];她的程序里你的函数都写成 {@code <namespace>.<组>.<动作>}
+     */
+    public static void register(String namespace, NumenPlugin plugin) {
         if (plugin == null) return;
-        try {
-            plugin.setup(API);
-        } catch (RuntimeException e) {
-            Constants.LOG.error("[numen] 插件登记失败,它挂的东西可能只生效了一半", e);
-        }
+        com.dwinovo.numen.sdk.ApiRegistry.checkNamespace(namespace);
+        plugin.setup(new Impl(namespace));
     }
 
     /** 主人客户端那一侧的输入口,形状与 {@link NumenApi#emit(UUID, String, String)} 相同。 */
@@ -78,8 +82,21 @@ public final class NumenPlugins {
         clientInput = input;
         clientReady = true;
         for (Runnable r : PENDING) runClientBlock(r);
-        for (Path root : PENDING_SKILLS) skillSink.accept(root);
         PENDING.clear();
+        flushSkills(skillSink);
+    }
+
+    /**
+     * 只接技能这一样,不算客户端起来了:没有客户端、却要照主人客户端的样子组装提示词的进程(评测)用它。
+     * 插件的 {@code onClient} 块照旧攒着不跑。<b>引擎内部调用</b>,插件不该碰。
+     */
+    public static void bindSkills(Consumer<Path> skillSink) {
+        skills = skillSink;
+        flushSkills(skillSink);
+    }
+
+    private static void flushSkills(Consumer<Path> skillSink) {
+        for (Path root : PENDING_SKILLS) skillSink.accept(root);
         PENDING_SKILLS.clear();
     }
 
@@ -201,19 +218,26 @@ public final class NumenPlugins {
 
     private static final class Impl implements NumenApi {
 
+        /** 这扇门登记进的名字空间。 */
+        private final String namespace;
+
+        Impl(String namespace) {
+            this.namespace = namespace;
+        }
+
         @Override
         public <T> void on(CompanionEvent<T> event, Consumer<T> handler) {
             CompanionEvents.subscribe(event, handler);
         }
 
         @Override
-        public void registerTool(NumenTool tool) {
-            ToolRegistry.register(tool);
+        public void api(String group, String summary, Class<?> functions) {
+            com.dwinovo.numen.sdk.ApiRegistry.register(namespace, group, summary, functions);
         }
 
         @Override
-        public void registerCommands(String namespace, String summary, Consumer<CommandGroup> actions) {
-            NumenCli.register(namespace, summary, actions);
+        public <T> void codec(Class<T> type, com.dwinovo.numen.sdk.Codec<T> codec) {
+            com.dwinovo.numen.sdk.LuaCodecs.register(type, codec);
         }
 
         @Override
@@ -221,6 +245,11 @@ public final class NumenPlugins {
             if (skillsRoot == null) return;
             Consumer<Path> sink = skills;
             if (sink != null) sink.accept(skillsRoot); else PENDING_SKILLS.add(skillsRoot);
+        }
+
+        @Override
+        public void bundleModules(Path modulesRoot) {
+            com.dwinovo.numen.script.BuiltinModules.bundle(namespace, modulesRoot);
         }
 
         @Override
@@ -242,31 +271,6 @@ public final class NumenPlugins {
         @Override
         public void registerGear(GearSource source) {
             if (source != null) GEAR.add(source);
-        }
-
-        @Override
-        public void registerUseHandler(String intent, AdapterHandlers.UseHandler handler) {
-            AdapterHandlers.registerUse(intent, handler);
-        }
-
-        @Override
-        public void registerGuiHandler(String source, AdapterHandlers.GuiHandler handler) {
-            AdapterHandlers.registerGui(source, handler);
-        }
-
-        @Override
-        public void registerContainerHandler(String access, AdapterHandlers.ContainerHandler handler) {
-            AdapterHandlers.registerContainer(access, handler);
-        }
-
-        @Override
-        public void registerGearHandler(String name, GearSource source) {
-            AdapterHandlers.registerGear(name, source);
-        }
-
-        @Override
-        public void bundleAdapters(Path root) {
-            com.dwinovo.numen.adapter.AdapterManager.bundle(root);
         }
 
         @Override

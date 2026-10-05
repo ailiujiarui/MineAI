@@ -1,5 +1,6 @@
 package com.dwinovo.numen.core;
 
+import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.task.TaskState;
 
 /**
@@ -49,12 +50,12 @@ public enum FailureType {
     BOXED_IN,
     /** A* returned nothing to the target. In-ladder: try a looser goal (near/adjacent). */
     NO_PATH,
-    /** No route WITHOUT altering terrain, but routes exist if she may dig / bridge / pillar —
-     *  the reason lists candidate routes by id, each with exactly which blocks it would break
-     *  or place (they sit in the body's route book). Approach tasks treat it in-ladder like
-     *  NO_PATH (a looser stance may still avoid it); goto does not loosen its goal on it — the
-     *  candidates are the answer. The final verdict hands the list to the LLM, which picks one
-     *  ({@code move_goto route:<id>}) or another destination. */
+    /** No route within what the walk may change: none without altering terrain while a digging /
+     *  bridging / pillaring one exists, or the way on needs cells beyond the plan she agreed to.
+     *  The reason says how many blocks it would take and what in the walk's description allows it
+     *  ({@code costs = {dig = true, place = true}}, then {@code numen.route.plan} again). Approach tasks
+     *  treat it in-ladder like NO_PATH (a looser stance may still avoid it); a route walk does not
+     *  loosen anything on it — whether to allow more is the LLM's call. */
     TERRAIN_BLOCKED,
     /** Never got within interaction reach of the target. In-ladder: reposition. */
     OUT_OF_REACH,
@@ -91,4 +92,22 @@ public enum FailureType {
     INTERNAL,
     /** Cause not classified. */
     UNKNOWN;
+
+    /**
+     * 这一类失败交给脚本时是哪一种错误值({@link ErrorKind}):脚本按它分支,所以只分到她下一步做法不同的那几种——路不通、
+     * 够不着、被拒、东西没了、缺料、被叫停、超时;其余是 {@link ErrorKind#FAILED}。
+     */
+    public ErrorKind kind() {
+        return switch (this) {
+            case NO_PATH, BOXED_IN, TERRAIN_BLOCKED, HAZARD -> ErrorKind.NO_PATH;
+            case OUT_OF_REACH, OCCLUDED -> ErrorKind.OUT_OF_REACH;
+            case REFUSED -> ErrorKind.DENIED;
+            case TARGET_LOST, MINED_OUT -> ErrorKind.NOT_FOUND;
+            case NO_MATERIAL -> ErrorKind.NO_MATERIAL;
+            case INTERRUPTED -> ErrorKind.INTERRUPTED;
+            case TIMED_OUT -> ErrorKind.TIMEOUT;
+            case NO_SPACE, NO_SUPPORT, ENTITY_BLOCKED, NOT_KEPT, WRONG_TOOL, UNSUPPORTED, INTERNAL, UNKNOWN ->
+                    ErrorKind.FAILED;
+        };
+    }
 }

@@ -4,6 +4,7 @@ import com.dwinovo.numen.agent.inbox.EventQueue;
 import com.dwinovo.numen.agent.inbox.EventTypes;
 import com.dwinovo.numen.agent.llm.ToolOutcome;
 import com.dwinovo.numen.agent.provider.LlmToolCall;
+import com.dwinovo.numen.agent.script.ScriptCall;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -18,26 +19,44 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 一轮里的调用按顺序执行:一个做完才派下一个,后台身体活等它收尾;等的时候来了急件,余下的逐条回"没执行"。
+ * 一轮里的调用按顺序执行:一个做完才派下一个。其中的程序整段在服务端跑,这里只管顺序:程序在跑的时候后面的调用等着;来了急件叫服务端
+ * 让程序停在调用之间,程序被叫停回来,余下的调用逐条回"没执行";切断叫服务端当场停下它。
  *
- * <p>假的执行口把派出去的调用停在 {@link #pending} 里等测试替它回结果。结果写成 {@code running tN} 表示受理了一件会自己
- * 收尾的后台活 tN;队列里 task_finished 的正文就是收尾的那件的编号。两个读法都是测试自己的约定,真的写法在 api
- * ({@code TaskDispatch}、{@code NumenEvents})。
+ * <p>假的执行口把派出去的调用停在 {@link #pending} 里等测试替它回结果。
  */
 class SerialCallsTest {
 
-    private final Map<String, Consumer<String>> pending = new LinkedHashMap<>();
+    private final Map<String, Consumer<SerialCalls.Settled>> pending = new LinkedHashMap<>();
     private final List<String> dispatched = new ArrayList<>();
+    private final List<String> told = new ArrayList<>();
     private final Map<String, String> results = new LinkedHashMap<>();
+    private final List<String> reported = new ArrayList<>();
     private int settles;
 
-    private final SerialCalls calls = new SerialCalls(
-            (call, done) -> {
-                dispatched.add(call.id());
-                pending.put(call.id(), done);
-            },
-            result -> result.startsWith("running ") ? result.substring("running ".length()) : null,
-            entry -> EventTypes.TASK_FINISHED.equals(entry.type()) ? entry.text() : null);
+    private final SerialCalls.Port port = new SerialCalls.Port() {
+        @Override
+        public void invoke(LlmToolCall call, Consumer<SerialCalls.Settled> done) {
+            dispatched.add(call.id());
+            pending.put(call.id(), done);
+        }
+
+        @Override
+        public boolean isProgram(LlmToolCall call) {
+            return "lua".equals(call.name());
+        }
+
+        @Override
+        public void interrupt(LlmToolCall program, String why) {
+            told.add("interrupt " + program.id() + ": " + why);
+        }
+
+        @Override
+        public void cutOff(LlmToolCall program, boolean stopBody) {
+            told.add("cut off " + program.id() + " stopBody=" + stopBody);
+        }
+    };
+
+    private final SerialCalls calls = new SerialCalls(port);
 
     private final ToolPort.Sink sink = new ToolPort.Sink() {
         @Override
@@ -53,27 +72,32 @@ class SerialCallsTest {
         public void settled() {
             settles++;
         }
+
+        @Override
+        public void called(LlmToolCall program, ScriptCall.Called called) {
+            reported.add(program.id() + " " + called.function() + (called.kind() == null ? "" : " " + called.kind()));
+        }
     };
 
-    private static LlmToolCall call(String id) {
-        return new LlmToolCall(id, "command", "{}");
+    private static LlmToolCall tool(String id) {
+        return new LlmToolCall(id, "skill", "{}");
+    }
+
+    private static LlmToolCall program(String id) {
+        return new LlmToolCall(id, "lua", "{\"code\":\"x\"}");
     }
 
     private void answer(String id, String result) {
-        pending.remove(id).accept(result);
-    }
-
-    private static EventQueue.Entry finished(String taskId) {
-        return new EventQueue.Entry(EventTypes.TASK_FINISHED, taskId, 0, true);
+        pending.remove(id).accept(SerialCalls.Settled.of(result));
     }
 
     private static EventQueue.Entry ownerWords(String words) {
-        return new EventQueue.Entry(EventTypes.QUERY, "<query>" + words + "</query>", 0, false);
+        return new EventQueue.Entry(EventTypes.QUERY, EventQueue.query(words), 0, false);
     }
 
     @Test
     void theNextCallGoesOutOnlyWhenTheLastOneHasItsResult() {
-        calls.run(List.of(call("a"), call("b")), sink);
+        calls.run(List.of(tool("a"), tool("b")), sink);
         assertEquals(List.of("a"), dispatched);
 
         answer("a", "{\"success\":true}");
@@ -86,110 +110,98 @@ class SerialCallsTest {
     }
 
     @Test
-    void aBackgroundJobHoldsTheRestUntilItsOwnEndArrives() {
-        calls.run(List.of(call("a"), call("b")), sink);
-        answer("a", "running t3");
-        assertEquals("running t3", results.get("a"), "受理回执照常是 a 的结果");
-        assertEquals(List.of("a"), dispatched, "t3 还没做完,b 不派");
-
-        calls.arrived(finished("t2"), false);
-        calls.arrived(new EventQueue.Entry(EventTypes.REFLEX, "<event>换了口气</event>", 0, false), false);
-        assertEquals(List.of("a"), dispatched, "别的活收尾、不急的事都不算");
-
-        calls.arrived(finished("t3"), true);
-        assertEquals(List.of("a", "b"), dispatched, "t3 做完了才派 b");
-        answer("b", "{\"success\":true}");
-        assertEquals(1, settles);
-    }
-
-    @Test
-    void aJobThatNeverEndsDoesNotHoldAnything() {
-        calls.run(List.of(call("follow"), call("look")), sink);
-        answer("follow", "{\"success\":true,\"data\":{\"standing\":true}}");
-        assertEquals(List.of("follow", "look"), dispatched, "常驻的活没有收尾,不等");
-    }
-
-    @Test
-    void theOwnerSpeakingWhileWaitingLeavesTheRestUnrunAndSaysWhy() {
-        calls.run(List.of(call("a"), call("b"), call("c")), sink);
-        answer("a", "running t3");
-
-        calls.arrived(ownerWords("先停一下"), true);
-
-        assertEquals(List.of("a"), dispatched, "余下的一个都没派");
-        assertEquals(1, settles, "这一批结算,模型下一次调用读到主人的话");
-        String why = ToolOutcome.failure("Not run: while you were waiting for t3 to finish, your owner spoke. "
-                + "t3 keeps running; read it, then decide what to do next.");
-        assertEquals(why, results.get("b"));
-        assertEquals(why, results.get("c"));
-        assertEquals(3, results.size(), "每个调用恰好一个结果");
-    }
-
-    @Test
-    void anUrgentEventWhileWaitingNamesItsKind() {
-        calls.run(List.of(call("a"), call("b")), sink);
-        answer("a", "running t3");
-
-        calls.arrived(new EventQueue.Entry(EventTypes.OWNER_HURT, "<event>主人危险</event>", 0, true), true);
-
-        assertTrue(ToolOutcome.failed(results.get("b")));
-        assertTrue(results.get("b").contains("an urgent " + EventTypes.OWNER_HURT + " event arrived"), results.get("b"));
-        assertEquals(1, settles);
-    }
-
-    @Test
-    void inputWhileAToolIsStillRunningDropsNothing() {
-        calls.run(List.of(call("a"), call("b")), sink);
+    void inputWhileAToolIsStillRunningDropsNothingAndTellsNoOne() {
+        calls.run(List.of(tool("a"), tool("b")), sink);
         calls.arrived(ownerWords("先停一下"), true);
         assertEquals(List.of("a"), dispatched);
         assertTrue(results.isEmpty(), "工具本身有界短:等它的结果,输入跟下一次调用走");
+        assertTrue(told.isEmpty(), "不是程序,没有谁要叫停");
 
         answer("a", "{\"success\":true}");
         assertEquals(List.of("a", "b"), dispatched);
     }
 
-    /** 后面没有调用在等它:这一批当场结算,活在后台做,她照常说话、想事。 */
     @Test
-    void aJobAtTheEndOfTheReplyLeavesHerFreeAtOnce() {
-        calls.run(List.of(call("a")), sink);
-        answer("a", "running t3");
-        assertEquals(1, settles);
+    void anUrgentInputWhileAProgramRunsTellsTheServerOnceAndTheRestIsNotRun() {
+        calls.run(List.of(program("p"), tool("after"), tool("later")), sink);
+        assertEquals(List.of("p"), dispatched, "程序在服务端跑着,后面的等着");
 
-        calls.arrived(ownerWords("挖得怎么样了"), true);
-        assertEquals(1, results.size(), "没有在等,输入不碰任何调用");
+        calls.arrived(new EventQueue.Entry(EventTypes.OWNER_HURT, "<event>危险</event>", 0, true), true);
+        calls.arrived(ownerWords("等等"), true);
+        assertEquals(List.of("interrupt p: an urgent owner_hurt event arrived"), told, "同一次只说一遍");
+        assertTrue(results.isEmpty(), "程序是服务端在停,这里等它交回结局");
+
+        pending.remove("p").accept(new SerialCalls.Settled("{\"success\":false}", null, List.of(
+                new ScriptCall.Called("numen.move.go", "numen.move.go()", null, null)),
+                "an urgent owner_hurt event arrived; t3 keeps running"));
+
+        assertEquals(List.of("p numen.move.go"), reported, "每次调用的结局随回执送到");
+        for (String skipped : List.of("after", "later")) {
+            assertTrue(ToolOutcome.failed(results.get(skipped)), results.get(skipped));
+            assertTrue(results.get(skipped).contains("Not run") && results.get(skipped)
+                    .contains("t3 keeps running"), "原因取程序结局里结构化的那一句: " + results.get(skipped));
+        }
+        assertEquals(List.of("p"), dispatched);
+        assertEquals(1, settles);
     }
 
     @Test
-    void cancellingReturnsWhatHadNoResultAndLateResultsAreDropped() {
-        calls.run(List.of(call("a"), call("b")), sink);
-        Consumer<String> late = pending.get("a");
+    void aNonUrgentInputDoesNotStopTheProgram() {
+        calls.run(List.of(program("p")), sink);
+        calls.arrived(new EventQueue.Entry(EventTypes.REFLEX, "<event>x</event>", 0, false), false);
+        assertTrue(told.isEmpty());
+    }
 
-        assertEquals(List.of("a", "b"), calls.cancel());
-        late.accept("{\"success\":true}");
+    @Test
+    void aProgramThatEndedOnItsOwnLetsTheBatchGoOn() {
+        calls.run(List.of(program("p"), tool("after")), sink);
+        pending.remove("p").accept(SerialCalls.Settled.of("{\"success\":true}"));
+        assertEquals(List.of("p", "after"), dispatched);
+    }
+
+    @Test
+    void cuttingOffTellsTheServerToStopTheProgramAtOnceAndAbandonsTheBatch() {
+        calls.run(List.of(program("p"), tool("b")), sink);
+        Consumer<SerialCalls.Settled> late = pending.get("p");
+
+        assertEquals(List.of("p", "b"), calls.cancel(true));
+        assertEquals(List.of("cut off p stopBody=true"), told);
+        late.accept(SerialCalls.Settled.of("{\"success\":true}"));
         assertTrue(results.isEmpty(), "放弃之后回来的结果无处可报");
-        assertFalse(calls.holds("a"));
+        assertFalse(calls.holds("p"));
         assertEquals(0, settles);
     }
 
     @Test
-    void synchronousResultsDoNotRecurse() {
-        SerialCalls atOnce = new SerialCalls((call, done) -> done.accept("{\"success\":true}"),
-                result -> null, entry -> null);
-        List<LlmToolCall> many = new ArrayList<>();
-        for (int i = 0; i < 20_000; i++) {
-            many.add(call("c" + i));
-        }
-        atOnce.run(many, sink);
-        assertEquals(20_000, results.size());
-        assertEquals(1, settles);
+    void cancellingAToolDoesNotTellTheServerAnything() {
+        calls.run(List.of(tool("a"), tool("b")), sink);
+        assertEquals(List.of("a", "b"), calls.cancel(false));
+        assertTrue(told.isEmpty());
     }
 
     @Test
     void aBatchHandedOverWhileSettlingIsRunToo() {
-        SerialCalls atOnce = new SerialCalls((call, done) -> done.accept("{\"success\":true}"),
-                result -> null, entry -> null);
-        List<LlmToolCall> second = List.of(call("second"));
-        atOnce.run(List.of(call("first")), new ToolPort.Sink() {
+        SerialCalls atOnce = new SerialCalls(new SerialCalls.Port() {
+            @Override
+            public void invoke(LlmToolCall call, Consumer<SerialCalls.Settled> done) {
+                done.accept(SerialCalls.Settled.of("{\"success\":true}"));
+            }
+
+            @Override
+            public boolean isProgram(LlmToolCall call) {
+                return false;
+            }
+
+            @Override
+            public void interrupt(LlmToolCall program, String why) {
+            }
+
+            @Override
+            public void cutOff(LlmToolCall program, boolean stopBody) {
+            }
+        });
+        List<LlmToolCall> second = List.of(tool("second"));
+        atOnce.run(List.of(tool("first")), new ToolPort.Sink() {
             @Override
             public void started(LlmToolCall call) {
             }
@@ -209,5 +221,35 @@ class SerialCallsTest {
         });
         assertTrue(results.containsKey("second"), "结算时当场收下的下一批照样执行");
         assertEquals(2, settles);
+    }
+
+    @Test
+    void synchronousResultsDoNotRecurse() {
+        SerialCalls atOnce = new SerialCalls(new SerialCalls.Port() {
+            @Override
+            public void invoke(LlmToolCall call, Consumer<SerialCalls.Settled> done) {
+                done.accept(SerialCalls.Settled.of("{\"success\":true}"));
+            }
+
+            @Override
+            public boolean isProgram(LlmToolCall call) {
+                return false;
+            }
+
+            @Override
+            public void interrupt(LlmToolCall program, String why) {
+            }
+
+            @Override
+            public void cutOff(LlmToolCall program, boolean stopBody) {
+            }
+        });
+        List<LlmToolCall> many = new ArrayList<>();
+        for (int i = 0; i < 20_000; i++) {
+            many.add(tool("c" + i));
+        }
+        atOnce.run(many, sink);
+        assertEquals(20_000, results.size());
+        assertEquals(1, settles);
     }
 }

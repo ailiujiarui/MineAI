@@ -24,8 +24,8 @@ import java.util.stream.Collectors;
 /**
  * 一条规则:一行字符串 {@code 动作(项 & 项 & !项)},与 Claude Code 的 {@code Tool(specifier)}
  * 同形。动词是 {@link Action.Kind#verb} 或 {@code *};项是信号名、方块/实体种类 id
- * ({@code minecraft:chest})、标签({@code #minecraft:beds})、某一只实体({@code entity:<uuid>})
- * 或 {@code *};{@code !} 取反。全仓只在这一个类里解析。
+ * ({@code minecraft:chest})、标签({@code #minecraft:beds})、某一只实体({@code entity:<uuid>})或 {@code *};{@code !} 取反。
+ * 全仓只在这一个类里解析。主人的东西用信号认({@code placed}:玩家放下的方块),不按地方圈。
  *
  * <p>{@code command} 的项不一样:除了 {@code *},每一项都是指令的根名({@code command(msg)}、
  * {@code command(!tp)}),认的是 {@link Action.CommandLine#names}。信号说的是方块与实体,一条指令没有它们,
@@ -320,7 +320,9 @@ public final class Rule {
             return id.equals(subjectId(a));
         }
 
-        /** "允许并记住"钉上的对象:指令是她打的那个根名,其余是 {@link #subjectId}。没有对象为 null。 */
+        /**
+         * "允许并记住"钉上的对象:指令是她打的那个根名,其余是 {@link #subjectId}。没有对象为 null。
+         */
         static String subject(Action a) {
             if (a.command() != null) {
                 return a.command().root();

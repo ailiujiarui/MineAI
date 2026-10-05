@@ -94,11 +94,11 @@ class McpConfigGuardTest {
 
     @Test
     void eachWitherLeavesTheRestAlone() {
-        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of("todowrite"), false);
+        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of("todo"), false);
 
         McpConfig moved = base.withEndpoint("0.0.0.0", 9000, 60);
         assertEquals("tok", moved.token());
-        assertEquals(List.of("todowrite"), moved.hiddenTools());
+        assertEquals(List.of("todo"), moved.hiddenTools());
         assertTrue(moved.enabled());
 
         McpConfig retokened = base.withToken("new");
@@ -108,19 +108,5 @@ class McpConfigGuardTest {
         McpConfig rehidden = base.withHiddenTools(List.of("a", "b"));
         assertEquals("tok", rehidden.token());
         assertEquals(300, rehidden.callTimeoutSeconds());
-    }
-
-    // ---- 不暴露的工具 ----
-
-    @Test
-    void anOlderFileKeepsSkillLoadHidden(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
-            throws java.io.IOException {
-        // 0.1.3 写下的出厂默认:skill_load 那时叫 load_skill。升级后它照样不对外接大脑露出来
-        java.nio.file.Path file = dir.resolve("mcp_server.json");
-        java.nio.file.Files.writeString(file, "{\"enabled\":false,\"hidden_tools\":[\"todowrite\",\"load_skill\"]}");
-        McpConfig read = McpConfig.load(file);
-        assertTrue(read.isHidden("skill_load"));
-        assertTrue(read.isHidden("todowrite"));
-        assertEquals(List.of("todowrite", "skill_load"), read.hiddenTools(), "只记现在的名字");
     }
 }

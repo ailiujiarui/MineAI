@@ -72,29 +72,32 @@ class CompanionRegistryTest {
 
     @Test
     void whatSheIsDoingSurvivesUnderItsName() {
-        // 命令派的活名字是"组 动作",重放用的工具是 numen:两样都得活过读档,接不回来时才说得出她受理的是什么
+        // 活的名字是派它的函数,重启后再跑的是那一行 Lua:两样都得活过读档,接不回来时才说得出她受理的是什么
         CompanionRegistry reg = new CompanionRegistry();
-        reg.put(A, entry("小焰", OWNER).doing("kaleidoscope cook", "numen",
-                "{\"command\":\"kaleidoscope cook 1 2 3 x\"}"));
+        reg.put(A, entry("小焰", OWNER).doing("kaleidoscope.pot.stir", "kaleidoscope.pot.stir({x = 1, y = 2, z = 3})"));
 
         CompanionRegistry.Entry back = roundTrip(reg).find(A);
 
-        assertEquals("kaleidoscope cook", back.taskName());
-        assertEquals("numen", back.taskTool());
-        assertEquals("{\"command\":\"kaleidoscope cook 1 2 3 x\"}", back.taskArgs());
+        assertEquals("kaleidoscope.pot.stir", back.taskName());
+        assertEquals("kaleidoscope.pot.stir({x = 1, y = 2, z = 3})", back.taskLua());
+        assertEquals("", back.taskOld());
     }
 
     @Test
-    void aTaskSavedBeforeItsNameWasRecordedIsNamedAfterItsTool() {
+    void aTaskSavedAsACommandLineByAnOlderVersionIsReadButNotAsLua() {
+        // 旧版本按一行命令记下的活(taskArgs):照原样读进来,只为说清它没接回来,不当成一行 Lua
         CompanionRegistry reg = new CompanionRegistry();
-        reg.put(A, entry("小焰", OWNER).doing("mine", "mine", "{}"));
+        reg.put(A, entry("小焰", OWNER).doing("kaleidoscope cook", "kaleidoscope.pot.stir({x = 1, y = 2, z = 3})"));
         CompoundTag tag = reg.save(new CompoundTag(), null);
-        tag.getCompound("companions").getCompound(A.toString()).remove("taskName");
+        CompoundTag saved = tag.getCompound("companions").getCompound(A.toString());
+        saved.remove("taskLua");
+        saved.putString("taskArgs", "{\"command\":\"kaleidoscope cook 1 2 3 x\"}");
 
         CompanionRegistry.Entry back = CompanionRegistry.load(tag, null).find(A);
 
-        assertEquals("mine", back.taskName(), "那时的活由工具派下,名字就是工具名");
-        assertEquals("mine", back.taskTool());
+        assertEquals("kaleidoscope cook", back.taskName());
+        assertEquals("", back.taskLua(), "an old command line is not a line of Lua");
+        assertEquals("{\"command\":\"kaleidoscope cook 1 2 3 x\"}", back.taskOld());
     }
 
     @Test
@@ -163,31 +166,6 @@ class CompanionRegistryTest {
         assertTrue(reg.pendingDead().isEmpty(), "复活了就不该再排队等复活");
         assertEquals(0L, reg.find(A).diedAt());
         assertEquals("", reg.find(A).deathCause());
-    }
-
-    @Test
-    void herThrowawayListSurvivesAndAnOldSaveUnderTheScaffoldKeyIsReadOnce() {
-        CompanionRegistry reg = new CompanionRegistry();
-        reg.put(A, entry("小焰", OWNER).withThrowaway(java.util.List.of()));
-        reg.put(B, entry("阿岩", OTHER_OWNER));
-        CompanionRegistry back = roundTrip(reg);
-        assertEquals(java.util.List.of(), back.find(A).throwaway(), "清空是她的决定,读档后还是空的");
-        assertEquals(CompanionRegistry.DEFAULT_THROWAWAY, back.find(B).throwaway());
-
-        // 改名 throwaway 之前的存档:清单在 "scaffold" 键下,出厂标签还叫 #numen:scaffolds
-        CompoundTag tag = reg.save(new CompoundTag(), null);
-        CompoundTag old = tag.getCompound("companions").getCompound(A.toString());
-        old.remove("throwaway");
-        net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
-        list.add(net.minecraft.nbt.StringTag.valueOf("minecraft:dirt"));
-        list.add(net.minecraft.nbt.StringTag.valueOf("#numen:scaffolds"));
-        old.put("scaffold", list);
-        CompanionRegistry migrated = CompanionRegistry.load(tag, null);
-        assertEquals(java.util.List.of("minecraft:dirt", "#numen:throwaway"), migrated.find(A).throwaway(),
-                "旧键下她定过的清单照样读出来,出厂标签换成现在的名字");
-        CompoundTag saved = migrated.save(new CompoundTag(), null).getCompound("companions").getCompound(A.toString());
-        assertFalse(saved.contains("scaffold"), "存档只写新键");
-        assertTrue(saved.contains("throwaway"));
     }
 
         @Test

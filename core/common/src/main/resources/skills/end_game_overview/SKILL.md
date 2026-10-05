@@ -11,9 +11,9 @@ Your owner has asked you to **defeat the Ender Dragon** — the canonical end-ga
 
 The full path from "fresh world" to "dead dragon" spans dozens of actions across three dimensions. Don't plan it all in one turn:
 
-1. **Use `todowrite`** to write the 6 mainline phases as a top-level todo list, phase 1 `in_progress`.
-2. **Load the matching skill** with `skill_load` only when you actually start that phase — loading all skills up front wastes tokens.
-3. **Verify each phase's "done when" with `status_self`** before marking it `completed` — never assume an item is in your inventory.
+1. **Use the `todo` tool** to write the 6 mainline phases as a top-level plan, phase 1 `[>]`.
+2. **Load the matching skill** with the skill tool only when you actually start that phase — loading all skills up front wastes tokens.
+3. **Verify each phase's "done when" with `numen.status.self`** before marking it `completed` — never assume an item is in your inventory.
 4. Keep exactly one phase `in_progress` at a time.
 
 ## The 6 mainline phases
@@ -33,15 +33,15 @@ One **support skill**: `combat_basics` — load before any combat-heavy phase (b
 
 ## What you can do yourself
 
-You have the full toolset: `move_goto` (navigation digs, bridges and pillars on its own — but only digs what your held tool can harvest, so travel with a pickaxe in hand), `work_mine` (finds and travels to blocks by id, or digs exactly the groups a `scan_blocks` listed), `build place` (one block at explicit coords, the way a player puts it down) and the rest of the `build` group for structures (load `building_design` first), `work collect`, `gear wear`, `inv eat` (your healing), `fight attack` (it picks melee or bow/crossbow by what it can reach), `use block`/`use entity` (native crosshair use/attack on blocks, air, entities — flint & steel, ender eyes, levers, …), `locate structure` (strongholds, fortresses, #village, …). For any container or machine, the GUI primitives: `use block` to open it, `use gui` to read the slots, `use shift` / `use transfer` to move items one move per line (deposit / take / load / swap), `use close` when done. **Crafting** = `inv craft` (2×2 on your own, 3×3 at a crafting table you place); **smelting** = a furnace loaded with `use shift` (input + fuel), then a `task timer`. Plus `inv drop`, `task timer` (furnace batches, nightfall), and perception (`status_self` — HP, equipment AND full inventory in one call — `status world`, `scan_blocks`, `scan_entities`, `scan_block`). Load the `containers` skill for the GUI/crafting/smelting details.
+You have the full toolset: `numen.move.to` (plans a walk with `numen.route.plan` and walks it with `numen.move.go`; with `costs = {dig = true, place = true}` navigation digs, bridges and pillars on its own — but only digs what your held tool can harvest, so travel with a pickaxe in hand; `numen.move.flee` gets away from something), `numen.work.dig` (digs what your hand reaches from where you stand of the blocks you hand it: a scanned Block only while its cell still holds that block, a Pos whatever it holds; it never walks or picks up — `numen.move.to` there with arrive "dig" first, `numen.work.collect` the drops after; `numen.work.mine` does all three until none is left), `numen.build.place` (the Blocks you give it, within reach: one block, or a whole structure drawn with `numen.shape`; `numen.build.raise` walks the site and builds all of it; load `building_design` first for structures), `numen.work.collect`, `numen.gear.hold`, `numen.gear.wear`, `numen.inv.eat` (your healing), `numen.fight.attack` (it picks melee or bow/crossbow by what it can reach), `numen.use.block`/`numen.use.entity` (native crosshair use/attack on blocks, air, entities — flint & steel, ender eyes, levers, …), `numen.locate.structure` (strongholds, fortresses, #village, …). For any container or machine, the GUI primitives: `numen.use.block` to open it, `numen.gui.view` to read the slots, `numen.gui.quick` / `numen.gui.move` to move items one move per line (deposit / take / load / swap), `numen.gui.close` when done. **Crafting** = `numen.inv.make` (2×2 in your own grid, 3×3 at a crafting table it finds or puts down); **smelting** = `numen.inv.smelt`, or a furnace loaded with `numen.gui.put` (input + fuel) and a `numen.task.timer` to come back. Plus `numen.inv.drop`, `numen.task.timer` (furnace batches, nightfall), and perception (`numen.status.self` — HP, equipment AND full inventory in one call — `numen.status.world`, `numen.scan.blocks`, `numen.scan.entities`, `numen.scan.block`). Load the `containers` skill for the GUI/crafting/smelting details.
 
 The whole route is therefore yours to execute autonomously. You can drive almost any GUI block this way — chests, furnaces, crafting tables, brewing stands, modded machines. The exception is picking an enchantment at an enchanting table (the enchant choice is a menu button, not a slot you can move items into): if the owner offers to enchant your gear, accept; never plan to enchant yourself.
 
 ## When the owner narrows the goal
 
-If the owner asks for something more focused — *"just get to the Nether"*, *"find a stronghold"* — skip irrelevant phases and load only the skill(s) you need. Phases assume the previous phase's inventory; check `status_self` and backfill gaps instead of blindly starting from phase 1.
+If the owner asks for something more focused — *"just get to the Nether"*, *"find a stronghold"* — skip irrelevant phases and load only the skill(s) you need. Phases assume the previous phase's inventory; check `numen.status.self` and backfill gaps instead of blindly starting from phase 1.
 
 ## What to load next
 
-Fresh world, no gear: `skill_load(name="tier_progression")`.
+Fresh world, no gear: load the `tier_progression` skill.
 

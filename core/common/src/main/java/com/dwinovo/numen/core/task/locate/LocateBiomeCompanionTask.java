@@ -23,8 +23,6 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Climate;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Predicate;
 
 /**
@@ -136,7 +134,7 @@ public final class LocateBiomeCompanionTask extends AbstractCompanionTask<Locate
                             ? " — did you mean " + suggestion + "?"
                             : " — use a biome id like minecraft:warped_forest / "
                                     + "minecraft:desert, or a tag like #minecraft:is_forest; "
-                                    + "skill_load(world_atlas) lists every id");
+                                    + "the world_atlas skill lists every id");
             return null;
         }
         ResourceKey<Biome> key = ResourceKey.create(Registries.BIOME, id);
@@ -207,24 +205,10 @@ public final class LocateBiomeCompanionTask extends AbstractCompanionTask<Locate
     protected void cleanup() {}
 
     @Override
-    protected Map<String, Object> resultData() {
-        Map<String, Object> data = new HashMap<>();
-        data.put("biome", r.biome);
-        if (best != null) {
-            BlockPos me = player.blockPosition();
-            int dx = best.getX() - me.getX();
-            int dz = best.getZ() - me.getZ();
-            int dist = (int) Math.sqrt((double) dx * dx + (double) dz * dz);
-            data.put("found", true);
-            data.put("x", best.getX());
-            data.put("y", best.getY());
-            data.put("z", best.getZ());
-            data.put("direction", CompassUtil.compass(dx, dz));
-            data.put("horizontal_distance", dist);
-        } else {
-            data.put("found", false);
-        }
-        return data;
+    protected Located value() {
+        String dim = player.level().dimension().location().toString();
+        return best != null ? Located.at(best, player.blockPosition(), dim)
+                : Located.none(Math.min(ring, SEARCH_RADIUS_RINGS) * SAMPLE_STEP_BLOCKS, dim);
     }
 
     @Override
@@ -237,9 +221,9 @@ public final class LocateBiomeCompanionTask extends AbstractCompanionTask<Locate
             String dir = CompassUtil.compass(dx, dz);
             return "nearest " + r.biome + " around " + best.getX() + ","
                     + best.getY() + "," + best.getZ() + " (" + dir + ", ~" + dist
-                    + " blocks; accurate to ~" + SAMPLE_STEP_BLOCKS + "). move_goto the "
-                    + "x/z (pick a sensible y for the terrain), then confirm with "
-                    + "scan_blocks or scan_entities.";
+                    + " blocks; accurate to ~" + SAMPLE_STEP_BLOCKS + "). " + com.dwinovo.numen.core.nav.NavText.gotoCall(
+                    new com.dwinovo.numen.sdk.Place(best.getX(), null, best.getZ()), "") + " goes there (it finds the height on its own), then confirm with "
+                    + "`numen.scan.blocks` or `numen.scan.entities`.";
         }
         String dim = player.level().dimension().location().getPath();
         int searched = Math.min(ring, SEARCH_RADIUS_RINGS) * SAMPLE_STEP_BLOCKS;

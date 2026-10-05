@@ -123,9 +123,9 @@ class MovesTest {
     }
 
     @Test
-    void aWallIsDugOnlyWhenTheSpecMayAlterTerrain() {
+    void aWallIsDugOnlyWhenTheSpecMayDig() {
         TestWorld world = ground().fill(1, Y, -4, 1, Y + 1, 4, Blocks.STONE.defaultBlockState());
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.WALK, defaults(), world, AT, EAST).reason());
+        assertEquals(Reason.NO_DIGGING, fails(MoveKind.WALK, defaults(), world, AT, EAST).reason());
         Maneuver m = holds(MoveKind.WALK, Fixtures.model(natural()), world, AT, EAST);
         assertEquals(2, m.alterations());
         assertTrue(m.edits().stream().allMatch(e -> e instanceof Edit.Dig));
@@ -133,9 +133,9 @@ class MovesTest {
     }
 
     @Test
-    void aGapIsBridgedAndNotAlteringTerrainIsToldApartFromHavingNoBlocks() {
+    void aGapIsBridgedAndNotPlacingIsToldApartFromHavingNoBlocks() {
         TestWorld world = new TestWorld().floor(-4, -4, 0, 4, Y - 1);
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.WALK, withCobble(RouteSpec.defaults()), world, AT, EAST).reason(),
+        assertEquals(Reason.NO_PLACING, fails(MoveKind.WALK, withCobble(RouteSpec.defaults()), world, AT, EAST).reason(),
                 "有料但规格不许改地形");
         assertEquals(Reason.NO_MATERIALS, fails(MoveKind.WALK, Fixtures.model(natural()), world, AT, EAST).reason(),
                 "许改地形但身上没料");
@@ -163,7 +163,7 @@ class MovesTest {
     // ==================== 门 ====================
 
     @Test
-    void aClosedWoodenDoorIsOpenedOnTheWayEvenWhenTheRouteMayNotAlterTerrain() {
+    void aClosedWoodenDoorIsOpenedOnTheWayEvenWhenTheRouteMayNotDig() {
         TestWorld world = withDoor(ground(), AT.east(), Blocks.OAK_DOOR);
         Maneuver m = holds(MoveKind.WALK, defaults(), world, AT, EAST);
         assertEquals(1, doors(m));
@@ -173,7 +173,7 @@ class MovesTest {
     @Test
     void aClosedIronDoorWithoutRedstoneIsAWallButAnOpenOneIsPassable() {
         TestWorld closed = withDoor(ground(), AT.east(), Blocks.IRON_DOOR);
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.WALK, defaults(), closed, AT, EAST).reason());
+        assertEquals(Reason.NO_DIGGING, fails(MoveKind.WALK, defaults(), closed, AT, EAST).reason());
         TestWorld powered = ground()
                 .set(AT.east(), door(Blocks.IRON_DOOR, DoubleBlockHalf.LOWER).setValue(DoorBlock.OPEN, true))
                 .set(AT.east().above(), door(Blocks.IRON_DOOR, DoubleBlockHalf.UPPER).setValue(DoorBlock.OPEN, true));
@@ -223,7 +223,7 @@ class MovesTest {
         TestWorld block = ground().set(AT.east(), Blocks.STONE.defaultBlockState());
         assertTrue(holds(MoveKind.ASCEND, defaults(), block, AT, EAST).jump());
         TestWorld nothing = ground();
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.ASCEND, withCobble(RouteSpec.defaults()), nothing, AT, EAST).reason());
+        assertEquals(Reason.NO_PLACING, fails(MoveKind.ASCEND, withCobble(RouteSpec.defaults()), nothing, AT, EAST).reason());
         Maneuver placed = holds(MoveKind.ASCEND, withCobble(natural()), nothing, AT, EAST);
         assertEquals(AT.east(), assertInstanceOf(Edit.Place.class, placed.edits().get(0)).pos());
     }
@@ -231,7 +231,7 @@ class MovesTest {
     @Test
     void aStepUnderALowCeilingNeedsTheCeilingDug() {
         TestWorld world = ground().set(AT.east(), Blocks.STONE.defaultBlockState()).set(0, Y + 2, 0, Blocks.STONE.defaultBlockState());
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.ASCEND, defaults(), world, AT, EAST).reason(), "起跳会撞头");
+        assertEquals(Reason.NO_DIGGING, fails(MoveKind.ASCEND, defaults(), world, AT, EAST).reason(), "起跳会撞头");
         Maneuver m = holds(MoveKind.ASCEND, Fixtures.model(natural()), world, AT, EAST);
         assertTrue(m.edits().stream().anyMatch(e -> e.pos().equals(new BlockPos(0, Y + 2, 0))));
     }
@@ -281,7 +281,7 @@ class MovesTest {
     }
 
     @Test
-    void aFallTooDeepIsCaughtWithWaterOnlyWhenABucketIsCarriedAndTheSpecMayAlter() {
+    void aFallTooDeepIsCaughtWithWaterOnlyWhenABucketIsCarriedAndTheSpecMayPlace() {
         TestWorld cliff = ledge(12);
         BodySnapshot bucket = Fixtures.carrying(0, new ItemStack(net.minecraft.world.item.Items.WATER_BUCKET));
         CostModel natural = CostModel.of(natural(), bucket, TerrainPolicy.ALLOW_ALL, Materials.NONE, Threats.NONE);
@@ -293,7 +293,7 @@ class MovesTest {
         assertEquals(Reason.TOO_FAR_TO_FALL, fails(MoveKind.FALL, Fixtures.model(natural()), cliff, AT, EAST).reason());
         // 带着水桶,但规格不许改地形
         CostModel none = CostModel.of(RouteSpec.defaults(), bucket, TerrainPolicy.ALLOW_ALL, Materials.NONE, Threats.NONE);
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.FALL, none, cliff, AT, EAST).reason());
+        assertEquals(Reason.NO_PLACING, fails(MoveKind.FALL, none, cliff, AT, EAST).reason());
     }
 
     @Test
@@ -352,7 +352,7 @@ class MovesTest {
         RouteSpec spec = RouteSpec.defaults().edit().parkour(true).build();
         assertTrue(holds(MoveKind.PARKOUR, Fixtures.model(spec), gap(3), AT, EAST).sprint());
         BodySnapshot hungry = new BodySnapshot(Vanilla.SURVIVAL, GameType.SURVIVAL, 20, 3, 1, 6, 0, List.of(),
-                BodySnapshot.Mining.VANILLA);
+                BodySnapshot.Mining.VANILLA, Breath.VANILLA);
         CostModel model = CostModel.of(spec, hungry, TerrainPolicy.ALLOW_ALL, Materials.NONE, Threats.NONE);
         assertEquals(Reason.NO_SPRINT, fails(MoveKind.PARKOUR, model, gap(3), AT, EAST).reason());
     }
@@ -361,7 +361,7 @@ class MovesTest {
 
     @Test
     void pillaringNeedsBothPermissionAndBlocksAndNotWater() {
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.PILLAR, withCobble(RouteSpec.defaults()), ground(), AT, Heading.UP).reason());
+        assertEquals(Reason.NO_PLACING, fails(MoveKind.PILLAR, withCobble(RouteSpec.defaults()), ground(), AT, Heading.UP).reason());
         assertEquals(Reason.NO_MATERIALS, fails(MoveKind.PILLAR, Fixtures.model(natural()), ground(), AT, Heading.UP).reason());
         Maneuver m = holds(MoveKind.PILLAR, withCobble(natural()), ground(), AT, Heading.UP);
         assertEquals(AT.above(), m.to());
@@ -390,14 +390,14 @@ class MovesTest {
         }
         assertTrue(dig >= 0, "挖开头顶那一格:" + edits);
         assertTrue(place > dig, "挖开之后才垫块:" + edits);
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.PILLAR, withCobble(RouteSpec.defaults()), world, AT, Heading.UP).reason());
+        assertEquals(Reason.NO_DIGGING, fails(MoveKind.PILLAR, withCobble(RouteSpec.defaults()), world, AT, Heading.UP).reason());
     }
 
     @Test
     void diggingDownLandsOneStepLowerOrNotAtAll() {
         TestWorld world = ground().set(0, Y - 3, 0, Blocks.STONE.defaultBlockState());
         world.set(0, Y - 2, 0, Blocks.STONE.defaultBlockState());
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.DOWNWARD, defaults(), world, AT, Heading.DOWN).reason());
+        assertEquals(Reason.NO_DIGGING, fails(MoveKind.DOWNWARD, defaults(), world, AT, Heading.DOWN).reason());
         Maneuver m = holds(MoveKind.DOWNWARD, Fixtures.model(natural()), world, AT, Heading.DOWN);
         assertEquals(AT.below(), m.to());
         assertEquals(AT.below(), m.edits().get(0).pos());
@@ -431,7 +431,7 @@ class MovesTest {
                 .setValue(StairBlock.FACING, Direction.EAST).setValue(StairBlock.HALF, Half.TOP));
         Premise.Fails f = fails(MoveKind.CLIMB, defaults(), world, AT.above(), Heading.UP);
         assertEquals(new BlockPos(0, Y + 3, 0), f.cell(), "卡在屋顶楼梯那一格");
-        assertEquals(Reason.NEEDS_ALTER, f.reason());
+        assertEquals(Reason.NO_DIGGING, f.reason());
     }
 
     @Test
@@ -531,14 +531,14 @@ class MovesTest {
         // 一池两格深的静水,水面与岸齐平:穿冰霜行者的身体踩着水面走过去,脚在水面那一层之上
         TestWorld world = pool(2);
         BodySnapshot frost = new BodySnapshot(Vanilla.FROST_WALKER, GameType.SURVIVAL, 20, 3, 1, 20, 0, List.of(),
-                BodySnapshot.Mining.VANILLA);
+                BodySnapshot.Mining.VANILLA, Breath.VANILLA);
         CostModel model = CostModel.of(RouteSpec.defaults(), frost, TerrainPolicy.ALLOW_ALL, Materials.NONE, Threats.NONE);
         BlockPos shore = new BlockPos(-5, Y, 0);
         Maneuver m = holds(MoveKind.WALK, model, world, shore, EAST);
         assertTrue(m.landing().grounded(), "站在冻住的水面上");
         assertEquals(Y, m.landing().feetY(), 1e-9);
         // 不穿的身体在同一处平走过去就得在水面上搭桥
-        assertEquals(Reason.NEEDS_ALTER, fails(MoveKind.WALK, defaults(), world, shore, EAST).reason());
+        assertEquals(Reason.NO_PLACING, fails(MoveKind.WALK, defaults(), world, shore, EAST).reason());
     }
 
     // ==================== 细雪 ====================
@@ -549,7 +549,8 @@ class MovesTest {
         // 没穿皮靴,细雪托不住脚,这一步走不成
         fails(MoveKind.WALK, defaults(), world, AT, EAST);
         BodySnapshot boots = new BodySnapshot(Vanilla.LEATHER_BOOTS, GameType.SURVIVAL, 20, 3, 1, 20, 0,
-                List.of(new ItemStack(net.minecraft.world.item.Items.LEATHER_BOOTS)), BodySnapshot.Mining.VANILLA);
+                List.of(new ItemStack(net.minecraft.world.item.Items.LEATHER_BOOTS)), BodySnapshot.Mining.VANILLA,
+                Breath.VANILLA);
         CostModel model = CostModel.of(RouteSpec.defaults(), boots, TerrainPolicy.ALLOW_ALL, Materials.NONE, Threats.NONE);
         Maneuver m = holds(MoveKind.WALK, model, world, AT, EAST);
         assertEquals(Y, m.landing().feetY(), 1e-9, "站在细雪顶上");

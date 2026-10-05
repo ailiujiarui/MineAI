@@ -31,7 +31,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 public class BudgetGameTests {
 
     private static final String BATCH = "pathing_budget";
-    private static final RouteSpec NATURAL = RouteSpec.defaults().edit().alter(RouteSpec.Alter.NATURAL).build();
+    private static final RouteSpec NATURAL = RouteSpec.defaults().edit().changes(true).consent(false).build();
 
     @BeforeBatch(batch = BATCH)
     public static void settle(ServerLevel level) {
@@ -87,22 +87,22 @@ public class BudgetGameTests {
     }
 
     /**
-     * 身前是三十五格厚的整片石头(顶到场地的屋顶,翻不过去),去处在石头里,手上一把钻石镐,许改自然地形:每次搜索只许展开
-     * 八千个节点,一次搜不到头(规划说预算用完),照样一段一段挖过去,挖到去处。
+     * 身前是九十五格厚的整片石头(顶到场地的屋顶,翻不过去),去处在石头里八十九格深,手上一把钻石镐,许挖许放:每次搜索
+     * 只许展开八千个节点,一次搜不到头(规划说预算用完),照样一段一段挖过去,挖到去处。
      */
-    @GameTest(template = LONG, batch = BATCH, timeoutTicks = 4000)
+    @GameTest(template = LONG, batch = BATCH, timeoutTicks = 7000)
     public static void tunnels_a_long_way_by_partial_routes(GameTestHelper helper) {
         Trial t = new Trial(helper).floor();
-        t.fill(6, 1, 0, 40, 14, 23, Blocks.STONE);
+        t.fill(6, 1, 0, 100, 14, 23, Blocks.STONE);
         TestBody body = t.body(2, 1, 12);
         body.getInventory().setItem(0, new ItemStack(Items.DIAMOND_PICKAXE));
-        NavRequest request = NavRequest.to(Goals.at(t.at(34, 1, 12)), NATURAL).withBudget(8000);
+        NavRequest request = NavRequest.to(Goals.at(t.at(94, 1, 12)), NATURAL).withBudget(8000);
         t.plan(body, new PlanQuery(request.goal(), request.spec(), 1, request.budget()), plan -> {
             if (!(plan.outcome() instanceof Outcome.OutOfBudget)) {
                 throw new GameTestAssertException("一次搜索应当搜不到头:" + plan.outcome() + " " + plan.candidates().size());
             }
-            t.go(body, request).within(3800).paced(2).arrives().then(r -> {
-                if (r.report.bill().digs().size() < 2 * 28) {
+            t.go(body, request).within(6800).paced(2).arrives().then(r -> {
+                if (r.report.bill().digs().size() < 2 * 88) {
                     throw new GameTestAssertException("没挖出隧道:" + r.report.bill().digs().size() + " 格");
                 }
             });
@@ -110,7 +110,7 @@ public class BudgetGameTests {
     }
 
     /**
-     * 两块基岩台子之间一百五十格宽的空隙(跳下去摔不起,底下的地也挖不出路),身上有三叠圆石,许改自然地形:过去只能一路搭桥,
+     * 两块基岩台子之间一百五十格宽的空隙(跳下去摔不起,底下的地也挖不出路),身上有三叠圆石,许挖许放:过去只能一路搭桥,
      * 对岸远在一次搜索的快照之外。许放块时搜索在空中四面铺开;每段搜索展开到先交半程的节点数就交出朝对岸的一段,她先走这一段,
      * 快走完时从桥头(快照里还没有那块桥)接着搜下一段。起步那段每刻按真实服务器的五十毫秒走,四十刻(两秒)以内就动起来;
      * 一段段搭过去,到对岸。
