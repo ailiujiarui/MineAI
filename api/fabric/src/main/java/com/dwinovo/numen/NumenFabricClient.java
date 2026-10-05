@@ -79,6 +79,7 @@ public class NumenFabricClient implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(com.dwinovo.numen.client.NumenKeys.COMPANION_WHEEL);
         KeyBindingHelper.registerKeyBinding(com.dwinovo.numen.client.NumenKeys.TALK_COMPANION);
         KeyBindingHelper.registerKeyBinding(com.dwinovo.numen.client.NumenKeys.QUICK_VOICE);
+        KeyBindingHelper.registerKeyBinding(com.dwinovo.numen.client.NumenKeys.WATCH_COMPANION);
 
         // HUD: 快捷对话提醒——准星指着同伴时浮「按 [键] 对话」;
         // toast 横幅同层(错误分类话术等,玩家不开面板也看得见)。
@@ -99,6 +100,7 @@ public class NumenFabricClient implements ClientModInitializer {
         });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK
                 .register(client -> {
+                    com.dwinovo.numen.client.spectator.SpectatorClient.tick();
                     com.dwinovo.numen.client.NumenKeys.tick();
                     com.dwinovo.numen.client.agent.AgentLoopRegistry.tickAll();
                     com.dwinovo.numen.mcp.server.McpMode.instance().clientTick();
@@ -106,6 +108,7 @@ public class NumenFabricClient implements ClientModInitializer {
 
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT
                 .register((handler, client) -> {
+                    com.dwinovo.numen.client.spectator.SpectatorClient.reset();
                     // 先掐大脑:作废在飞回合与工具链,别让上一个存档的回合漂进下一个存档
                     com.dwinovo.numen.client.agent.AgentLoopRegistry.quiesceAll();
                     com.dwinovo.numen.client.data.ClientNumenState.clear();

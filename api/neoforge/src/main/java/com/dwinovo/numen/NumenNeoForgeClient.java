@@ -91,6 +91,7 @@ public class NumenNeoForgeClient {
         event.register(com.dwinovo.numen.client.NumenKeys.COMPANION_WHEEL);
         event.register(com.dwinovo.numen.client.NumenKeys.TALK_COMPANION);
         event.register(com.dwinovo.numen.client.NumenKeys.QUICK_VOICE);
+        event.register(com.dwinovo.numen.client.NumenKeys.WATCH_COMPANION);
     }
 
     static void registerGuiLayers(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) {
@@ -122,12 +123,14 @@ public class NumenNeoForgeClient {
     }
 
     static void onClientTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        com.dwinovo.numen.client.spectator.SpectatorClient.tick();
         com.dwinovo.numen.client.NumenKeys.tick();
         com.dwinovo.numen.client.agent.AgentLoopRegistry.tickAll();
         com.dwinovo.numen.mcp.server.McpMode.instance().clientTick();
     }
 
     static void onLoggingOut(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+        com.dwinovo.numen.client.spectator.SpectatorClient.reset();
         // 先掐大脑:作废在飞回合与工具链,别让上一个存档的回合漂进下一个存档
         com.dwinovo.numen.client.agent.AgentLoopRegistry.quiesceAll();
         com.dwinovo.numen.client.data.ClientNumenState.clear();

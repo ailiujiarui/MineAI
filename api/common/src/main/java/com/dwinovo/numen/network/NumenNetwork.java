@@ -174,6 +174,19 @@ public final class NumenNetwork {
     }
 
     public static void register() {
+        toServer(
+                com.dwinovo.numen.network.payload.SpectatorRequestPayload.TYPE,
+                com.dwinovo.numen.network.payload.SpectatorRequestPayload.STREAM_CODEC,
+                com.dwinovo.numen.network.payload.SpectatorRequestPayload::handle);
+        toClient(
+                com.dwinovo.numen.network.payload.SpectatorStatePayload.TYPE,
+                com.dwinovo.numen.network.payload.SpectatorStatePayload.STREAM_CODEC,
+                com.dwinovo.numen.network.payload.SpectatorStatePayload::handle);
+        toClient(
+                com.dwinovo.numen.network.payload.SpectatorMenuPayload.TYPE,
+                com.dwinovo.numen.network.payload.SpectatorMenuPayload.STREAM_CODEC,
+                com.dwinovo.numen.network.payload.SpectatorMenuPayload::handle);
+
         // 两个方向上一条超过单包上限的消息的片(见 Fragments):对端收齐拼回,交给原来的处理器。
         toServer(FragmentPayload.TO_SERVER, FragmentPayload.TO_SERVER_CODEC, NumenNetwork::fragmentFromClient);
         toClient(FragmentPayload.TO_CLIENT, FragmentPayload.TO_CLIENT_CODEC, NumenNetwork::fragmentFromServer);

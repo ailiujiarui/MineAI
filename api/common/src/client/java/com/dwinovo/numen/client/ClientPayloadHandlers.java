@@ -40,6 +40,8 @@ public final class ClientPayloadHandlers {
      * 客户端启动钩子上。
      */
     public static void install() {
+        ClientPayloadSink.receiveSpectatorState = com.dwinovo.numen.client.spectator.SpectatorClient::handle;
+        ClientPayloadSink.receiveSpectatorMenu = com.dwinovo.numen.spectator.SpectatorMenuClient::handle;
         ClientPayloadSink.companionList = ClientPayloadHandlers::handleCompanionList;
         // getOrCreate:跟死亡/事件同理 —— 这是状态推送,只在槽变化的那一刻发一次,
         // loop 还没造出来就丢掉的话,客户端永远不会再听说这件活。

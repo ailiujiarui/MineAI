@@ -4,6 +4,7 @@ import com.dwinovo.numen.api.NumenApi;
 import com.dwinovo.numen.api.NumenPlugins;
 import com.dwinovo.numen.core.WorkProfile;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.spectator.OwnerLocation;
 import com.dwinovo.numen.sdk.Doc;
 import com.dwinovo.numen.sdk.Example;
 import com.dwinovo.numen.sdk.Fn;
@@ -15,7 +16,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.structure.Structure;
@@ -139,17 +140,19 @@ public final class StatusApi {
     public static Owner owner(ServerCall call) {
         NumenPlayer self = call.her();
         // 全服去找:原版 getOwner() 只在宠物所在的那一层世界里找,别的维度的主人会被当成不在线
-        Player player = self.getOwnerUuid() == null ? null : self.resolveOwnerPlayer();
+        ServerPlayer player = self.getOwnerUuid() == null ? null : self.resolveOwnerPlayer();
         if (player == null) {
             return new Owner(false, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
                     Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
                     Optional.empty(), Optional.empty(), Optional.empty());
         }
-        boolean sameDimension = self.level().dimension().equals(player.level().dimension());
+        OwnerLocation location = OwnerLocation.of(player);
+        boolean sameDimension = self.level().dimension().equals(location.level().dimension());
         return new Owner(true, Optional.of(player.getId()), Optional.of(player.getName().getString()),
-                Optional.of(player.position()),
-                sameDimension ? Optional.of(Math.round(self.distanceTo(player) * 10.0) / 10.0) : Optional.empty(),
-                Optional.of(sameDimension), Optional.of(player.level().dimension().location().toString()),
+                Optional.of(location.position()),
+                sameDimension ? Optional.of(Math.round(self.position().distanceTo(location.position()) * 10.0) / 10.0)
+                        : Optional.empty(),
+                Optional.of(sameDimension), Optional.of(location.level().dimension().location().toString()),
                 Optional.of((double) player.getHealth()), Optional.of((double) player.getMaxHealth()),
                 Optional.of(player.getFoodData().getFoodLevel()),
                 Optional.of((double) player.getFoodData().getSaturationLevel()),

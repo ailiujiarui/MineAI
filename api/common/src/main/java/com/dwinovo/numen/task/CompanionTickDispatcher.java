@@ -149,7 +149,8 @@ public final class CompanionTickDispatcher {
                 NumenPlayer.OwnerHurt hurt = ap.pollOwnerHurt(ownerPlayer, server.getTickCount());
                 if (hurt != null) {
                     com.dwinovo.numen.event.NumenEvents.ownerHurt(ap, hurt.attacker(),
-                            hurt.hp(), hurt.maxHp(), ap.distanceTo(ownerPlayer), hurt.urgent());
+                            hurt.hp(), hurt.maxHp(), (float) ap.position().distanceTo(
+                                    com.dwinovo.numen.spectator.OwnerLocation.of(ownerPlayer).position()), hurt.urgent());
                 }
                 // 等主人点头的那条征询:主人下线或到点就按拒绝收尾,发起的任务下一刻读到结论。
                 com.dwinovo.numen.permission.ConsentDesk.of(ap).tick();
@@ -181,8 +182,10 @@ public final class CompanionTickDispatcher {
                     TaskPersistence.replay(ap, left);
                 }
                 brain.tick(ap);
+                com.dwinovo.numen.spectator.SpectatorMenuBridge.tick(ap);
             }
         }
+        com.dwinovo.numen.spectator.ServerSpectatorSessions.tick(server);
     }
 
     /**
