@@ -55,6 +55,7 @@ public final class Ae2CraftTool implements NumenTool {
         String state = "calculating";
         String detail = "Calculating only; no CPU job has been submitted yet.";
         ICraftingLink link;
+        CraftingCPUCluster cpu;
         long bytes;
 
         Request(NumenPlayer body, BlockPos pos, IGridNode node, AEItemKey key, long count,
@@ -79,6 +80,13 @@ public final class Ae2CraftTool implements NumenTool {
             data.put("count", count);
             data.put("bytes", bytes);
             if (link != null) data.put("job_id", link.getCraftingID().toString());
+            if (cpu != null) {
+                var status = cpu.getJobStatus();
+                if (status != null) {
+                    data.put("progress", status.progress());
+                    data.put("total", status.totalItems());
+                }
+            }
             return data;
         }
 
@@ -226,6 +234,7 @@ public final class Ae2CraftTool implements NumenTool {
                     // AE2 独立 link 默认没有 nexus,markDone 不记完成标志。只挂 CPU 端的 nexus
                     // 保留终端作业的回库语义(insert 没有 requester 仍返回 0),同时接收完成/取消标志。
                     ((CraftingLink) r.link).setNexus(new CraftingLinkNexus(r.link.getCraftingID()));
+                    r.cpu = cpu;
                     r.state = "submitted";
                     r.detail = "CPU accepted the job; not completed. Query request_id; outputs will return to ME storage.";
                 } else if (r.link.isCanceled()) {
