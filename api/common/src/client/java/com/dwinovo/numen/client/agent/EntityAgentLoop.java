@@ -510,8 +510,9 @@ public final class EntityAgentLoop {
      * <p>派发一个一次性的 {@code verify} 调用,读回执里的 {@code verified}。走 {@link ClientToolContext}
      * 直发,不占循环那个串行工具队列——这一步发生在一次 run 收尾之后、下一次 run 开始之前。
      *
-     * <p>放行优先:工具不在册、派发抛错、超时,都当已验证并把原因写进 detail。只有世界明确回
-     * {@code verified:false} 才拦。
+     * <p>放行优先:工具不在册、派发抛错、超时,都当已验证并把原因写进 detail(宿主没能力量,不该卡死)。
+     * 但回执里读不出判词时<b>不</b>放行——工具在、只是没回答,就按"没核对上"交回 {@link GoalVerifier.Result#unmeasured},
+     * 由目标管家不收工、推一轮续跑。
      */
     private void verifyGoalClaim(GoalState goal, String claim, Consumer<GoalVerifier.Result> onDone) {
         NumenTool tool = ToolRegistry.resolve("verify");
@@ -555,7 +556,7 @@ public final class EntityAgentLoop {
             JsonObject data = root.has("data") && root.get("data").isJsonObject()
                     ? root.getAsJsonObject("data") : null;
             if (data == null || !data.has("verified")) {
-                return new GoalVerifier.Result(true, "verify returned no verdict");
+                return GoalVerifier.Result.unmeasured("verify returned no verdict");
             }
             boolean verified = data.get("verified").getAsBoolean();
             String expected = stringOf(data, "expected");
@@ -566,7 +567,7 @@ public final class EntityAgentLoop {
                     : "expected " + expected + ", actual " + actual;
             return new GoalVerifier.Result(verified, detail == null ? "" : detail);
         } catch (RuntimeException ex) {
-            return new GoalVerifier.Result(true, "unreadable verify result: " + ex.getMessage());
+            return GoalVerifier.Result.unmeasured("unreadable verify result: " + ex.getMessage());
         }
     }
 

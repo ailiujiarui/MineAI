@@ -127,8 +127,22 @@ class GoalStewardTest extends LoopHarness {
     }
 
     @Test
-    void aMetVerdictTheWorldConfirmsIsCleared() {
-        GoalVerifier confirms = (goal, claim, onDone) ->
+    void aMetVerdictTheVerifierCouldNotAnswerIsNotCleared() {
+        GoalVerifier unmeasured = (goal, claim, onDone) ->
+                onDone.accept(GoalVerifier.Result.unmeasured("verify returned no verdict"));
+        GoalSteward steward = stewardWith(claimMet("have minecraft:iron_ingot 3"), unmeasured);
+
+        GoalState goal = goalSetAndFirstRunDone(steward, "挖 3 个铁");
+
+        assertEquals(goal, steward.goal(), "量不出来 ≠ 世界认了,不能收工");
+        assertTrue(goal.lastReason().contains("could not be checked"), goal.lastReason());
+        assertEquals(2, goal.turnsExecuted(), "没核对上也算一轮,推她接着做");
+        assertTrue(model.last().lastUser().contains("could not be checked"),
+                "下一轮得让她知道这次核对没量出结果");
+    }
+
+    @Test
+    void aMetVerdictTheWorldConfirmsIsCleared() {        GoalVerifier confirms = (goal, claim, onDone) ->
                 onDone.accept(new GoalVerifier.Result(true, "expected/actual match"));
         GoalSteward steward = stewardWith(claimMet("have minecraft:iron_ingot 3"), confirms);
 

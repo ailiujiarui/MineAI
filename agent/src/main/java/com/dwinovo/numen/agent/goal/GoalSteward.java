@@ -281,7 +281,9 @@ public final class GoalSteward {
                 clear("目标达成(已核对 " + claim + "):" + verdict.reason());
                 return;
             }
-            String why = "judge said met, but the world does not confirm (" + result.detail() + ")";
+            String why = result.measured()
+                    ? "judge said met, but the world does not confirm (" + result.detail() + ")"
+                    : "judge said met, but the claim could not be checked (" + result.detail() + ")";
             judged.setLastReason(why);
             AiLog.LOG.warn("[numen-entity#{}] 目标宣称没被世界认下,这轮先不收工:{}", name, why);
             if (!judged.hasTurnsLeft()) {
