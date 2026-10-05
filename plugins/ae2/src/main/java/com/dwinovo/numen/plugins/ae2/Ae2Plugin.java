@@ -24,6 +24,7 @@ public final class Ae2Plugin {
             Ae2PatternApi.install(numen);
             if (skillsRoot != null) {
                 numen.bundleSkills(skillsRoot);
+                numen.bundleModules(skillsRoot.resolveSibling("modules"));
             }
         });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
