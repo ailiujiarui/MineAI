@@ -104,17 +104,21 @@ public final class RuleSet {
         return allow;
     }
 
-    /** 按表名取一张表:表以它的行给出的答复命名。 */
+    /** 按表名取一张表:表以它的行给出的答复命名。{@link Verdict.Kind#PENDING} 不是一张表。 */
     public List<Rule> table(Verdict.Kind table) {
         return switch (table) {
             case DENY -> deny;
             case ASK -> ask;
             case ALLOW -> allow;
+            case PENDING -> throw new IllegalArgumentException("PENDING is not a rule table");
         };
     }
 
-    /** 换掉其中一张表的一份新规则层;本层不变。 */
+    /** 换掉其中一张表的一份新规则层;本层不变。{@link Verdict.Kind#PENDING} 不是一张表。 */
     public RuleSet withTable(Verdict.Kind table, List<Rule> rows) {
+        if (table == Verdict.Kind.PENDING) {
+            throw new IllegalArgumentException("PENDING is not a rule table");
+        }
         return new RuleSet(table == Verdict.Kind.DENY ? rows : deny, table == Verdict.Kind.ASK ? rows : ask,
                 table == Verdict.Kind.ALLOW ? rows : allow);
     }

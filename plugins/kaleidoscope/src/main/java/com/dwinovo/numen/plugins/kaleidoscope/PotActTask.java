@@ -196,6 +196,10 @@ final class PotActTask implements Task {
                     return failed(ErrorKind.DENIED, "cannot " + action.describe() + ": " + verdict.reason(), null);
                 }
                 case ASK -> asks.add(gate.consentItemLive(action, verdict, level));
+                case PENDING -> {
+                    // 悬而未决:没问到主人,这一下不做,如实说(不是拒绝)
+                    return failed(ErrorKind.NEEDS_CONSENT, "cannot " + action.describe() + ": " + verdict.reason(), null);
+                }
             }
         }
         if (asks.isEmpty()) {
@@ -211,6 +215,10 @@ final class PotActTask implements Task {
             return TaskState.RUNNING;
         }
         consent = null;
+        if (answer.pending()) {
+            // 悬而未决:主人不在、到点没答复——没问到同意,这一下不做(不是拒绝)
+            return failed(ErrorKind.NEEDS_CONSENT, answer.withholding(asks), null);
+        }
         if (!answer.allowed()) {
             return failed(ErrorKind.DENIED, answer.refusal(asks), null);
         }

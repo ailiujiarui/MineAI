@@ -68,6 +68,8 @@ public enum FailureType {
     /** The permission layer refused the action (owner's rule, observe mode, or a consent that was
      *  not given). Kick to LLM: the model must not route around it — the owner decides. */
     REFUSED,
+    /** 主人不在、到点没答复,这次没问到同意(悬而未决)。不是拒绝:原样再问一次是安全的,下一步由模型定。 */
+    PENDING,
     /** The block went in but did not stay, or the world would not take it: another mod cancelled the placement, the
      *  game refused the write, or something outside the job kept breaking the finished work. Not the permission
      *  layer ({@link #REFUSED}), not a spot that cannot hold it ({@link #NO_SUPPORT}), not a body in the way
@@ -102,6 +104,7 @@ public enum FailureType {
             case NO_PATH, BOXED_IN, TERRAIN_BLOCKED, HAZARD -> ErrorKind.NO_PATH;
             case OUT_OF_REACH, OCCLUDED -> ErrorKind.OUT_OF_REACH;
             case REFUSED -> ErrorKind.DENIED;
+            case PENDING -> ErrorKind.NEEDS_CONSENT;
             case TARGET_LOST, MINED_OUT -> ErrorKind.NOT_FOUND;
             case NO_MATERIAL -> ErrorKind.NO_MATERIAL;
             case INTERRUPTED -> ErrorKind.INTERRUPTED;

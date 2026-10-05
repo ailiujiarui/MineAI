@@ -31,7 +31,7 @@ import java.util.UUID;
  * <p>两种问法,由调用方按所在线程选:{@link #judge} 只读给定的视图与放置记录,任何线程可调,
  * 要活读世界的信号按保守值答;{@link #judgeLive} 主线程专用,信号可以读方块实体内容。
  */
-public final class Gate {
+public class Gate {
 
     private final UUID actor;
     private final Mode mode;

@@ -85,12 +85,20 @@ public final class ServerCall {
             case DENY -> Pending.failed(refused(lua(), verdict.reason()));
             case ASK -> Consents.of(her).await(lua(),
                     List.of(gate.consentItemLive(action, verdict, her.serverLevel())));
+            // 悬而未决:主人不在、到点没答复。这次调用不硬顶成拒绝,也不替主人挂一张卡,
+            // 如实说"没问到同意"({@link ErrorKind#NEEDS_CONSENT})——脚本原样再调一次是安全的。
+            case PENDING -> Pending.failed(withheld(lua(), verdict.reason()));
         };
     }
 
     /** 没做这件事的失败:{@code what} 是要做的事,理由是规则、模式或主人的原话。 */
     static ApiError refused(String what, String why) {
         return new ApiError(ErrorKind.DENIED, "did not run " + what + ": " + why, null);
+    }
+
+    /** 没问到主人、这件事没做的失败:{@code what} 是要做的事,理由是主人不在、到点没答复。 */
+    static ApiError withheld(String what, String why) {
+        return new ApiError(ErrorKind.NEEDS_CONSENT, "did not run " + what + ": " + why, null);
     }
 
     /**

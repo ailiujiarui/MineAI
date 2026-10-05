@@ -63,5 +63,7 @@ public enum Reason {
     /** 手够不着这一格。 */
     OUT_OF_REACH,
     /** 憋不住气:照身体此刻的氧气,从这一步起的这一段水下游不到换气的地方({@link Breath#lasts})。 */
-    OUT_OF_BREATH
+    OUT_OF_BREATH,
+    /** 许可悬而未决(主人不在、到点没答复):这一格这一趟不动,但不是拒绝。 */
+    PENDING
 }

@@ -247,6 +247,8 @@ public final class CostModel {
                     ? new Admission(permit, null, null)
                     : Admission.refuse(Reason.NEEDS_CONSENT);
             case Permit.Deny deny -> new Admission(null, Reason.DENIED, deny.reason());
+            // 悬而未决这一趟不动:不当作放行(路线不会穿它),也不当作被拒(诊断不据此判"因为不许才没路")
+            case Permit.Pending pending -> Admission.refuse(Reason.PENDING);
         };
     }
 

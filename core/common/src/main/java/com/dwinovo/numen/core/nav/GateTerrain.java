@@ -30,6 +30,7 @@ record GateTerrain(Gate gate) implements TerrainPolicy {
             case ALLOW -> Permit.ALLOW;
             case ASK -> Permit.ask(gate.consentItem(action, verdict, view));
             case DENY -> Permit.deny(verdict);
+            case PENDING -> Permit.pending(verdict);
         };
     }
 

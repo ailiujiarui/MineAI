@@ -121,6 +121,8 @@ public final class ConsentCards {
                 case ALLOW_ONCE -> ModLanguageData.Keys.CONSENT_ALLOW;
                 case ALLOW_REMEMBER -> ModLanguageData.Keys.CONSENT_ALLOW_REMEMBER;
                 case DENY -> ModLanguageData.Keys.CONSENT_DENY;
+                // 悬而未决没有按钮(主人不在,没人按);留着只为穷尽
+                case PENDING -> ModLanguageData.Keys.CONSENT_DENY;
             });
         }
 

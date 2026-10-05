@@ -7,11 +7,13 @@ import java.util.UUID;
 
 import com.dwinovo.numen.pathing.plan.Permit;
 import com.dwinovo.numen.pathing.plan.TerrainPolicy.Change;
+import com.dwinovo.numen.permission.Action;
 import com.dwinovo.numen.permission.ConsentItem;
 import com.dwinovo.numen.permission.Gate;
 import com.dwinovo.numen.permission.Mode;
 import com.dwinovo.numen.permission.PlacedBlocks;
 import com.dwinovo.numen.permission.RuleSet;
+import com.dwinovo.numen.permission.Verdict;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -99,6 +101,20 @@ class GateTerrainTest {
         Permit permit = new GateTerrain(gate(new PlacedBlocks()))
                 .judge(new Change.Place(Blocks.DIRT), CELL, Blocks.AIR.defaultBlockState(), view);
         assertEquals(Permit.ALLOW, permit);
+    }
+
+    /** 权限层答悬而未决(主人不在、到点没答复)时,这一格的许可是 {@link Permit.Pending},不是放行也不是拒绝。 */
+    @Test
+    void aPendingVerdictBecomesAPendingPermit() {
+        Gate gate = new Gate(null, Mode.ASK, RuleSet.EMPTY, RuleSet.factory(), new PlacedBlocks(), List.of()) {
+            @Override
+            public Verdict judge(Action action, BlockGetter view) {
+                return Verdict.pending("主人不在场");
+            }
+        };
+        View view = new View();
+        Permit permit = new GateTerrain(gate).judge(Change.DIG, CELL, Blocks.DIRT.defaultBlockState(), view);
+        assertInstanceOf(Permit.Pending.class, permit);
     }
 
     @SuppressWarnings("unchecked")

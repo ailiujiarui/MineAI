@@ -197,6 +197,16 @@ public final class Trip {
                     denied.cell().toShortString(), unasked.verdict().reason());
             return;
         }
+        if (outcome instanceof Outcome.Denied denied && denied.reason() instanceof CompanionHands.Withheld withheld) {
+            // 悬而未决(主人不在、到点没答复):不与主人硬顶、不进 CONSENT 死等。收起这一趟,把这一格搁下,
+            // 由任务决定接着做什么——它没有把整件活判死,只是这一趟没走到。
+            retire();
+            this.outcome = outcome;
+            com.dwinovo.numen.core.Constants.LOG.info("[numen-task] 走到 {} 悬而未决({}),这一格搁下",
+                    denied.cell().toShortString(), withheld.verdict().reason());
+            finish(Status.FAILED);
+            return;
+        }
         retire();
         this.outcome = outcome;
         fail(NavText.failure(outcome, player, Feet.cell(player), toward, spec, materials), NavText.type(outcome));

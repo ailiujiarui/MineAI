@@ -54,7 +54,9 @@ public final class NavText {
             case Outcome.Blocked blocked -> FailureType.BOXED_IN;
             case Outcome.NeedsChanges needs -> FailureType.TERRAIN_BLOCKED;
             case Outcome.NoMaterials none -> FailureType.NO_MATERIAL;
-            case Outcome.Denied denied -> FailureType.REFUSED;
+            // 悬而未决(主人不在/到点没答复)不是拒绝:归"没问到同意",不归"被拒"
+            case Outcome.Denied denied -> denied.reason() instanceof CompanionHands.Withheld
+                    ? FailureType.PENDING : FailureType.REFUSED;
             case Outcome.NoLineOfSight sight -> FailureType.OCCLUDED;
             case Outcome.Breathless breathless -> FailureType.HAZARD;
         };
@@ -89,6 +91,9 @@ public final class NavText {
             case Outcome.NeedsChanges needs -> needsChanges(needs, spec, where);
             case Outcome.NoMaterials none -> "found no path to target (" + where + "; every way needs blocks to"
                     + " pillar or bridge with)." + ThrowawayBlocks.shortageAdvice(player, materials);
+            case Outcome.Denied denied when denied.reason() instanceof CompanionHands.Withheld withheld ->
+                    "had to stop: changing " + Listing.coords(denied.cell()) + " is unresolved ("
+                            + withheld.verdict().reason() + "); nothing was done — try again, or ask your owner";
             case Outcome.Denied denied -> "had to stop: changing " + Listing.coords(denied.cell()) + " is refused ("
                     + reason(denied.reason()) + "); that is not mine to get around, so plan a way that keeps out of it"
                     + " (avoid = {" + com.dwinovo.numen.sdk.LuaCodecs.literal(denied.cell()) + "}) or ask your owner";
@@ -200,6 +205,7 @@ public final class NavText {
             case NO_MATERIALS -> "it needs a block to place and I carry none of the blocks this walk may spend";
             case DENIED -> "changing it is refused";
             case NEEDS_CONSENT -> "changing it needs the owner's consent, and this walk keeps out of such cells";
+            case PENDING -> "changing it is unresolved — the owner could not be reached";
             case EDIT_RESTRICTED -> "my game mode can't change blocks";
             case UNBREAKABLE -> "it can't be broken";
             case WOULD_FLOOD -> "breaking it would let liquid in";

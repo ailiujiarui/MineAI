@@ -54,11 +54,17 @@ public final class CompanionHands implements Effector {
      */
     public record Unasked(Verdict verdict, ConsentItem item) {}
 
+    /**
+     * 悬而未决的一下:主人不在、到点没答复,这一格这一下不动,但不是拒绝,也不当场硬问。
+     */
+    public record Withheld(Verdict verdict) {}
+
     /** 手交回的拒绝理由里权限层的裁决;服务端自己退回的(不是权限层的话)为 null。 */
     public static Verdict verdict(Object refusal) {
         return switch (refusal) {
             case Verdict verdict -> verdict;
             case Unasked unasked -> unasked.verdict();
+            case Withheld withheld -> withheld.verdict();
             case null, default -> null;
         };
     }
@@ -118,7 +124,7 @@ public final class CompanionHands implements Effector {
         return hands.use(hit);
     }
 
-    /** 这一下过权限层:放行为 null;拒绝是裁决;要问是 {@link Unasked}。 */
+    /** 这一下过权限层:放行为 null;拒绝是裁决;要问是 {@link Unasked};悬而未决是 {@link Withheld}。 */
     private Object refusal(Action action) {
         Gate gate = Permission.gateFor(player);
         Verdict verdict = gate.judgeLive(action, player.serverLevel());
@@ -126,6 +132,7 @@ public final class CompanionHands implements Effector {
             case ALLOW -> null;
             case DENY -> verdict;
             case ASK -> new Unasked(verdict, gate.consentItemLive(action, verdict, player.serverLevel()));
+            case PENDING -> new Withheld(verdict);
         };
     }
 }

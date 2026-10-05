@@ -6,6 +6,7 @@ import java.util.Set;
 import com.dwinovo.numen.pathing.Fixtures;
 import com.dwinovo.numen.pathing.TestWorld;
 import com.dwinovo.numen.pathing.Vanilla;
+import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.spec.BlockBans;
 import com.dwinovo.numen.pathing.spec.PositionCosts;
 import com.dwinovo.numen.pathing.spec.PositionCosts.Use;
@@ -67,6 +68,31 @@ class CostModelTest {
         CostModel asking = model(true, true);
         assertEquals("主人的箱子", assertInstanceOf(Permit.Ask.class, asking.admitDig(world, ASK, STONE).permit()).credential());
         assertEquals(Reason.DENIED, asking.admitDig(world, DENY, STONE).refused(), "拒绝的格把要问的算能走时也不进");
+    }
+
+    /**
+     * 许可悬而未决(主人不在、到点没答复)的一格:这一趟不动它({@link Reason#PENDING}),但不是拒绝;
+     * 另一条走廊还在,搜索改走那边,不是没路。
+     */
+    @Test
+    void aPendingCellIsRefusedAsPendingAndTheSearchFindsADetour() {
+        TestWorld world = new TestWorld().floor(-1, -1, 11, 5, 63);
+        world.fill(-1, 64, -1, 11, 65, -1, STONE).fill(-1, 64, 5, 11, 65, 5, STONE);
+        world.fill(2, 64, 1, 8, 65, 3, STONE);
+        world.fill(5, 64, 0, 5, 65, 0, Blocks.DIRT.defaultBlockState())
+                .fill(5, 64, 4, 5, 65, 4, Blocks.DIRT.defaultBlockState());
+        world.fill(-1, 66, -1, 11, 66, 5, STONE);
+        BlockPos pending = new BlockPos(5, 64, 0);
+        TerrainPolicy policy = (change, pos, state, view) ->
+                pos.equals(pending) || pos.equals(pending.above()) ? Permit.pending("主人不在场") : Permit.ALLOW;
+        CostModel model = CostModel.of(RouteSpec.defaults().edit().changes(true).build(), Fixtures.body(), policy,
+                Materials.NONE, Threats.NONE);
+        assertEquals(Reason.PENDING, model.admitDig(world, pending, Blocks.DIRT.defaultBlockState()).refused(),
+                "悬而未决不是拒绝,自有它是哪一档");
+        var result = Fixtures.search(world, model, new BlockPos(0, 64, 0), Goals.at(new BlockPos(10, 64, 0)));
+        assertTrue(result.arrived(), "悬而未决的格当墙,改走另一条走廊:" + result.stop());
+        assertFalse(result.route().edits().stream()
+                .anyMatch(e -> e instanceof Edit.Dig d && d.pos().equals(pending)), "悬而未决的格不进路线");
     }
 
     /** 挖与放是两个开关:只许挖时放一块不准入,原因是"这一趟不放";只许放时反过来。 */

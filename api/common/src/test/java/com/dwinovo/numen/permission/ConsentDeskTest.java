@@ -20,8 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 征询登记处:发起即推给主人、答复记授权、允许并记住写规则、附言只随拒绝、超时与主人不在按拒绝、新的顶掉旧的、
- * 任务收尾清授权撤请求、撤回说清为什么;清单一堆两种说法。时钟、主人在不在、推送撤回、主人的规则表都经假接线,
+ * 征询登记处:发起即推给主人、答复记授权、允许并记住写规则、附言只随拒绝、超时与主人不在按悬而未决(不是拒绝)、
+ * 新的顶掉旧的、任务收尾清授权撤请求、撤回说清为什么;清单一堆两种说法。时钟、主人在不在、推送撤回、主人的规则表都经假接线,
  * 不起服务器。
  */
 class ConsentDeskTest {
@@ -163,7 +163,7 @@ class ConsentDeskTest {
     }
 
     @Test
-    void anUnansweredRequestExpiresOnGameTicksAsDenied() {
+    void anUnansweredRequestExpiresAsPendingNotDenied() {
         ConsentDesk.Ticket ticket = desk.ask(new Task(), List.of(log(1)));
         line.now = ticket.request().expiresAtGameTime() - 1;
         desk.tick();
@@ -171,6 +171,7 @@ class ConsentDeskTest {
 
         line.now = ticket.request().expiresAtGameTime();
         desk.tick();
+        assertTrue(ticket.poll().pending(), "到点没答复:悬而未决,不是拒绝");
         assertFalse(ticket.poll().allowed());
         assertEquals(ConsentDesk.OWNER_ABSENT, ticket.poll().words());
         assertNull(desk.pending());
@@ -178,17 +179,30 @@ class ConsentDeskTest {
     }
 
     @Test
-    void anAbsentOwnerMeansDeniedAtOnceOrAsSoonAsHeLeaves() {
+    void anAbsentOwnerIsPendingAtOnceOrAsSoonAsHeLeaves() {
         line.ownerOnline = false;
         ConsentDesk.Ticket offline = desk.ask(new Task(), List.of(log(1)));
-        assertEquals(ConsentDesk.OWNER_ABSENT, offline.poll().words(), "主人不在线:当场按拒绝");
+        assertTrue(offline.poll().pending(), "主人不在线:当场悬而未决");
+        assertEquals(ConsentDesk.OWNER_ABSENT, offline.poll().words());
         assertTrue(line.shown.isEmpty(), "不推卡");
 
         line.ownerOnline = true;
         ConsentDesk.Ticket waiting = desk.ask(new Task(), List.of(log(1)));
         line.ownerOnline = false;
         desk.tick();
-        assertEquals(ConsentDesk.OWNER_ABSENT, waiting.poll().words(), "挂着的时候主人下线");
+        assertTrue(waiting.poll().pending(), "挂着的时候主人下线:悬而未决");
+        assertEquals(ConsentDesk.OWNER_ABSENT, waiting.poll().words());
+    }
+
+    @Test
+    void aPendingAnswerIsWithheldAndGrantsNothing() {
+        Task task = new Task();
+        ConsentDesk.Ticket ticket = desk.ask(task, List.of(log(1)));
+        assertTrue(desk.answer(ticket.request().id(), ConsentAnswer.Decision.PENDING, ""));
+        assertTrue(ticket.poll().pending(), "悬而未决,不是放行也不是拒绝");
+        assertFalse(ticket.poll().allowed());
+        assertEquals(ConsentDesk.OWNER_ABSENT, ticket.poll().words(), "说不出原因时按主人不在说");
+        assertTrue(desk.granted().isEmpty(), "悬而未决不记授权");
     }
 
     @Test

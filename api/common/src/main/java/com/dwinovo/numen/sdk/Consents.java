@@ -69,6 +69,9 @@ public final class Consents {
             if (answer.allowed()) {
                 w.answer.report(answer.allowance(w.items) + ".");
                 w.answer.complete(null);
+            } else if (answer.pending()) {
+                // 悬而未决:主人不在或到点没答复,不是拒绝——按"没问到同意"失败,原样再调一次是安全的
+                w.answer.fail(ServerCall.withheld(w.what, answer.withholding(w.items)));
             } else {
                 w.answer.fail(ServerCall.refused(w.what, answer.refusal(w.items)));
             }

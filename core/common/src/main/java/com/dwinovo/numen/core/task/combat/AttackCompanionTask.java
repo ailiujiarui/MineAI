@@ -317,6 +317,9 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
                 case ALLOWED -> cleared.add(id);
                 case REFUSED -> r.refused(id, permits.get(i).refusal());
                 case WAITING -> awaitingOwner = true;
+                // 主人不在、到点没答复:这一只这刻不进场,也不记成被拒;名单里那一只由收场如实交代
+                case PENDING -> {
+                }
             }
         }
         return cleared;

@@ -72,6 +72,8 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord>
     private final Set<BlockPos> unharvestable = new HashSet<>();
     /** 物理上挖不成的格:挖不动、贴着流体、顶着落沙。 */
     private final Set<BlockPos> ruledOut = new HashSet<>();
+    /** 问不到主人(悬而未决)而搁下的格:这一趟不动它,别的照挖。 */
+    private final Set<BlockPos> withheld = new HashSet<>();
     /** 拉不出射线的格({@link #MAX_NO_SHOT_TICKS});挖掉任何一格地形就变了,整份作废重来。 */
     private final Set<BlockPos> unworkable = new HashSet<>();
     /** 许可不许挖目标时说的理由(最近一格的);没有为 null。 */
@@ -204,6 +206,13 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord>
             String why = "did not dig " + Listing.coords(target) + ": " + permit.refusal() + "; ";
             return end(TaskState.FAILED, () -> fail(why + tally() + "." + dropsLine(), FailureType.REFUSED));
         }
+        if (permit.state() == PermitState.PENDING) {
+            // 主人不在、到点没答复:这一格搁下,继续挖别的够得着的格
+            withheld.add(target.immutable());
+            digger.cancel();
+            digTarget = null;
+            return TaskState.RUNNING;
+        }
         return digProgress(target);
     }
 
@@ -279,7 +288,7 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord>
         double bestCost = Double.POSITIVE_INFINITY;
         for (BlockPos cell : wantedInReach(here)) {
             BlockState state = level.getBlockState(cell);
-            if (unworkable.contains(cell)) {
+            if (unworkable.contains(cell) || withheld.contains(cell)) {
                 continue;
             }
             if (!pricing.breakable(cell, state)) {
@@ -466,7 +475,10 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord>
 
     /** 要挖却没挖成的各因为什么(以 {@code "; "} 起头);都没有是空串。 */
     private String leftovers() {
-        List<String> parts = new ArrayList<>(3);
+        List<String> parts = new ArrayList<>(4);
+        if (!withheld.isEmpty()) {
+            parts.add(withheld.size() + " were left for a later consent (the owner could not be reached)");
+        }
         if (!unharvestable.isEmpty()) {
             parts.add(unharvestable.size() + " can't be harvested with my tools");
         }

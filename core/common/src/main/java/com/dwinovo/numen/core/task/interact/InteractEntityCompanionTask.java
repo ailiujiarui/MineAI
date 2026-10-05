@@ -136,6 +136,12 @@ public final class InteractEntityCompanionTask extends InReachTask<InteractEntit
                         FailureType.REFUSED);
                 return TaskState.FAILED;
             }
+            if (permit.state() == PermitState.PENDING) {
+                // 一次按键:没问到主人就别按下去,如实说不做(不是拒绝)
+                fail("cannot " + (left ? "attack " : "use ") + targetName() + ": " + permit.refusal(),
+                        FailureType.PENDING);
+                return TaskState.FAILED;
+            }
         }
         if (interaction == null) {
             if (r.item != null) {

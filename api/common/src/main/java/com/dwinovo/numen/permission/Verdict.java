@@ -1,12 +1,13 @@
 package com.dwinovo.numen.permission;
 
 /**
- * 裁决的三种答复:放行;拒绝并附理由;需要主人同意并附理由。
+ * 裁决的四种答复:放行;拒绝并附理由;需要主人同意并附理由;悬而未决(主人不在、到点没答复)。
  *
  * <p>{@link Kind#ASK} 在落点上不是放行——{@link #allowed} 对它是 false。征询只在执行开始时由
  * 任务发起({@link ConsentDesk});主人答应之后,那几件事作为任务期授权进了裁决快照,再问就是放行。
- * 调用方读 {@link #allowed} 与 {@link #reason};规划器另看 {@link #asks} 给需要同意的格子算有限
- * 代价;清单与回执要按原因归堆时读 {@link #cause}。
+ * {@link Kind#PENDING} 也不是放行,更不是拒绝:一件事怎么都问不到主人时,它不硬顶、不收场,由调用方
+ * 搁下这一格继续做别的。调用方读 {@link #allowed} 与 {@link #reason};规划器另看 {@link #asks} 给需要
+ * 同意的格子算有限代价;清单与回执要按原因归堆时读 {@link #cause}。
  *
  * @param kind  答复
  * @param cause 命中的那条规则、那个模式或那个外部强制的自述,如 {@code placed by a player};放行为空串
@@ -14,7 +15,7 @@ package com.dwinovo.numen.permission;
  */
 public record Verdict(Kind kind, String cause, Rule rule) {
 
-    public enum Kind { ALLOW, DENY, ASK }
+    public enum Kind { ALLOW, DENY, ASK, PENDING }
 
     /** 没有任何一行规则覆盖这个动作时的自述。 */
     public static final String UNCOVERED = "no rule covers this action";
@@ -40,6 +41,11 @@ public record Verdict(Kind kind, String cause, Rule rule) {
         return ASK_UNCOVERED;
     }
 
+    /** 悬而未决:主人不在、到点没答复,怎么都问不到同意。不是拒绝。 */
+    public static Verdict pending(String cause) {
+        return new Verdict(Kind.PENDING, cause, null);
+    }
+
     public boolean allowed() {
         return kind == Kind.ALLOW;
     }
@@ -48,12 +54,18 @@ public record Verdict(Kind kind, String cause, Rule rule) {
         return kind == Kind.ASK;
     }
 
+    /** 悬而未决:{@link #allowed} 与 {@link #asks} 对它都是 false。 */
+    public boolean isPending() {
+        return kind == Kind.PENDING;
+    }
+
     /** 给回执的整句理由;放行为空串。 */
     public String reason() {
         return switch (kind) {
             case ALLOW -> "";
             case DENY -> cause;
             case ASK -> cause + ": needs the owner's consent";
+            case PENDING -> cause + ": unresolved";
         };
     }
 }

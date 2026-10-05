@@ -45,6 +45,12 @@ public final class TransferCompanionTask extends AbstractCompanionTask<TransferT
                         + permit.refusal(), FailureType.REFUSED);
                 return TaskState.FAILED;
             }
+            if (permit.state() == PermitState.PENDING) {
+                // 没问到主人:这一步不做,如实说(不是拒绝)
+                fail("did not take " + BuiltInRegistries.ITEM.getKey(take.item()).getPath() + ": "
+                        + permit.refusal(), FailureType.PENDING);
+                return TaskState.FAILED;
+            }
         }
         doneMessage = ops.step(r.move, player);
         succeed();

@@ -54,6 +54,11 @@ public final class DropCompanionTask extends AbstractCompanionTask<DropItemsTask
             fail("did not drop " + r.label + ": " + permit.refusal(), FailureType.REFUSED);
             return TaskState.FAILED;
         }
+        if (permit.state() == PermitState.PENDING) {
+            // 没问到主人:这一下不做,如实说(不是拒绝)
+            fail("did not drop " + r.label + ": " + permit.refusal(), FailureType.PENDING);
+            return TaskState.FAILED;
+        }
         Inventory inv = player.getInventory();
         int have = PlayerInv.count(inv, r.item);
         dropped = Math.min(r.count, have);

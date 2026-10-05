@@ -70,6 +70,11 @@ public final class GuiItemsCompanionTask extends AbstractCompanionTask<GuiItemsT
                 fail("did not take " + itemName() + ": " + permit.refusal(), FailureType.REFUSED);
                 return TaskState.FAILED;
             }
+            if (permit.state() == PermitState.PENDING) {
+                // 没问到主人:搬不动这一种,如实说(不是拒绝)
+                fail("did not take " + itemName() + ": " + permit.refusal(), FailureType.PENDING);
+                return TaskState.FAILED;
+            }
         }
         int before = onSource(menu);
         ops.step(move, player);

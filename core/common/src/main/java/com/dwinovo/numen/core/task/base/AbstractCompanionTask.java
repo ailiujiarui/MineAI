@@ -225,8 +225,9 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
 
     /**
      * 导航走到一格要问主人的地方停下时,这一刻归征询:身体站住、问主人;答应了那一格放行、接着跑
-     * {@link #onTick},拒绝了按 {@link FailureType#REFUSED} 收场,下一步由 {@link #refusedHint} 给。任何带导航的任务都一样,
-     * 不各写各的。
+     * {@link #onTick},拒绝了按 {@link FailureType#REFUSED} 收场,下一步由 {@link #refusedHint} 给。主人不在、到点没答复
+     * (悬而未决)既不硬顶成拒绝、也不进 CONSENT 死等:收起这一趟,这一格留给下一次,接着跑 {@link #onTick}。任何带导航的
+     * 任务都一样,不各写各的。
      *
      * @return 这一刻的终态或 RUNNING;不用等(没有扣着的路,或刚放行)时为 null
      */
@@ -242,6 +243,12 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
         ConsentAnswer answer = consult(needed);
         if (answer == null) {
             return TaskState.RUNNING;
+        }
+        if (answer.pending()) {
+            com.dwinovo.numen.core.Constants.LOG.info("[numen-task] 路上要问主人({})悬而未决,搁下这一格继续:{}",
+                    needed.size(), answer.words());
+            stopNav();
+            return null;
         }
         if (!answer.allowed()) {
             fail(answer.refusal(needed), FailureType.REFUSED, refusedHint(needed));
@@ -261,11 +268,12 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
     // ---------------------------------------------------------------------
 
     /** 执行开始时一个动作过权限层的结论。 */
-    protected enum PermitState { ALLOWED, WAITING, REFUSED }
+    protected enum PermitState { ALLOWED, WAITING, REFUSED, PENDING }
 
     /**
-     * @param state   放行 / 在等主人 / 不许
-     * @param refusal 不许时回执的理由(规则、模式、外部强制的自述,或主人的原话);其余为空串
+     * @param state   放行 / 在等主人 / 不许 / 悬而未决
+     * @param refusal 不许时回执的理由(规则、模式、外部强制的自述,或主人的原话),悬而未决时是登记处给的缘由
+     *                (主人不在、到点没答复);放行与在等时为空串
      */
     protected record Permit(PermitState state, String refusal) {
         static final Permit ALLOWED = new Permit(PermitState.ALLOWED, "");
@@ -274,12 +282,17 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
         static Permit refused(String why) {
             return new Permit(PermitState.REFUSED, why);
         }
+
+        static Permit pending(String why) {
+            return new Permit(PermitState.PENDING, why);
+        }
     }
 
     /**
      * 执行开始:把要做的一个动作交给权限层。放行就做;拒绝就带着理由收场;要问就发起征询,
      * 等待期间返回 WAITING(调用方让身体站住,每刻再调),主人答应后返回 ALLOWED——同一行规则
-     * 问出来的同一种东西从此在本任务内放行,不再问。任务自己不判能不能,只提出动作。
+     * 问出来的同一种东西从此在本任务内放行,不再问。主人不在、到点没答复(悬而未决)返回 PENDING:
+     * 不是拒绝,调用方据此搁下这一格继续做别的,不把整件活判死。任务自己不判能不能,只提出动作。
      */
     protected final Permit permit(Action action) {
         return permitAll(List.of(action)).get(0);
@@ -304,6 +317,8 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
                     asks.add(gate.consentItemLive(action, verdict, player.serverLevel()));
                     out.add(Permit.WAITING);
                 }
+                // 快照里这一格已经悬而未决:不硬问,也不当作放行/被拒
+                case PENDING -> out.add(Permit.pending(verdict.reason()));
             }
         }
         if (asks.isEmpty()) {
@@ -312,7 +327,9 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
         }
         ConsentAnswer answer = consult(asks);
         if (answer != null) {
-            Permit settled = answer.allowed() ? Permit.ALLOWED : Permit.refused(answer.refusal(asks));
+            Permit settled = answer.allowed() ? Permit.ALLOWED
+                    : answer.pending() ? Permit.pending(answer.words())
+                    : Permit.refused(answer.refusal(asks));
             for (int i : askedAt) {
                 out.set(i, settled);
             }

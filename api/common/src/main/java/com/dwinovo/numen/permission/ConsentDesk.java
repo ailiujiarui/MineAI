@@ -22,7 +22,8 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <h2>征询</h2>
  * 同一只同伴同时只挂一条;新的顶掉旧的,旧的按拒绝收尾({@link #SUPERSEDED})。发起那一刻主人
- * 不在线,或者挂着的时候主人下线、到了 {@link #TIMEOUT_TICKS},都按拒绝收尾({@link #OWNER_ABSENT})。
+ * 不在线,或者挂着的时候主人下线、到了 {@link #TIMEOUT_TICKS},都按悬而未决收尾({@link #OWNER_ABSENT},
+ * {@link ConsentAnswer.Decision#PENDING})——不是拒绝,发起的一方据此搁下这一格而不是硬顶收场。
  * 请求与撤回都推给主人的客户端({@link ConsentRequestPayload}),撤回带着为什么撤({@link Withdrawal});答复经
  * {@link #answer} 回来。发起者每刻读自己那张 {@link Ticket},模型不参与。
  *
@@ -125,7 +126,7 @@ public final class ConsentDesk {
     }
 
     /**
-     * 发起一次征询。挂着的那条被顶替;主人此刻不在线则当场按拒绝收尾,不推给主人。
+     * 发起一次征询。挂着的那条被顶替;主人此刻不在线则当场按悬而未决收尾,不推给主人。
      *
      * @param scope 发起它的那一方(任务记录,或一次等着执行的指令)——授权记在它名下,它收尾时一并清掉
      * @param items 清单,不能为空
@@ -140,9 +141,9 @@ public final class ConsentDesk {
             settle(pending, new ConsentAnswer(ConsentAnswer.Decision.DENY, SUPERSEDED));
         }
         if (!line.ownerPresent()) {
-            ticket.answer = new ConsentAnswer(ConsentAnswer.Decision.DENY, OWNER_ABSENT);
+            ticket.answer = new ConsentAnswer(ConsentAnswer.Decision.PENDING, OWNER_ABSENT);
             line.clear(Withdrawal.OWNER_ABSENT);
-            Constants.LOG.info("[numen-consent] {} ask #{} refused at once: owner offline", companion,
+            Constants.LOG.info("[numen-consent] {} ask #{} unresolved at once: owner offline", companion,
                     ticket.request.id());
             return ticket;
         }
@@ -196,15 +197,17 @@ public final class ConsentDesk {
         }
         Ticket ticket = pending;
         ConsentAnswer answer;
-        if (decision == ConsentAnswer.Decision.DENY) {
-            answer = new ConsentAnswer(decision, said.isEmpty() ? OWNER_SAID_NO : said);
-        } else {
+        if (decision == ConsentAnswer.Decision.ALLOW_ONCE || decision == ConsentAnswer.Decision.ALLOW_REMEMBER) {
             grants.computeIfAbsent(ticket.scope, k -> new ArrayList<>()).addAll(ticket.request.items());
             rebuildGranted();
             if (decision == ConsentAnswer.Decision.ALLOW_REMEMBER) {
                 line.remember(ConsentItem.remembered(ticket.request.items()));
             }
             answer = new ConsentAnswer(decision, "");
+        } else {
+            // 拒绝与悬而未决一样不记授权;说不出原因的悬而未决按 OWNER_ABSENT 说
+            String fallback = decision == ConsentAnswer.Decision.DENY ? OWNER_SAID_NO : OWNER_ABSENT;
+            answer = new ConsentAnswer(decision, said.isEmpty() ? fallback : said);
         }
         settle(ticket, answer);
         line.clear(null);
@@ -213,14 +216,14 @@ public final class ConsentDesk {
         return true;
     }
 
-    /** 每服务端 tick 一次:主人下线或到点,挂着的那条按拒绝收尾。 */
+    /** 每服务端 tick 一次:主人下线或到点,挂着的那条按悬而未决收尾(不是拒绝)。 */
     public void tick() {
         if (pending == null) {
             return;
         }
         if (!line.ownerPresent() || line.gameTime() >= pending.request.expiresAtGameTime()) {
             Constants.LOG.info("[numen-consent] {} #{} expired: {}", companion, pending.request.id(), OWNER_ABSENT);
-            settle(pending, new ConsentAnswer(ConsentAnswer.Decision.DENY, OWNER_ABSENT));
+            settle(pending, new ConsentAnswer(ConsentAnswer.Decision.PENDING, OWNER_ABSENT));
             line.clear(Withdrawal.OWNER_ABSENT);
         }
     }

@@ -130,6 +130,12 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
                                 FailureType.REFUSED);
                         return TaskState.FAILED;
                     }
+                    if (permits.get(i).state() == PermitState.PENDING) {
+                        // 一次按键没有"搁下一半"的做法:没问到主人就别按下去,如实说不做
+                        fail("cannot " + proposed.get(i).describe() + ": " + permits.get(i).refusal(),
+                                FailureType.PENDING);
+                        return TaskState.FAILED;
+                    }
                 }
                 if (permits.stream().anyMatch(p -> p.state() == PermitState.WAITING)) {
                     player.controls().stop();

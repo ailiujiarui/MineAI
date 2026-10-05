@@ -307,6 +307,11 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
         if (answer == null) {
             return TaskState.RUNNING;
         }
+        if (answer.pending()) {
+            // 悬而未决:主人不在、到点没答复。整批问过主人是本任务的前置,没问到就一格不放——但这不是拒绝,
+            // 收场按"没问到同意"报,模型原样重发是安全的。
+            return conclude(new Ending(answer.withholding(consentItems), FailureType.PENDING));
+        }
         if (!answer.allowed()) {
             return conclude(new Ending(answer.refusal(consentItems), FailureType.REFUSED));
         }
