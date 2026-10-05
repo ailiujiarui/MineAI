@@ -1,0 +1,36 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev'
+}
+
+// 一个真实的社区适配器模组:对着瘦 api jar + Curios 公开 API 编译,独自发布。
+neoForge {
+    version = neoforge_version
+    mods {
+        'numen_curios_adapter' {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+repositories {
+    exclusiveContent {
+        forRepository { maven { name = 'Curios'; url = 'https://maven.theillusivec4.top/' } }
+        filter { includeGroup 'top.theillusivec4.curios' }
+    }
+}
+
+dependencies {
+    compileOnly files(project(':api:neoforge').tasks.named('apiJar'))
+    // 与官方联动同一套编译期类路径:瘦 jar 里 NumenPlayer 的类型层次引用了这几块。
+    // 真正面向仓外的第三方经 api 制品的 POM 拿到它们,这里在本仓内直连。
+    compileOnly project(':ai')
+    compileOnly project(':agent')
+    compileOnly project(':ui')
+    compileOnly project(':pathing')
+    compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
+}
+
+java { toolchain.languageVersion = JavaLanguageVersion.of(java_version) }
+
+base { archivesName = "numen-adapter-curios-${minecraft_version}" }

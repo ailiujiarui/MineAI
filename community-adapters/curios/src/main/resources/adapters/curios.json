@@ -1,0 +1,10 @@
+{
+  "id": "community-curios",
+  "targetMod": "curios",
+  "side": "server",
+  "schema": 1,
+  "requires": ["curios"],
+  "equipRoutes": [
+    { "item": "*", "container": "curios" }
+  ]
+}

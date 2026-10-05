@@ -49,3 +49,8 @@ include('plugins:jei')
 include('plugins:ftbquests')
 // 只编译、不内嵌:证明第三方能对着瘦 api jar 实现并注册适配器处理器(不被 core 引用,不进成品)
 include('plugins:adaptertest')
+
+// 社区适配器:整合包作者/第三方自写的真实模组插件。每个是一个独立 mod,独自发布、
+// 由玩家放进 mods/,不经 core 内嵌;只对着瘦 api jar + 目标模组公开 API 编译。
+include('community-adapters:beyonddimensions')
+include('community-adapters:curios')

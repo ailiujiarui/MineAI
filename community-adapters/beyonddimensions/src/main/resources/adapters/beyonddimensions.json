@@ -1,0 +1,12 @@
+{
+  "id": "community-beyonddimensions",
+  "targetMod": "beyonddimensions",
+  "side": "server",
+  "schema": 2,
+  "requires": ["bd_storage"],
+  "guis": [
+    { "menu": "beyonddimensions:dimensions_net_menu", "source": "bd_storage" },
+    { "menu": "beyonddimensions:dimensions_craft_menu", "source": "bd_storage" },
+    { "menu": "beyonddimensions:dimensions_craft_menu_terminal", "source": "bd_storage" }
+  ]
+}

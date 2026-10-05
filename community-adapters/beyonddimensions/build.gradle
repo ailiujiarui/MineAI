@@ -1,0 +1,33 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev'
+}
+
+// 一个真实的社区适配器模组:对着瘦 api jar + 目标模组公开 API 编译,独自发布。
+// 目标模组坐标与 mod id 写死在这里,是这个模块自己的事,不进根 gradle.properties。
+neoForge {
+    version = neoforge_version
+    mods {
+        'numen_bd_adapter' {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+repositories {
+    exclusiveContent {
+        forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup 'maven.modrinth' }
+    }
+}
+
+dependencies {
+    // 第三方看得见的东西与内嵌联动一致:只有瘦 api jar。
+    compileOnly files(project(':api:neoforge').tasks.named('apiJar'))
+    // 只对着 Beyond Dimensions 的公开 API 编译;运行时由玩家自己装的那份提供。
+    compileOnly 'maven.modrinth:beyonddimensions:0.7.30-1.21.1-neoforge'
+}
+
+java { toolchain.languageVersion = JavaLanguageVersion.of(java_version) }
+
+base { archivesName = "numen-adapter-beyonddimensions-${minecraft_version}" }
