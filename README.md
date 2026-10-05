@@ -1,10 +1,8 @@
 <div align="center">
 
-# Numen · 言出法随
+# MineAI——基于Numen二开的我的世界智能体
 
 ### 一个住在你世界里的 AI 同伴
-
-*言出法随（yán chū fǎ suí）——你说出口，它便成真。*
 
 [English](README_EN.md) · [**简体中文**](README.md)
 
