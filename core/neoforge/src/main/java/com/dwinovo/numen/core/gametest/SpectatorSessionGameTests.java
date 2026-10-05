@@ -200,7 +200,7 @@ public class SpectatorSessionGameTests {
             helper.assertTrue(OwnerLocation.of(owner).level() == helper.getLevel()
                     && OwnerLocation.of(owner).position().equals(original), "dimension rebind overwrote original owner location");
             var status = dataIn(lua(body, "numen.status.owner()").reply());
-            helper.assertTrue(!status.get("sameDimension").getAsBoolean()
+            helper.assertTrue(!status.get("same_dimension").getAsBoolean()
                     && status.get("dimension").getAsString().equals("minecraft:overworld"),
                     "owner dimension query follows camera instead of original stand");
             ToolRun namedFollow = lua(body, "numen.move.follow(" + owner.getId() + ")");
@@ -259,7 +259,7 @@ public class SpectatorSessionGameTests {
             helper.assertTrue(owner.level() != body.level() && OwnerLocation.of(owner).level() == body.level(),
                     "named-owner fixture did not separate camera dimension from original stand");
             var status = dataIn(lua(body, "numen.status.owner()").reply());
-            helper.assertTrue(status.get("sameDimension").getAsBoolean()
+            helper.assertTrue(status.get("same_dimension").getAsBoolean()
                     && Math.abs(status.get("distance").getAsDouble()
                             - Math.round(body.position().distanceTo(original) * 10.0) / 10.0) < 0.001
                     && Math.abs(status.getAsJsonObject("pos").get("x").getAsDouble() - original.x) < 0.001
