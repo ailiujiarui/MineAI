@@ -3,6 +3,7 @@ package com.dwinovo.numen.core.tools.routine;
 import com.dwinovo.numen.agent.tool.NumenTool;
 import com.dwinovo.numen.cli.CommandRunner;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.task.TaskDispatch;
 import com.dwinovo.numen.task.TaskResult;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -62,8 +63,10 @@ public final class RoutineTool implements NumenTool {
                 - list: every routine with its description and argument names. Start here.
                 - get: one routine's full text and steps.
                 - run: replay a routine's steps in order through the same entry point as `command`. It stops at the \
-                first step that fails and says which step and why; otherwise it reports every step's result. Pass the \
-                routine's arguments in `arguments` (name to value).
+                first step that fails and says which step and why, and it also stops at a step that starts \
+                background work (a task_id comes back instead of a finished result) — that step is not done yet, so \
+                wait for its task_finished, then run the remaining steps. Otherwise it reports every step's result. \
+                Pass the routine's arguments in `arguments` (name to value).
                 - delete: drop a routine you no longer trust.
                 A routine is only as good as its steps: keep them exact, and parameterize the parts that change with \
                 {args} rather than saving a one-off copy per spot.""";
@@ -223,7 +226,8 @@ public final class RoutineTool implements NumenTool {
 
     /**
      * 一步接一步:这一步的回执回来了、成功了,才派下一步。任一步失败就在这里收场,回执点名是第几步、哪一行、为什么;
-     * 全部跑完把每一步的结果一并交回。调用 id 按步派生,每步的活各自认得清,不撞在一起。
+     * 派下一件后台活(回执带 task_id)也在这里停住——受理不是做完,继续下一步就是抢跑。全部跑完把每一步的结果一并交回。
+     * 调用 id 按步派生,每步的活各自认得清,不撞在一起。
      */
     private static void runStep(NumenPlayer her, String callId, String routineName, List<String> lines, int index,
                                 List<String> reports, Consumer<String> reply) {
@@ -242,6 +246,16 @@ public final class RoutineTool implements NumenTool {
                 reply.accept(TaskResult.fail("routine '" + routineName + "' failed at step " + number + " of "
                         + lines.size() + ": `" + line + "` - " + message + "\n"
                         + String.join("\n", reports)).toJson());
+                return;
+            }
+            // 这一步派下了一件后台活:受理回执不是"做完"。routing 不会等 task_finished,继续下一步就是抢跑,
+            // 所以在这里停住,把剩下的步骤原样留着,等她的 task_finished 再来收拾局面。
+            String background = TaskDispatch.runningTaskOf(resultJson);
+            if (background != null) {
+                reply.accept(TaskResult.ok("routine '" + routineName + "' paused at step " + number + " of "
+                        + lines.size() + ": `" + line + "` started background task " + background
+                        + ", which has not finished. Do not run the next step until its task_finished arrives; "
+                        + "then run the remaining steps.\n" + String.join("\n", reports)).toJson());
                 return;
             }
             runStep(her, callId, routineName, lines, number, reports, reply);

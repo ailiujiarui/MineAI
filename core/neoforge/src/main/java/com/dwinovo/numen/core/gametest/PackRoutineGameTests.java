@@ -81,6 +81,41 @@ public class PackRoutineGameTests {
     }
 
     /**
+     * 回放一条以后台活开头的 routine:第一步 {@code move goto} 受理即回执(task_id),不是做完。routine 必须
+     * 在这里停住,而不是抢跑第二步放方块;回执要说清停在第几步、剩下的步骤还没跑。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 300, batch = "numen_pack_routine")
+    public static void routine_pauses_at_a_background_step(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floor = helper.absolutePos(new BlockPos(7, 1, 6));
+        BlockPos target = helper.absolutePos(new BlockPos(9, 2, 6));
+
+        NumenPlayer companion = spawnAt(helper, "gametest_routine_bg", new BlockPos(5, 2, 6), false);
+        companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 2));
+
+        String step1 = "move goto --x " + target.getX() + " --z " + target.getZ();
+        String step2 = "use block right " + xyz(floor) + " --item minecraft:cobblestone";
+        ToolRun save = call(companion, "routine", args(
+                "action", "save",
+                "name", "routine_bg_move_then_place",
+                "description", "move (background) then place",
+                "steps", List.of(step1, step2),
+                "args", List.of()));
+        ToolRun run = call(companion, "routine", args("action", "run", "name", "routine_bg_move_then_place"));
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(save.succeeded(), "save was refused: " + save.reply());
+            helper.assertTrue(run.done(), "the routine never answered");
+            helper.assertTrue(run.succeeded(), "the pause is a successful partial result: " + run.reply());
+            helper.assertTrue(run.reply().contains("paused at step 1"),
+                    "the routine did not pause at the background step: " + run.reply());
+            helper.assertTrue(!level.getBlockState(floor.above()).is(Blocks.COBBLESTONE),
+                    "the routine ran step 2 before the background step finished: " + run.reply());
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
      * 回放一个不存在的 routine:干净地失败,并在话里点名库里现有哪些——先存一条已知的当路标,再回放一个
      * 不存在的名字,断言失败回执同时提到两者。谁先跑都不依赖另一条用例:这条路标由本用例自己存。
      */
