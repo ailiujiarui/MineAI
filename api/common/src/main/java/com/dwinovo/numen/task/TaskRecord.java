@@ -122,6 +122,17 @@ public abstract class TaskRecord {
     public final ApiFunction function() { return function; }
     public final boolean isAsync() { return async; }
 
+    /**
+     * 这件活问主人点头时愿意等的刻数,由 {@link ConsentDesk#timeoutFor} 取用。
+     *
+     * <p>短活(互动的、几秒内收场的)有上限:{@link ConsentDesk#TIMEOUT_TICKS}。自主的、长跑不歇的活
+     * (mine/build/route 这一类计划)在各自的记录里覆写成 {@link ConsentDesk#UNBOUNDED_TICKS}——主人不在场
+     * 或迟答都不该让这一格早早落定,它照旧按悬而未决搁下、这一趟继续走别的格。
+     */
+    public long consentTimeoutTicks() {
+        return ConsentDesk.TIMEOUT_TICKS;
+    }
+
     /** 首次开跑打点(重复调用不覆盖——抢占恢复不算重新开始)。 */
     public final void markStarted(long gameTime) {
         if (startedGameTime < 0) startedGameTime = gameTime;

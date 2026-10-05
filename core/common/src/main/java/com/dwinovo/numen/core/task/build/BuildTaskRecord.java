@@ -4,6 +4,7 @@ import com.dwinovo.numen.core.build.Built;
 import com.dwinovo.numen.core.build.Layout;
 
 import com.dwinovo.numen.sdk.ServerCall;
+import com.dwinovo.numen.permission.ConsentDesk;
 import com.dwinovo.numen.task.TaskRecord;
 
 import net.minecraft.core.BlockPos;
@@ -126,6 +127,12 @@ public final class BuildTaskRecord extends TaskRecord {
             byCell = index;
         }
         return byCell.get(pos.asLong());
+    }
+
+    /** 建造是自主长跑的活:开工前整批问主人点头等同无限等(主人不在场照旧按悬而未决搁下不硬顶)。 */
+    @Override
+    public long consentTimeoutTicks() {
+        return ConsentDesk.UNBOUNDED_TICKS;
     }
 
     /**

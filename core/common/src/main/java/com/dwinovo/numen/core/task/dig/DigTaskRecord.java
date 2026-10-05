@@ -5,6 +5,7 @@ import com.dwinovo.numen.sdk.Call;
 import com.dwinovo.numen.sdk.ServerCall;
 import com.dwinovo.numen.sdk.Target;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
+import com.dwinovo.numen.permission.ConsentDesk;
 import com.dwinovo.numen.task.TaskRecord;
 
 import net.minecraft.core.BlockPos;
@@ -103,6 +104,12 @@ public final class DigTaskRecord extends TaskRecord {
     /** 挖 {@code blocks} 格的期限预算。 */
     private static long timeoutTicks(int blocks) {
         return Math.max(MIN_TIMEOUT_TICKS, (long) blocks * TICKS_PER_BLOCK);
+    }
+
+    /** 挖矿是自主长跑的活:问主人点头等同无限等(主人不在场照旧按悬而未决搁下这一格继续)。 */
+    @Override
+    public long consentTimeoutTicks() {
+        return ConsentDesk.UNBOUNDED_TICKS;
     }
 
     /**

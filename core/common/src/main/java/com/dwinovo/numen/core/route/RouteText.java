@@ -64,6 +64,9 @@ public final class RouteText {
                       @Doc("Blocks it places (a water bucket poured to break a fall shows as water).")
                       List<BlockAt> places,
                       @Doc("Of those, the cells your owner is asked about when you get there.") List<Ask> asks,
+                      @Doc("Of those, the cells that could not be resolved at all: your owner was not around, so "
+                              + "they stay untouched. These are not allowed and not refused — walk up to them later "
+                              + "and your owner will be asked then.") List<Ask> pending,
                       @Doc("Stretches under water with no air on the way.") Optional<List<Dive>> dives,
                       @Doc("Why it can't be walked, or why only part was seen.") Optional<String> why) {}
 
@@ -98,6 +101,11 @@ public final class RouteText {
             Block block = changes.digs().containsKey(pos) ? changes.digs().get(pos) : changes.places().get(pos);
             asks.add(new Ask(BlockAt.of(pos, block.defaultBlockState()), cause));
         });
+        List<Ask> pending = new ArrayList<>();
+        changes.pending().forEach((pos, why) -> {
+            Block block = changes.digs().containsKey(pos) ? changes.digs().get(pos) : changes.places().get(pos);
+            pending.add(new Ask(BlockAt.of(pos, block.defaultBlockState()), why));
+        });
         List<Dive> dives = new ArrayList<>();
         if (leg.route() != null) {
             for (Route.Dive dive : leg.route().dives()) {
@@ -107,7 +115,7 @@ public final class RouteText {
         }
         return new Leg(Optional.ofNullable(toward), leg.reach(), Optional.ofNullable(leg.finish()), leg.steps(),
                 Math.round(leg.ticks() / 2.0) / 10.0, path(leg), blocks(changes.digs()), blocks(changes.places()),
-                asks, dives.isEmpty() ? Optional.empty() : Optional.of(dives),
+                asks, pending, dives.isEmpty() ? Optional.empty() : Optional.of(dives),
                 leg.why().isEmpty() ? Optional.empty() : Optional.of(leg.why()));
     }
 

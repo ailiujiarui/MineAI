@@ -399,6 +399,43 @@ class GateTest {
 
     // ==================== 任务期授权 ====================
 
+    // ==================== 跨会话信任 ====================
+
+    /** 主人记下的信任规则在两层 allow 之后、出厂 ask 之前放行;它放行不了被 deny 的动作。 */
+    @Test
+    void aTrustedRuleAllowsBeforeTheFactoryAskButNotPastADeny() {
+        FakeWorld world = new FakeWorld();
+        PlacedBlocks placed = new PlacedBlocks();
+        BlockPos cobble = POS;
+        BlockPos other = POS.offset(4, 0, 0);
+        world.set(cobble, Blocks.COBBLESTONE.defaultBlockState());
+        world.set(other, Blocks.COBBLESTONE.defaultBlockState());
+        placed.record(cobble, STEVE);
+        placed.record(other, STEVE);
+        Action dig = Action.breakBlock(cobble, world.getBlockState(cobble));
+
+        assertTrue(gate(Mode.ASK, RuleSet.factory(), placed).judge(dig, world).asks(),
+                "没有信任之前,玩家放的圆石就是要问");
+        Rule trustedRule = Rule.parse("break(placed & minecraft:cobblestone)");
+        List<PermissionStore.Trusted> trusted =
+                List.of(new PermissionStore.Trusted(trustedRule, null, "Aria", 0L));
+
+        Gate allowed = new Gate(null, Mode.ASK, RuleSet.EMPTY, RuleSet.factory(), placed, List.of(), trusted);
+        assertTrue(allowed.judge(dig, world).allowed(), "信任规则在出厂 ask 之前放行");
+        assertTrue(allowed.judge(Action.breakBlock(other, world.getBlockState(other)), world).allowed(),
+                "同一条信任规则覆盖同类的事");
+
+        // 主人层写了 deny:信任解不开它
+        Gate denied = new Gate(null, Mode.ASK, rules(List.of("break(placed)"), List.of(), List.of()),
+                RuleSet.factory(), placed, List.of(), trusted);
+        assertEquals(Verdict.Kind.DENY, denied.judge(dig, world).kind(), "信任不越过 deny");
+
+        // 主人层的 allow 排在信任之前,一样能放行
+        Gate ownerAllowed = new Gate(null, Mode.ASK, rules(List.of(), List.of(), List.of("break(placed)")),
+                RuleSet.factory(), placed, List.of(), List.of());
+        assertTrue(ownerAllowed.judge(dig, world).allowed());
+    }
+
     @Test
     void aGrantCoversTheSameRuleOnTheSameKindOnly() {
         FakeWorld world = new FakeWorld();

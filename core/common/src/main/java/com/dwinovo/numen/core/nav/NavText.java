@@ -360,15 +360,25 @@ public final class NavText {
     }
 
     /**
-     * 一条路要改的格,读成三张表:要挖的格 → 那里原来的方块,要放的格 → 放的方块(倒水接坠落记水),其中要问主人的格 → 许可给的
-     * 为什么问。规划写计划、回执说要改什么,读的都是这一份。
+     * 一条路要改的格,读成四张表:要挖的格 → 那里原来的方块,要放的格 → 放的方块(倒水接坠落记水),其中要问主人的格 → 许可给的
+     * 为什么问,以及悬而未决的格 → 为什么问不到主人。规划写计划、回执说要改什么,读的都是这一份。
+     *
+     * <p>{@code pending} 与 {@code asks} 是两回事:要问是"走到那一格会停下来问主人";悬而未决是主人此刻根本不在场
+     * (或到点没答复),这一格这一趟不动、也不预先放行——发起的一方据此搁下它,这一趟继续走别的格。
      */
-    public record Changes(Map<BlockPos, Block> digs, Map<BlockPos, Block> places, Map<BlockPos, String> asks) {
+    public record Changes(Map<BlockPos, Block> digs, Map<BlockPos, Block> places, Map<BlockPos, String> asks,
+                          Map<BlockPos, String> pending) {
+
+        /** 没有悬而未决的格时用这个建(旧的三表构造)。 */
+        public Changes(Map<BlockPos, Block> digs, Map<BlockPos, Block> places, Map<BlockPos, String> asks) {
+            this(digs, places, asks, Map.of());
+        }
 
         public static Changes of(List<Edit> edits) {
             Map<BlockPos, Block> digs = new LinkedHashMap<>();
             Map<BlockPos, Block> places = new LinkedHashMap<>();
             Map<BlockPos, String> asks = new LinkedHashMap<>();
+            Map<BlockPos, String> pending = new LinkedHashMap<>();
             for (Edit edit : edits) {
                 Permit permit = switch (edit) {
                     case Edit.Dig dig -> {
@@ -387,9 +397,17 @@ public final class NavText {
                 };
                 if (permit instanceof Permit.Ask ask && ask.credential() instanceof ConsentItem item) {
                     asks.put(edit.pos(), item.cause());
+                } else if (permit instanceof Permit.Pending unresolved) {
+                    pending.put(edit.pos(), unresolved(unresolved.reasonOrCredential()));
                 }
             }
-            return new Changes(digs, places, asks);
+            return new Changes(digs, places, asks, pending);
+        }
+
+        /** 悬而未决那一格为什么问不到主人:许可的凭据照实解读,认不出就原样写。 */
+        private static String unresolved(Object reasonOrCredential) {
+            Verdict verdict = CompanionHands.verdict(reasonOrCredential);
+            return verdict != null ? verdict.reason() : String.valueOf(reasonOrCredential);
         }
     }
 

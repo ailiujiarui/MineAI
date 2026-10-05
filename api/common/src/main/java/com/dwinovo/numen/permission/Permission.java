@@ -4,6 +4,7 @@ import com.dwinovo.numen.entity.NumenPlayer;
 
 import net.minecraft.server.level.ServerLevel;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,7 +27,7 @@ public final class Permission {
     public static Gate gateFor(NumenPlayer companion) {
         ServerLevel level = (ServerLevel) companion.level();
         return new Gate(companion.getUUID(), modeOf(companion), ownerRules(companion), RuleSet.factory(),
-                PlacedBlocks.of(level), ConsentDesk.of(companion).granted());
+                PlacedBlocks.of(level), ConsentDesk.of(companion).granted(), ownerTrusted(companion));
     }
 
     /** 主线程:对活世界裁决一个动作。 */
@@ -56,5 +57,11 @@ public final class Permission {
     private static RuleSet ownerRules(NumenPlayer companion) {
         UUID owner = companion.getOwnerUuid();
         return owner == null ? RuleSet.EMPTY : PermissionStore.of(companion.getServer(), owner).rules();
+    }
+
+    /** 这只同伴的主人记下的跨会话信任规则;还没有主人时是空表。 */
+    private static List<PermissionStore.Trusted> ownerTrusted(NumenPlayer companion) {
+        UUID owner = companion.getOwnerUuid();
+        return owner == null ? List.of() : PermissionStore.of(companion.getServer(), owner).trusted();
     }
 }

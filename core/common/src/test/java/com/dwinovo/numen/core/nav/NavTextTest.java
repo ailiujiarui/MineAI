@@ -1,6 +1,7 @@
 package com.dwinovo.numen.core.nav;
 
 import java.util.List;
+import java.util.Map;
 
 import com.dwinovo.numen.core.FailureType;
 import com.dwinovo.numen.pathing.api.Outcome;
@@ -13,6 +14,7 @@ import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.plan.Permit;
 import com.dwinovo.numen.pathing.plan.Reason;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
+import com.dwinovo.numen.permission.Verdict;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
@@ -96,6 +98,23 @@ class NavTextTest {
                 NavText.planned(digs, java.util.Map.of(C, Blocks.COBBLESTONE),
                         java.util.Map.of(A, "placed by a player", B, "placed by a player")));
         assertEquals("no terrain change", NavText.planned(java.util.Map.of(), java.util.Map.of(), java.util.Map.of()));
+    }
+
+    /**
+     * 悬而未决(主人不在场、到点没答复)的一格是第三张表,不是"要问":它随计划说成"这些格没解决、需要主人",
+     * 但不预支任何授权,也不冒充要问。
+     */
+    @Test
+    void aPendingCellIsKeptApartFromTheCellsThatNeedConsent() {
+        List<Edit> edits = List.of(new Edit.Dig(A, planks(), Permit.pending("主人不在场"), false, true));
+        NavText.Changes changes = NavText.Changes.of(edits);
+        assertTrue(changes.asks().isEmpty(), "悬而未决不是要问");
+        assertEquals(Map.of(A, "主人不在场"), changes.pending(), "悬而未决单独一张表");
+
+        Verdict verdict = Verdict.pending("主人不在场");
+        NavText.Changes fromVerdict = NavText.Changes.of(
+                List.of(new Edit.Dig(B, planks(), Permit.pending(verdict), false, true)));
+        assertEquals(verdict.reason(), fromVerdict.pending().get(B), "凭据是裁决时照裁决说理由");
     }
 
     /**

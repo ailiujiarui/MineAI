@@ -1,6 +1,7 @@
 package com.dwinovo.numen.core.task.move;
 
 import com.dwinovo.numen.sdk.ServerCall;
+import com.dwinovo.numen.permission.ConsentDesk;
 import com.dwinovo.numen.task.TaskRecord;
 
 import java.util.UUID;
@@ -56,6 +57,12 @@ public final class FollowTaskRecord extends TaskRecord {
     /** 跟的是谁,给人看的那个叫法。 */
     String who() {
         return target == null ? "you" : targetName;
+    }
+
+    /** 跟着走是一段长活:路上要问主人的格等同无限等。 */
+    @Override
+    public long consentTimeoutTicks() {
+        return ConsentDesk.UNBOUNDED_TICKS;
     }
 
     /**

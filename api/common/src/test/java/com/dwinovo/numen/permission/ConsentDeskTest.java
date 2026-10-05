@@ -68,6 +68,24 @@ class ConsentDeskTest {
         desk = new ConsentDesk(UUID.randomUUID(), line);
     }
 
+    /** 超时按发起它的那一方是什么活定:短活与认不出的作用域按上限,长跑的活按记录自报的刻数。 */
+    @Test
+    void theTimeoutComesFromTheTaskNature() {
+        assertEquals(ConsentDesk.TIMEOUT_TICKS, ConsentDesk.timeoutFor(new Task()), "短活按上限");
+        assertEquals(ConsentDesk.TIMEOUT_TICKS, ConsentDesk.timeoutFor(new Object()), "认不出发起方的按短活");
+
+        long slow = 12 * 60 * 20L;
+        TaskRecord longRunning = new TaskRecord("mine", "call", Long.MAX_VALUE / 4) {
+            @Override
+            public long consentTimeoutTicks() {
+                return slow;
+            }
+        };
+        assertEquals(slow, ConsentDesk.timeoutFor(longRunning));
+        ConsentDesk.Ticket ticket = desk.ask(longRunning, List.of(log(1)));
+        assertEquals(line.now + slow, ticket.request().expiresAtGameTime(), "发起时就按任务的性子钉下期限");
+    }
+
     @Test
     void askPushesTheCardAndAnAllowBecomesATaskGrant() {
         Task task = new Task();

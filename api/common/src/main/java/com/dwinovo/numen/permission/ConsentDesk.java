@@ -4,6 +4,7 @@ import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.network.payload.ConsentRequestPayload;
 import com.dwinovo.numen.network.NumenNetwork;
+import com.dwinovo.numen.task.TaskRecord;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -37,12 +38,28 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <h2>记住</h2>
  * 主人选"允许并记住"时,除了记成本任务的授权,清单每一条的 {@link ConsentItem#remember} 写进主人的
- * allow 表({@link PermissionStore#remember}),往后同类的事由主人层直接放行,不再问。
+ * allow 表({@link PermissionStore#remember}),同时留一条带来历的跨会话信任({@link PermissionStore#rememberTrusted}),
+ * 往后同类的事由主人层直接放行,不再问。
  */
 public final class ConsentDesk {
 
-    /** 等主人答复多久(游戏刻)。 */
+    /** 等主人答复多久(游戏刻):短活的上限。 */
     public static final long TIMEOUT_TICKS = 2 * 60 * 20;
+
+    /**
+     * 长跑的、自主的活等主人答复的"上限"——事实上等不到:一个不会到的游戏刻。主人不在场或中途离线时,发起的一方
+     * 照旧按悬而未决搁下这一格继续做别的(不硬顶成拒绝),而主人只是迟答时,这一格一直留着等他。
+     */
+    public static final long UNBOUNDED_TICKS = Long.MAX_VALUE / 2;
+
+    /**
+     * 这次征询等主人多久,由发起它的一方是什么活定:{@link TaskRecord#consentTimeoutTicks()}。交互的、短活保持
+     * {@link #TIMEOUT_TICKS};mine/build/route 一类自主长跑的活等同无限。认不出发起方的(指令、脚本调用、测试里的
+     * 普通对象)按短活算。
+     */
+    public static long timeoutFor(Object scope) {
+        return scope instanceof TaskRecord record ? record.consentTimeoutTicks() : TIMEOUT_TICKS;
+    }
 
     /** 主人按了拒绝、没有附言时回执里的理由。 */
     public static final String OWNER_SAID_NO = "主人拒绝";
@@ -136,7 +153,7 @@ public final class ConsentDesk {
             throw new IllegalArgumentException("a consent request needs at least one item");
         }
         Ticket ticket = new Ticket(scope, new ConsentRequest(IDS.incrementAndGet(), companion, items,
-                line.gameTime() + TIMEOUT_TICKS));
+                line.gameTime() + timeoutFor(scope)));
         if (pending != null) {
             settle(pending, new ConsentAnswer(ConsentAnswer.Decision.DENY, SUPERSEDED));
         }
@@ -329,7 +346,12 @@ public final class ConsentDesk {
 
         @Override
         public void remember(List<Rule> allow) {
-            PermissionStore.of(body.getServer(), body.getOwnerUuid()).remember(allow);
+            PermissionStore store = PermissionStore.of(body.getServer(), body.getOwnerUuid());
+            store.remember(allow);
+            // "允许并记住"同时留一条跨会话的信任,连同谁在什么时候为准许的;往后 Gate 在出厂 ask 之前就放行。
+            for (Rule rule : allow) {
+                store.rememberTrusted(rule, body.getOwnerUuid(), body.getGameProfile().getName());
+            }
         }
 
     }

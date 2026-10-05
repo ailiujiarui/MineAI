@@ -149,6 +149,13 @@ public record Plan(String id, Description description, BlockPos from, List<Leg> 
         return out;
     }
 
+    /** 悬而未决、这一趟不动的全部格(主人不在场、到点没答复):不是被拒,也不预先放行。 */
+    public LongSet pending() {
+        LongSet out = new LongOpenHashSet();
+        legs.forEach(l -> l.changes().pending().keySet().forEach(p -> out.add(p.asLong())));
+        return out;
+    }
+
     /** 一格与那一格的方块:要挖的是规划时那里的方块,要放的是打算放下的方块。 */
     public record Cell(BlockPos pos, Block block) {}
 

@@ -2,6 +2,7 @@ package com.dwinovo.numen.core.task.move;
 
 import com.dwinovo.numen.sdk.ServerCall;
 import com.dwinovo.numen.core.route.Plan;
+import com.dwinovo.numen.permission.ConsentDesk;
 import com.dwinovo.numen.task.TaskRecord;
 
 /**
@@ -21,6 +22,12 @@ public final class MoveToTaskRecord extends TaskRecord {
     public MoveToTaskRecord(ServerCall source, Plan plan) {
         super(source, source.her().level().getGameTime() + BUDGET_TICKS);
         this.plan = plan;
+    }
+
+    /** 走一条规划好的路是自主长跑的活:路上要问主人的格等同无限等。 */
+    @Override
+    public long consentTimeoutTicks() {
+        return ConsentDesk.UNBOUNDED_TICKS;
     }
 
     /**

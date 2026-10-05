@@ -39,6 +39,8 @@ public class Gate {
     private final List<RuleSet> layers;
     private final PlacedBlocks placed;
     private final List<ConsentItem> granted;
+    /** 跨会话的信任规则:两层 allow 之后、出厂 ask 之前查它;命中的动作放行,但不解开任何拒绝。 */
+    private final List<PermissionStore.Trusted> trusted;
 
     /**
      * @param actor   要动手的同伴是谁;测试可传 null
@@ -49,11 +51,20 @@ public class Gate {
      */
     public Gate(UUID actor, Mode mode, RuleSet owner, RuleSet factory, PlacedBlocks placed,
                 List<ConsentItem> granted) {
+        this(actor, mode, owner, factory, placed, granted, List.of());
+    }
+
+    /**
+     * 同上,另带主人记下的跨会话信任规则({@link PermissionStore#trusted})。
+     */
+    public Gate(UUID actor, Mode mode, RuleSet owner, RuleSet factory, PlacedBlocks placed,
+                List<ConsentItem> granted, List<PermissionStore.Trusted> trusted) {
         this.actor = actor;
         this.mode = mode;
         this.layers = List.of(owner, factory);
         this.placed = placed;
         this.granted = List.copyOf(granted);
+        this.trusted = List.copyOf(trusted);
     }
 
     public Mode mode() {
@@ -91,19 +102,34 @@ public class Gate {
         if (mode == Mode.OBSERVE) {
             return Verdict.deny("observe mode: " + action.kind().verb() + " would change the world");
         }
-        Rule hit = null;
-        for (RuleSet layer : layers) {
-            Rule denied = RuleSet.firstMatch(layer.deny(), action, facts);
+        // 主人层整体先于出厂层:主人的 ask 行压得过出厂 allow 行,命中就到此为止。
+        RuleSet owner = layers.get(0);
+        RuleSet factory = layers.get(1);
+
+        Rule denied = RuleSet.firstMatch(owner.deny(), action, facts);
+        if (denied != null) {
+            return denied(denied);
+        }
+        if (RuleSet.firstMatch(owner.allow(), action, facts) != null) {
+            return Verdict.allow();
+        }
+        Rule hit = RuleSet.firstMatch(owner.ask(), action, facts);
+
+        if (hit == null) {
+            denied = RuleSet.firstMatch(factory.deny(), action, facts);
             if (denied != null) {
-                return Verdict.deny("denied by rule " + denied + " (" + denied.describe() + ")");
+                return denied(denied);
             }
-            if (RuleSet.firstMatch(layer.allow(), action, facts) != null) {
+            if (RuleSet.firstMatch(factory.allow(), action, facts) != null) {
                 return Verdict.allow();
             }
-            hit = RuleSet.firstMatch(layer.ask(), action, facts);
-            if (hit != null) {
-                break;
+            // 跨会话信任排在两层 allow 之后、出厂 ask 之前:它有放行权,没有解拒绝权——两层的 deny 都在上面。
+            for (PermissionStore.Trusted entry : trusted) {
+                if (entry.rule().matches(action, facts)) {
+                    return Verdict.allow();
+                }
             }
+            hit = RuleSet.firstMatch(factory.ask(), action, facts);
         }
         for (ConsentItem grant : granted) {
             if (grant.covers(action, hit)) {
@@ -111,5 +137,9 @@ public class Gate {
             }
         }
         return hit != null ? Verdict.ask(hit) : Verdict.uncovered();
+    }
+
+    private static Verdict denied(Rule rule) {
+        return Verdict.deny("denied by rule " + rule + " (" + rule.describe() + ")");
     }
 }
