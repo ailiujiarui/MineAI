@@ -8,6 +8,13 @@
     "ItemEntityAccessor",
     "CraftingMenuAccessor",
     "EnderEyeEvalMixin",
+    "DragonDamageEvalMixin",
+    "DragonDeathEvalMixin",
+    "DragonKillCreditEvalMixin",
+    "DragonKillStatisticEvalMixin",
+    "DragonFightEvalMixin",
+    "DragonFightEvalAccessor",
+    "DragonAnimationEvalAccessor",
     "NativePortalEvalMixin",
     "ServerLevelBlockChangeMixin",
     "ServerPlayerGameModeAccessor"

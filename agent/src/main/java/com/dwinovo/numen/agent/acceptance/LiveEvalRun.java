@@ -29,6 +29,7 @@ public final class LiveEvalRun {
     private final long successHoldTicks;
     private final boolean requiresTickHold;
     private final boolean endEntryProtocol;
+    private final boolean dragonCombatProtocol;
     private long successSinceTick = -1;
     private long previousTick = -1;
     private long successHeldTicks;
@@ -36,6 +37,7 @@ public final class LiveEvalRun {
     private final JsonArray reached = new JsonArray();
     private final JsonArray events = new JsonArray();
     private final Set<String> reachedIds = new java.util.HashSet<>();
+    private final Map<String, JsonObject> dragonEvidence = new LinkedHashMap<>();
     private Usage usage = Usage.ZERO;
     private int unknownUsageReports;
     private int usageReports;
@@ -58,22 +60,25 @@ public final class LiveEvalRun {
         if (spec == null) throw invalid("spec is required");
         this.spec = spec.deepCopy();
         String version = text(spec, "evaluation_version");
-        if (!Set.of("live-v1", "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1", "end-entry-v1").contains(version)) {
+        if (!Set.of("live-v1", "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1", "end-entry-v1", "dragon-combat-v1").contains(version)) {
             throw invalid("unknown evaluation_version");
         }
         requiresTickHold = "end-resources-v1".equals(version);
         endEntryProtocol = "end-entry-v1".equals(version);
+        dragonCombatProtocol = "dragon-combat-v1".equals(version);
         String observer = switch (version) {
             case "survival-v2" -> "free-survival-v2";
             case "expedition-v1" -> "expedition-v1";
             case "end-resources-v1" -> "end-resources-v1";
             case "end-entry-v1" -> "end-entry-v1";
+            case "dragon-combat-v1" -> "dragon-combat-v1";
             default -> "sustainable-survival-v1";
         };
         if (spec.has("world_observer") && !observer.equals(text(spec, "world_observer"))) {
             throw invalid("unknown world_observer");
         }
         successHoldTicks = spec.has("success_hold_ticks") ? integer(spec, "success_hold_ticks", 1, Long.MAX_VALUE) : 0;
+        if (dragonCombatProtocol && successHoldTicks != 200) throw invalid("dragon-combat-v1 requires 200 post-kill survival ticks");
         text(spec, "case_id");
         text(spec, "prompt");
         integer(spec, "seed", Long.MIN_VALUE, Long.MAX_VALUE);
@@ -81,8 +86,11 @@ public final class LiveEvalRun {
             throw invalid("world_preset must be flat or normal");
         }
         JsonObject setup = object(spec, "setup");
+        if (dragonCombatProtocol && (!"minecraft:the_end".equals(text(setup, "dimension")) || !flag(setup, "native_dragon_battle"))) {
+            throw invalid("dragon-combat-v1 requires explicit native End battle initialization");
+        }
         if (setup.has("equipment")) {
-            if (!requiresTickHold && !endEntryProtocol) throw invalid("equipment initialization requires end-resources-v1 or end-entry-v1");
+            if (!requiresTickHold && !endEntryProtocol && !dragonCombatProtocol) throw invalid("equipment initialization requires a supported independent stage");
             JsonObject equipment = object(setup, "equipment");
             for (String slot : equipment.keySet()) {
                 if (!Set.of("head", "chest", "legs", "feet", "offhand").contains(slot)) {
@@ -109,6 +117,11 @@ public final class LiveEvalRun {
                 || !success.getAsJsonObject("world").has("native_end_entry")
                 || !success.getAsJsonObject("world").get("native_end_entry").getAsBoolean())) {
             throw invalid("end-entry-v1 success requires native_end_entry evidence");
+        }
+        if (dragonCombatProtocol && (!success.has("world")
+                || !success.getAsJsonObject("world").has("native_dragon_kill")
+                || !success.getAsJsonObject("world").get("native_dragon_kill").getAsBoolean())) {
+            throw invalid("dragon-combat-v1 success requires native_dragon_kill evidence");
         }
         JsonObject budget = object(spec, "budget");
         maxModelCalls = (int) integer(budget, "max_model_calls", 1, Integer.MAX_VALUE);
@@ -204,6 +217,40 @@ public final class LiveEvalRun {
             finish("failed", "companion_died", nowNanos);
             return;
         }
+        if (dragonCombatProtocol && dragonDeathObserved(snapshot)) {
+            finish("failed", "companion_died", nowNanos);
+            return;
+        }
+        if (dragonCombatProtocol) {
+            String problem = dragonCombatProblem(snapshot);
+            if (problem != null) {
+                finish("infra_error", problem, nowNanos);
+                return;
+            }
+            JsonObject chain = dragonChain(snapshot);
+            if (dragonLethalValid(chain)) {
+                JsonObject lethal = object(chain, "lethal");
+                if (flag(chain, "attribution_ambiguous")
+                        || "crystal_nearest_player_fallback".equals(text(lethal, "attribution_origin"))) {
+                    finish("infra_error", "attribution_unavailable", nowNanos);
+                    return;
+                }
+                String credited = nullableText(lethal, "credited_actor_uuid");
+                if (credited != null && !attributedTo(lethal, "source_actor_uuid", credited)) {
+                    finish("infra_error", "attribution_unavailable", nowNanos);
+                    return;
+                }
+                if (credited != null && !text(snapshot, "companion_uuid").equals(credited)) {
+                    finish(dragonOtherKillKnown(snapshot) ? "failed" : "infra_error",
+                            dragonOtherKillKnown(snapshot) ? "target_killed_by_other" : "dragon_evidence_incomplete", nowNanos);
+                    return;
+                }
+                if (!chain.get("fight_end").isJsonNull() && credited == null) {
+                    finish("infra_error", "attribution_unavailable", nowNanos);
+                    return;
+                }
+            }
+        }
         if (endEntryProtocol && !snapshot.get("subject_present").getAsBoolean()) {
             finish("infra_error", "observation_unavailable", nowNanos);
             return;
@@ -255,7 +302,10 @@ public final class LiveEvalRun {
                 finish("infra_error", "game_tick_moved_backwards", nowNanos);
                 return;
             }
-            if (endEntryProtocol) {
+            if (dragonCombatProtocol) {
+                // 用户约定的击杀后存活由服务端逐刻计数;读快照或原生换维不增加保持时间。
+                successHeldTicks = successMet ? integer(object(snapshot, "world"), "dragon_post_kill_alive_ticks", 0, Long.MAX_VALUE) : 0;
+            } else if (endEntryProtocol) {
                 // 入门后存活时长来自同一主体的服务端逐刻观察,客户端不可见不另起一段计时。
                 successHeldTicks = successMet ? integer(object(snapshot, "world"), "end_alive_held_ticks", 0, Long.MAX_VALUE) : 0;
             } else {
@@ -386,16 +436,18 @@ public final class LiveEvalRun {
         if (!snapshot.has("alive") || !snapshot.get("alive").isJsonPrimitive()
                 || !snapshot.getAsJsonPrimitive("alive").isBoolean()) throw invalid("snapshot.alive must be boolean");
         integer(snapshot, "deaths", 0, Integer.MAX_VALUE);
-        if (endEntryProtocol && (!started || snapshot.get("deaths").getAsInt() <= initialDeaths)) {
+        if ((endEntryProtocol || dragonCombatProtocol) && (!started || snapshot.get("deaths").getAsInt() <= initialDeaths)) {
             text(snapshot, "companion_uuid");
             flag(snapshot, "subject_present");
             if (!snapshot.get("subject_present").getAsBoolean()) return;
         }
         if (!snapshot.get("alive").getAsBoolean()
                 || (started && snapshot.get("deaths").getAsInt() > initialDeaths)) return;
+        if (dragonCombatProtocol && dragonDeathObserved(snapshot)) return;
         if (successHoldTicks > 0) integer(snapshot, "game_tick", 0, Long.MAX_VALUE);
         if (requiresTickHold) integer(object(snapshot, "world"), "loadout_held_ticks", 0, Long.MAX_VALUE);
         if (endEntryProtocol) validateEndEntrySnapshot(snapshot);
+        if (dragonCombatProtocol) validateDragonCombatSnapshot(snapshot);
         validateEvidence(success, snapshot);
         for (JsonObject condition : milestones.values()) validateEvidence(condition, snapshot);
     }
@@ -433,6 +485,8 @@ public final class LiveEvalRun {
                 } else if (number(facts, entry.getKey()) < entry.getValue().getAsDouble()) return false;
                 if (endEntryProtocol && Set.of("portal_reached", "portal_activated_by_companion", "native_end_entry")
                         .contains(entry.getKey()) && !endEntryMet(entry.getKey(), snapshot)) return false;
+                if (dragonCombatProtocol && Set.of("dragon_damaged", "dragon_death_started", "native_dragon_kill")
+                        .contains(entry.getKey()) && !dragonCombatMet(entry.getKey(), snapshot)) return false;
             }
         }
         if (criterion.has("items")) {
@@ -453,6 +507,394 @@ public final class LiveEvalRun {
             if (distance > number(within, "radius")) return false;
         }
         return true;
+    }
+
+    private static JsonObject dragonChain(JsonObject snapshot) {
+        return object(object(object(snapshot, "world"), "evidence"), "dragon_combat");
+    }
+
+    /** 原生首次死亡的锁存先于目标成功和缺失主体;身体恢复不能改写这一事实。 */
+    private static boolean dragonDeathObserved(JsonObject snapshot) {
+        JsonElement world = snapshot.get("world");
+        if (world == null || !world.isJsonObject()) return false;
+        JsonElement evidence = world.getAsJsonObject().get("evidence");
+        if (evidence == null || !evidence.isJsonObject()) return false;
+        JsonElement chain = evidence.getAsJsonObject().get("dragon_combat");
+        if (chain == null || !chain.isJsonObject()) return false;
+        JsonElement death = chain.getAsJsonObject().get("first_death_observed");
+        if (death != null && death.isJsonPrimitive() && death.getAsJsonPrimitive().isBoolean() && death.getAsBoolean()) return true;
+        JsonElement receipt = chain.getAsJsonObject().get("first_death");
+        if (receipt == null || !receipt.isJsonObject()) return false;
+        JsonElement source = receipt.getAsJsonObject().get("evidence_source");
+        JsonElement actor = receipt.getAsJsonObject().get("subject_uuid");
+        return source != null && source.isJsonPrimitive() && source.getAsJsonPrimitive().isString()
+                && Set.of("native_companion_death_before_recovery", "server_tick_dead_body").contains(source.getAsString())
+                && actor != null && actor.equals(chain.getAsJsonObject().get("subject_uuid"));
+    }
+
+    private static void validateDragonCombatSnapshot(JsonObject snapshot) {
+        text(snapshot, "dimension");
+        integer(snapshot, "game_tick", 0, Long.MAX_VALUE);
+        integer(snapshot, "dragon_kills", 0, Integer.MAX_VALUE);
+        JsonObject world = object(snapshot, "world");
+        text(world, "subject_uuid");
+        for (String key : new String[]{"dragon_combat_ready", "observation_complete", "dragon_damaged", "dragon_death_started", "native_dragon_kill"}) {
+            flag(world, key);
+        }
+        integer(world, "dragon_post_kill_alive_ticks", 0, Long.MAX_VALUE);
+        JsonObject chain = dragonChain(snapshot);
+        JsonElement firstDeath = chain.get("first_death");
+        if (firstDeath == null || (!firstDeath.isJsonNull() && !firstDeath.isJsonObject())) throw invalid("first_death must be an object or null");
+        validateDragonIdentity(chain);
+        for (String key : new String[]{"first_death_observed", "critical_evidence_complete", "attribution_ambiguous", "calibration_fixture"}) flag(chain, key);
+        integer(chain, "observation_gaps", 0, Integer.MAX_VALUE);
+        integer(chain, "last_verified_game_tick", 0, Long.MAX_VALUE);
+        integer(chain, "post_kill_alive_ticks", 0, Long.MAX_VALUE);
+        for (String key : new String[]{"post_kill_hold_start_game_tick", "post_kill_last_verified_game_tick"}) {
+            JsonElement value = chain.get(key);
+            if (value == null) throw invalid(key + " is required");
+            if (!value.isJsonNull()) integer(chain, key, 0, Long.MAX_VALUE);
+        }
+        for (String key : new String[]{"total_actual_damage", "companion_actual_damage", "minimum_health"}) {
+            if (number(chain, key) < 0) throw invalid("dragon_combat." + key + " must be nonnegative");
+        }
+        if (number(chain, "companion_actual_damage") > number(chain, "total_actual_damage")) {
+            throw invalid("companion damage exceeds total damage");
+        }
+        nullableNumber(chain, "current_health");
+        for (String key : new String[]{"initial_battle", "current_battle"}) {
+            JsonObject battle = object(chain, key);
+            validateDragonIdentity(battle);
+            integer(battle, "game_tick", 0, Long.MAX_VALUE);
+            for (String flag : new String[]{"fight_bound", "needs_state_scanning", "dragon_killed", "previously_killed", "is_respawning",
+                    "target_present", "target_no_ai", "target_invulnerable", "calibration_fixture"}) flag(battle, flag);
+            number(battle, "target_max_health");
+            nullableNumber(battle, "target_health");
+            integer(battle, "crystals_alive", 0, Integer.MAX_VALUE);
+            integer(battle, "dragon_kills", 0, Integer.MAX_VALUE);
+            text(battle, "phase");
+            integer(battle, "death_animation_ticks", 0, Integer.MAX_VALUE);
+        }
+        JsonObject initial = object(chain, "initial_battle");
+        text(initial, "evidence_source");
+        for (JsonElement value : array(initial, "crystals")) {
+            if (!value.isJsonObject()) throw invalid("initial crystal must be an object");
+            JsonObject crystal = value.getAsJsonObject();
+            text(crystal, "uuid");
+            position(crystal);
+            flag(crystal, "invulnerable");
+            flag(crystal, "alive");
+        }
+        JsonObject current = object(chain, "current_battle");
+        text(current, "phase");
+        integer(current, "death_animation_ticks", 0, Integer.MAX_VALUE);
+        for (String key : new String[]{"first_damage", "first_companion_damage", "lethal", "kill_credit", "kill_statistic", "fight_end"}) {
+            JsonElement value = chain.get(key);
+            if (value == null) throw invalid("dragon_combat." + key + " is required");
+            if (value.isJsonNull()) continue;
+            JsonObject event = object(chain, key);
+            validateDragonIdentity(event);
+            integer(event, "game_tick", 0, Long.MAX_VALUE);
+            text(event, "evidence_source");
+            if (key.endsWith("damage")) {
+                validateDragonDamage(event);
+            } else if ("lethal".equals(key)) {
+                number(event, "health");
+                integer(event, "damage_event_id", 1, Long.MAX_VALUE);
+                validateDragonHealthLoss(event);
+                JsonObject fatal = object(event, "fatal_damage");
+                validateDragonIdentity(fatal);
+                validateDragonDamage(fatal);
+                integer(fatal, "game_tick", 0, Long.MAX_VALUE);
+                text(fatal, "evidence_source");
+                text(event, "damage_type_message_id");
+                text(event, "attribution_origin");
+                for (String actor : new String[]{"source_actor_uuid", "direct_entity_uuid", "credited_actor_uuid", "provenance_actor_uuid"}) nullableText(event, actor);
+            } else if ("kill_credit".equals(key)) {
+                text(event, "actor_uuid");
+                text(event, "damage_type_message_id");
+                nullableText(event, "source_actor_uuid");
+                nullableText(event, "direct_entity_uuid");
+            } else if ("kill_statistic".equals(key)) {
+                text(event, "actor_uuid");
+                integer(event, "before", 0, Integer.MAX_VALUE);
+                integer(event, "after", 0, Integer.MAX_VALUE);
+            } else {
+                flag(event, "dragon_killed");
+                flag(event, "previously_killed");
+                integer(event, "death_animation_ticks", 0, Integer.MAX_VALUE);
+            }
+        }
+    }
+
+    private static void validateDragonIdentity(JsonObject value) {
+        for (String key : new String[]{"subject_uuid", "target_uuid", "fight_id", "dimension"}) text(value, key);
+        JsonArray origin = array(value, "origin");
+        if (origin.size() != 3) throw invalid("dragon battle origin must contain three coordinates");
+        StringBuilder expectedId = new StringBuilder(text(value, "dimension"));
+        for (JsonElement coordinate : origin) {
+            double number = finite(coordinate, "origin");
+            if (number != Math.rint(number) || number < Integer.MIN_VALUE || number > Integer.MAX_VALUE) throw invalid("dragon battle origin must be integral");
+            expectedId.append(':').append((long) number);
+        }
+        expectedId.append(':').append(text(value, "target_uuid"));
+        if (!expectedId.toString().equals(text(value, "fight_id"))) throw invalid("fight_id must bind its dimension, origin and target_uuid");
+    }
+
+    private static void validateDragonHealthLoss(JsonObject event) {
+        for (String key : new String[]{"health_before", "health_after", "actual_health_loss"}) {
+            if (number(event, key) < 0) throw invalid("dragon damage health values must be nonnegative");
+        }
+    }
+
+    private static void validateDragonDamage(JsonObject event) {
+        integer(event, "event_id", 1, Long.MAX_VALUE);
+        validateDragonHealthLoss(event);
+        nullableText(event, "actor_uuid");
+        nullableText(event, "provenance_actor_uuid");
+        nullableText(event, "source_actor_uuid");
+        nullableText(event, "direct_entity_uuid");
+        text(event, "damage_type_message_id");
+        flag(event, "attribution_reliable");
+        text(event, "attribution_origin");
+    }
+
+    private String dragonCombatProblem(JsonObject snapshot) {
+        if (!flag(snapshot, "subject_present")) return "observation_unavailable";
+        if (!flag(snapshot, "alive")) return null;
+        JsonObject world = object(snapshot, "world");
+        JsonObject chain = dragonChain(snapshot);
+        long tick = integer(snapshot, "game_tick", 0, Long.MAX_VALUE);
+        if (!text(snapshot, "companion_uuid").equals(text(initialSnapshot, "companion_uuid"))) return "companion_identity_changed";
+        if (!sameDragonIdentity(chain, dragonChain(initialSnapshot))
+                || !text(snapshot, "companion_uuid").equals(text(chain, "subject_uuid"))
+                || !text(chain, "subject_uuid").equals(text(world, "subject_uuid"))) return "dragon_identity_changed";
+        if (previousTick >= 0 && tick < previousTick) return "game_tick_moved_backwards";
+        previousTick = tick;
+        if (!flag(world, "observation_complete") || !flag(chain, "critical_evidence_complete")
+                || integer(chain, "observation_gaps", 0, Integer.MAX_VALUE) != 0
+                || integer(chain, "last_verified_game_tick", 0, Long.MAX_VALUE) != tick) return "observation_incomplete";
+        JsonObject initial = object(chain, "initial_battle");
+        if (!flag(world, "dragon_combat_ready") || flag(chain, "calibration_fixture")
+                || !initial.equals(object(dragonChain(initialSnapshot), "initial_battle"))
+                || !sameDragonIdentity(initial, chain) || !validInitialDragonBattle(initial)
+                || integer(initialSnapshot, "dragon_kills", 0, Integer.MAX_VALUE) != 0
+                || integer(initialSnapshot, "deaths", 0, Integer.MAX_VALUE) != 0
+                || integer(initial, "game_tick", 0, Long.MAX_VALUE) > integer(initialSnapshot, "game_tick", 0, Long.MAX_VALUE)) {
+            return "initial_dragon_battle_invalid";
+        }
+        JsonObject initialChain = dragonChain(initialSnapshot);
+        JsonObject initialCurrent = object(initialChain, "current_battle");
+        if (!flag(initialCurrent, "target_present") || nullableNumber(initialCurrent, "target_health") == null
+                || number(initialCurrent, "target_health") != 200 || flag(initialCurrent, "dragon_killed")
+                || text(initialCurrent, "phase").startsWith("Dying")
+                || flag(initialCurrent, "previously_killed") || integer(initialCurrent, "death_animation_ticks", 0, Integer.MAX_VALUE) != 0) {
+            return "initial_dragon_battle_invalid";
+        }
+        for (String key : new String[]{"first_damage", "first_companion_damage", "lethal", "kill_credit", "kill_statistic", "fight_end"}) {
+            if (!initialChain.get(key).isJsonNull()) return "initial_dragon_battle_invalid";
+        }
+        JsonObject current = object(chain, "current_battle");
+        if (!sameDragonIdentity(current, chain) || integer(current, "game_tick", 0, Long.MAX_VALUE) != tick
+                || !flag(current, "fight_bound") || flag(current, "needs_state_scanning") || flag(current, "is_respawning")
+                || flag(current, "target_no_ai") || flag(current, "target_invulnerable") || flag(current, "calibration_fixture")
+                || number(current, "target_max_health") != 200
+                || integer(current, "dragon_kills", 0, Integer.MAX_VALUE) != integer(snapshot, "dragon_kills", 0, Integer.MAX_VALUE)) {
+            return "observation_incomplete";
+        }
+        for (String key : new String[]{"first_damage", "first_companion_damage", "lethal", "kill_credit", "kill_statistic", "fight_end"}) {
+            if (dragonEvidence.containsKey(key) && !dragonEvidence.get(key).equals(chain.get(key))) return "dragon_evidence_inconsistent";
+            if (!chain.get(key).isJsonNull()) {
+                JsonObject event = object(chain, key);
+                if (!sameDragonIdentity(event, chain) || integer(event, "game_tick", 0, Long.MAX_VALUE) < integer(initialSnapshot, "game_tick", 0, Long.MAX_VALUE)
+                        || integer(event, "game_tick", 0, Long.MAX_VALUE) > tick) return "dragon_evidence_inconsistent";
+                dragonEvidence.putIfAbsent(key, event.deepCopy());
+            }
+        }
+        if (!dragonDamageReceiptsConsistent(chain)) return "dragon_evidence_inconsistent";
+        if (!"minecraft:the_end".equals(text(snapshot, "dimension")) && !dragonTerminalEvidence(snapshot, true)) return "dragon_identity_changed";
+        long held = integer(world, "dragon_post_kill_alive_ticks", 0, Long.MAX_VALUE);
+        if (held != integer(chain, "post_kill_alive_ticks", 0, Long.MAX_VALUE)) return "dragon_evidence_inconsistent";
+        if (held > 0 && (chain.get("fight_end").isJsonNull()
+                || chain.get("post_kill_hold_start_game_tick").isJsonNull() || chain.get("post_kill_last_verified_game_tick").isJsonNull()
+                || integer(chain, "post_kill_hold_start_game_tick", 0, Long.MAX_VALUE)
+                != integer(object(chain, "fight_end"), "game_tick", 0, Long.MAX_VALUE) + 1
+                || integer(chain, "post_kill_last_verified_game_tick", 0, Long.MAX_VALUE) != tick
+                || held != tick - integer(object(chain, "fight_end"), "game_tick", 0, Long.MAX_VALUE))) return "dragon_evidence_inconsistent";
+        if (dragonLethalValid(chain)) {
+            JsonObject lethal = object(chain, "lethal");
+            String actor = nullableText(lethal, "credited_actor_uuid");
+            if (flag(chain, "attribution_ambiguous") || "crystal_nearest_player_fallback".equals(text(lethal, "attribution_origin"))
+                    || actor != null && !attributedTo(lethal, "source_actor_uuid", actor)
+                    || actor != null && !text(snapshot, "companion_uuid").equals(actor)
+                    || actor == null && !chain.get("fight_end").isJsonNull()) return null;
+        }
+        if (!flag(current, "target_present") && !dragonTerminalEvidence(snapshot, false)) return "observation_unavailable";
+        if (flag(current, "dragon_killed") && !dragonTerminalEvidence(snapshot, false)) return "dragon_evidence_incomplete";
+        if (integer(snapshot, "dragon_kills", 0, Integer.MAX_VALUE) > 0
+                && (chain.get("kill_statistic").isJsonNull() || !dragonStatisticValid(object(chain, "kill_statistic"), snapshot))) {
+            return "dragon_evidence_inconsistent";
+        }
+        return null;
+    }
+
+    private static boolean validInitialDragonBattle(JsonObject initial) {
+        if (!"server_native_dragon_fight_initial_state".equals(text(initial, "evidence_source"))
+                || !"minecraft:the_end".equals(text(initial, "dimension")) || !flag(initial, "fight_bound")
+                || flag(initial, "needs_state_scanning") || flag(initial, "dragon_killed") || flag(initial, "previously_killed")
+                || flag(initial, "is_respawning") || !flag(initial, "target_present") || flag(initial, "target_no_ai")
+                || flag(initial, "calibration_fixture")
+                || text(initial, "phase").startsWith("Dying") || integer(initial, "death_animation_ticks", 0, Integer.MAX_VALUE) != 0
+                || flag(initial, "target_invulnerable") || nullableNumber(initial, "target_health") == null
+                || number(initial, "target_health") != 200 || number(initial, "target_max_health") != 200
+                || integer(initial, "dragon_kills", 0, Integer.MAX_VALUE) != 0
+                || integer(initial, "crystals_alive", 0, Integer.MAX_VALUE) != 10 || array(initial, "crystals").size() != 10) return false;
+        Set<String> crystals = new java.util.HashSet<>();
+        Set<String> positions = new java.util.HashSet<>();
+        for (JsonElement value : array(initial, "crystals")) {
+            JsonObject crystal = value.getAsJsonObject();
+            if (flag(crystal, "invulnerable") || !flag(crystal, "alive")
+                    || !crystals.add(text(crystal, "uuid")) || !positions.add(array(crystal, "position").toString())) return false;
+        }
+        return true;
+    }
+
+    private boolean dragonCombatMet(String fact, JsonObject snapshot) {
+        JsonObject chain = dragonChain(snapshot);
+        if (!flag(object(snapshot, "world"), "dragon_combat_ready") || !flag(chain, "critical_evidence_complete")
+                || flag(chain, "first_death_observed") || integer(chain, "observation_gaps", 0, Integer.MAX_VALUE) != 0) return false;
+        if ("dragon_damaged".equals(fact)) {
+            if (chain.get("first_companion_damage").isJsonNull()) return false;
+            JsonObject damage = object(chain, "first_companion_damage");
+            return sameDragonIdentity(damage, chain) && validHealthLoss(damage)
+                    && "native_ender_dragon_really_hurt".equals(text(damage, "evidence_source"))
+                    && flag(damage, "attribution_reliable")
+                    && attributedTo(damage, "actor_uuid", text(snapshot, "companion_uuid"));
+        }
+        if ("dragon_death_started".equals(fact)) return dragonLethalValid(chain);
+        return dragonTerminalEvidence(snapshot, true);
+    }
+
+    /** 致死、原生记分、统计和动画结束分别保存,任何一个布尔值都不能代替这条链。 */
+    private boolean dragonTerminalEvidence(JsonObject snapshot, boolean requireCompanion) {
+        JsonObject chain = dragonChain(snapshot);
+        if (!dragonLethalValid(chain) || chain.get("kill_credit").isJsonNull()
+                || chain.get("kill_statistic").isJsonNull() || chain.get("fight_end").isJsonNull()) return false;
+        JsonObject lethal = object(chain, "lethal");
+        JsonObject credit = object(chain, "kill_credit");
+        JsonObject statistic = object(chain, "kill_statistic");
+        JsonObject ended = object(chain, "fight_end");
+        String actor = nullableText(lethal, "credited_actor_uuid");
+        if (actor == null || !actor.equals(text(credit, "actor_uuid")) || !actor.equals(text(statistic, "actor_uuid"))
+                || requireCompanion && !actor.equals(text(snapshot, "companion_uuid"))
+                || flag(chain, "attribution_ambiguous") || !attributedTo(lethal, "source_actor_uuid", actor)
+                || !"native_server_player_award_kill_score".equals(text(credit, "evidence_source"))
+                || !text(lethal, "damage_type_message_id").equals(text(credit, "damage_type_message_id"))
+                || !java.util.Objects.equals(nullableText(lethal, "source_actor_uuid"), nullableText(credit, "source_actor_uuid"))
+                || !java.util.Objects.equals(nullableText(lethal, "direct_entity_uuid"), nullableText(credit, "direct_entity_uuid"))
+                || !"native_end_dragon_fight_set_dragon_killed".equals(text(ended, "evidence_source"))
+                || !flag(ended, "dragon_killed") || !flag(ended, "previously_killed")
+                || integer(ended, "death_animation_ticks", 0, Integer.MAX_VALUE) != 200
+                || !flag(object(chain, "current_battle"), "dragon_killed")
+                || !flag(object(chain, "current_battle"), "previously_killed")) return false;
+        long lethalTick = integer(lethal, "game_tick", 0, Long.MAX_VALUE);
+        long creditTick = integer(credit, "game_tick", 0, Long.MAX_VALUE);
+        long statisticTick = integer(statistic, "game_tick", 0, Long.MAX_VALUE);
+        long endTick = integer(ended, "game_tick", 0, Long.MAX_VALUE);
+        boolean statisticValid = actor.equals(text(snapshot, "companion_uuid")) ? dragonStatisticValid(statistic, snapshot)
+                : "native_player_killed_entity_statistic".equals(text(statistic, "evidence_source"))
+                && integer(statistic, "after", 0, Integer.MAX_VALUE) - integer(statistic, "before", 0, Integer.MAX_VALUE) == 1
+                && integer(snapshot, "dragon_kills", 0, Integer.MAX_VALUE) == 0;
+        return lethalTick <= creditTick && lethalTick <= statisticTick && creditTick <= endTick && statisticTick <= endTick
+                && endTick - lethalTick >= 199 && statisticValid
+                && (!requireCompanion || integer(snapshot, "game_tick", 0, Long.MAX_VALUE) > endTick);
+    }
+
+    private boolean dragonOtherKillKnown(JsonObject snapshot) {
+        JsonObject chain = dragonChain(snapshot);
+        if (!dragonLethalValid(chain) || chain.get("kill_credit").isJsonNull() || flag(chain, "attribution_ambiguous")) return false;
+        JsonObject lethal = object(chain, "lethal");
+        JsonObject credit = object(chain, "kill_credit");
+        String actor = nullableText(lethal, "credited_actor_uuid");
+        return actor != null && actor.equals(text(credit, "actor_uuid")) && attributedTo(lethal, "source_actor_uuid", actor)
+                && "native_server_player_award_kill_score".equals(text(credit, "evidence_source"))
+                && text(lethal, "damage_type_message_id").equals(text(credit, "damage_type_message_id"))
+                && java.util.Objects.equals(nullableText(lethal, "source_actor_uuid"), nullableText(credit, "source_actor_uuid"))
+                && java.util.Objects.equals(nullableText(lethal, "direct_entity_uuid"), nullableText(credit, "direct_entity_uuid"))
+                && integer(lethal, "game_tick", 0, Long.MAX_VALUE) <= integer(credit, "game_tick", 0, Long.MAX_VALUE);
+    }
+
+    private static boolean dragonStatisticValid(JsonObject statistic, JsonObject snapshot) {
+        return "native_player_killed_entity_statistic".equals(text(statistic, "evidence_source"))
+                && integer(statistic, "before", 0, Integer.MAX_VALUE) == 0
+                && integer(statistic, "after", 0, Integer.MAX_VALUE) == 1
+                && integer(snapshot, "dragon_kills", 0, Integer.MAX_VALUE) == 1;
+    }
+
+    private static boolean dragonLethalValid(JsonObject chain) {
+        if (chain.get("lethal").isJsonNull()) return false;
+        JsonObject lethal = object(chain, "lethal");
+        JsonObject fatal = object(lethal, "fatal_damage");
+        return sameDragonIdentity(lethal, chain) && "native_living_entity_die".equals(text(lethal, "evidence_source"))
+                && sameDragonIdentity(fatal, chain) && "native_ender_dragon_really_hurt".equals(text(fatal, "evidence_source"))
+                && integer(fatal, "event_id", 1, Long.MAX_VALUE) == integer(lethal, "damage_event_id", 1, Long.MAX_VALUE)
+                && integer(fatal, "game_tick", 0, Long.MAX_VALUE) == integer(lethal, "game_tick", 0, Long.MAX_VALUE)
+                && number(fatal, "health_before") == number(lethal, "health_before")
+                && number(fatal, "health_after") == number(lethal, "health_after")
+                && number(fatal, "actual_health_loss") == number(lethal, "actual_health_loss")
+                && text(fatal, "attribution_origin").equals(text(lethal, "attribution_origin"))
+                && text(fatal, "damage_type_message_id").equals(text(lethal, "damage_type_message_id"))
+                && java.util.Objects.equals(nullableText(fatal, "source_actor_uuid"), nullableText(lethal, "source_actor_uuid"))
+                && java.util.Objects.equals(nullableText(fatal, "direct_entity_uuid"), nullableText(lethal, "direct_entity_uuid"))
+                && java.util.Objects.equals(nullableText(fatal, "actor_uuid"), nullableText(lethal, "source_actor_uuid"))
+                && java.util.Objects.equals(nullableText(fatal, "provenance_actor_uuid"), nullableText(lethal, "provenance_actor_uuid"))
+                && number(lethal, "health") == 0 && number(lethal, "health_after") == 0 && validHealthLoss(lethal) && validHealthLoss(fatal);
+    }
+
+    private static boolean validHealthLoss(JsonObject event) {
+        return number(event, "health_before") > number(event, "health_after")
+                && number(event, "actual_health_loss") > 0
+                && Math.abs(number(event, "actual_health_loss") - (number(event, "health_before") - number(event, "health_after"))) < 0.0001;
+    }
+
+    private static boolean dragonDamageReceiptsConsistent(JsonObject chain) {
+        Map<Long, JsonObject> receipts = new LinkedHashMap<>();
+        for (String key : new String[]{"first_damage", "first_companion_damage", "lethal"}) {
+            if (chain.get(key).isJsonNull()) continue;
+            JsonObject event = object(chain, key);
+            if ("lethal".equals(key)) event = object(event, "fatal_damage");
+            long id = integer(event, "event_id", 1, Long.MAX_VALUE);
+            JsonObject previous = receipts.putIfAbsent(id, event);
+            if (previous != null && !previous.equals(event)) return false;
+        }
+        return true;
+    }
+
+    private static boolean attributedTo(JsonObject event, String actorKey, String actor) {
+        return switch (text(event, "attribution_origin")) {
+            case "native_damage_source" -> actor.equals(nullableText(event, actorKey));
+            case "crystal_explicit_player" -> actor.equals(nullableText(event, "provenance_actor_uuid"));
+            default -> false;
+        };
+    }
+
+    private static boolean sameDragonIdentity(JsonObject first, JsonObject second) {
+        for (String key : new String[]{"subject_uuid", "target_uuid", "fight_id", "dimension"}) {
+            if (!text(first, key).equals(text(second, key))) return false;
+        }
+        return "minecraft:the_end".equals(text(first, "dimension")) && array(first, "origin").equals(array(second, "origin"));
+    }
+
+    private static String nullableText(JsonObject object, String key) {
+        JsonElement value = object.get(key);
+        if (value == null) throw invalid(key + " is required");
+        return value.isJsonNull() ? null : text(object, key);
+    }
+
+    private static Double nullableNumber(JsonObject object, String key) {
+        JsonElement value = object.get(key);
+        if (value == null) throw invalid(key + " is required");
+        return value.isJsonNull() ? null : number(object, key);
     }
 
     /** 原生入门的三个里程碑各留独立方块快照,不能把不同门或不同主体的事拼接。 */

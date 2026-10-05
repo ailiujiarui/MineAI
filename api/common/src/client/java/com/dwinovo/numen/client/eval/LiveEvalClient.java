@@ -45,6 +45,8 @@ public final class LiveEvalClient {
     private EntityAgentLoop brain;
     private boolean worldRequested;
     private boolean setupRequested;
+    private boolean preparationRequested;
+    private boolean preparationReady;
     private boolean observing;
     private boolean started;
     private boolean stopping;
@@ -138,6 +140,19 @@ public final class LiveEvalClient {
             return;
         }
         if (!setupRequested) {
+            if (!preparationReady) {
+                if (preparationRequested) return;
+                preparationRequested = true;
+                UUID owner = mc.player.getUUID();
+                server.submit(() -> LiveEvalWorld.preparationReady(server, owner, scenario)).whenComplete((ready, error) ->
+                        mc.execute(() -> {
+                            preparationRequested = false;
+                            if (stopping) return;
+                            if (error != null) fail("World battle preparation failed: " + failureTypes(error));
+                            else preparationReady = ready;
+                        }));
+                return;
+            }
             setupRequested = true;
             mc.setScreen(null);
             UUID owner = mc.player.getUUID();
@@ -193,10 +208,15 @@ public final class LiveEvalClient {
         fixture.addProperty("goal_stuck_limit", GoalState.STUCK_STREAK_TO_GIVE_UP);
         fixture.addProperty("owner_mode", "spectator");
         fixture.addProperty("owner_follows_companion", false);
-        if ("end-entry-v1".equals(scenario.get("evaluation_version").getAsString())) {
+        if ("end-entry-v1".equals(scenario.get("evaluation_version").getAsString())
+                || "dragon-combat-v1".equals(scenario.get("evaluation_version").getAsString())) {
             fixture.addProperty("companion_uuid", companion.toString());
             fixture.addProperty("observation_source", "server_player_list_by_uuid");
             fixture.addProperty("client_visibility_required_after_start", false);
+        }
+        if ("dragon-combat-v1".equals(scenario.get("evaluation_version").getAsString())) {
+            fixture.addProperty("initialization", "native_fresh_end_fight_and_native_entry_platform_before_task_clock");
+            fixture.addProperty("runtime_resupply", false);
         }
         JsonArray tools = new JsonArray();
         ToolRegistry.all().forEach(tool -> tools.add(tool.name()));

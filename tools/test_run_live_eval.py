@@ -311,11 +311,26 @@ class LiveLauncherTest(unittest.TestCase):
                                                "minecraft:blaze_rod": 4})
         return scenario
 
+    def dragon_combat_scenario(self):
+        scenario = self.end_resources_scenario()
+        scenario.update(evaluation_version="dragon-combat-v1", case_id="live.dragon-combat", seed=73005,
+                        world_preset="normal", world_observer="dragon-combat-v1", success_hold_ticks=200,
+                        success={"world": {"native_dragon_kill": True, "dragon_post_kill_alive_ticks": 200}},
+                        milestones=[{"id": "dragon-damaged", "condition": {"world": {"dragon_damaged": True}}},
+                                    {"id": "dragon-death-started", "condition": {"world": {"dragon_death_started": True}}},
+                                    {"id": "native-dragon-kill", "condition": {"world": {"native_dragon_kill": True}}}])
+        scenario["setup"].update(spawn=[100.5, 49.0, 0.5], dimension="minecraft:the_end", native_dragon_battle=True,
+                                  inventory={"minecraft:iron_sword": 1, "minecraft:iron_pickaxe": 1,
+                                             "minecraft:iron_axe": 1, "minecraft:water_bucket": 1,
+                                             "minecraft:cooked_beef": 32, "minecraft:cobblestone": 128,
+                                             "minecraft:bow": 1, "minecraft:arrow": 128})
+        return scenario
+
     def test_supported_protocol_versions_preserve_the_scenario(self):
         legacy_observer = {**self.scenario, "world_observer": "sustainable-survival-v1"}
         for scenario in (self.scenario, legacy_observer, self.survival_scenario(),
                          self.free_survival_scenario(), self.expedition_scenario(), self.end_resources_scenario(),
-                         self.end_entry_scenario()):
+                         self.end_entry_scenario(), self.dragon_combat_scenario()):
             with self.subTest(version=scenario["evaluation_version"]):
                 self.assertEqual(scenario, runner.validate_scenario(copy.deepcopy(scenario)))
 
@@ -412,6 +427,61 @@ class LiveLauncherTest(unittest.TestCase):
                 with self.assertRaisesRegex(runner.PreflightError, "equipment"):
                     runner.validate_scenario(invalid)
 
+    def test_dragon_combat_prepare_preserves_public_end_start_without_reading_credentials(self):
+        scenario = self.dragon_combat_scenario()
+        path = self.base / "dragon-combat.json"
+        runner.write_json(path, scenario)
+        with patch.object(runner, "select_provider", side_effect=AssertionError("Do not read credentials")):
+            code, launch, _ = self.main(["--prepare-only", "--scenario", str(path)])
+        self.assertEqual(0, code)
+        launch.assert_not_called()
+        self.assertEqual("dragon-combat-v1", self.read_run()["evaluation_version"])
+        self.assertIsNone(self.read_run()["success"])
+        request = json.loads((self.output / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual({**scenario, "budget": self.read_run()["budget"]}, request["scenario"])
+        self.assertFalse((self.output / "game/config/numen/providers.json").exists())
+
+    def test_dragon_combat_initialization_is_explicit_and_does_not_modify_the_normal_arena(self):
+        for change in ({"dimension": "minecraft:overworld"}, {"native_dragon_battle": False},
+                       {"native_dragon_battle": 1}, {"spawn": [0.5, 49.0, 0.5]},
+                       {"floor": {"from": [0, 48, 0], "to": [10, 48, 10], "block": "minecraft:stone"}},
+                       {"blocks": []}, {"fixed_time": 0}, {"food_level": 20}, {"saturation": 5}):
+            with self.subTest(change=change):
+                invalid = self.dragon_combat_scenario()
+                invalid["setup"].update(change)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_scenario(invalid)
+        for change in ({"world_preset": "flat"}, {"world_observer": "end-entry-v1"}):
+            with self.subTest(change=change):
+                invalid = self.dragon_combat_scenario()
+                invalid.update(change)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_scenario(invalid)
+        for field in ("dimension", "native_dragon_battle", "spawn"):
+            with self.subTest(missing=field):
+                invalid = self.dragon_combat_scenario()
+                invalid["setup"].pop(field)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_scenario(invalid)
+
+    def test_old_versions_cannot_gain_native_end_battle_initialization(self):
+        for original in (self.scenario, self.free_survival_scenario(), self.end_entry_scenario()):
+            with self.subTest(version=original["evaluation_version"]):
+                invalid = copy.deepcopy(original)
+                invalid["setup"].update(dimension="minecraft:the_end", native_dragon_battle=True)
+                with self.assertRaisesRegex(runner.PreflightError, "setup fields"):
+                    runner.validate_scenario(invalid)
+
+    def test_dragon_combat_protocol_fixes_the_confirmed_post_kill_hold_at_200_ticks(self):
+        for ticks in (None, 0, 1, 20, 199, 201, True, "200"):
+            with self.subTest(ticks=ticks):
+                scenario = self.dragon_combat_scenario()
+                if ticks is None:
+                    scenario.pop("success_hold_ticks")
+                else:
+                    scenario["success_hold_ticks"] = ticks
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_scenario(scenario)
     def test_end_resources_equipment_rejects_unknown_slots_counts_and_malformed_ids(self):
         for equipment in (None, [], "iron", {"mainhand": "minecraft:iron_pickaxe"},
                           {"HEAD": "minecraft:iron_helmet"}, {"head": "iron_helmet"},
@@ -563,6 +633,440 @@ class LiveLauncherTest(unittest.TestCase):
         runner.write_json(results / "trace.json", [{"type": "snapshot", "elapsed_ms": 123.456,
                                                    "data": row["final_snapshot"]}])
         return row
+
+    def dragon_combat_snapshots(self, completed=True, actor=None):
+        scenario = self.dragon_combat_scenario()
+        subject = "876bfafe-92e3-4804-88f4-7b162d245292"
+        target = "61f2d118-78bf-422d-8728-1a0b246a5a22"
+        identity = {"subject_uuid": subject, "target_uuid": target, "origin": [0, 0, 0],
+                    "fight_id": "minecraft:the_end:0:0:0:" + target, "dimension": "minecraft:the_end"}
+        actor = actor or subject
+        first = identity | {"game_tick": 10, "origin": [0, 0, 0], "calibration_fixture": False,
+                            "evidence_source": "server_native_dragon_fight_initial_state", "fight_bound": True,
+                            "needs_state_scanning": False, "dragon_killed": False, "previously_killed": False,
+                            "is_respawning": False, "target_present": True, "target_health": 200,
+                            "target_max_health": 200, "target_no_ai": False, "target_invulnerable": False,
+                            "crystals_alive": 10, "dragon_kills": 0, "death_animation_ticks": 0, "phase": "HoldingPattern",
+                            "crystals": [{"uuid": f"00000000-0000-0000-0000-{index:012x}",
+                                          "position": [index * 10, 80, index], "invulnerable": False, "alive": True}
+                                         for index in range(1, 11)]}
+        current = copy.deepcopy(first)
+        current.update(death_animation_ticks=0, phase="HoldingPattern")
+        chain = identity | {"calibration_fixture": False, "initial_battle": first, "current_battle": current,
+                            "first_death_observed": False, "first_death": None, "observation_gaps": 0,
+                            "post_kill_alive_ticks": 0, "post_kill_hold_start_game_tick": None,
+                            "post_kill_last_verified_game_tick": None,
+                            "critical_evidence_complete": True, "attribution_ambiguous": False,
+                            "last_verified_game_tick": 10, "total_actual_damage": 0,
+                            "companion_actual_damage": 0, "minimum_health": 200, "current_health": 200,
+                            "lethal": None, "kill_credit": None, "kill_statistic": None, "fight_end": None,
+                            "first_damage": None, "first_companion_damage": None, "fatal_damage": None}
+        inventory = dict(scenario["setup"]["inventory"])
+        inventory.update({item: 1 for item in scenario["setup"]["equipment"].values()})
+        armor = {slot: {"id": item, "count": 1, "max_durability": 100, "remaining_durability": 100}
+                 for slot, item in scenario["setup"]["equipment"].items() if slot != "offhand"}
+        stacks = [{"slot": slot, "id": item, "count": 1, "max_durability": 100, "remaining_durability": 100}
+                  for slot, item in enumerate(inventory) if item not in {"minecraft:shield"}]
+        stacks.append({"slot": 40, "id": "minecraft:shield", "count": 1,
+                       "max_durability": 336, "remaining_durability": 336})
+        world = {"subject_uuid": subject, "native_dragon_kill": False, "dragon_combat_ready": True,
+                 "observation_complete": True, "dragon_damaged": False, "dragon_death_started": False,
+                 "dragon_post_kill_alive_ticks": 0,
+                 "evidence": {"dragon_combat": chain, "armor": armor, "inventory": stacks}}
+        initial = {"companion_uuid": subject, "subject_present": True, "alive": True, "game_tick": 10,
+                   "dragon_kills": 0, "deaths": 0, "dimension": "minecraft:the_end",
+                   "position": [100.5, 49.0, 0.5], "health": 20, "food": 20, "inventory": inventory, "world": world}
+        final = copy.deepcopy(initial)
+        final["game_tick"] = 430 if completed else 11
+        end_chain = final["world"]["evidence"]["dragon_combat"]
+        end_chain["last_verified_game_tick"] = final["game_tick"]
+        end_chain["current_battle"]["game_tick"] = final["game_tick"]
+        if completed:
+            damage = identity | {"game_tick": 30, "event_id": 1,
+                                 "evidence_source": "native_ender_dragon_really_hurt", "health_before": 200,
+                                 "health_after": 0, "actual_health_loss": 200, "actor_uuid": actor,
+                                 "attribution_origin": "native_damage_source", "provenance_actor_uuid": actor,
+                                 "attribution_reliable": True, "source_actor_uuid": actor,
+                                 "direct_entity_uuid": actor, "damage_type_message_id": "player"}
+            end_chain.update(total_actual_damage=200, companion_actual_damage=200 if actor == subject else 0,
+                             minimum_health=0, current_health=None, fatal_damage=damage,
+                             first_damage=copy.deepcopy(damage), first_companion_damage=damage if actor == subject else None)
+            end_chain["lethal"] = identity | {"game_tick": 30, "evidence_source": "native_living_entity_die",
+                                             "damage_type_message_id": "player", "source_actor_uuid": actor,
+                                             "direct_entity_uuid": actor, "credited_actor_uuid": actor, "health": 0,
+                                             "attribution_origin": "native_damage_source", "provenance_actor_uuid": actor,
+                                             "health_before": 200, "health_after": 0, "actual_health_loss": 200,
+                                             "damage_event_id": 1, "fatal_damage": copy.deepcopy(damage)}
+            end_chain["kill_credit"] = identity | {"game_tick": 30,
+                "evidence_source": "native_server_player_award_kill_score", "actor_uuid": actor,
+                "damage_type_message_id": "player", "source_actor_uuid": actor, "direct_entity_uuid": actor}
+            end_chain["kill_statistic"] = identity | {"game_tick": 30,
+                "evidence_source": "native_player_killed_entity_statistic", "actor_uuid": actor, "before": 0, "after": 1}
+            end_chain["fight_end"] = identity | {"game_tick": 230,
+                "evidence_source": "native_end_dragon_fight_set_dragon_killed", "dragon_killed": True,
+                "previously_killed": True, "death_animation_ticks": 200}
+            final["dragon_kills"] = 1 if actor == subject else 0
+            end_chain["current_battle"].update(target_present=False, target_health=None, phase="dying",
+                                                death_animation_ticks=200, dragon_killed=True, previously_killed=True,
+                                                dragon_kills=final["dragon_kills"])
+            final["world"].update(native_dragon_kill=actor == subject, dragon_damaged=actor == subject,
+                                    dragon_death_started=True, dragon_post_kill_alive_ticks=200 if actor == subject else 0)
+            end_chain.update(post_kill_alive_ticks=200 if actor == subject else 0,
+                             post_kill_hold_start_game_tick=231 if actor == subject else None,
+                             post_kill_last_verified_game_tick=430 if actor == subject else None)
+        return {"initial_snapshot": initial, "final_snapshot": final}
+
+    def test_dragon_combat_native_death_credit_statistic_and_animation_form_one_kill(self):
+        self.scenario = self.dragon_combat_scenario()
+        expected = self.write_result(**self.dragon_combat_snapshots())
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_dragon_combat_idle_start_is_not_success_but_is_a_valid_budget_result(self):
+        self.scenario = self.dragon_combat_scenario()
+        snapshots = self.dragon_combat_snapshots(completed=False)
+        self.write_result(**snapshots)
+        with self.assertRaises(runner.PreflightError):
+            runner.validate_result(self.output, self.scenario)
+        expected = self.write_result(status="budget_exhausted", reason="max_model_calls", model_calls=4, **snapshots)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        self.assertTrue(calibrator.dragon_combat_negative_check(0, expected, self.scenario)["passed"])
+
+    def test_dragon_combat_does_not_count_other_targets_players_or_historical_statistics(self):
+        self.scenario = self.dragon_combat_scenario()
+        for defect in ("other_target", "other_fight", "other_subject", "other_actor", "history", "initial_dead",
+                       "initial_no_ai", "initial_invulnerable", "initial_crystals", "duplicate_crystals", "dead_crystal"):
+            with self.subTest(defect=defect):
+                snapshots = self.dragon_combat_snapshots()
+                chain = snapshots["final_snapshot"]["world"]["evidence"]["dragon_combat"]
+                if defect in {"other_target", "other_fight", "other_subject"}:
+                    field = {"other_target": "target_uuid", "other_fight": "fight_id", "other_subject": "subject_uuid"}[defect]
+                    chain["lethal"][field] = "e46c062b-5e06-481f-be71-711289251b99"
+                elif defect == "other_actor":
+                    chain["kill_credit"]["actor_uuid"] = "e46c062b-5e06-481f-be71-711289251b99"
+                elif defect == "history":
+                    snapshots["initial_snapshot"]["dragon_kills"] = 1
+                else:
+                    initial = snapshots["initial_snapshot"]["world"]["evidence"]["dragon_combat"]["initial_battle"]
+                    if defect == "initial_dead":
+                        initial["dragon_killed"] = True
+                    elif defect == "initial_no_ai":
+                        initial["target_no_ai"] = True
+                    elif defect == "initial_invulnerable":
+                        initial["target_invulnerable"] = True
+                    elif defect == "initial_crystals":
+                        initial["crystals_alive"] = 9
+                    elif defect == "dead_crystal":
+                        initial["crystals"][0]["alive"] = False
+                    else:
+                        initial["crystals"][1] = initial["crystals"][0]
+                self.write_result(**snapshots)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_dragon_combat_known_other_player_kill_is_a_valid_failure(self):
+        self.scenario = self.dragon_combat_scenario()
+        evidence = self.dragon_combat_snapshots(actor="e46c062b-5e06-481f-be71-711289251b99")
+        expected = self.write_result(status="failed", reason="target_killed_by_other", **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_dragon_combat_missing_entity_or_unfinished_animation_cannot_be_inferred_as_a_kill(self):
+        self.scenario = self.dragon_combat_scenario()
+        for defect in ("disappearance", "before_animation", "state_only", "stale", "gap", "critical", "order"):
+            with self.subTest(defect=defect):
+                snapshots = self.dragon_combat_snapshots()
+                chain = snapshots["final_snapshot"]["world"]["evidence"]["dragon_combat"]
+                if defect == "disappearance":
+                    chain["fight_end"] = None
+                elif defect == "before_animation":
+                    chain["fight_end"]["death_animation_ticks"] = 199
+                elif defect == "state_only":
+                    chain["lethal"] = None
+                elif defect == "stale":
+                    chain["last_verified_game_tick"] -= 1
+                elif defect == "gap":
+                    chain["observation_gaps"] = 1
+                elif defect == "critical":
+                    chain["critical_evidence_complete"] = False
+                else:
+                    chain["fight_end"]["game_tick"] = 29
+                self.write_result(**snapshots)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_dragon_combat_rejects_state_edits_ambiguous_damage_replayed_statistics_and_completion_tick(self):
+        self.scenario = self.dragon_combat_scenario()
+        for defect in ("direct_death", "fatal_mismatch", "fatal_id", "zero_damage", "source_actor", "nearest_crystal",
+                       "ambiguous", "duplicate_statistic", "completion_tick", "self_consistent_other_target", "fixture"):
+            with self.subTest(defect=defect):
+                evidence = self.dragon_combat_snapshots()
+                final = evidence["final_snapshot"]
+                chain = final["world"]["evidence"]["dragon_combat"]
+                if defect == "direct_death":
+                    chain["lethal"].pop("fatal_damage")
+                elif defect == "fatal_mismatch":
+                    chain["lethal"]["fatal_damage"]["source_actor_uuid"] = None
+                elif defect == "fatal_id":
+                    chain["lethal"]["damage_event_id"] = 2
+                elif defect == "zero_damage":
+                    chain["lethal"]["fatal_damage"]["health_before"] = 0
+                elif defect == "source_actor":
+                    chain["lethal"]["source_actor_uuid"] = "e46c062b-5e06-481f-be71-711289251b99"
+                elif defect == "nearest_crystal":
+                    chain["lethal"]["attribution_origin"] = "crystal_nearest_player_fallback"
+                elif defect == "ambiguous":
+                    chain["attribution_ambiguous"] = True
+                elif defect == "duplicate_statistic":
+                    chain["kill_statistic"]["after"] = 2
+                    final["dragon_kills"] = chain["current_battle"]["dragon_kills"] = 2
+                elif defect == "completion_tick":
+                    final["game_tick"] = chain["last_verified_game_tick"] = chain["current_battle"]["game_tick"] = 230
+                elif defect == "self_consistent_other_target":
+                    other_target = "e46c062b-5e06-481f-be71-711289251b99"
+                    for event in (chain, chain["initial_battle"], chain["current_battle"], chain["lethal"],
+                                  chain["kill_credit"], chain["kill_statistic"], chain["fight_end"],
+                                  chain["first_damage"], chain["first_companion_damage"], chain["lethal"]["fatal_damage"]):
+                        event["target_uuid"] = other_target
+                        event["fight_id"] = "minecraft:the_end:0:0:0:" + other_target
+                else:
+                    chain["calibration_fixture"] = chain["initial_battle"]["calibration_fixture"] = True
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_dragon_combat_fixture_raw_validation_is_explicit_and_never_a_formal_success(self):
+        evidence = self.dragon_combat_snapshots()
+        final = evidence["final_snapshot"]
+        final["dimension"] = "minecraft:overworld"
+        chain = final["world"]["evidence"]["dragon_combat"]
+        for event in (chain, chain["initial_battle"], chain["current_battle"], chain["lethal"], chain["kill_credit"],
+                      chain["kill_statistic"], chain["fight_end"], chain["first_companion_damage"],
+                      chain["first_damage"], chain["lethal"]["fatal_damage"]):
+            event["dimension"] = "minecraft:overworld"
+            event["fight_id"] = "minecraft:overworld:0:0:0:" + chain["target_uuid"]
+        chain["calibration_fixture"] = True
+        chain["initial_battle"].update(calibration_fixture=True, target_health=1, target_no_ai=True,
+                                      crystals=[], crystals_alive=0)
+        chain["current_battle"].update(calibration_fixture=True, target_no_ai=True)
+        final["world"].update(dragon_combat_ready=False, native_dragon_kill=False)
+        final["world"]["dragon_post_kill_alive_ticks"] = 0
+        chain.update(post_kill_alive_ticks=0, post_kill_hold_start_game_tick=None, post_kill_last_verified_game_tick=None)
+        final["game_tick"] = chain["last_verified_game_tick"] = chain["current_battle"]["game_tick"] = 230
+        with self.assertRaises(runner.PreflightError):
+            runner.dragon_combat_evidence(final, "final_snapshot")
+        self.assertEqual(chain, runner.dragon_combat_evidence(final, "fixture_snapshot", allow_calibration_fixture=True))
+        final["game_tick"] = chain["last_verified_game_tick"] = chain["current_battle"]["game_tick"] = 430
+        final["world"]["dragon_post_kill_alive_ticks"] = 200
+        chain.update(post_kill_alive_ticks=200, post_kill_hold_start_game_tick=231, post_kill_last_verified_game_tick=430)
+        self.assertEqual(chain, runner.dragon_combat_evidence(final, "fixture_snapshot", allow_calibration_fixture=True))
+        self.scenario = self.dragon_combat_scenario()
+        self.write_result(**evidence)
+        with self.assertRaises(runner.PreflightError):
+            runner.validate_result(self.output, self.scenario)
+
+    def test_dragon_combat_diagnostic_truncation_does_not_destroy_retained_native_kill_receipts(self):
+        self.scenario = self.dragon_combat_scenario()
+        evidence = self.dragon_combat_snapshots()
+        evidence["final_snapshot"]["world"]["evidence"].update(events=[], events_total=1000, events_truncated=True)
+        expected = self.write_result(**evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_dragon_combat_completion_tick_is_pending_until_the_next_verified_server_tick(self):
+        self.scenario = self.dragon_combat_scenario()
+        evidence = self.dragon_combat_snapshots()
+        final = evidence["final_snapshot"]
+        chain = final["world"]["evidence"]["dragon_combat"]
+        final["game_tick"] = chain["last_verified_game_tick"] = chain["current_battle"]["game_tick"] = 230
+        final["world"]["native_dragon_kill"] = False
+        final["world"]["dragon_post_kill_alive_ticks"] = 0
+        chain.update(post_kill_alive_ticks=0, post_kill_hold_start_game_tick=None, post_kill_last_verified_game_tick=None)
+        expected = self.write_result(status="budget_exhausted", **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        self.write_result(**evidence)
+        with self.assertRaises(runner.PreflightError):
+            runner.validate_result(self.output, self.scenario)
+        final["game_tick"] = chain["last_verified_game_tick"] = chain["current_battle"]["game_tick"] = 231
+        final["world"]["native_dragon_kill"] = True
+        final["world"]["dragon_post_kill_alive_ticks"] = 1
+        chain.update(post_kill_alive_ticks=1, post_kill_hold_start_game_tick=231, post_kill_last_verified_game_tick=231)
+        expected = self.write_result(status="budget_exhausted", success_held_ticks=1, **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        final["game_tick"] = chain["last_verified_game_tick"] = chain["current_battle"]["game_tick"] = 430
+        final["world"]["dragon_post_kill_alive_ticks"] = 200
+        chain.update(post_kill_alive_ticks=200, post_kill_last_verified_game_tick=430)
+        expected = self.write_result(**evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_dragon_combat_199_post_kill_ticks_are_pending_and_200_verified_ticks_succeed(self):
+        self.scenario = self.dragon_combat_scenario()
+        evidence = self.dragon_combat_snapshots()
+        final = evidence["final_snapshot"]
+        chain = final["world"]["evidence"]["dragon_combat"]
+        final["game_tick"] = chain["last_verified_game_tick"] = chain["current_battle"]["game_tick"] = 429
+        final["world"]["dragon_post_kill_alive_ticks"] = chain["post_kill_alive_ticks"] = 199
+        chain["post_kill_last_verified_game_tick"] = 429
+        expected = self.write_result(status="budget_exhausted", success_held_ticks=199, **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        self.write_result(**evidence)
+        with self.assertRaises(runner.PreflightError):
+            runner.validate_result(self.output, self.scenario)
+        final["game_tick"] = chain["last_verified_game_tick"] = chain["current_battle"]["game_tick"] = 430
+        final["world"]["dragon_post_kill_alive_ticks"] = chain["post_kill_alive_ticks"] = 200
+        chain["post_kill_last_verified_game_tick"] = 430
+        expected = self.write_result(**evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_dragon_combat_hold_requires_consistent_server_ticks_and_reading_cannot_extend_it(self):
+        self.scenario = self.dragon_combat_scenario()
+        evidence = self.dragon_combat_snapshots()
+        expected = self.write_result(**evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        self.assertEqual(200, expected["final_snapshot"]["world"]["dragon_post_kill_alive_ticks"])
+        for defect in ("world_only", "repeated_read_increment", "early_start", "stale_hold_tick", "missing_hold"):
+            with self.subTest(defect=defect):
+                invalid = self.dragon_combat_snapshots()
+                final = invalid["final_snapshot"]
+                chain = final["world"]["evidence"]["dragon_combat"]
+                if defect == "world_only":
+                    final["world"]["dragon_post_kill_alive_ticks"] = 201
+                elif defect == "repeated_read_increment":
+                    final["world"]["dragon_post_kill_alive_ticks"] = chain["post_kill_alive_ticks"] = 201
+                elif defect == "early_start":
+                    chain["post_kill_hold_start_game_tick"] = 230
+                elif defect == "stale_hold_tick":
+                    chain["post_kill_last_verified_game_tick"] = 429
+                else:
+                    chain.pop("post_kill_alive_ticks")
+                self.write_result(**invalid)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_dragon_combat_can_leave_the_end_after_native_completion_without_a_return_requirement(self):
+        self.scenario = self.dragon_combat_scenario()
+        evidence = self.dragon_combat_snapshots()
+        evidence["final_snapshot"]["dimension"] = "minecraft:overworld"
+        expected = self.write_result(**evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+        evidence = self.dragon_combat_snapshots(completed=False)
+        evidence["final_snapshot"]["dimension"] = "minecraft:overworld"
+        self.write_result(status="budget_exhausted", **evidence)
+        with self.assertRaises(runner.PreflightError):
+            runner.validate_result(self.output, self.scenario)
+
+    def test_dragon_combat_death_during_post_kill_hold_fails_even_after_health_recovery(self):
+        self.scenario = self.dragon_combat_scenario()
+        evidence = self.dragon_combat_snapshots()
+        final = evidence["final_snapshot"]
+        chain = final["world"]["evidence"]["dragon_combat"]
+        chain["first_death_observed"] = True
+        chain["first_death"] = {"subject_uuid": final["companion_uuid"], "game_tick": 329,
+                                "evidence_source": "native_companion_death_before_recovery"}
+        chain.update(post_kill_alive_ticks=0, post_kill_hold_start_game_tick=None, post_kill_last_verified_game_tick=None)
+        final["world"].update(native_dragon_kill=False, dragon_post_kill_alive_ticks=0)
+        self.write_result(**evidence)
+        with self.assertRaises(runner.PreflightError):
+            runner.validate_result(self.output, self.scenario)
+        expected = self.write_result(status="failed", reason="companion_died", success_held_ticks=0, **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_dragon_combat_retained_native_death_wins_when_the_latch_boolean_is_misreported(self):
+        self.scenario = self.dragon_combat_scenario()
+        evidence = self.dragon_combat_snapshots()
+        final = evidence["final_snapshot"]
+        chain = final["world"]["evidence"]["dragon_combat"]
+        chain["first_death"] = {"subject_uuid": final["companion_uuid"], "game_tick": 329,
+                                "evidence_source": "native_companion_death_before_recovery"}
+        self.assertFalse(chain["first_death_observed"])
+        self.write_result(**evidence)
+        with self.assertRaises(runner.PreflightError):
+            runner.validate_result(self.output, self.scenario)
+        expected = self.write_result(status="failed", reason="companion_died", success_held_ticks=0, **evidence)
+        self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_dragon_combat_current_initial_state_cannot_hide_damage_after_the_saved_baseline(self):
+        self.scenario = self.dragon_combat_scenario()
+        for defect in ("damaged", "dying", "dying_phase", "already_killed", "previously_killed", "world_damage"):
+            with self.subTest(defect=defect):
+                evidence = self.dragon_combat_snapshots()
+                initial = evidence["initial_snapshot"]
+                chain = initial["world"]["evidence"]["dragon_combat"]
+                if defect == "damaged":
+                    chain["current_battle"]["target_health"] = chain["current_health"] = 199
+                elif defect == "dying":
+                    chain["current_battle"]["death_animation_ticks"] = 1
+                elif defect == "dying_phase":
+                    chain["current_battle"]["phase"] = "Dying (#9)"
+                elif defect in {"already_killed", "previously_killed"}:
+                    chain["current_battle"]["dragon_killed" if defect == "already_killed" else "previously_killed"] = True
+                else:
+                    chain["total_actual_damage"] = 1
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+
+    def test_dragon_combat_complete_damage_ledger_rejects_repeated_or_inflated_events(self):
+        self.scenario = self.dragon_combat_scenario()
+        for defect in (None, "duplicate", "inflated_total", "inflated_companion"):
+            with self.subTest(defect=defect):
+                evidence = self.dragon_combat_snapshots()
+                raw = evidence["final_snapshot"]["world"]["evidence"]
+                chain = raw["dragon_combat"]
+                event = copy.deepcopy(chain["lethal"]["fatal_damage"])
+                event["kind"] = "dragon_damage"
+                raw.update(events=[event], events_total=1, events_truncated=False)
+                if defect == "duplicate":
+                    raw["events"].append(copy.deepcopy(event))
+                    raw["events_total"] = 2
+                elif defect == "inflated_total":
+                    chain["total_actual_damage"] = 400
+                elif defect == "inflated_companion":
+                    chain["total_actual_damage"] = chain["companion_actual_damage"] = 400
+                expected = self.write_result(**evidence)
+                if defect is None:
+                    self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+                else:
+                    with self.assertRaises(runner.PreflightError):
+                        runner.validate_result(self.output, self.scenario)
+
+    def test_dragon_combat_first_death_wins_same_tick_mutual_kill_even_after_recovery(self):
+        self.scenario = self.dragon_combat_scenario()
+        for alive in (False, True):
+            with self.subTest(alive=alive):
+                evidence = self.dragon_combat_snapshots()
+                final = evidence["final_snapshot"]
+                final.update(alive=alive, deaths=1, health=20 if alive else 0)
+                final["world"]["evidence"]["dragon_combat"]["first_death_observed"] = True
+                final["world"]["evidence"]["dragon_combat"]["first_death"] = {
+                    "subject_uuid": final["companion_uuid"], "game_tick": 230,
+                    "evidence_source": "native_companion_death_before_recovery"}
+                self.write_result(**evidence)
+                with self.assertRaises(runner.PreflightError):
+                    runner.validate_result(self.output, self.scenario)
+                expected = self.write_result(status="failed", reason="companion_died", **evidence)
+                self.assertEqual(expected, runner.validate_result(self.output, self.scenario))
+
+    def test_dragon_combat_idle_calibration_rejects_missing_loadout_and_fake_combat_progress(self):
+        self.scenario = self.dragon_combat_scenario()
+        for defect in ("offhand", "bow_durability", "inventory", "subject", "progress", "milestones"):
+            with self.subTest(defect=defect):
+                evidence = self.dragon_combat_snapshots(completed=False)
+                result = {"status": "budget_exhausted", "reason": "max_model_calls", "model_calls": 4,
+                          "milestones": [], **evidence}
+                initial, final = result["initial_snapshot"], result["final_snapshot"]
+                if defect == "offhand":
+                    initial["world"]["evidence"]["inventory"][-1]["slot"] = 0
+                elif defect == "bow_durability":
+                    next(stack for stack in initial["world"]["evidence"]["inventory"]
+                         if stack["id"] == "minecraft:bow")["remaining_durability"] = 99
+                elif defect == "inventory":
+                    initial["inventory"]["minecraft:arrow"] = 127
+                elif defect == "subject":
+                    final["companion_uuid"] = "e46c062b-5e06-481f-be71-711289251b99"
+                elif defect == "progress":
+                    final["world"]["dragon_damaged"] = True
+                else:
+                    result["milestones"] = [{"id": "dragon-damaged", "elapsed_ms": 1}]
+                self.assertFalse(calibrator.dragon_combat_negative_check(0, result, self.scenario)["passed"])
 
     def test_valid_world_result_preserves_fractional_millisecond_latency(self):
         expected = self.write_result()

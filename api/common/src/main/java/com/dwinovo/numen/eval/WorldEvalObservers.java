@@ -21,6 +21,7 @@ public final class WorldEvalObservers {
         default void started(NumenPlayer body) {}
         default void tick(NumenPlayer body) {}
         default void unavailable(long tick) {}
+        default JsonObject unavailableSnapshot() { return null; }
         default void itemUseOnStarted(ServerLevel level, Player actor, BlockPos pos, BlockState previous, ItemStack item) {}
         default void itemUsedOn(ServerLevel level, Player actor, BlockPos pos, BlockState previous, ItemStack item, int countAfter) {}
         default void portalTravelled(NumenPlayer body, ServerLevel source, BlockPos entry, Entity arrived) {}
@@ -29,6 +30,17 @@ public final class WorldEvalObservers {
         default void dimensionChanged(NumenPlayer body) {}
         default void hurt(NumenPlayer body, net.minecraft.world.damagesource.DamageSource source, float amount) {}
         default void died(NumenPlayer body) {}
+        default void entityDamaged(Entity victim, net.minecraft.world.damagesource.DamageSource source,
+                                   float healthBefore, float healthAfter, boolean accepted,
+                                   String attributionOrigin, Entity originatingActor, long eventId) {}
+        default void entityDied(net.minecraft.world.entity.LivingEntity victim,
+                                net.minecraft.world.damagesource.DamageSource source,
+                                net.minecraft.world.entity.LivingEntity credit) {}
+        default void killCredit(net.minecraft.server.level.ServerPlayer actor, Entity victim,
+                                net.minecraft.world.damagesource.DamageSource source) {}
+        default void killStatistic(Player actor, net.minecraft.world.entity.LivingEntity victim, int before, int after) {}
+        default void dragonFightEnded(net.minecraft.world.level.dimension.end.EndDragonFight fight,
+                                      net.minecraft.world.entity.boss.enderdragon.EnderDragon dragon) {}
     }
 
     private static final Map<String, Supplier<Observer>> factories = new HashMap<>();
@@ -65,6 +77,12 @@ public final class WorldEvalObservers {
     public static void observationUnavailable(UUID body, long tick) {
         Observer observer = active.get(body);
         if (observer != null) observer.unavailable(tick);
+    }
+
+    /** Retained independent facts remain readable after a subject leaves the server player list. */
+    public static JsonObject observeUnavailable(UUID body) {
+        Observer observer = active.get(body);
+        return observer == null ? null : observer.unavailableSnapshot();
     }
 
     /** Native interaction boundaries also expose other actors to explicitly active observers. */
@@ -104,6 +122,37 @@ public final class WorldEvalObservers {
     public static void died(NumenPlayer body) {
         Observer observer = active.get(body.getUUID());
         if (observer != null) observer.died(body);
+    }
+
+    /** Native committed damage exposes actual health loss separately from the reported incoming amount. */
+    public static void entityDamaged(Entity victim, net.minecraft.world.damagesource.DamageSource source,
+                                     float healthBefore, float healthAfter, boolean accepted,
+                                     String attributionOrigin, Entity originatingActor, long eventId) {
+        for (Observer observer : active.values()) {
+            observer.entityDamaged(victim, source, healthBefore, healthAfter, accepted, attributionOrigin, originatingActor, eventId);
+        }
+    }
+
+    /** Native death and scoring boundaries retain the victim and credited actor, including other players. */
+    public static void entityDied(net.minecraft.world.entity.LivingEntity victim,
+                                  net.minecraft.world.damagesource.DamageSource source,
+                                  net.minecraft.world.entity.LivingEntity credit) {
+        for (Observer observer : active.values()) observer.entityDied(victim, source, credit);
+    }
+
+    public static void killCredit(net.minecraft.server.level.ServerPlayer actor, Entity victim,
+                                  net.minecraft.world.damagesource.DamageSource source) {
+        for (Observer observer : active.values()) observer.killCredit(actor, victim, source);
+    }
+
+    public static void killStatistic(Player actor, net.minecraft.world.entity.LivingEntity victim, int before, int after) {
+        for (Observer observer : active.values()) observer.killStatistic(actor, victim, before, after);
+    }
+
+    /** Committed native fight completion; entity disappearance alone is never a completion event. */
+    public static void dragonFightEnded(net.minecraft.world.level.dimension.end.EndDragonFight fight,
+                                        net.minecraft.world.entity.boss.enderdragon.EnderDragon dragon) {
+        for (Observer observer : active.values()) observer.dragonFightEnded(fight, dragon);
     }
 
     /** Native consumption committed; the meal retains its components from before the body ate it. */

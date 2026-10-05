@@ -358,7 +358,14 @@ public final class NumenPlayer extends ServerPlayer {
     @Override
     public void die(net.minecraft.world.damagesource.DamageSource cause) {
         this.deathMessage = getCombatTracker().getDeathMessage().getString();
+        var deathStat = net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.DEATHS);
+        int deathsBefore = getStats().getValue(deathStat);
         super.die(cause);
+        // 原生死亡统计提交时锁存;等下次身体 tick 会漏掉同 tick 恢复生命的死亡。
+        // 加载器取消原生死亡时统计不增加,因此不能发出已死亡事实。
+        if (getStats().getValue(deathStat) > deathsBefore) {
+            com.dwinovo.numen.eval.WorldEvalObservers.died(this);
+        }
     }
 
     /** 上一次的死因(原版死亡消息原文);还没死过则 null。 */

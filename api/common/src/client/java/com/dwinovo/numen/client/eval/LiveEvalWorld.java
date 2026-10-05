@@ -29,10 +29,13 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
@@ -40,6 +43,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
+import net.minecraft.world.level.levelgen.feature.EndPlatformFeature;
+import net.minecraft.world.level.levelgen.feature.SpikeFeature;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -57,6 +62,8 @@ public final class LiveEvalWorld {
     private static UUID subject;
     private static ServerStatsCounter stats;
     private static boolean endEntry;
+    private static boolean dragonCombat;
+    private static boolean dragonPreparationRequested;
 
     private LiveEvalWorld() {}
 
@@ -92,6 +99,57 @@ public final class LiveEvalWorld {
                         .value().createWorldDimensions(), mc.screen);
     }
 
+    /** Let the fresh world's native fight initialize before creating the evaluated body or starting its clock. */
+    public static boolean preparationReady(MinecraftServer server, UUID ownerId, JsonObject spec) {
+        requireWorld(server);
+        if (!"dragon-combat-v1".equals(spec.get("evaluation_version").getAsString())) return true;
+        JsonObject setup = spec.getAsJsonObject("setup");
+        if (setup == null || !setup.has("dimension")
+                || !"minecraft:the_end".equals(setup.get("dimension").getAsString())
+                || !setup.has("native_dragon_battle") || !setup.get("native_dragon_battle").getAsBoolean()
+                || setup.has("floor") || setup.has("blocks") || setup.has("fixed_time")) {
+            throw new IllegalArgumentException("Dragon combat requires an explicit unmodified native End battle");
+        }
+        ServerLevel level = server.getLevel(Level.END);
+        if (level == null || level.getDragonFight() == null) throw new IllegalStateException("Native End fight is unavailable");
+        if (!dragonPreparationRequested) {
+            ServerPlayer owner = server.getPlayerList().getPlayer(ownerId);
+            if (owner == null) throw new IllegalStateException("Evaluation owner is not connected");
+            // This is public pre-task setup, using the same platform feature as the native End entrance.
+            level.getChunk(6, 0);
+            EndPlatformFeature.createEndPlatform(level, ServerLevel.END_SPAWN_POINT.below(), false);
+            owner.setGameMode(GameType.SPECTATOR);
+            Vec3 spawn = vector(setup.getAsJsonArray("spawn"));
+            if (!spawn.equals(new Vec3(100.5, 49, 0.5))) throw new IllegalArgumentException("Dragon combat requires the public End platform spawn");
+            owner.teleportTo(level, spawn.x, spawn.y + 4, spawn.z, 0, 0);
+            dragonPreparationRequested = true;
+            return false;
+        }
+        var fight = level.getDragonFight();
+        var data = fight.saveData();
+        if (data.needsStateScanning() || data.dragonUUID().isEmpty()) return false;
+        if (data.dragonKilled() || data.previouslyKilled() || data.isRespawning()) {
+            throw new IllegalStateException("Fresh native End battle has an invalid initial state");
+        }
+        var entity = level.getEntity(data.dragonUUID().orElseThrow());
+        if (!(entity instanceof EnderDragon dragon)) return false;
+        if (dragon.getDragonFight() != fight || !dragon.isAlive() || dragon.isNoAi() || dragon.isInvulnerable()
+                || dragon.dragonDeathTime != 0
+                || dragon.getHealth() != dragon.getMaxHealth() || dragon.getMaxHealth() != 200) {
+            throw new IllegalStateException("Native dragon is not a full-health active first battle target");
+        }
+        int crystals = 0;
+        for (var spike : SpikeFeature.getSpikesForLevel(level)) {
+            var observed = level.getEntitiesOfClass(EndCrystal.class, spike.getTopBoundingBox());
+            if (observed.stream().anyMatch(crystal -> crystal.isInvulnerable() || !crystal.isAlive())) {
+                throw new IllegalStateException("Initial native crystals must be alive and destructible");
+            }
+            crystals += observed.size();
+        }
+        if (crystals != 10 || fight.getCrystalsAlive() != 10) return false;
+        return true;
+    }
+
     /** Server-thread entry, exactly once and before the objective is delivered. */
     public static UUID setup(MinecraftServer server, UUID ownerId, JsonObject spec) {
         requireWorld(server);
@@ -100,7 +158,11 @@ public final class LiveEvalWorld {
         if (owner == null || owner instanceof NumenPlayer) {
             throw new IllegalStateException("Evaluation owner is not connected");
         }
-        ServerLevel level = server.overworld();
+        dragonCombat = "dragon-combat-v1".equals(spec.get("evaluation_version").getAsString());
+        if (dragonCombat && !preparationReady(server, ownerId, spec)) {
+            throw new IllegalStateException("Native End battle has not finished initialization");
+        }
+        ServerLevel level = dragonCombat ? server.getLevel(Level.END) : server.overworld();
         JsonObject setup = spec.getAsJsonObject("setup");
         if (setup == null) throw new IllegalArgumentException("Scenario must contain setup");
         endEntry = "end-entry-v1".equals(spec.get("evaluation_version").getAsString());
@@ -135,7 +197,9 @@ public final class LiveEvalWorld {
         owner.teleportTo(spawn.x, spawn.y + 4, spawn.z);
         NumenPlayer body = Companions.summon(server, ownerId, "EvalBot", level, spawn);
         subject = body.getUUID();
-        body.teleportTo(spawn.x, spawn.y, spawn.z);
+        if (dragonCombat) body.teleportTo(level, spawn.x, spawn.y, spawn.z, 0, 0);
+        else body.teleportTo(spawn.x, spawn.y, spawn.z);
+        if (body.serverLevel() != level) throw new IllegalStateException("Evaluation companion did not enter the prepared dimension");
         body.setGameMode(GameType.SURVIVAL);
         body.getInventory().clearContent();
         if (setup.has("inventory")) {
@@ -157,8 +221,8 @@ public final class LiveEvalWorld {
             }
         }
         if (setup.has("equipment")) {
-            if (!"end-resources-v1".equals(spec.get("evaluation_version").getAsString()) && !endEntry) {
-                throw new IllegalArgumentException("Equipment initialization requires end-resources-v1 or end-entry-v1");
+            if (!"end-resources-v1".equals(spec.get("evaluation_version").getAsString()) && !endEntry && !dragonCombat) {
+                throw new IllegalArgumentException("Equipment initialization requires a supported stage evaluation");
             }
             for (var entry : setup.getAsJsonObject("equipment").entrySet()) {
                 EquipmentSlot slot = switch (entry.getKey()) {
@@ -214,7 +278,7 @@ public final class LiveEvalWorld {
         NumenPlayer body = NumenPlayer.findByUuid(server, companion);
         if (body != null) stats = body.getStats();
         JsonObject result = new JsonObject();
-        if (endEntry) {
+        if (endEntry || dragonCombat) {
             result.addProperty("companion_uuid", companion.toString());
             result.addProperty("subject_present", body != null);
         }
@@ -225,7 +289,11 @@ public final class LiveEvalWorld {
         JsonObject inventory = new JsonObject();
         result.add("inventory", inventory);
         if (body == null) {
-            if (endEntry) WorldEvalObservers.observationUnavailable(companion, server.overworld().getGameTime());
+            if (endEntry || dragonCombat) WorldEvalObservers.observationUnavailable(companion, server.overworld().getGameTime());
+            if (dragonCombat) {
+                JsonObject retained = WorldEvalObservers.observeUnavailable(companion);
+                if (retained != null) result.add("world", retained);
+            }
             for (String field : new String[]{"health", "food", "position", "dimension", "current_task"}) {
                 result.add(field, JsonNull.INSTANCE);
             }
@@ -233,9 +301,10 @@ public final class LiveEvalWorld {
         }
         result.addProperty("health", body.getHealth());
         result.addProperty("food", body.getFoodData().getFoodLevel());
+        if (dragonCombat) result.addProperty("saturation", body.getFoodData().getSaturationLevel());
         result.addProperty("dimension", body.level().dimension().location().toString());
         // A queued server read may run before the dispatcher; verify this actual tick once before freezing stage-four evidence.
-        if (endEntry) WorldEvalObservers.tick(body);
+        if (endEntry || dragonCombat) WorldEvalObservers.tick(body);
         JsonObject world = WorldEvalObservers.observe(body);
         if (world != null) result.add("world", world);
         JsonArray position = new JsonArray();

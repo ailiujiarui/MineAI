@@ -1,0 +1,34 @@
+[
+  {
+    "path": "agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java",
+    "sha256": "72a29906a0124364dcb737dc2101c090aea9fb7cb54ecc94b0e534d5fed061ae"
+  },
+  {
+    "path": "agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java",
+    "sha256": "e320c29f077220231bc057b6b334975f9017edbb6f4df7bab596ae4aaf4faff7"
+  },
+  {
+    "path": "ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java",
+    "sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53"
+  },
+  {
+    "path": "ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java",
+    "sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325"
+  },
+  {
+    "path": "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java",
+    "sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a"
+  },
+  {
+    "path": "core/neoforge/build.gradle",
+    "sha256": "126d7b83c170453651844fbfcaa641bde92af8d0a627ee219cdb5137a080cfb2"
+  },
+  {
+    "path": "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java",
+    "sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e"
+  },
+  {
+    "path": "docs/architecture-mind-model.md",
+    "sha256": "53fb5f7a40f9f736fa15df0d1e25b876f0d41a57252b64b9acf8a7b773956e54"
+  }
+]

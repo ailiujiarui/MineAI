@@ -543,6 +543,430 @@ class LiveEvalRunTest {
         }
     }
 
+    private static JsonObject dragonCombatSpec() {
+        JsonObject spec = spec();
+        spec.addProperty("evaluation_version", "dragon-combat-v1");
+        spec.addProperty("world_observer", "dragon-combat-v1");
+        spec.addProperty("case_id", "live.dragon-combat");
+        spec.addProperty("success_hold_ticks", 200);
+        spec.add("setup", json("{\"dimension\":\"minecraft:the_end\",\"native_dragon_battle\":true,\"equipment\":{\"head\":\"minecraft:iron_helmet\"}}"));
+        spec.add("success", json("{\"world\":{\"native_dragon_kill\":true}}"));
+        spec.add("milestones", JsonParser.parseString("""
+                [{"id":"dragon-damaged","condition":{"world":{"dragon_damaged":true}}},
+                 {"id":"dragon-death-started","condition":{"world":{"dragon_death_started":true}}},
+                 {"id":"dragon-defeated","condition":{"world":{"native_dragon_kill":true}}}]
+                """));
+        return spec;
+    }
+
+    private static JsonObject dragonIdentity(JsonObject value) {
+        value.addProperty("subject_uuid", SUBJECT);
+        value.addProperty("target_uuid", "d58f701d-4244-4a8e-aa78-0db5f927cab0");
+        value.addProperty("fight_id", "minecraft:the_end:0:0:0:d58f701d-4244-4a8e-aa78-0db5f927cab0");
+        value.addProperty("dimension", "minecraft:the_end");
+        value.add("origin", JsonParser.parseString("[0,0,0]"));
+        return value;
+    }
+
+    private static JsonObject dragonCombatSnapshot(long tick) {
+        JsonObject state = snapshot();
+        state.addProperty("companion_uuid", SUBJECT);
+        state.addProperty("subject_present", true);
+        state.addProperty("dimension", "minecraft:the_end");
+        state.addProperty("game_tick", tick);
+        JsonObject initial = dragonIdentity(json("""
+                {"game_tick":90,"evidence_source":"server_native_dragon_fight_initial_state",
+                 "fight_bound":true,"needs_state_scanning":false,"dragon_killed":false,"previously_killed":false,
+                 "is_respawning":false,"target_present":true,"target_health":200,"target_max_health":200,
+                 "target_no_ai":false,"target_invulnerable":false,"crystals_alive":10,"dragon_kills":0,"calibration_fixture":false,
+                 "phase":"HoldingPattern (#0)","death_animation_ticks":0}
+                """));
+        JsonArray crystals = new JsonArray();
+        for (int i = 0; i < 10; i++) {
+            JsonObject crystal = json("{\"invulnerable\":false,\"alive\":true}");
+            crystal.addProperty("uuid", "crystal-" + i);
+            crystal.add("position", JsonParser.parseString("[" + (i * 10) + ",80,40]"));
+            crystals.add(crystal);
+        }
+        initial.add("crystals", crystals);
+        JsonObject current = initial.deepCopy();
+        current.addProperty("game_tick", tick);
+        current.addProperty("phase", "HOLDING_PATTERN");
+        current.addProperty("death_animation_ticks", 0);
+        JsonObject chain = dragonIdentity(json("""
+                {"first_damage":null,"first_companion_damage":null,"lethal":null,"kill_credit":null,"kill_statistic":null,
+                 "fight_end":null,"first_death":null,"first_death_observed":false,"observation_gaps":0,"critical_evidence_complete":true,
+                 "attribution_ambiguous":false,"total_actual_damage":0,"companion_actual_damage":0,
+                 "minimum_health":200,"current_health":200,"calibration_fixture":false,
+                 "post_kill_alive_ticks":0,"post_kill_hold_start_game_tick":null,"post_kill_last_verified_game_tick":null}
+                """));
+        chain.addProperty("last_verified_game_tick", tick);
+        chain.add("initial_battle", initial);
+        chain.add("current_battle", current);
+        JsonObject world = json("""
+                {"dragon_combat_ready":true,"observation_complete":true,"dragon_damaged":false,
+                 "dragon_death_started":false,"native_dragon_kill":false,"dragon_post_kill_alive_ticks":0,"evidence":{}}
+                """);
+        world.addProperty("subject_uuid", SUBJECT);
+        world.getAsJsonObject("evidence").add("dragon_combat", chain);
+        state.add("world", world);
+        return state;
+    }
+
+    private static JsonObject dragonCombatChain(JsonObject state) {
+        return state.getAsJsonObject("world").getAsJsonObject("evidence").getAsJsonObject("dragon_combat");
+    }
+
+    private static JsonObject dragonDeathStartedSnapshot(long tick) {
+        JsonObject state = dragonCombatSnapshot(tick);
+        JsonObject chain = dragonCombatChain(state);
+        JsonObject damage = dragonIdentity(json("""
+                {"game_tick":100,"evidence_source":"native_ender_dragon_really_hurt","event_id":1,
+                 "health_before":200,"health_after":170,"actual_health_loss":30,
+                 "attribution_origin":"native_damage_source","provenance_actor_uuid":null,
+                 "direct_entity_uuid":null,"damage_type_message_id":"player","attribution_reliable":true}
+                """));
+        damage.addProperty("actor_uuid", SUBJECT);
+        damage.addProperty("source_actor_uuid", SUBJECT);
+        chain.add("first_damage", damage.deepCopy());
+        chain.add("first_companion_damage", damage);
+        JsonObject lethal = dragonIdentity(json("""
+                {"game_tick":105,"evidence_source":"native_living_entity_die","health":0,"damage_event_id":2,
+                 "health_before":170,"health_after":0,"actual_health_loss":170,"damage_type_message_id":"player",
+                 "direct_entity_uuid":null,"attribution_origin":"native_damage_source","provenance_actor_uuid":null}
+                """));
+        lethal.addProperty("source_actor_uuid", SUBJECT);
+        lethal.addProperty("credited_actor_uuid", SUBJECT);
+        JsonObject fatal = damage.deepCopy();
+        fatal.addProperty("event_id", 2);
+        fatal.addProperty("game_tick", 105);
+        fatal.addProperty("health_before", 170);
+        fatal.addProperty("health_after", 0);
+        fatal.addProperty("actual_health_loss", 170);
+        lethal.add("fatal_damage", fatal);
+        chain.add("lethal", lethal);
+        chain.addProperty("total_actual_damage", 200);
+        chain.addProperty("companion_actual_damage", 200);
+        chain.addProperty("minimum_health", 0);
+        chain.addProperty("current_health", 1);
+        JsonObject current = chain.getAsJsonObject("current_battle");
+        current.addProperty("target_health", 1);
+        current.addProperty("phase", "DYING");
+        current.addProperty("death_animation_ticks", tick - 105 + 1);
+        state.getAsJsonObject("world").addProperty("dragon_damaged", true);
+        state.getAsJsonObject("world").addProperty("dragon_death_started", true);
+        return state;
+    }
+
+    private static JsonObject dragonCompletedSnapshot(long tick) {
+        JsonObject state = dragonDeathStartedSnapshot(tick);
+        JsonObject chain = dragonCombatChain(state);
+        JsonObject credit = dragonIdentity(json("""
+                {"game_tick":105,"evidence_source":"native_server_player_award_kill_score","damage_type_message_id":"player"}
+                """));
+        credit.addProperty("actor_uuid", SUBJECT);
+        credit.addProperty("source_actor_uuid", SUBJECT);
+        credit.add("direct_entity_uuid", com.google.gson.JsonNull.INSTANCE);
+        chain.add("kill_credit", credit);
+        JsonObject statistic = dragonIdentity(json("""
+                {"game_tick":105,"evidence_source":"native_player_killed_entity_statistic","before":0,"after":1}
+                """));
+        statistic.addProperty("actor_uuid", SUBJECT);
+        chain.add("kill_statistic", statistic);
+        JsonObject ended = dragonIdentity(json("""
+                {"game_tick":304,"evidence_source":"native_end_dragon_fight_set_dragon_killed",
+                 "dragon_killed":true,"previously_killed":true,"death_animation_ticks":200}
+                """));
+        chain.add("fight_end", ended);
+        chain.add("current_health", com.google.gson.JsonNull.INSTANCE);
+        JsonObject current = chain.getAsJsonObject("current_battle");
+        current.addProperty("target_present", false);
+        current.add("target_health", com.google.gson.JsonNull.INSTANCE);
+        current.addProperty("dragon_killed", true);
+        current.addProperty("previously_killed", true);
+        current.addProperty("death_animation_ticks", 200);
+        current.addProperty("dragon_kills", 1);
+        state.addProperty("dragon_kills", 1);
+        state.getAsJsonObject("world").addProperty("native_dragon_kill", true);
+        state.getAsJsonObject("world").addProperty("dragon_post_kill_alive_ticks", tick - 304);
+        chain.addProperty("post_kill_alive_ticks", tick - 304);
+        if (tick > 304) {
+            chain.addProperty("post_kill_hold_start_game_tick", 305);
+            chain.addProperty("post_kill_last_verified_game_tick", tick);
+        }
+        return state;
+    }
+
+    private static LiveEvalRun startedDragonCombat() {
+        LiveEvalRun run = new LiveEvalRun(dragonCombatSpec());
+        run.start(START, dragonCombatSnapshot(90));
+        assertFalse(run.finished(), run.report().toString());
+        return run;
+    }
+
+    @Test
+    void dragonCombatProtocolRequiresItsObserverAndNativeKillCriterion() {
+        assertEquals(dragonCombatSpec(), new LiveEvalRun(dragonCombatSpec()).report().getAsJsonObject("spec"));
+        for (String observer : new String[]{"end-entry-v1", "end-resources-v1", "expedition-v1"}) {
+            JsonObject spec = dragonCombatSpec();
+            spec.addProperty("world_observer", observer);
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec));
+        }
+        for (String criterion : new String[]{"{\"dragon_kills\":1}", "{\"world\":{\"native_dragon_kill\":false}}"}) {
+            JsonObject spec = dragonCombatSpec();
+            spec.add("success", json(criterion));
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec));
+        }
+        for (int ticks : new int[]{0, 20, 199, 201}) {
+            JsonObject spec = dragonCombatSpec();
+            if (ticks == 0) spec.remove("success_hold_ticks");
+            else spec.addProperty("success_hold_ticks", ticks);
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(spec));
+        }
+    }
+
+    @Test
+    void dragonSuccessRequiresNativeDamageDeathCreditStatisticAndAnimationEnd() {
+        LiveEvalRun run = startedDragonCombat();
+        JsonObject dying = dragonDeathStartedSnapshot(303);
+        run.observe(START + 1, dying);
+        assertFalse(run.finished(), "native lethal is progress while the dragon death animation is running");
+        assertEquals(2, run.report().getAsJsonArray("milestones").size());
+        run.observe(START + 2, dragonCompletedSnapshot(304));
+        assertFalse(run.finished(), "the battle-end tick must finish before success can commit");
+        run.observe(START + 3, dragonCompletedSnapshot(305));
+        assertFalse(run.finished(), "native kill evidence is complete, but the post-kill survival requirement is separate");
+        assertEquals(1, run.report().get("success_held_ticks").getAsLong());
+        run.observe(START + 4, dragonCompletedSnapshot(503));
+        assertFalse(run.finished());
+        run.observe(START + 5, dragonCompletedSnapshot(504));
+        outcome(run, "success", "authoritative_success_criterion_met");
+        assertEquals(3, run.report().getAsJsonArray("milestones").size());
+        assertEquals(200, run.report().get("success_held_ticks").getAsLong());
+    }
+
+    @Test
+    void dragonKillClaimsStatisticsAndDeathFlagsCannotSubstituteForNativeEvidence() {
+        for (String mode : new String[]{"claim", "statistic", "phase", "flags"}) {
+            LiveEvalRun run = startedDragonCombat();
+            JsonObject state = dragonCombatSnapshot(100);
+            run.event("assistant", json("{\"text\":\"末影龙已经死了\"}"), START + 1);
+            if ("statistic".equals(mode)) {
+                state.addProperty("dragon_kills", 1);
+                dragonCombatChain(state).getAsJsonObject("current_battle").addProperty("dragon_kills", 1);
+            } else if ("phase".equals(mode)) {
+                dragonCombatChain(state).getAsJsonObject("current_battle").addProperty("phase", "DYING");
+            } else if ("flags".equals(mode)) {
+                for (String key : new String[]{"dragon_damaged", "dragon_death_started", "native_dragon_kill"}) state.getAsJsonObject("world").addProperty(key, true);
+            }
+            run.observe(START + 2, state);
+            assertNotEquals("success", run.report().get("status").getAsString(), mode);
+            assertEquals(0, run.report().getAsJsonArray("milestones").size(), mode);
+            assertThrows(IllegalArgumentException.class, () -> new LiveEvalRun(dragonCombatSpec()).finish("success", "claimed", START));
+        }
+    }
+
+    @Test
+    void dragonInitialStateMustBeThisFreshFullNativeFightWithAllCrystals() {
+        java.util.List<java.util.function.Consumer<JsonObject>> corruptions = java.util.List.of(
+                state -> state.addProperty("dragon_kills", 1),
+                state -> state.addProperty("deaths", 1),
+                state -> state.getAsJsonObject("world").addProperty("dragon_combat_ready", false),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").addProperty("target_health", 1),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").addProperty("dragon_killed", true),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").addProperty("previously_killed", true),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").addProperty("fight_bound", false),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").addProperty("needs_state_scanning", true),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").addProperty("target_no_ai", true),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").addProperty("target_invulnerable", true),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").addProperty("phase", "Dying (#9)"),
+                state -> dragonCombatChain(state).addProperty("calibration_fixture", true),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").getAsJsonArray("crystals").get(0).getAsJsonObject().addProperty("alive", false),
+                state -> dragonCombatChain(state).getAsJsonObject("initial_battle").getAsJsonArray("crystals").remove(0));
+        for (var corruption : corruptions) {
+            JsonObject initial = dragonCombatSnapshot(90);
+            corruption.accept(initial);
+            LiveEvalRun run = new LiveEvalRun(dragonCombatSpec());
+            run.start(START, initial);
+            assertEquals("infra_error", run.report().get("status").getAsString(), run.report().toString());
+        }
+    }
+
+    @Test
+    void dragonIdentitiesAndInitialBattleCannotBeReplacedByACompleteSelfConsistentChain() {
+        for (String mode : new String[]{"subject", "target", "fight", "baseline"}) {
+            LiveEvalRun run = startedDragonCombat();
+            JsonObject state = dragonCompletedSnapshot(304);
+            JsonObject chain = dragonCombatChain(state);
+            if ("subject".equals(mode)) state.addProperty("companion_uuid", "replacement");
+            else if ("baseline".equals(mode)) chain.getAsJsonObject("initial_battle").getAsJsonArray("crystals")
+                    .get(0).getAsJsonObject().addProperty("uuid", "replacement-crystal");
+            else {
+                String field = "target".equals(mode) ? "target_uuid" : "fight_id";
+                chain.addProperty(field, "replacement");
+                for (String key : new String[]{"initial_battle", "current_battle", "first_damage", "first_companion_damage", "lethal", "kill_credit", "kill_statistic", "fight_end"}) {
+                    chain.getAsJsonObject(key).addProperty(field, "replacement");
+                }
+            }
+            run.observe(START + 1, state);
+            assertEquals("infra_error", run.report().get("status").getAsString(), mode);
+        }
+    }
+
+    @Test
+    void targetMissingRemovedUnloadedOrChangingDimensionIsInfrastructureNotAnEntityDisappearanceKill() {
+        for (String mode : new String[]{"missing-dragon", "missing-subject", "dimension", "gap", "stale", "critical"}) {
+            LiveEvalRun run = startedDragonCombat();
+            JsonObject state = dragonCombatSnapshot(100);
+            JsonObject chain = dragonCombatChain(state);
+            switch (mode) {
+                case "missing-dragon" -> {
+                    chain.getAsJsonObject("current_battle").addProperty("target_present", false);
+                    chain.getAsJsonObject("current_battle").add("target_health", com.google.gson.JsonNull.INSTANCE);
+                }
+                case "missing-subject" -> {
+                    state.addProperty("subject_present", false);
+                    state.addProperty("alive", false);
+                    state.remove("world");
+                }
+                case "dimension" -> state.addProperty("dimension", "minecraft:overworld");
+                case "gap" -> chain.addProperty("observation_gaps", 1);
+                case "stale" -> chain.addProperty("last_verified_game_tick", 99);
+                case "critical" -> chain.addProperty("critical_evidence_complete", false);
+            }
+            run.observe(START + 1, state);
+            assertEquals("infra_error", run.report().get("status").getAsString(), mode);
+        }
+    }
+
+    @Test
+    void firstCompanionDeathWinsOverSameTickNativeDragonSuccessAndAutomaticRecovery() {
+        for (String mode : new String[]{"statistic", "latch", "missing-body", "after-kill", "receipt-only"}) {
+            LiveEvalRun run = startedDragonCombat();
+            JsonObject state = dragonCompletedSnapshot("after-kill".equals(mode) ? 503 : 304);
+            if ("statistic".equals(mode)) state.addProperty("deaths", 1);
+            else if ("receipt-only".equals(mode)) {
+                JsonObject death = dragonIdentity(json("{\"game_tick\":304,\"evidence_source\":\"native_companion_death_before_recovery\",\"health_at_death\":0}"));
+                dragonCombatChain(state).add("first_death", death);
+            }
+            else {
+                dragonCombatChain(state).addProperty("first_death_observed", true);
+                dragonCombatChain(state).addProperty("critical_evidence_complete", false);
+                if ("missing-body".equals(mode)) {
+                    state.addProperty("subject_present", false);
+                    state.addProperty("alive", false);
+                }
+            }
+            run.observe(START + 1, state);
+            outcome(run, "failed", "companion_died");
+        }
+    }
+
+    @Test
+    void knownOtherKillerFailsButAmbiguousCrystalProximityAttributionIsInfrastructure() {
+        LiveEvalRun other = startedDragonCombat();
+        JsonObject state = dragonDeathStartedSnapshot(105);
+        JsonObject lethal = dragonCombatChain(state).getAsJsonObject("lethal");
+        lethal.addProperty("source_actor_uuid", "other-player");
+        lethal.addProperty("credited_actor_uuid", "other-player");
+        lethal.getAsJsonObject("fatal_damage").addProperty("source_actor_uuid", "other-player");
+        lethal.getAsJsonObject("fatal_damage").addProperty("actor_uuid", "other-player");
+        JsonObject otherCredit = dragonIdentity(json("""
+                {"game_tick":105,"evidence_source":"native_server_player_award_kill_score","damage_type_message_id":"player",
+                 "actor_uuid":"other-player","source_actor_uuid":"other-player","direct_entity_uuid":null}
+                """));
+        dragonCombatChain(state).add("kill_credit", otherCredit);
+        other.observe(START + 1, state);
+        outcome(other, "failed", "target_killed_by_other");
+        for (String mode : new String[]{"nearest", "ambiguous", "no-credit", "unknown-source"}) {
+            LiveEvalRun run = startedDragonCombat();
+            state = dragonCompletedSnapshot(304);
+            lethal = dragonCombatChain(state).getAsJsonObject("lethal");
+            switch (mode) {
+                case "nearest" -> {
+                    lethal.addProperty("attribution_origin", "crystal_nearest_player_fallback");
+                    lethal.getAsJsonObject("fatal_damage").addProperty("attribution_origin", "crystal_nearest_player_fallback");
+                }
+                case "ambiguous" -> dragonCombatChain(state).addProperty("attribution_ambiguous", true);
+                case "no-credit" -> lethal.add("credited_actor_uuid", com.google.gson.JsonNull.INSTANCE);
+                case "unknown-source" -> {
+                    lethal.add("source_actor_uuid", com.google.gson.JsonNull.INSTANCE);
+                    lethal.getAsJsonObject("fatal_damage").add("source_actor_uuid", com.google.gson.JsonNull.INSTANCE);
+                    lethal.getAsJsonObject("fatal_damage").add("actor_uuid", com.google.gson.JsonNull.INSTANCE);
+                }
+            }
+            run.observe(START + 1, state);
+            outcome(run, "infra_error", "attribution_unavailable");
+        }
+    }
+
+    @Test
+    void malformedOrIncompleteNativeDragonTerminalChainCannotPass() {
+        java.util.List<java.util.function.Consumer<JsonObject>> corruptions = java.util.List.of(
+                state -> dragonCombatChain(state).add("kill_credit", com.google.gson.JsonNull.INSTANCE),
+                state -> dragonCombatChain(state).add("kill_statistic", com.google.gson.JsonNull.INSTANCE),
+                state -> dragonCombatChain(state).getAsJsonObject("lethal").addProperty("evidence_source", "direct_set_health_then_die"),
+                state -> dragonCombatChain(state).getAsJsonObject("lethal").addProperty("actual_health_loss", 0),
+                state -> dragonCombatChain(state).getAsJsonObject("kill_credit").addProperty("actor_uuid", "other-player"),
+                state -> dragonCombatChain(state).getAsJsonObject("kill_statistic").addProperty("after", 2),
+                state -> dragonCombatChain(state).getAsJsonObject("fight_end").addProperty("game_tick", 106),
+                state -> dragonCombatChain(state).getAsJsonObject("fight_end").addProperty("death_animation_ticks", 199),
+                state -> dragonCombatChain(state).getAsJsonObject("fight_end").addProperty("death_animation_ticks", 201),
+                state -> dragonCombatChain(state).getAsJsonObject("fight_end").addProperty("target_uuid", "other-dragon"),
+                state -> {
+                    dragonCombatChain(state).getAsJsonObject("lethal").addProperty("damage_event_id", 1);
+                    dragonCombatChain(state).getAsJsonObject("lethal").getAsJsonObject("fatal_damage").addProperty("event_id", 1);
+                },
+                state -> dragonCombatChain(state).getAsJsonObject("lethal").remove("damage_event_id"));
+        for (var corruption : corruptions) {
+            LiveEvalRun run = startedDragonCombat();
+            JsonObject state = dragonCompletedSnapshot(304);
+            corruption.accept(state);
+            run.observe(START + 1, state);
+            assertEquals("infra_error", run.report().get("status").getAsString(), run.report().toString());
+        }
+    }
+
+    @Test
+    void repeatedDragonReceiptsKeepSingleMilestonesAndCannotRewriteTheFirstDamage() {
+        LiveEvalRun run = startedDragonCombat();
+        JsonObject state = dragonDeathStartedSnapshot(110);
+        run.observe(START + 1, state);
+        run.observe(START + 2, state.deepCopy());
+        assertEquals(2, run.report().getAsJsonArray("milestones").size());
+        assertEquals(200, dragonCombatChain(run.report().getAsJsonObject("final_snapshot")).get("companion_actual_damage").getAsDouble());
+        JsonObject changed = dragonDeathStartedSnapshot(111);
+        dragonCombatChain(changed).getAsJsonObject("first_companion_damage").addProperty("event_id", 3);
+        run.observe(START + 3, changed);
+        outcome(run, "infra_error", "dragon_evidence_inconsistent");
+    }
+
+    @Test
+    void postKillSurvivalUsesOnlySealedServerTicksAndCanContinueAcrossNativeDimensions() {
+        LiveEvalRun run = startedDragonCombat();
+        JsonObject held = dragonCompletedSnapshot(404);
+        run.observe(START + 1, held);
+        run.observe(START + 2, held.deepCopy());
+        assertEquals(100, run.report().get("success_held_ticks").getAsLong(), "repeated reads do not contribute time");
+        assertFalse(run.finished());
+        JsonObject returned = dragonCompletedSnapshot(504);
+        returned.addProperty("dimension", "minecraft:overworld");
+        run.observe(START + 3, returned);
+        outcome(run, "success", "authoritative_success_criterion_met");
+        for (String mode : new String[]{"inflated", "stale-hold", "different-start", "missing-world-counter"}) {
+            LiveEvalRun invalid = startedDragonCombat();
+            JsonObject state = dragonCompletedSnapshot(504);
+            switch (mode) {
+                case "inflated" -> state.getAsJsonObject("world").addProperty("dragon_post_kill_alive_ticks", 201);
+                case "stale-hold" -> dragonCombatChain(state).addProperty("post_kill_last_verified_game_tick", 503);
+                case "different-start" -> dragonCombatChain(state).addProperty("post_kill_hold_start_game_tick", 304);
+                case "missing-world-counter" -> state.getAsJsonObject("world").remove("dragon_post_kill_alive_ticks");
+            }
+            invalid.observe(START + 1, state);
+            assertEquals("infra_error", invalid.report().get("status").getAsString(), mode);
+        }
+    }
+
     @Test
     void endResourcesRequiresCurrentResourcesAndSuppliesEvenAfterEveryMilestoneWasReached() {
         JsonObject spec = spec();

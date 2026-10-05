@@ -17,9 +17,9 @@ class Fixture(BaseHTTPRequestHandler):
     def do_POST(self):
         payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         has_result = any(message.get("role") == "tool" for message in payload["messages"])
-        if self.server.calibration_case in {"expedition-preparation", "end-resources", "end-entry"}:
+        if self.server.calibration_case in {"expedition-preparation", "end-resources", "end-entry", "dragon-combat"}:
             stage = {"expedition-preparation": "expedition", "end-resources": "end-resource",
-                     "end-entry": "End-entry"}[self.server.calibration_case]
+                     "end-entry": "End-entry", "dragon-combat": "dragon-combat"}[self.server.calibration_case]
             delta = {"content": f"Scripted negative control: no {stage} actions performed."}
             finish = "stop"
         elif has_result:
@@ -166,11 +166,68 @@ def end_entry_negative_check(code, result, scenario):
     return check
 
 
+def dragon_combat_negative_check(code, result, scenario):
+    initial = result.get("initial_snapshot") or {}
+    final = result.get("final_snapshot") or {}
+    evidence_valid = True
+    try:
+        run_live_eval.dragon_combat_result_evidence(result, scenario)
+    except (run_live_eval.PreflightError, KeyError):
+        evidence_valid = False
+    expected_inventory = dict(scenario["setup"]["inventory"])
+    for item in scenario["setup"].get("equipment", {}).values():
+        expected_inventory[item] = expected_inventory.get(item, 0) + 1
+    evidence = initial.get("world", {}).get("evidence", {})
+    armor = evidence.get("armor", {})
+    stacks = evidence.get("inventory", [])
+    gear = {item: count for item, count in expected_inventory.items()
+            if item in {"minecraft:iron_helmet", "minecraft:iron_chestplate", "minecraft:iron_leggings",
+                        "minecraft:iron_boots", "minecraft:shield", "minecraft:iron_sword",
+                        "minecraft:iron_pickaxe", "minecraft:iron_axe", "minecraft:bow"}}
+    check = {
+        "purpose": "Verify the fresh native End battle and reject idle localhost replies as a dragon kill",
+        "expected_outcome": "budget_exhausted",
+        "scripted_request_budget_reached": result.get("reason") == "max_model_calls" and result.get("model_calls") == 4,
+        "starter_inventory_matches": initial.get("inventory") == expected_inventory,
+        "initial_worn_armor_matches": all(
+            armor.get(slot, {}).get("id") == item and armor.get(slot, {}).get("count") == 1
+            for slot, item in scenario["setup"].get("equipment", {}).items() if slot != "offhand"),
+        "initial_offhand_matches": len([stack for stack in stacks if stack.get("slot") == 40]) == 1
+                                   and any(stack.get("slot") == 40 and stack.get("id") == "minecraft:shield"
+                                           and stack.get("count") == 1 for stack in stacks),
+        "initial_gear_full_durability": all(
+            sum(stack.get("count", 0) for stack in stacks if stack.get("id") == item) == count
+            and all(stack.get("max_durability", 0) > 0
+                    and stack.get("remaining_durability") == stack.get("max_durability")
+                    for stack in stacks if stack.get("id") == item)
+            for item, count in gear.items()),
+        "initial_public_spawn_matches": initial.get("position") == scenario["setup"]["spawn"],
+        "same_subject": initial.get("companion_uuid") == final.get("companion_uuid"),
+        "same_target_and_fight": all(
+            initial.get("world", {}).get("evidence", {}).get("dragon_combat", {}).get(field)
+            == final.get("world", {}).get("evidence", {}).get("dragon_combat", {}).get(field)
+            for field in ("target_uuid", "fight_id", "initial_battle")),
+        "observer_evidence_valid": evidence_valid,
+        "no_combat_progress": all(snapshot.get("dragon_kills") == 0
+                                  and all(snapshot.get("world", {}).get(field) is False
+                                          for field in ("dragon_damaged", "dragon_death_started", "native_dragon_kill"))
+                                  and snapshot.get("world", {}).get("evidence", {}).get("dragon_combat", {}).get(
+                                      "companion_actual_damage") == 0
+                                  and snapshot.get("world", {}).get("dragon_post_kill_alive_ticks") == 0
+                                  for snapshot in (initial, final)),
+        "no_milestones": result.get("milestones") == [],
+    }
+    check["passed"] = (code == 0 and result.get("status") == "budget_exhausted"
+                       and all(value for key, value in check.items() if key not in {"purpose", "expected_outcome"}))
+    return check
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--neoforge-version")
-    parser.add_argument("--scenario", choices=("craft-planks", "expedition-preparation", "end-resources", "end-entry"),
+    parser.add_argument("--scenario", choices=("craft-planks", "expedition-preparation", "end-resources", "end-entry",
+                                              "dragon-combat"),
                         default="craft-planks",
                         help="Crafting success control or stage starter-inventory negative control")
     args = parser.parse_args()
@@ -207,10 +264,11 @@ def main():
         finally:
             server.shutdown()
     check = {"scenario": args.scenario, "launcher_exit_code": code}
-    if args.scenario in {"end-resources", "end-entry"}:
+    if args.scenario in {"end-resources", "end-entry", "dragon-combat"}:
         result_path = output / "results/result.json"
         result = json.loads(result_path.read_text(encoding="utf-8")) if result_path.exists() else {}
-        negative_check = end_resources_negative_check if args.scenario == "end-resources" else end_entry_negative_check
+        negative_check = {"end-resources": end_resources_negative_check, "end-entry": end_entry_negative_check,
+                          "dragon-combat": dragon_combat_negative_check}[args.scenario]
         check.update(negative_check(code, result, scenario))
         if not check["passed"]:
             code = 2

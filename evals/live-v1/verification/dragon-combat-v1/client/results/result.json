@@ -1,0 +1,2548 @@
+{
+  "evaluation_version": "dragon-combat-v1",
+  "case_id": "live.dragon-combat",
+  "spec": {
+    "evaluation_version": "dragon-combat-v1",
+    "case_id": "live.dragon-combat",
+    "split": "dev",
+    "source": "Scripted localhost transport calibration; no model inference or capability score",
+    "prompt": "击杀本轮末地的原生末影龙，并在原生龙战结束后继续存活200个服务端游戏tick（正常20TPS约10秒）。这是独立第五阶段战斗专项，起点代表已经进入末地，不是从零通关，也不是第四阶段存档续跑。种子73005、普通世界生成、普通难度、结构生成开启和原版默认规则；你从末地原版入口黑曜石平台(100.5,49,0.5)出发，生命20、饱食20、饱和度5。你穿戴全新铁头盔、铁胸甲、铁护腿、铁靴，副手全新盾牌；背包有全新铁剑、铁镐、铁斧、弓各1，水桶1、熟牛肉32、圆石128、箭128。所有可损耗装备初始损耗0，没有附魔；不提供床或药水。主人以旁观者停在入口上方。\n\n公开人工初始化只在任务计时前放位和发物资，使用原版入口平台生成器；等待本次新世界的真实原生龙战初始化完成，确认目标龙满血200、AI正常、没有无敌、10颗自然生成的末影水晶均完整且可破坏后才开始。没有预先打残龙、清水晶、禁AI或运行中的补给、传送、人工救场；不恢复前阶段记忆和目标。你须自行接近主岛、选择合法战术和使用现有产品工具。允许近战、投射物以及可可靠归因的合法伤害，不要求固定武器、顺序或先破坏全部水晶。通用attack和弓箭接口的存在不代表已经验证末影龙多部位、飞行和栖停阶段的实战能力。\n\n成功由服务端绑定你的UUID、本轮目标龙UUID和原生末地龙战，确认真实伤害导致原生死亡、原生击杀归属与ENTITY_KILLED统计从0增加到1，以及原版死亡动画结束后的龙战结束事实相互一致。血条消失、实体暂时不可见、模型宣称完成、其他龙或其他主体的击杀、指令删除或直接设置死亡状态都不算。水晶原版可能把无明确来源的伤害归给最近玩家，不能因站得近算作本人击杀；床等无玩家来源且缺少匹配统计的间接伤害目前不能可靠自动评分，记证据异常而非成功或能力失败。\n\n首次死亡永久判失败，包括身体自动恢复生命以及同tick互杀；关键主体、目标或原生证据缺失记基础设施异常。原生龙战结束后，同一身体必须连续存活200个服务端tick，重复读取状态不能增加时间；生命、饱食、装备耐久及补给只记录事实，不设置最终保留门槛。不要求返回主世界，保持期可留在末地，也可按正常游戏方式自主换维；不要求龙蛋、经验、出口使用或播放结局。完成后告诉我。",
+    "seed": 73005,
+    "world_preset": "normal",
+    "world_observer": "dragon-combat-v1",
+    "success_hold_ticks": 200,
+    "setup": {
+      "dimension": "minecraft:the_end",
+      "native_dragon_battle": true,
+      "spawn": [
+        100.5,
+        49.0,
+        0.5
+      ],
+      "inventory": {
+        "minecraft:iron_sword": 1,
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:iron_axe": 1,
+        "minecraft:bow": 1,
+        "minecraft:water_bucket": 1,
+        "minecraft:cooked_beef": 32,
+        "minecraft:cobblestone": 128,
+        "minecraft:arrow": 128
+      },
+      "equipment": {
+        "head": "minecraft:iron_helmet",
+        "chest": "minecraft:iron_chestplate",
+        "legs": "minecraft:iron_leggings",
+        "feet": "minecraft:iron_boots",
+        "offhand": "minecraft:shield"
+      }
+    },
+    "success": {
+      "world": {
+        "native_dragon_kill": true,
+        "dragon_post_kill_alive_ticks": 200
+      }
+    },
+    "milestones": [
+      {
+        "id": "dragon-damaged",
+        "condition": {
+          "world": {
+            "dragon_damaged": true
+          }
+        }
+      },
+      {
+        "id": "dragon-death-started",
+        "condition": {
+          "world": {
+            "dragon_death_started": true
+          }
+        }
+      },
+      {
+        "id": "dragon-defeated",
+        "condition": {
+          "world": {
+            "native_dragon_kill": true
+          }
+        }
+      }
+    ],
+    "budget": {
+      "max_model_calls": 4,
+      "max_seconds": 45,
+      "max_tokens": 1000
+    }
+  },
+  "status": "budget_exhausted",
+  "reason": "max_model_calls",
+  "elapsed_ms": 208.6372,
+  "success_held_ticks": 0,
+  "model_calls": 4,
+  "denied_model_calls": 1,
+  "usage_reports": 4,
+  "unknown_usage_reports": 0,
+  "usage_complete": true,
+  "tokens": {
+    "input": 4,
+    "output": 4,
+    "cache_read": 0,
+    "cache_write": 0,
+    "total": 8
+  },
+  "cost": null,
+  "first_token_ms": 160.1755,
+  "first_reply_ms": 169.3558,
+  "correct_response_ms": null,
+  "response_correctness": "not_measured",
+  "milestones": [],
+  "initial_snapshot": {
+    "companion_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+    "subject_present": true,
+    "alive": true,
+    "game_tick": 169,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:arrow": 128,
+      "minecraft:bow": 1,
+      "minecraft:cobblestone": 128,
+      "minecraft:cooked_beef": 32,
+      "minecraft:iron_axe": 1,
+      "minecraft:iron_boots": 1,
+      "minecraft:iron_chestplate": 1,
+      "minecraft:iron_helmet": 1,
+      "minecraft:iron_leggings": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:iron_sword": 1,
+      "minecraft:shield": 1,
+      "minecraft:water_bucket": 1
+    },
+    "health": 20.0,
+    "food": 20,
+    "saturation": 5.0,
+    "dimension": "minecraft:the_end",
+    "world": {
+      "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+      "dragon_combat_ready": true,
+      "observation_complete": true,
+      "dragon_damaged": false,
+      "dragon_death_started": false,
+      "native_dragon_kill": false,
+      "dragon_post_kill_alive_ticks": 0,
+      "total_actual_damage": 0.0,
+      "companion_actual_damage": 0.0,
+      "dragon_minimum_health": 200.0,
+      "dragon_current_health": 200.0,
+      "crystals_alive": 10,
+      "evidence": {
+        "dragon_combat": {
+          "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+          "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "dimension": "minecraft:the_end",
+          "origin": [
+            0,
+            0,
+            0
+          ],
+          "game_tick": 169,
+          "evidence_source": "server_dragon_combat_observation",
+          "initial_battle": {
+            "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+            "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+            "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+            "dimension": "minecraft:the_end",
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "game_tick": 141,
+            "evidence_source": "server_native_dragon_fight_initial_state",
+            "calibration_fixture": false,
+            "fight_bound": true,
+            "needs_state_scanning": false,
+            "dragon_killed": false,
+            "previously_killed": false,
+            "is_respawning": false,
+            "target_present": true,
+            "target_health": 200.0,
+            "target_max_health": 200.0,
+            "target_position": [
+              21.80401653675511,
+              122.00735158233239,
+              -8.188945331217871
+            ],
+            "target_no_ai": false,
+            "target_invulnerable": false,
+            "phase": "HoldingPattern (#0)",
+            "death_animation_ticks": 0,
+            "dragon_kills": 0,
+            "crystals": [
+              {
+                "uuid": "8f1951ae-8398-4809-b5cb-dbe0c260c95b",
+                "position": [
+                  42.5,
+                  92.0,
+                  0.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "b9b630fb-6bdb-40c8-8ee0-2caab7f564e1",
+                "position": [
+                  33.5,
+                  77.0,
+                  24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "1cf9b997-3d90-4ced-b104-c40e50800c58",
+                "position": [
+                  12.5,
+                  98.0,
+                  39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "1985b39d-8ef3-41bb-aa11-8cbf6a596104",
+                "position": [
+                  -12.5,
+                  101.0,
+                  39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "9aa4cc83-8dcb-4e90-866f-dc0b8fbe550e",
+                "position": [
+                  -33.5,
+                  80.0,
+                  24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "cece2ef5-7f52-4925-9449-198e8288fd9a",
+                "position": [
+                  -41.5,
+                  89.0,
+                  -0.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "3a430c99-f661-4bb6-a6ff-e0c4c3ff3499",
+                "position": [
+                  -33.5,
+                  104.0,
+                  -24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "4df33524-c083-4f59-b06b-c5a2741b4156",
+                "position": [
+                  -12.5,
+                  86.0,
+                  -39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "e45febf7-0031-45d7-9f3f-438e60d0a3f3",
+                "position": [
+                  12.5,
+                  95.0,
+                  -39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "985039c9-8f43-4e35-94cd-2c5b516c2e46",
+                "position": [
+                  33.5,
+                  83.0,
+                  -24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              }
+            ],
+            "crystals_alive": 10
+          },
+          "current_battle": {
+            "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+            "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+            "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+            "dimension": "minecraft:the_end",
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "game_tick": 169,
+            "evidence_source": "server_dragon_battle_sample",
+            "calibration_fixture": false,
+            "fight_bound": true,
+            "needs_state_scanning": false,
+            "dragon_killed": false,
+            "previously_killed": false,
+            "is_respawning": false,
+            "target_present": true,
+            "target_health": 200.0,
+            "target_max_health": 200.0,
+            "target_position": [
+              16.776873112657633,
+              120.14073449924936,
+              15.618908540795283
+            ],
+            "target_no_ai": false,
+            "target_invulnerable": false,
+            "phase": "HoldingPattern (#0)",
+            "death_animation_ticks": 0,
+            "dragon_kills": 0,
+            "crystals": [
+              {
+                "uuid": "8f1951ae-8398-4809-b5cb-dbe0c260c95b",
+                "position": [
+                  42.5,
+                  92.0,
+                  0.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "b9b630fb-6bdb-40c8-8ee0-2caab7f564e1",
+                "position": [
+                  33.5,
+                  77.0,
+                  24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "1cf9b997-3d90-4ced-b104-c40e50800c58",
+                "position": [
+                  12.5,
+                  98.0,
+                  39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "1985b39d-8ef3-41bb-aa11-8cbf6a596104",
+                "position": [
+                  -12.5,
+                  101.0,
+                  39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "9aa4cc83-8dcb-4e90-866f-dc0b8fbe550e",
+                "position": [
+                  -33.5,
+                  80.0,
+                  24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "cece2ef5-7f52-4925-9449-198e8288fd9a",
+                "position": [
+                  -41.5,
+                  89.0,
+                  -0.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "3a430c99-f661-4bb6-a6ff-e0c4c3ff3499",
+                "position": [
+                  -33.5,
+                  104.0,
+                  -24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "4df33524-c083-4f59-b06b-c5a2741b4156",
+                "position": [
+                  -12.5,
+                  86.0,
+                  -39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "e45febf7-0031-45d7-9f3f-438e60d0a3f3",
+                "position": [
+                  12.5,
+                  95.0,
+                  -39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "985039c9-8f43-4e35-94cd-2c5b516c2e46",
+                "position": [
+                  33.5,
+                  83.0,
+                  -24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              }
+            ],
+            "crystals_alive": 10
+          },
+          "first_damage": null,
+          "first_companion_damage": null,
+          "lethal": null,
+          "kill_credit": null,
+          "kill_statistic": null,
+          "fight_end": null,
+          "first_death": null,
+          "calibration_fixture": false,
+          "calibration_native_chain_complete": false,
+          "first_death_observed": false,
+          "observation_gaps": 0,
+          "critical_evidence_complete": true,
+          "attribution_ambiguous": false,
+          "last_verified_game_tick": 169,
+          "post_kill_alive_ticks": 0,
+          "post_kill_hold_start_game_tick": null,
+          "post_kill_last_verified_game_tick": null,
+          "total_actual_damage": 0.0,
+          "companion_actual_damage": 0.0,
+          "minimum_health": 200.0,
+          "current_health": 200.0
+        },
+        "initial_sample": {
+          "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+          "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "dimension": "minecraft:the_end",
+          "origin": [
+            0,
+            0,
+            0
+          ],
+          "game_tick": 141,
+          "evidence_source": "server_companion_initial_loadout",
+          "health": 20.0,
+          "food": 20,
+          "saturation": 5.0,
+          "position": [
+            100.5,
+            49.0,
+            0.5
+          ],
+          "inventory": {
+            "minecraft:arrow": 128,
+            "minecraft:bow": 1,
+            "minecraft:cobblestone": 128,
+            "minecraft:cooked_beef": 32,
+            "minecraft:iron_axe": 1,
+            "minecraft:iron_pickaxe": 1,
+            "minecraft:iron_sword": 1,
+            "minecraft:shield": 1,
+            "minecraft:water_bucket": 1
+          },
+          "inventory_slots": [
+            {
+              "id": "minecraft:iron_sword",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 0,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_pickaxe",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 1,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_axe",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 2,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:bow",
+              "count": 1,
+              "remaining_durability": 384,
+              "max_durability": 384,
+              "slot": 3,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:water_bucket",
+              "count": 1,
+              "slot": 4,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:cooked_beef",
+              "count": 32,
+              "slot": 5,
+              "safe_nutrition": 256
+            },
+            {
+              "id": "minecraft:cobblestone",
+              "count": 64,
+              "slot": 6,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:cobblestone",
+              "count": 64,
+              "slot": 7,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:arrow",
+              "count": 64,
+              "slot": 8,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:arrow",
+              "count": 64,
+              "slot": 9,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_boots",
+              "count": 1,
+              "remaining_durability": 195,
+              "max_durability": 195,
+              "slot": 36,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_leggings",
+              "count": 1,
+              "remaining_durability": 225,
+              "max_durability": 225,
+              "slot": 37,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_chestplate",
+              "count": 1,
+              "remaining_durability": 240,
+              "max_durability": 240,
+              "slot": 38,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_helmet",
+              "count": 1,
+              "remaining_durability": 165,
+              "max_durability": 165,
+              "slot": 39,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:shield",
+              "count": 1,
+              "remaining_durability": 336,
+              "max_durability": 336,
+              "slot": 40,
+              "safe_nutrition": 0
+            }
+          ],
+          "armor": {
+            "head": {
+              "id": "minecraft:iron_helmet",
+              "count": 1,
+              "remaining_durability": 165,
+              "max_durability": 165,
+              "ready": true
+            },
+            "chest": {
+              "id": "minecraft:iron_chestplate",
+              "count": 1,
+              "remaining_durability": 240,
+              "max_durability": 240,
+              "ready": true
+            },
+            "legs": {
+              "id": "minecraft:iron_leggings",
+              "count": 1,
+              "remaining_durability": 225,
+              "max_durability": 225,
+              "ready": true
+            },
+            "feet": {
+              "id": "minecraft:iron_boots",
+              "count": 1,
+              "remaining_durability": 195,
+              "max_durability": 195,
+              "ready": true
+            }
+          },
+          "resources": {
+            "armor": {
+              "head": {
+                "id": "minecraft:iron_helmet",
+                "count": 1,
+                "remaining_durability": 165,
+                "max_durability": 165,
+                "ready": true
+              },
+              "chest": {
+                "id": "minecraft:iron_chestplate",
+                "count": 1,
+                "remaining_durability": 240,
+                "max_durability": 240,
+                "ready": true
+              },
+              "legs": {
+                "id": "minecraft:iron_leggings",
+                "count": 1,
+                "remaining_durability": 225,
+                "max_durability": 225,
+                "ready": true
+              },
+              "feet": {
+                "id": "minecraft:iron_boots",
+                "count": 1,
+                "remaining_durability": 195,
+                "max_durability": 195,
+                "ready": true
+              }
+            },
+            "inventory": [
+              {
+                "id": "minecraft:iron_sword",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 0,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_pickaxe",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 1,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_axe",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 2,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:bow",
+                "count": 1,
+                "remaining_durability": 384,
+                "max_durability": 384,
+                "slot": 3,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:water_bucket",
+                "count": 1,
+                "slot": 4,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:cooked_beef",
+                "count": 32,
+                "slot": 5,
+                "safe_nutrition": 256
+              },
+              {
+                "id": "minecraft:cobblestone",
+                "count": 64,
+                "slot": 6,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:cobblestone",
+                "count": 64,
+                "slot": 7,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:arrow",
+                "count": 64,
+                "slot": 8,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:arrow",
+                "count": 64,
+                "slot": 9,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_boots",
+                "count": 1,
+                "remaining_durability": 195,
+                "max_durability": 195,
+                "slot": 36,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_leggings",
+                "count": 1,
+                "remaining_durability": 225,
+                "max_durability": 225,
+                "slot": 37,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_chestplate",
+                "count": 1,
+                "remaining_durability": 240,
+                "max_durability": 240,
+                "slot": 38,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_helmet",
+                "count": 1,
+                "remaining_durability": 165,
+                "max_durability": 165,
+                "slot": 39,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:shield",
+                "count": 1,
+                "remaining_durability": 336,
+                "max_durability": 336,
+                "slot": 40,
+                "safe_nutrition": 0
+              }
+            ]
+          }
+        },
+        "current_sample": {
+          "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+          "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "dimension": "minecraft:the_end",
+          "origin": [
+            0,
+            0,
+            0
+          ],
+          "game_tick": 169,
+          "evidence_source": "server_companion_loadout_sample",
+          "health": 20.0,
+          "food": 20,
+          "saturation": 5.0,
+          "position": [
+            100.5,
+            49.0,
+            0.5
+          ],
+          "inventory": {
+            "minecraft:arrow": 128,
+            "minecraft:bow": 1,
+            "minecraft:cobblestone": 128,
+            "minecraft:cooked_beef": 32,
+            "minecraft:iron_axe": 1,
+            "minecraft:iron_pickaxe": 1,
+            "minecraft:iron_sword": 1,
+            "minecraft:shield": 1,
+            "minecraft:water_bucket": 1
+          },
+          "inventory_slots": [
+            {
+              "id": "minecraft:iron_sword",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 0,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_pickaxe",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 1,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_axe",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 2,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:bow",
+              "count": 1,
+              "remaining_durability": 384,
+              "max_durability": 384,
+              "slot": 3,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:water_bucket",
+              "count": 1,
+              "slot": 4,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:cooked_beef",
+              "count": 32,
+              "slot": 5,
+              "safe_nutrition": 256
+            },
+            {
+              "id": "minecraft:cobblestone",
+              "count": 64,
+              "slot": 6,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:cobblestone",
+              "count": 64,
+              "slot": 7,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:arrow",
+              "count": 64,
+              "slot": 8,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:arrow",
+              "count": 64,
+              "slot": 9,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_boots",
+              "count": 1,
+              "remaining_durability": 195,
+              "max_durability": 195,
+              "slot": 36,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_leggings",
+              "count": 1,
+              "remaining_durability": 225,
+              "max_durability": 225,
+              "slot": 37,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_chestplate",
+              "count": 1,
+              "remaining_durability": 240,
+              "max_durability": 240,
+              "slot": 38,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_helmet",
+              "count": 1,
+              "remaining_durability": 165,
+              "max_durability": 165,
+              "slot": 39,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:shield",
+              "count": 1,
+              "remaining_durability": 336,
+              "max_durability": 336,
+              "slot": 40,
+              "safe_nutrition": 0
+            }
+          ],
+          "armor": {
+            "head": {
+              "id": "minecraft:iron_helmet",
+              "count": 1,
+              "remaining_durability": 165,
+              "max_durability": 165,
+              "ready": true
+            },
+            "chest": {
+              "id": "minecraft:iron_chestplate",
+              "count": 1,
+              "remaining_durability": 240,
+              "max_durability": 240,
+              "ready": true
+            },
+            "legs": {
+              "id": "minecraft:iron_leggings",
+              "count": 1,
+              "remaining_durability": 225,
+              "max_durability": 225,
+              "ready": true
+            },
+            "feet": {
+              "id": "minecraft:iron_boots",
+              "count": 1,
+              "remaining_durability": 195,
+              "max_durability": 195,
+              "ready": true
+            }
+          },
+          "resources": {
+            "armor": {
+              "head": {
+                "id": "minecraft:iron_helmet",
+                "count": 1,
+                "remaining_durability": 165,
+                "max_durability": 165,
+                "ready": true
+              },
+              "chest": {
+                "id": "minecraft:iron_chestplate",
+                "count": 1,
+                "remaining_durability": 240,
+                "max_durability": 240,
+                "ready": true
+              },
+              "legs": {
+                "id": "minecraft:iron_leggings",
+                "count": 1,
+                "remaining_durability": 225,
+                "max_durability": 225,
+                "ready": true
+              },
+              "feet": {
+                "id": "minecraft:iron_boots",
+                "count": 1,
+                "remaining_durability": 195,
+                "max_durability": 195,
+                "ready": true
+              }
+            },
+            "inventory": [
+              {
+                "id": "minecraft:iron_sword",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 0,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_pickaxe",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 1,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_axe",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 2,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:bow",
+                "count": 1,
+                "remaining_durability": 384,
+                "max_durability": 384,
+                "slot": 3,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:water_bucket",
+                "count": 1,
+                "slot": 4,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:cooked_beef",
+                "count": 32,
+                "slot": 5,
+                "safe_nutrition": 256
+              },
+              {
+                "id": "minecraft:cobblestone",
+                "count": 64,
+                "slot": 6,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:cobblestone",
+                "count": 64,
+                "slot": 7,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:arrow",
+                "count": 64,
+                "slot": 8,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:arrow",
+                "count": 64,
+                "slot": 9,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_boots",
+                "count": 1,
+                "remaining_durability": 195,
+                "max_durability": 195,
+                "slot": 36,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_leggings",
+                "count": 1,
+                "remaining_durability": 225,
+                "max_durability": 225,
+                "slot": 37,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_chestplate",
+                "count": 1,
+                "remaining_durability": 240,
+                "max_durability": 240,
+                "slot": 38,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_helmet",
+                "count": 1,
+                "remaining_durability": 165,
+                "max_durability": 165,
+                "slot": 39,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:shield",
+                "count": 1,
+                "remaining_durability": 336,
+                "max_durability": 336,
+                "slot": 40,
+                "safe_nutrition": 0
+              }
+            ]
+          }
+        },
+        "armor": {
+          "head": {
+            "id": "minecraft:iron_helmet",
+            "count": 1,
+            "remaining_durability": 165,
+            "max_durability": 165,
+            "ready": true
+          },
+          "chest": {
+            "id": "minecraft:iron_chestplate",
+            "count": 1,
+            "remaining_durability": 240,
+            "max_durability": 240,
+            "ready": true
+          },
+          "legs": {
+            "id": "minecraft:iron_leggings",
+            "count": 1,
+            "remaining_durability": 225,
+            "max_durability": 225,
+            "ready": true
+          },
+          "feet": {
+            "id": "minecraft:iron_boots",
+            "count": 1,
+            "remaining_durability": 195,
+            "max_durability": 195,
+            "ready": true
+          }
+        },
+        "inventory": [
+          {
+            "id": "minecraft:iron_sword",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 0,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_pickaxe",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 1,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_axe",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 2,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:bow",
+            "count": 1,
+            "remaining_durability": 384,
+            "max_durability": 384,
+            "slot": 3,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:water_bucket",
+            "count": 1,
+            "slot": 4,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:cooked_beef",
+            "count": 32,
+            "slot": 5,
+            "safe_nutrition": 256
+          },
+          {
+            "id": "minecraft:cobblestone",
+            "count": 64,
+            "slot": 6,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:cobblestone",
+            "count": 64,
+            "slot": 7,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:arrow",
+            "count": 64,
+            "slot": 8,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:arrow",
+            "count": 64,
+            "slot": 9,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_boots",
+            "count": 1,
+            "remaining_durability": 195,
+            "max_durability": 195,
+            "slot": 36,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_leggings",
+            "count": 1,
+            "remaining_durability": 225,
+            "max_durability": 225,
+            "slot": 37,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_chestplate",
+            "count": 1,
+            "remaining_durability": 240,
+            "max_durability": 240,
+            "slot": 38,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_helmet",
+            "count": 1,
+            "remaining_durability": 165,
+            "max_durability": 165,
+            "slot": 39,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:shield",
+            "count": 1,
+            "remaining_durability": 336,
+            "max_durability": 336,
+            "slot": 40,
+            "safe_nutrition": 0
+          }
+        ],
+        "events": [],
+        "events_total": 0,
+        "events_truncated": false,
+        "coverage": {
+          "dragon_damage": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dragon_healed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dragon_phase_changed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "crystals_changed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dragon_lethal": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "kill_credit": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "kill_statistic": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dragon_fight_end": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "hurt": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "food_consumed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "inventory_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "equipment_changed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "retreat": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dimension_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "observation_gap": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "death": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "risk_replanning": {
+            "status": "not_measured",
+            "reason": "world facts cannot establish planning or decisions; review the tool trace"
+          },
+          "combat_replanning": {
+            "status": "not_measured",
+            "reason": "world facts cannot establish planning or decisions; review the tool trace"
+          },
+          "retreat_decision": {
+            "status": "not_measured",
+            "reason": "world facts cannot establish planning or decisions; review the tool trace"
+          },
+          "remember_unfinished_goal": {
+            "status": "not_measured",
+            "reason": "world facts cannot establish planning or decisions; review the tool trace"
+          }
+        }
+      }
+    },
+    "position": [
+      100.5,
+      49.0,
+      0.5
+    ],
+    "current_task": null
+  },
+  "final_snapshot": {
+    "companion_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+    "subject_present": true,
+    "alive": true,
+    "game_tick": 173,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:arrow": 128,
+      "minecraft:bow": 1,
+      "minecraft:cobblestone": 128,
+      "minecraft:cooked_beef": 32,
+      "minecraft:iron_axe": 1,
+      "minecraft:iron_boots": 1,
+      "minecraft:iron_chestplate": 1,
+      "minecraft:iron_helmet": 1,
+      "minecraft:iron_leggings": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:iron_sword": 1,
+      "minecraft:shield": 1,
+      "minecraft:water_bucket": 1
+    },
+    "health": 20.0,
+    "food": 20,
+    "saturation": 5.0,
+    "dimension": "minecraft:the_end",
+    "world": {
+      "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+      "dragon_combat_ready": true,
+      "observation_complete": true,
+      "dragon_damaged": false,
+      "dragon_death_started": false,
+      "native_dragon_kill": false,
+      "dragon_post_kill_alive_ticks": 0,
+      "total_actual_damage": 0.0,
+      "companion_actual_damage": 0.0,
+      "dragon_minimum_health": 200.0,
+      "dragon_current_health": 200.0,
+      "crystals_alive": 10,
+      "evidence": {
+        "dragon_combat": {
+          "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+          "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "dimension": "minecraft:the_end",
+          "origin": [
+            0,
+            0,
+            0
+          ],
+          "game_tick": 173,
+          "evidence_source": "server_dragon_combat_observation",
+          "initial_battle": {
+            "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+            "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+            "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+            "dimension": "minecraft:the_end",
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "game_tick": 141,
+            "evidence_source": "server_native_dragon_fight_initial_state",
+            "calibration_fixture": false,
+            "fight_bound": true,
+            "needs_state_scanning": false,
+            "dragon_killed": false,
+            "previously_killed": false,
+            "is_respawning": false,
+            "target_present": true,
+            "target_health": 200.0,
+            "target_max_health": 200.0,
+            "target_position": [
+              21.80401653675511,
+              122.00735158233239,
+              -8.188945331217871
+            ],
+            "target_no_ai": false,
+            "target_invulnerable": false,
+            "phase": "HoldingPattern (#0)",
+            "death_animation_ticks": 0,
+            "dragon_kills": 0,
+            "crystals": [
+              {
+                "uuid": "8f1951ae-8398-4809-b5cb-dbe0c260c95b",
+                "position": [
+                  42.5,
+                  92.0,
+                  0.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "b9b630fb-6bdb-40c8-8ee0-2caab7f564e1",
+                "position": [
+                  33.5,
+                  77.0,
+                  24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "1cf9b997-3d90-4ced-b104-c40e50800c58",
+                "position": [
+                  12.5,
+                  98.0,
+                  39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "1985b39d-8ef3-41bb-aa11-8cbf6a596104",
+                "position": [
+                  -12.5,
+                  101.0,
+                  39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "9aa4cc83-8dcb-4e90-866f-dc0b8fbe550e",
+                "position": [
+                  -33.5,
+                  80.0,
+                  24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "cece2ef5-7f52-4925-9449-198e8288fd9a",
+                "position": [
+                  -41.5,
+                  89.0,
+                  -0.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "3a430c99-f661-4bb6-a6ff-e0c4c3ff3499",
+                "position": [
+                  -33.5,
+                  104.0,
+                  -24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "4df33524-c083-4f59-b06b-c5a2741b4156",
+                "position": [
+                  -12.5,
+                  86.0,
+                  -39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "e45febf7-0031-45d7-9f3f-438e60d0a3f3",
+                "position": [
+                  12.5,
+                  95.0,
+                  -39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "985039c9-8f43-4e35-94cd-2c5b516c2e46",
+                "position": [
+                  33.5,
+                  83.0,
+                  -24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              }
+            ],
+            "crystals_alive": 10
+          },
+          "current_battle": {
+            "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+            "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+            "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+            "dimension": "minecraft:the_end",
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "game_tick": 173,
+            "evidence_source": "server_dragon_battle_sample",
+            "calibration_fixture": false,
+            "fight_bound": true,
+            "needs_state_scanning": false,
+            "dragon_killed": false,
+            "previously_killed": false,
+            "is_respawning": false,
+            "target_present": true,
+            "target_health": 200.0,
+            "target_max_health": 200.0,
+            "target_position": [
+              18.243624155231505,
+              119.874068955668,
+              18.01088521393899
+            ],
+            "target_no_ai": false,
+            "target_invulnerable": false,
+            "phase": "HoldingPattern (#0)",
+            "death_animation_ticks": 0,
+            "dragon_kills": 0,
+            "crystals": [
+              {
+                "uuid": "8f1951ae-8398-4809-b5cb-dbe0c260c95b",
+                "position": [
+                  42.5,
+                  92.0,
+                  0.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "b9b630fb-6bdb-40c8-8ee0-2caab7f564e1",
+                "position": [
+                  33.5,
+                  77.0,
+                  24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "1cf9b997-3d90-4ced-b104-c40e50800c58",
+                "position": [
+                  12.5,
+                  98.0,
+                  39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "1985b39d-8ef3-41bb-aa11-8cbf6a596104",
+                "position": [
+                  -12.5,
+                  101.0,
+                  39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "9aa4cc83-8dcb-4e90-866f-dc0b8fbe550e",
+                "position": [
+                  -33.5,
+                  80.0,
+                  24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "cece2ef5-7f52-4925-9449-198e8288fd9a",
+                "position": [
+                  -41.5,
+                  89.0,
+                  -0.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "3a430c99-f661-4bb6-a6ff-e0c4c3ff3499",
+                "position": [
+                  -33.5,
+                  104.0,
+                  -24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "4df33524-c083-4f59-b06b-c5a2741b4156",
+                "position": [
+                  -12.5,
+                  86.0,
+                  -39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "e45febf7-0031-45d7-9f3f-438e60d0a3f3",
+                "position": [
+                  12.5,
+                  95.0,
+                  -39.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              },
+              {
+                "uuid": "985039c9-8f43-4e35-94cd-2c5b516c2e46",
+                "position": [
+                  33.5,
+                  83.0,
+                  -24.5
+                ],
+                "invulnerable": false,
+                "alive": true
+              }
+            ],
+            "crystals_alive": 10
+          },
+          "first_damage": null,
+          "first_companion_damage": null,
+          "lethal": null,
+          "kill_credit": null,
+          "kill_statistic": null,
+          "fight_end": null,
+          "first_death": null,
+          "calibration_fixture": false,
+          "calibration_native_chain_complete": false,
+          "first_death_observed": false,
+          "observation_gaps": 0,
+          "critical_evidence_complete": true,
+          "attribution_ambiguous": false,
+          "last_verified_game_tick": 173,
+          "post_kill_alive_ticks": 0,
+          "post_kill_hold_start_game_tick": null,
+          "post_kill_last_verified_game_tick": null,
+          "total_actual_damage": 0.0,
+          "companion_actual_damage": 0.0,
+          "minimum_health": 200.0,
+          "current_health": 200.0
+        },
+        "initial_sample": {
+          "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+          "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "dimension": "minecraft:the_end",
+          "origin": [
+            0,
+            0,
+            0
+          ],
+          "game_tick": 141,
+          "evidence_source": "server_companion_initial_loadout",
+          "health": 20.0,
+          "food": 20,
+          "saturation": 5.0,
+          "position": [
+            100.5,
+            49.0,
+            0.5
+          ],
+          "inventory": {
+            "minecraft:arrow": 128,
+            "minecraft:bow": 1,
+            "minecraft:cobblestone": 128,
+            "minecraft:cooked_beef": 32,
+            "minecraft:iron_axe": 1,
+            "minecraft:iron_pickaxe": 1,
+            "minecraft:iron_sword": 1,
+            "minecraft:shield": 1,
+            "minecraft:water_bucket": 1
+          },
+          "inventory_slots": [
+            {
+              "id": "minecraft:iron_sword",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 0,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_pickaxe",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 1,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_axe",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 2,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:bow",
+              "count": 1,
+              "remaining_durability": 384,
+              "max_durability": 384,
+              "slot": 3,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:water_bucket",
+              "count": 1,
+              "slot": 4,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:cooked_beef",
+              "count": 32,
+              "slot": 5,
+              "safe_nutrition": 256
+            },
+            {
+              "id": "minecraft:cobblestone",
+              "count": 64,
+              "slot": 6,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:cobblestone",
+              "count": 64,
+              "slot": 7,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:arrow",
+              "count": 64,
+              "slot": 8,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:arrow",
+              "count": 64,
+              "slot": 9,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_boots",
+              "count": 1,
+              "remaining_durability": 195,
+              "max_durability": 195,
+              "slot": 36,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_leggings",
+              "count": 1,
+              "remaining_durability": 225,
+              "max_durability": 225,
+              "slot": 37,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_chestplate",
+              "count": 1,
+              "remaining_durability": 240,
+              "max_durability": 240,
+              "slot": 38,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_helmet",
+              "count": 1,
+              "remaining_durability": 165,
+              "max_durability": 165,
+              "slot": 39,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:shield",
+              "count": 1,
+              "remaining_durability": 336,
+              "max_durability": 336,
+              "slot": 40,
+              "safe_nutrition": 0
+            }
+          ],
+          "armor": {
+            "head": {
+              "id": "minecraft:iron_helmet",
+              "count": 1,
+              "remaining_durability": 165,
+              "max_durability": 165,
+              "ready": true
+            },
+            "chest": {
+              "id": "minecraft:iron_chestplate",
+              "count": 1,
+              "remaining_durability": 240,
+              "max_durability": 240,
+              "ready": true
+            },
+            "legs": {
+              "id": "minecraft:iron_leggings",
+              "count": 1,
+              "remaining_durability": 225,
+              "max_durability": 225,
+              "ready": true
+            },
+            "feet": {
+              "id": "minecraft:iron_boots",
+              "count": 1,
+              "remaining_durability": 195,
+              "max_durability": 195,
+              "ready": true
+            }
+          },
+          "resources": {
+            "armor": {
+              "head": {
+                "id": "minecraft:iron_helmet",
+                "count": 1,
+                "remaining_durability": 165,
+                "max_durability": 165,
+                "ready": true
+              },
+              "chest": {
+                "id": "minecraft:iron_chestplate",
+                "count": 1,
+                "remaining_durability": 240,
+                "max_durability": 240,
+                "ready": true
+              },
+              "legs": {
+                "id": "minecraft:iron_leggings",
+                "count": 1,
+                "remaining_durability": 225,
+                "max_durability": 225,
+                "ready": true
+              },
+              "feet": {
+                "id": "minecraft:iron_boots",
+                "count": 1,
+                "remaining_durability": 195,
+                "max_durability": 195,
+                "ready": true
+              }
+            },
+            "inventory": [
+              {
+                "id": "minecraft:iron_sword",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 0,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_pickaxe",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 1,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_axe",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 2,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:bow",
+                "count": 1,
+                "remaining_durability": 384,
+                "max_durability": 384,
+                "slot": 3,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:water_bucket",
+                "count": 1,
+                "slot": 4,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:cooked_beef",
+                "count": 32,
+                "slot": 5,
+                "safe_nutrition": 256
+              },
+              {
+                "id": "minecraft:cobblestone",
+                "count": 64,
+                "slot": 6,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:cobblestone",
+                "count": 64,
+                "slot": 7,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:arrow",
+                "count": 64,
+                "slot": 8,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:arrow",
+                "count": 64,
+                "slot": 9,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_boots",
+                "count": 1,
+                "remaining_durability": 195,
+                "max_durability": 195,
+                "slot": 36,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_leggings",
+                "count": 1,
+                "remaining_durability": 225,
+                "max_durability": 225,
+                "slot": 37,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_chestplate",
+                "count": 1,
+                "remaining_durability": 240,
+                "max_durability": 240,
+                "slot": 38,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_helmet",
+                "count": 1,
+                "remaining_durability": 165,
+                "max_durability": 165,
+                "slot": 39,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:shield",
+                "count": 1,
+                "remaining_durability": 336,
+                "max_durability": 336,
+                "slot": 40,
+                "safe_nutrition": 0
+              }
+            ]
+          }
+        },
+        "current_sample": {
+          "subject_uuid": "17343731-04c9-4fda-a82b-e0b37a58f3aa",
+          "target_uuid": "798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "fight_id": "minecraft:the_end:0:0:0:798d426e-42b6-4f7f-be83-6f182e3e666c",
+          "dimension": "minecraft:the_end",
+          "origin": [
+            0,
+            0,
+            0
+          ],
+          "game_tick": 173,
+          "evidence_source": "server_companion_loadout_sample",
+          "health": 20.0,
+          "food": 20,
+          "saturation": 5.0,
+          "position": [
+            100.5,
+            49.0,
+            0.5
+          ],
+          "inventory": {
+            "minecraft:arrow": 128,
+            "minecraft:bow": 1,
+            "minecraft:cobblestone": 128,
+            "minecraft:cooked_beef": 32,
+            "minecraft:iron_axe": 1,
+            "minecraft:iron_pickaxe": 1,
+            "minecraft:iron_sword": 1,
+            "minecraft:shield": 1,
+            "minecraft:water_bucket": 1
+          },
+          "inventory_slots": [
+            {
+              "id": "minecraft:iron_sword",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 0,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_pickaxe",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 1,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_axe",
+              "count": 1,
+              "remaining_durability": 250,
+              "max_durability": 250,
+              "slot": 2,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:bow",
+              "count": 1,
+              "remaining_durability": 384,
+              "max_durability": 384,
+              "slot": 3,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:water_bucket",
+              "count": 1,
+              "slot": 4,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:cooked_beef",
+              "count": 32,
+              "slot": 5,
+              "safe_nutrition": 256
+            },
+            {
+              "id": "minecraft:cobblestone",
+              "count": 64,
+              "slot": 6,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:cobblestone",
+              "count": 64,
+              "slot": 7,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:arrow",
+              "count": 64,
+              "slot": 8,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:arrow",
+              "count": 64,
+              "slot": 9,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_boots",
+              "count": 1,
+              "remaining_durability": 195,
+              "max_durability": 195,
+              "slot": 36,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_leggings",
+              "count": 1,
+              "remaining_durability": 225,
+              "max_durability": 225,
+              "slot": 37,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_chestplate",
+              "count": 1,
+              "remaining_durability": 240,
+              "max_durability": 240,
+              "slot": 38,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:iron_helmet",
+              "count": 1,
+              "remaining_durability": 165,
+              "max_durability": 165,
+              "slot": 39,
+              "safe_nutrition": 0
+            },
+            {
+              "id": "minecraft:shield",
+              "count": 1,
+              "remaining_durability": 336,
+              "max_durability": 336,
+              "slot": 40,
+              "safe_nutrition": 0
+            }
+          ],
+          "armor": {
+            "head": {
+              "id": "minecraft:iron_helmet",
+              "count": 1,
+              "remaining_durability": 165,
+              "max_durability": 165,
+              "ready": true
+            },
+            "chest": {
+              "id": "minecraft:iron_chestplate",
+              "count": 1,
+              "remaining_durability": 240,
+              "max_durability": 240,
+              "ready": true
+            },
+            "legs": {
+              "id": "minecraft:iron_leggings",
+              "count": 1,
+              "remaining_durability": 225,
+              "max_durability": 225,
+              "ready": true
+            },
+            "feet": {
+              "id": "minecraft:iron_boots",
+              "count": 1,
+              "remaining_durability": 195,
+              "max_durability": 195,
+              "ready": true
+            }
+          },
+          "resources": {
+            "armor": {
+              "head": {
+                "id": "minecraft:iron_helmet",
+                "count": 1,
+                "remaining_durability": 165,
+                "max_durability": 165,
+                "ready": true
+              },
+              "chest": {
+                "id": "minecraft:iron_chestplate",
+                "count": 1,
+                "remaining_durability": 240,
+                "max_durability": 240,
+                "ready": true
+              },
+              "legs": {
+                "id": "minecraft:iron_leggings",
+                "count": 1,
+                "remaining_durability": 225,
+                "max_durability": 225,
+                "ready": true
+              },
+              "feet": {
+                "id": "minecraft:iron_boots",
+                "count": 1,
+                "remaining_durability": 195,
+                "max_durability": 195,
+                "ready": true
+              }
+            },
+            "inventory": [
+              {
+                "id": "minecraft:iron_sword",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 0,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_pickaxe",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 1,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_axe",
+                "count": 1,
+                "remaining_durability": 250,
+                "max_durability": 250,
+                "slot": 2,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:bow",
+                "count": 1,
+                "remaining_durability": 384,
+                "max_durability": 384,
+                "slot": 3,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:water_bucket",
+                "count": 1,
+                "slot": 4,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:cooked_beef",
+                "count": 32,
+                "slot": 5,
+                "safe_nutrition": 256
+              },
+              {
+                "id": "minecraft:cobblestone",
+                "count": 64,
+                "slot": 6,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:cobblestone",
+                "count": 64,
+                "slot": 7,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:arrow",
+                "count": 64,
+                "slot": 8,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:arrow",
+                "count": 64,
+                "slot": 9,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_boots",
+                "count": 1,
+                "remaining_durability": 195,
+                "max_durability": 195,
+                "slot": 36,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_leggings",
+                "count": 1,
+                "remaining_durability": 225,
+                "max_durability": 225,
+                "slot": 37,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_chestplate",
+                "count": 1,
+                "remaining_durability": 240,
+                "max_durability": 240,
+                "slot": 38,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:iron_helmet",
+                "count": 1,
+                "remaining_durability": 165,
+                "max_durability": 165,
+                "slot": 39,
+                "safe_nutrition": 0
+              },
+              {
+                "id": "minecraft:shield",
+                "count": 1,
+                "remaining_durability": 336,
+                "max_durability": 336,
+                "slot": 40,
+                "safe_nutrition": 0
+              }
+            ]
+          }
+        },
+        "armor": {
+          "head": {
+            "id": "minecraft:iron_helmet",
+            "count": 1,
+            "remaining_durability": 165,
+            "max_durability": 165,
+            "ready": true
+          },
+          "chest": {
+            "id": "minecraft:iron_chestplate",
+            "count": 1,
+            "remaining_durability": 240,
+            "max_durability": 240,
+            "ready": true
+          },
+          "legs": {
+            "id": "minecraft:iron_leggings",
+            "count": 1,
+            "remaining_durability": 225,
+            "max_durability": 225,
+            "ready": true
+          },
+          "feet": {
+            "id": "minecraft:iron_boots",
+            "count": 1,
+            "remaining_durability": 195,
+            "max_durability": 195,
+            "ready": true
+          }
+        },
+        "inventory": [
+          {
+            "id": "minecraft:iron_sword",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 0,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_pickaxe",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 1,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_axe",
+            "count": 1,
+            "remaining_durability": 250,
+            "max_durability": 250,
+            "slot": 2,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:bow",
+            "count": 1,
+            "remaining_durability": 384,
+            "max_durability": 384,
+            "slot": 3,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:water_bucket",
+            "count": 1,
+            "slot": 4,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:cooked_beef",
+            "count": 32,
+            "slot": 5,
+            "safe_nutrition": 256
+          },
+          {
+            "id": "minecraft:cobblestone",
+            "count": 64,
+            "slot": 6,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:cobblestone",
+            "count": 64,
+            "slot": 7,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:arrow",
+            "count": 64,
+            "slot": 8,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:arrow",
+            "count": 64,
+            "slot": 9,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_boots",
+            "count": 1,
+            "remaining_durability": 195,
+            "max_durability": 195,
+            "slot": 36,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_leggings",
+            "count": 1,
+            "remaining_durability": 225,
+            "max_durability": 225,
+            "slot": 37,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_chestplate",
+            "count": 1,
+            "remaining_durability": 240,
+            "max_durability": 240,
+            "slot": 38,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:iron_helmet",
+            "count": 1,
+            "remaining_durability": 165,
+            "max_durability": 165,
+            "slot": 39,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:shield",
+            "count": 1,
+            "remaining_durability": 336,
+            "max_durability": 336,
+            "slot": 40,
+            "safe_nutrition": 0
+          }
+        ],
+        "events": [],
+        "events_total": 0,
+        "events_truncated": false,
+        "coverage": {
+          "dragon_damage": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dragon_healed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dragon_phase_changed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "crystals_changed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dragon_lethal": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "kill_credit": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "kill_statistic": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dragon_fight_end": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "hurt": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "food_consumed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "inventory_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "equipment_changed": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "retreat": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "dimension_change": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "observation_gap": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "death": {
+            "status": "not_covered",
+            "sampled_events": 0,
+            "first_event": null
+          },
+          "risk_replanning": {
+            "status": "not_measured",
+            "reason": "world facts cannot establish planning or decisions; review the tool trace"
+          },
+          "combat_replanning": {
+            "status": "not_measured",
+            "reason": "world facts cannot establish planning or decisions; review the tool trace"
+          },
+          "retreat_decision": {
+            "status": "not_measured",
+            "reason": "world facts cannot establish planning or decisions; review the tool trace"
+          },
+          "remember_unfinished_goal": {
+            "status": "not_measured",
+            "reason": "world facts cannot establish planning or decisions; review the tool trace"
+          }
+        }
+      }
+    },
+    "position": [
+      100.5,
+      49.0,
+      0.5
+    ],
+    "current_task": null
+  },
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false
+}

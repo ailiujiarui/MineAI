@@ -20,7 +20,8 @@ from run_bot_eval import digest_files, git, source_files_for, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = "live-v1"
-SUPPORTED_VERSIONS = {VERSION, "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1", "end-entry-v1"}
+SUPPORTED_VERSIONS = {VERSION, "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1", "end-entry-v1",
+                      "dragon-combat-v1"}
 RUNS = ROOT / "build/evals" / VERSION
 SCENARIOS = ROOT / "evals" / VERSION / "scenarios"
 CRITERIA = {"items", "min_health", "min_food", "dragon_kills", "within", "world"}
@@ -297,6 +298,370 @@ def end_entry_evidence(snapshot, label):
     return chain
 
 
+def dragon_combat_evidence(snapshot, label, allow_calibration_fixture=False):
+    world = snapshot.get("world")
+    evidence = world.get("evidence") if isinstance(world, dict) else None
+    chain = evidence.get("dragon_combat") if isinstance(evidence, dict) else None
+    if not isinstance(chain, dict):
+        raise PreflightError(f"{label} needs raw dragon-combat evidence")
+    subject = snapshot.get("companion_uuid")
+    target = chain.get("target_uuid")
+    for value, field in ((subject, "companion_uuid"), (target, "target_uuid")):
+        try:
+            canonical = str(uuid.UUID(value))
+        except (ValueError, TypeError, AttributeError):
+            raise PreflightError(f"{label}.{field} needs a canonical UUID") from None
+        if value != canonical:
+            raise PreflightError(f"{label}.{field} needs a canonical UUID")
+    fixture = chain.get("calibration_fixture")
+    if type(fixture) is not bool or (fixture and not allow_calibration_fixture):
+        raise PreflightError(f"{label} cannot count an artificial combat fixture as a formal End battle")
+    dimension = chain.get("dimension") if fixture else "minecraft:the_end"
+    if not isinstance(dimension, str) or not re.fullmatch(r"[a-z0-9_.-]+:[a-z0-9_./-]+", dimension):
+        raise PreflightError(f"{label} needs the native battle dimension")
+    identity = {"subject_uuid": subject, "target_uuid": target, "origin": chain.get("origin"),
+                "fight_id": chain.get("fight_id"), "dimension": dimension}
+    if (chain.get("subject_uuid") != subject or world.get("subject_uuid") != subject
+            or chain.get("dimension") != identity["dimension"]
+            or not isinstance(identity["fight_id"], str) or not identity["fight_id"].strip()):
+        raise PreflightError(f"{label} must identify one companion and native End fight")
+    number(snapshot.get("game_tick"), label + ".game_tick", integer=True)
+    number(snapshot.get("dragon_kills"), label + ".dragon_kills", integer=True)
+    number(snapshot.get("deaths"), label + ".deaths", integer=True)
+    for field in ("native_dragon_kill", "dragon_combat_ready", "observation_complete", "dragon_damaged",
+                  "dragon_death_started"):
+        if type(world.get(field)) is not bool:
+            raise PreflightError(f"{label}.world.{field} must be boolean")
+    for field in ("first_death_observed", "critical_evidence_complete", "attribution_ambiguous"):
+        if type(chain.get(field)) is not bool:
+            raise PreflightError(f"{label}.dragon_combat.{field} must be boolean")
+    if chain["attribution_ambiguous"]:
+        raise PreflightError(f"{label} cannot score ambiguous native damage attribution as a combat outcome")
+    number(chain.get("observation_gaps"), label + ".dragon_combat.observation_gaps", integer=True)
+    if (world["observation_complete"] is not True or chain["observation_gaps"] != 0
+            or chain["critical_evidence_complete"] is not True
+            or chain.get("last_verified_game_tick") != snapshot["game_tick"]):
+        raise PreflightError(f"{label} has incomplete or stale dragon-combat observation")
+    if chain["first_death_observed"] or snapshot.get("alive") is not True or snapshot.get("subject_present") is not True or snapshot["deaths"] != 0:
+        raise PreflightError(f"{label} cannot follow a companion death or missing body")
+    subject_dimension = snapshot.get("dimension")
+    if not isinstance(subject_dimension, str) or not re.fullmatch(r"[a-z0-9_.-]+:[a-z0-9_./-]+", subject_dimension):
+        raise PreflightError(f"{label} needs the companion's actual dimension")
+    if subject_dimension != dimension and not isinstance(chain.get("fight_end"), dict):
+        raise PreflightError(f"{label} requires the companion to remain in the End")
+    number(snapshot.get("health"), label + ".health")
+    if snapshot["health"] <= 0:
+        raise PreflightError(f"{label} must corroborate a living companion with positive health")
+
+    def bound(event, field, source):
+        if (not isinstance(event, dict) or any(event.get(key) != value for key, value in identity.items())
+                or event.get("evidence_source") != source):
+            raise PreflightError(f"{label}.{field} lacks this fight's native evidence")
+        number(event.get("game_tick"), label + "." + field + ".game_tick", integer=True)
+        if event["game_tick"] > snapshot["game_tick"]:
+            raise PreflightError(f"{label}.{field} occurs after the snapshot")
+        for actor_field in ("actor_uuid", "source_actor_uuid", "direct_entity_uuid", "credited_actor_uuid", "provenance_actor_uuid"):
+            value = event.get(actor_field)
+            if value is None:
+                continue
+            try:
+                canonical = str(uuid.UUID(value))
+            except (ValueError, TypeError, AttributeError):
+                raise PreflightError(f"{label}.{field}.{actor_field} needs a native entity UUID") from None
+            if value != canonical:
+                raise PreflightError(f"{label}.{field}.{actor_field} needs a native entity UUID")
+        return event
+
+    initial = bound(chain.get("initial_battle"), "initial_battle", "server_native_dragon_fight_initial_state")
+    origin = initial.get("origin")
+    if (not isinstance(origin, list) or len(origin) != 3 or any(type(value) is not int for value in origin)
+            or identity["fight_id"] != f"{dimension}:{origin[0]}:{origin[1]}:{origin[2]}:{target}"):
+        raise PreflightError(f"{label}.initial_battle must identify the native fight origin and target")
+    if initial.get("calibration_fixture") is not fixture:
+        raise PreflightError(f"{label}.initial_battle must disclose the same fixture origin")
+    if (type(initial.get("dragon_kills")) is not int or initial["dragon_kills"] != 0
+            or initial.get("target_present") is not True or initial.get("fight_bound") is not True):
+        raise PreflightError(f"{label}.initial_battle must start with one living bound target and no previous kill")
+    for field, expected in (("fight_bound", True), ("needs_state_scanning", False), ("dragon_killed", False),
+                            ("previously_killed", False), ("is_respawning", False), ("target_present", True),
+                            ("target_no_ai", False), ("target_invulnerable", False)):
+        if initial.get(field) is not expected and not fixture:
+            raise PreflightError(f"{label}.initial_battle is not a normal initial native dragon fight")
+    if not fixture and (type(initial.get("target_health")) not in {int, float} or initial["target_health"] != 200
+            or type(initial.get("target_max_health")) not in {int, float} or initial["target_max_health"] != 200
+            or type(initial.get("dragon_kills")) is not int or initial["dragon_kills"] != 0
+            or type(initial.get("crystals_alive")) is not int or initial["crystals_alive"] != 10
+            or type(initial.get("death_animation_ticks")) is not int or initial["death_animation_ticks"] != 0
+            or not isinstance(initial.get("phase"), str) or initial["phase"].lower().startswith("dying")):
+        raise PreflightError(f"{label}.initial_battle needs full health, ten crystals and zero historical kills")
+    crystals = initial.get("crystals")
+    if not isinstance(crystals, list) or (not fixture and len(crystals) != 10):
+        raise PreflightError(f"{label}.initial_battle needs ten individual crystal observations")
+    crystal_ids = set()
+    for crystal in crystals:
+        if (not isinstance(crystal, dict) or crystal.get("invulnerable") is not False
+                or (not fixture and crystal.get("alive") is not True)):
+            raise PreflightError(f"{label}.initial_battle contains a missing or invulnerable crystal")
+        try:
+            crystal_id = str(uuid.UUID(crystal.get("uuid")))
+        except (ValueError, TypeError, AttributeError):
+            raise PreflightError(f"{label}.initial_battle needs crystal UUIDs") from None
+        if crystal.get("uuid") != crystal_id or crystal_id in crystal_ids:
+            raise PreflightError(f"{label}.initial_battle needs ten different crystal UUIDs")
+        crystal_ids.add(crystal_id)
+        position(crystal.get("position"), label + ".initial_battle.crystal.position")
+    current = chain.get("current_battle")
+    if not isinstance(current, dict) or any(current.get(key) != value for key, value in identity.items()):
+        raise PreflightError(f"{label}.current_battle must observe the same native target")
+    if current.get("game_tick") != snapshot["game_tick"]:
+        raise PreflightError(f"{label}.current_battle is stale")
+    if (current.get("calibration_fixture") is not fixture or current.get("origin") != initial["origin"]
+            or current.get("fight_bound") is not True
+            or current.get("needs_state_scanning") is not False or current.get("is_respawning") is not False
+            or (not fixture and (current.get("target_no_ai") is not False or current.get("target_invulnerable") is not False))):
+        raise PreflightError(f"{label}.current_battle no longer observes the same normal native fight")
+    for field in ("target_present", "dragon_killed", "previously_killed"):
+        if type(current.get(field)) is not bool:
+            raise PreflightError(f"{label}.current_battle.{field} must be boolean")
+    for field in ("death_animation_ticks", "crystals_alive", "dragon_kills"):
+        number(current.get(field), label + ".current_battle." + field, integer=True)
+    if current["dragon_kills"] != snapshot["dragon_kills"]:
+        raise PreflightError(f"{label} must corroborate the native kill statistic")
+    world_number(current.get("target_max_health"), label + ".current_battle.target_max_health")
+    if current["target_max_health"] != 200:
+        raise PreflightError(f"{label} changed the target's native maximum health")
+    if current["target_present"]:
+        world_number(current.get("target_health"), label + ".current_battle.target_health")
+        if current["target_health"] > current["target_max_health"]:
+            raise PreflightError(f"{label} target health exceeds its maximum")
+    elif current.get("target_health") is not None:
+        raise PreflightError(f"{label} cannot invent health for a missing target")
+    for field in ("total_actual_damage", "companion_actual_damage", "minimum_health"):
+        world_number(chain.get(field), label + ".dragon_combat." + field)
+    if (chain["companion_actual_damage"] > chain["total_actual_damage"]
+            or chain["minimum_health"] > 200):
+        raise PreflightError(f"{label} has inconsistent actual-damage or minimum-health evidence")
+    if chain.get("current_health") != current.get("target_health"):
+        raise PreflightError(f"{label} current dragon health differs from the native sample")
+
+    def actual_damage(event, field, companion=False):
+        event = bound(event, field, "native_ender_dragon_really_hurt")
+        number(event.get("event_id"), label + "." + field + ".event_id", minimum=1, integer=True)
+        for damage_field in ("health_before", "health_after", "actual_health_loss"):
+            world_number(event.get(damage_field), label + "." + field + "." + damage_field)
+        if (event["health_before"] <= event["health_after"] or event["health_before"] > 200
+                or not math.isclose(event["actual_health_loss"], event["health_before"] - event["health_after"],
+                                    rel_tol=1e-5, abs_tol=0.0001)
+                or event["actual_health_loss"] > chain["total_actual_damage"]):
+            raise PreflightError(f"{label}.{field} must describe one accepted actual health loss")
+        if companion and (event.get("provenance_actor_uuid") != subject or event.get("attribution_reliable") is not True
+                          or event.get("attribution_origin") not in {"native_damage_source", "crystal_explicit_player"}):
+            raise PreflightError(f"{label}.{field} must reliably attribute actual damage to this companion")
+        return event
+
+    first_damage = chain.get("first_companion_damage")
+    if first_damage is not None:
+        first_damage = actual_damage(first_damage, "first_companion_damage", companion=True)
+        if first_damage["actual_health_loss"] > chain["companion_actual_damage"]:
+            raise PreflightError(f"{label} companion damage total is smaller than its native first event")
+    if world["dragon_damaged"] != (first_damage is not None):
+        raise PreflightError(f"{label} damage milestone lacks companion-attributed actual damage")
+    first_world_damage = chain.get("first_damage")
+    if first_world_damage is not None:
+        first_world_damage = actual_damage(first_world_damage, "first_damage")
+    if (first_world_damage is None) != (chain["total_actual_damage"] == 0):
+        raise PreflightError(f"{label} cumulative damage must retain its first native damage receipt")
+    diagnostic_events = evidence.get("events")
+    if isinstance(diagnostic_events, list):
+        damage_ids = set()
+        observed_total = observed_companion = 0
+        for event in diagnostic_events:
+            if not isinstance(event, dict) or event.get("kind") != "dragon_damage":
+                continue
+            event = actual_damage(event, "events.dragon_damage")
+            if event["event_id"] in damage_ids:
+                raise PreflightError(f"{label} diagnostic damage events repeat a native event")
+            damage_ids.add(event["event_id"])
+            observed_total += event["actual_health_loss"]
+            if event.get("attribution_reliable") is True and event.get("provenance_actor_uuid") == subject:
+                observed_companion += event["actual_health_loss"]
+        if evidence.get("events_truncated") is False and (
+                not math.isclose(observed_total, chain["total_actual_damage"], rel_tol=1e-5, abs_tol=0.001)
+                or not math.isclose(observed_companion, chain["companion_actual_damage"], rel_tol=1e-5, abs_tol=0.001)):
+            raise PreflightError(f"{label} damage counters differ from the complete native event ledger")
+
+    prior_tick = initial["game_tick"]
+    terminal = {}
+    for field, source in (("lethal", "native_living_entity_die"),
+                          ("kill_credit", "native_server_player_award_kill_score"),
+                          ("kill_statistic", "native_player_killed_entity_statistic"),
+                          ("fight_end", "native_end_dragon_fight_set_dragon_killed")):
+        event = chain.get(field)
+        if event is None:
+            continue
+        event = bound(event, field, source)
+        if event["game_tick"] < prior_tick:
+            raise PreflightError(f"{label} has an out-of-order native death chain")
+        prior_tick = event["game_tick"]
+        terminal[field] = event
+    lethal, credit, statistic, ended = (terminal.get(field) for field in
+                                       ("lethal", "kill_credit", "kill_statistic", "fight_end"))
+    if (credit is not None or statistic is not None or ended is not None) and lethal is None:
+        raise PreflightError(f"{label} cannot infer native death from credit, statistics or battle state")
+    if lethal is not None:
+        if type(lethal.get("health")) not in {int, float} or lethal["health"] != 0:
+            raise PreflightError(f"{label}.lethal needs the native fatal health state")
+        if lethal.get("attribution_origin") not in {"native_damage_source", "crystal_explicit_player",
+                                                    "crystal_nearest_player_fallback", "unverified_damage_origin"}:
+            raise PreflightError(f"{label}.lethal needs explicit damage provenance")
+        if (lethal["attribution_origin"] == "crystal_nearest_player_fallback"
+                and chain["attribution_ambiguous"] is not True):
+            raise PreflightError(f"{label} cannot hide nearest-player crystal attribution ambiguity")
+        fatal = lethal.get("fatal_damage")
+        if fatal is not None:
+            fatal = actual_damage(fatal, "lethal.fatal_damage")
+            if (fatal["game_tick"] != lethal["game_tick"] or fatal["health_after"] != 0
+                    or fatal.get("event_id") != lethal.get("damage_event_id")
+                    or any(lethal.get(field) != fatal.get(field) for field in
+                           ("health_before", "health_after", "actual_health_loss", "attribution_origin",
+                            "provenance_actor_uuid", "source_actor_uuid", "direct_entity_uuid", "damage_type_message_id"))):
+                raise PreflightError(f"{label}.lethal must bind the matching accepted fatal damage receipt")
+            if fatal.get("attribution_reliable") is not True:
+                raise PreflightError(f"{label}.lethal does not reliably attribute the fatal damage")
+        elif credit is not None or statistic is not None or ended is not None:
+            raise PreflightError(f"{label} native death lacks accepted fatal damage; direct state edits are not combat")
+    if world["dragon_death_started"] != (lethal is not None and isinstance(lethal.get("fatal_damage"), dict)):
+        raise PreflightError(f"{label} death milestone lacks actual-damage-backed native death")
+    retained_damage = [event for event in (first_world_damage, first_damage,
+                                          lethal.get("fatal_damage") if lethal else None) if isinstance(event, dict)]
+    for index, event in enumerate(retained_damage):
+        for other in retained_damage[index + 1:]:
+            if event["event_id"] == other["event_id"] and event != other:
+                raise PreflightError(f"{label} repeated native damage receipts disagree about one event")
+    if credit is not None and credit.get("actor_uuid") != lethal.get("credited_actor_uuid"):
+        raise PreflightError(f"{label} native kill-credit actor differs from the native lethal receipt")
+    if credit is not None and credit.get("actor_uuid") is None:
+        raise PreflightError(f"{label} native player kill credit must identify its actor")
+    if credit is not None and any(credit.get(field) != lethal.get(field) for field in
+                                  ("source_actor_uuid", "direct_entity_uuid", "damage_type_message_id")):
+        raise PreflightError(f"{label} native player credit differs from the lethal damage source")
+    if statistic is not None:
+        if credit is None or statistic.get("actor_uuid") != credit.get("actor_uuid"):
+            raise PreflightError(f"{label} kill statistic lacks matching native player credit")
+        number(statistic.get("before"), label + ".kill_statistic.before", integer=True)
+        number(statistic.get("after"), label + ".kill_statistic.after", integer=True)
+        if statistic["after"] != statistic["before"] + 1:
+            raise PreflightError(f"{label} needs one native kill-statistic increment")
+        if statistic["actor_uuid"] == subject and (statistic["before"] != 0
+                                                   or statistic["after"] != snapshot["dragon_kills"]):
+            raise PreflightError(f"{label} cannot reuse another dragon kill or historical statistic")
+    if ended is not None and (ended.get("dragon_killed") is not True or ended.get("previously_killed") is not True
+                              or type(ended.get("death_animation_ticks")) is not int
+                              or ended["death_animation_ticks"] != 200
+                              or current["dragon_killed"] is not True or current["previously_killed"] is not True):
+        raise PreflightError(f"{label} must await the native dragon death animation and battle completion")
+    terminal_complete = (len(terminal) == 4 and credit.get("actor_uuid") == subject
+                and statistic.get("actor_uuid") == subject and snapshot["dragon_kills"] == 1
+                and lethal.get("source_actor_uuid") == subject
+                and lethal.get("provenance_actor_uuid") == subject
+                and chain["attribution_ambiguous"] is False
+                and lethal.get("attribution_origin") != "crystal_nearest_player_fallback"
+                and not chain["first_death_observed"]
+                and snapshot["game_tick"] > ended["game_tick"])
+    complete = terminal_complete and not fixture
+    if world["native_dragon_kill"] != complete:
+        raise PreflightError(f"{label} native kill fact is not corroborated by this fight's complete chain")
+    held = world.get("dragon_post_kill_alive_ticks")
+    number(held, label + ".world.dragon_post_kill_alive_ticks", integer=True)
+    number(chain.get("post_kill_alive_ticks"), label + ".dragon_combat.post_kill_alive_ticks", integer=True)
+    if held != chain["post_kill_alive_ticks"]:
+        raise PreflightError(f"{label} survival hold differs from its retained server-tick evidence")
+    if held > 0:
+        if (not terminal_complete or chain.get("post_kill_hold_start_game_tick") != ended["game_tick"] + 1
+                or chain.get("post_kill_last_verified_game_tick") != snapshot["game_tick"]
+                or held != snapshot["game_tick"] - ended["game_tick"]):
+            raise PreflightError(f"{label} survival hold must follow the native fight end on verified server ticks")
+    elif chain.get("post_kill_hold_start_game_tick") is not None or chain.get("post_kill_last_verified_game_tick") is not None:
+        raise PreflightError(f"{label} cannot attach survival-hold ticks to an unstarted hold")
+    if terminal_complete and held == 0 and not fixture:
+        raise PreflightError(f"{label} settled native completion must include its first verified alive tick")
+    if not current["target_present"] and ended is None:
+        raise PreflightError(f"{label} target disappeared without native battle-completion evidence")
+    if world["dragon_combat_ready"] is not True and not fixture:
+        raise PreflightError(f"{label} initial native battle was not prepared successfully")
+    if fixture and world["dragon_combat_ready"] is not False:
+        raise PreflightError(f"{label} artificial fixture must remain outside formal battle readiness")
+    return chain
+
+
+def dragon_combat_result_evidence(result, scenario):
+    initial, final = result["initial_snapshot"], result["final_snapshot"]
+    initial_chain = dragon_combat_evidence(initial, "initial_snapshot")
+    if (initial.get("dragon_kills") != 0 or initial.get("deaths") != 0
+            or initial["world"]["native_dragon_kill"] or initial_chain["first_death_observed"]
+            or any(initial_chain.get(field) is not None for field in
+                   ("first_damage", "first_companion_damage", "lethal", "kill_credit", "kill_statistic", "fight_end"))
+            or initial_chain["current_battle"].get("target_present") is not True
+            or initial_chain["current_battle"].get("target_health") != 200
+            or initial_chain["current_battle"].get("dragon_killed") is not False
+            or initial_chain["current_battle"].get("previously_killed") is not False
+            or initial_chain["current_battle"].get("death_animation_ticks") != 0
+            or not isinstance(initial_chain["current_battle"].get("phase"), str)
+            or initial_chain["current_battle"]["phase"].lower().startswith("dying")
+            or initial_chain["total_actual_damage"] != 0 or initial_chain["companion_actual_damage"] != 0
+            or initial_chain["minimum_health"] != 200):
+        raise PreflightError("Dragon-combat initial snapshot cannot contain earlier deaths or kills")
+    final_world = final.get("world")
+    final_evidence = final_world.get("evidence") if isinstance(final_world, dict) else None
+    final_chain = final_evidence.get("dragon_combat") if isinstance(final_evidence, dict) else None
+    latched = isinstance(final_chain, dict) and final_chain.get("first_death_observed") is True
+    retained_death = isinstance(final_chain, dict) and final_chain.get("first_death") is not None
+    died = final.get("alive") is False or (type(final.get("deaths")) is int and final["deaths"] > 0) or latched or retained_death
+    if result["status"] == "failed" and result["reason"] == "companion_died" and died:
+        if final.get("companion_uuid") != initial["companion_uuid"]:
+            raise PreflightError("Dragon-combat death evidence must belong to this companion")
+        if (latched or retained_death) and final_chain.get("subject_uuid") != initial["companion_uuid"]:
+            raise PreflightError("Dragon-combat first death must belong to this companion")
+        if latched or retained_death:
+            death = final_chain.get("first_death")
+            if (not isinstance(death, dict) or death.get("subject_uuid") != initial["companion_uuid"]
+                    or death.get("evidence_source") not in {"native_companion_death_before_recovery", "server_tick_dead_body"}
+                    or type(death.get("game_tick")) is not int or type(final.get("game_tick")) is not int
+                    or not initial["game_tick"] <= death["game_tick"] <= final["game_tick"]):
+                raise PreflightError("Dragon-combat first death needs a retained native death receipt")
+        return
+    if died:
+        raise PreflightError("Dragon-combat first death must terminate as companion_died before success or budget")
+    final_chain = dragon_combat_evidence(final, "final_snapshot")
+    for field in ("subject_uuid", "target_uuid", "fight_id", "dimension", "initial_battle"):
+        if final_chain.get(field) != initial_chain.get(field):
+            raise PreflightError("Dragon-combat snapshots cannot combine different subjects, targets or native fights")
+    if (final_chain["total_actual_damage"] < initial_chain["total_actual_damage"]
+            or final_chain["companion_actual_damage"] < initial_chain["companion_actual_damage"]
+            or final_chain["minimum_health"] > initial_chain["minimum_health"]):
+        raise PreflightError("Dragon-combat cumulative damage and minimum health cannot rewind between snapshots")
+    conditions = [scenario["success"], *(milestone["condition"] for milestone in scenario.get("milestones", []))]
+    world_evidence(initial, conditions, "initial_snapshot")
+    world_evidence(final, conditions, "final_snapshot", require_met=result["status"] == "success")
+    if result["status"] == "success":
+        if final_world["native_dragon_kill"] is not True:
+            raise PreflightError("Dragon-combat success needs native lethal, player credit, statistic and battle-end evidence")
+        if "success_hold_ticks" in scenario:
+            number(result.get("success_held_ticks"), "result.success_held_ticks",
+                   minimum=scenario["success_hold_ticks"], integer=True)
+        number(final_world.get("dragon_post_kill_alive_ticks"), "final_snapshot.world.dragon_post_kill_alive_ticks",
+               minimum=scenario["success_hold_ticks"], integer=True)
+    elif final_world["native_dragon_kill"] and final_world["dragon_post_kill_alive_ticks"] >= scenario["success_hold_ticks"]:
+        raise PreflightError("A completed native dragon kill cannot be reported as an unfinished battle")
+    if result["status"] == "failed" and result["reason"] == "target_killed_by_other":
+        lethal = final_chain.get("lethal")
+        credit = final_chain.get("kill_credit")
+        if (not isinstance(lethal, dict) or not isinstance(credit, dict)
+                or credit.get("actor_uuid") == initial["companion_uuid"]
+                or credit.get("actor_uuid") != lethal.get("credited_actor_uuid")):
+            raise PreflightError("Another player's dragon kill needs attributed native target-death evidence")
+
+
 def validate_scenario(value):
     if set(value) - {"evaluation_version", "case_id", "split", "source", "prompt", "seed",
                      "world_preset", "setup", "success", "milestones", "budget",
@@ -306,7 +671,8 @@ def validate_scenario(value):
             or value["evaluation_version"] not in SUPPORTED_VERSIONS):
         raise PreflightError("Scenario has the wrong evaluation_version")
     observer = {"survival-v2": "free-survival-v2", "expedition-v1": "expedition-v1",
-                "end-resources-v1": "end-resources-v1", "end-entry-v1": "end-entry-v1"}.get(
+                "end-resources-v1": "end-resources-v1", "end-entry-v1": "end-entry-v1",
+                "dragon-combat-v1": "dragon-combat-v1"}.get(
         value["evaluation_version"], "sustainable-survival-v1")
     if "world_observer" in value and value["world_observer"] != observer:
         raise PreflightError("Scenario has an unsupported world_observer")
@@ -329,10 +695,20 @@ def validate_scenario(value):
     setup_fields = {"spawn", "floor", "blocks", "inventory"}
     if value["evaluation_version"] == "survival-v2":
         setup_fields |= {"food_level", "saturation"}
-    if value["evaluation_version"] in {"end-resources-v1", "end-entry-v1"}:
+    if value["evaluation_version"] in {"end-resources-v1", "end-entry-v1", "dragon-combat-v1"}:
         setup_fields.add("equipment")
+    if value["evaluation_version"] == "dragon-combat-v1":
+        setup_fields = {"spawn", "inventory", "equipment", "dimension", "native_dragon_battle"}
     if not isinstance(setup, dict) or set(setup) - setup_fields:
         raise PreflightError("Unsupported setup fields")
+    if value["evaluation_version"] == "dragon-combat-v1":
+        if (value.get("world_observer") != "dragon-combat-v1" or value["world_preset"] != "normal"
+                or setup.get("dimension") != "minecraft:the_end" or setup.get("native_dragon_battle") is not True):
+            raise PreflightError("dragon-combat-v1 requires a normal fresh native End battle and its observer")
+        if setup.get("spawn") != [100.5, 49.0, 0.5]:
+            raise PreflightError("dragon-combat-v1 requires the public native End arrival platform spawn")
+        if type(value.get("success_hold_ticks")) is not int or value["success_hold_ticks"] != 200:
+            raise PreflightError("dragon-combat-v1 requires 200 verified alive server ticks after the native fight end")
     if value["evaluation_version"] == "survival-v2":
         food_level = setup.get("food_level", 20)
         number(food_level, "setup.food_level", integer=True)
@@ -521,8 +897,15 @@ def validate_result(output, scenario):
     if not isinstance(result.get("milestones"), list):
         raise PreflightError("Client result needs milestone evidence")
     if status in {"success", "failed", "budget_exhausted"}:
+        if scenario["evaluation_version"] == "dragon-combat-v1":
+            for key in ("initial_snapshot", "final_snapshot"):
+                if not isinstance(result.get(key), dict) or not result[key]:
+                    raise PreflightError("Scored result needs initial and final world snapshots")
+            dragon_combat_result_evidence(result, scenario)
         conditions = [scenario["success"], *(milestone["condition"] for milestone in scenario.get("milestones", []))]
         for key in ("initial_snapshot", "final_snapshot"):
+            if scenario["evaluation_version"] == "dragon-combat-v1":
+                continue
             if not isinstance(result.get(key), dict) or not result[key]:
                 raise PreflightError("Scored result needs initial and final world snapshots")
             snapshot = result[key]
