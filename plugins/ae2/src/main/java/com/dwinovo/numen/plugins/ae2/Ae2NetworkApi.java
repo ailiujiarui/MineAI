@@ -143,8 +143,8 @@ public final class Ae2NetworkApi {
                 deviceList(devices), stored, max, avg, powered, summary.toString());
     }
 
-    /** 先把中心节点试出来(裸线缆/机器),没有再逐面试(面上的 part)。 */
-    private static IGridNode resolveNode(Level level, BlockPos pos) {
+    /** 先把中心节点试出来(裸线缆/机器),没有再逐面试(面上的 part)。{@code craft} 复用这一份。 */
+    static IGridNode resolveNode(Level level, BlockPos pos) {
         IInWorldGridNodeHost host = GridHelper.getNodeHost(level, pos);
         if (host == null) {
             return null;

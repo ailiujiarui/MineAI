@@ -20,9 +20,15 @@ public final class Ae2Plugin {
         NumenPlugins.register("ae2", numen -> {
             Ae2NetworkApi.install(numen);
             Ae2ConfigApi.install(numen);
+            Ae2CraftApi.install(numen);
+            Ae2PatternApi.install(numen);
             if (skillsRoot != null) {
                 numen.bundleSkills(skillsRoot);
             }
         });
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.tick.ServerTickEvent.Post e) -> Ae2CraftApi.tick(e.getServer()));
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.event.server.ServerStoppedEvent e) -> Ae2CraftApi.clear());
     }
 }
