@@ -19,6 +19,7 @@ public final class Ae2Plugin {
     public static void install(Path skillsRoot) {
         NumenPlugins.register("ae2", numen -> {
             Ae2NetworkApi.install(numen);
+            Ae2ConfigApi.install(numen);
             if (skillsRoot != null) {
                 numen.bundleSkills(skillsRoot);
             }
