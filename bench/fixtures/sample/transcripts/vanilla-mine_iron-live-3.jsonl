@@ -1,0 +1,17 @@
+{"ms":100,"kind":"turn","n":"1","owner_spoke":"true"}
+{"ms":120,"kind":"tool_call","id":"c1","tool":"lua","args":"{}"}
+{"ms":300,"kind":"program_end","id":"c1","status":"stopped","calls":"1"}
+{"ms":320,"kind":"tool_result","id":"c1","tool":"lua","success":"false","error_class":"stopped","error_kind":"stopped","calls":"1","result":"{}"}
+{"ms":340,"kind":"api_call","program":"c1","function":"numen.work.dig","error_kind":"interrupted"}
+{"ms":500,"kind":"turn","n":"2","owner_spoke":"true"}
+{"ms":520,"kind":"tool_call","id":"c2","tool":"lua","args":"{}"}
+{"ms":700,"kind":"program_end","id":"c2","status":"ok","calls":"1"}
+{"ms":720,"kind":"tool_result","id":"c2","tool":"lua","success":"true","error_class":"","error_kind":"","calls":"1","result":"{}"}
+{"ms":740,"kind":"api_call","program":"c2","function":"numen.scan.blocks","error_kind":""}
+{"ms":900,"kind":"turn","n":"3","owner_spoke":"false"}
+{"ms":920,"kind":"tool_call","id":"c3","tool":"lua","args":"{}"}
+{"ms":1100,"kind":"program_end","id":"c3","status":"ok","calls":"1"}
+{"ms":1120,"kind":"tool_result","id":"c3","tool":"lua","success":"true","error_class":"","error_kind":"","calls":"1","result":"{}"}
+{"ms":1140,"kind":"api_call","program":"c3","function":"numen.move.to","error_kind":""}
+{"ms":1300,"kind":"turn","n":"4","owner_spoke":"false"}
+{"ms":1400,"kind":"end","end":"DONE","passed":"true"}
