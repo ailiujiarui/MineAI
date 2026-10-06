@@ -703,7 +703,8 @@ public class CombatGameTests {
                 "gametest_cornered", java.util.UUID.randomUUID(), level,
                 new net.minecraft.world.phys.Vec3(x0 + 3.5, y, z0 + 2.5));
         companion.getInventory().add(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_SWORD));
-        companion.getFoodData().setFoodLevel(20);
+        // 低于 18 停止自然回血、仍可疾跑:僵尸入场后保留低血、扛不住的前提。
+        companion.getFoodData().setFoodLevel(17);
         Zombie zombie = EntityType.ZOMBIE.create(level);
         helper.assertTrue(zombie != null, "zombie did not spawn");
         var outbox = com.dwinovo.numen.entity.EventOutbox.get(level.getServer());
@@ -713,6 +714,7 @@ public class CombatGameTests {
                 .thenExecute(() -> {
                     // 进世界时血是满的:站稳了再压到四颗心,僵尸这才来
                     companion.setHealth(8.0f);
+                    helper.assertTrue(Menace.outmatched(companion), "the cornered fixture can still hold its own");
                     zombie.moveTo(x0 + 0.5, y, z0 + 2.5, 0.0f, 0.0f);
                     zombie.setTarget(companion);
                     level.addFreshEntity(zombie);
