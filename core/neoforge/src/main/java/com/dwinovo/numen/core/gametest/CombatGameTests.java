@@ -3,9 +3,12 @@ package com.dwinovo.numen.core.gametest;
 import com.dwinovo.numen.core.Constants;
 import com.dwinovo.numen.core.combat.Menace;
 import com.dwinovo.numen.core.combat.Swing;
+import com.dwinovo.numen.core.task.combat.AttackTaskRecord;
+import com.dwinovo.numen.core.task.combat.Fought;
 import com.dwinovo.numen.entity.CompanionFactory;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.task.TaskRecord;
+import com.dwinovo.numen.task.TaskDispatch;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.BeforeBatch;
@@ -273,6 +276,381 @@ public class CombatGameTests {
             com.dwinovo.numen.entity.Companions.dismiss(server, companion);
             pig.discard();
         });
+    }
+
+    /** 没问到同意的目标仍在:脚本得到 needs_consent 和零出手的实际账,不能说成目标丢了。 */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_combat")
+    public static void an_offline_attack_reports_unanswered_consent_and_zero_hits(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        var villager = helper.spawn(EntityType.VILLAGER, new BlockPos(7, 2, 4));
+        villager.setNoAi(true);
+        ToolRun attack = lua(companion, "numen.fight.attack(" + villager.getId() + ")");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(attack.done(), "the attack has not ended");
+            var result = attack.task().getResult();
+            helper.assertTrue(!result.success()
+                            && result.kind() == com.dwinovo.numen.agent.script.ErrorKind.NEEDS_CONSENT,
+                    "unanswered consent was not reported to the script: " + result);
+            helper.assertTrue(result.message().contains("owner could not be reached")
+                            && result.message().contains(com.dwinovo.numen.permission.ConsentDesk.OWNER_ABSENT)
+                            && !result.message().contains("refused by the owner"),
+                    "the owner's absence was lost or turned into a refusal: " + result);
+            Fought fought = attack.result(Fought.class);
+            helper.assertTrue(fought.strikes() == 0 && fought.fought().size() == 1
+                            && fought.fought().getFirst().id() == villager.getId()
+                            && fought.fought().getFirst().status().equals("pending")
+                            && fought.fought().getFirst().strikes() == 0,
+                    "the unanswered target or its zero hits were lost: " + fought);
+            helper.assertTrue(villager.isAlive() && villager.getHealth() == villager.getMaxHealth(),
+                    "the villager was hurt without consent");
+            villager.discard();
+            CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+        });
+    }
+
+    /** 真正打倒了允许打的目标,未获同意与不存在的目标仍分别记账,不能把部分完成说成全部打完。 */
+    @GameTest(template = "floor16", timeoutTicks = 2000, batch = "numen_combat")
+    public static void a_partial_attack_reports_unanswered_and_lost_targets(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        var pig = helper.spawn(EntityType.PIG, new BlockPos(5, 2, 4));
+        pig.setNoAi(true);
+        pig.setHealth(1);
+        var villager = helper.spawn(EntityType.VILLAGER, new BlockPos(9, 2, 4));
+        villager.setNoAi(true);
+        var record = new AttackTaskRecord("attack", "partial-consent", helper.getLevel().getGameTime() + 2000,
+                List.of(pig.getId(), villager.getId(), -12345678), false);
+        TaskDispatch.setTask(companion, record);
+
+        succeedWhen(helper, () -> {
+            var result = record.getResult();
+            helper.assertTrue(result != null, "the mixed attack has not ended");
+            helper.assertTrue(result.success() && pig.isDeadOrDying() && pig.getLastHurtByMob() == companion,
+                    "the permitted pig did not really fall to her: " + result);
+            helper.assertTrue(result.message().contains("defeated 1/3")
+                            && result.message().contains("left for later consent")
+                            && result.message().contains(com.dwinovo.numen.permission.ConsentDesk.OWNER_ABSENT),
+                    "partial completion concealed the unanswered consent: " + result);
+            Fought fought = (Fought) result.value();
+            helper.assertTrue(fought.fought().size() == 3 && fought.strikes() > 0
+                            && fought.fought().get(0).status().equals("defeated")
+                            && fought.fought().get(1).status().equals("pending")
+                            && fought.fought().get(1).strikes() == 0
+                            && fought.fought().get(2).status().equals("lost")
+                            && com.dwinovo.numen.permission.ConsentDesk.OWNER_ABSENT.equals(
+                                    record.pending().get(villager.getId())),
+                    "the partial attack lost the per-target account: " + fought);
+            helper.assertTrue(villager.isAlive() && villager.getHealth() == villager.getMaxHealth(),
+                    "the unanswered villager was attacked");
+            pig.discard();
+            villager.discard();
+            CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+        });
+    }
+
+    /** 明确拒绝与未答复混在同一份名单里:拒绝仍是 denied,实际账保留另一只的 pending 和丢失的编号。 */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_combat")
+    public static void a_refused_attack_keeps_its_unanswered_and_lost_targets(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        var pig = helper.spawn(EntityType.PIG, new BlockPos(5, 2, 4));
+        pig.setNoAi(true);
+        var villager = helper.spawn(EntityType.VILLAGER, new BlockPos(9, 2, 4));
+        villager.setNoAi(true);
+        com.dwinovo.numen.permission.PermissionStore.of(helper.getLevel().getServer(), companion.getOwnerUuid())
+                .add(com.dwinovo.numen.permission.Verdict.Kind.DENY,
+                        com.dwinovo.numen.permission.Rule.parse("attack(entity:" + pig.getUUID() + ")"));
+        var record = new AttackTaskRecord("attack", "refused-consent", helper.getLevel().getGameTime() + 200,
+                List.of(pig.getId(), villager.getId(), -12345678), false);
+        TaskDispatch.setTask(companion, record);
+
+        succeedWhen(helper, () -> {
+            var result = record.getResult();
+            helper.assertTrue(result != null, "the mixed refusal has not ended");
+            helper.assertTrue(!result.success()
+                            && result.kind() == com.dwinovo.numen.agent.script.ErrorKind.DENIED
+                            && result.message().contains("denied by rule")
+                            && result.message().contains("owner could not be reached"),
+                    "a refusal was made retryable or the unanswered target was concealed: " + result);
+            Fought fought = (Fought) result.value();
+            helper.assertTrue(fought.strikes() == 0 && fought.fought().size() == 3
+                            && fought.fought().get(0).status().startsWith("refused: denied by rule")
+                            && fought.fought().get(1).status().equals("pending")
+                            && fought.fought().get(2).status().equals("lost"),
+                    "the mixed refusal has the wrong per-target account: " + fought);
+            helper.assertTrue(pig.getHealth() == pig.getMaxHealth()
+                            && villager.getHealth() == villager.getMaxHealth(),
+                    "an unauthorized target was attacked");
+            pig.discard();
+            villager.discard();
+            CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+        });
+    }
+
+    /** 搁下征询之后目标真的离场:收尾交代丢失,旧的未获同意理由不能盖住新的世界事实。 */
+    @GameTest(template = "floor16", timeoutTicks = 2000, batch = "numen_combat")
+    public static void an_unanswered_target_that_leaves_is_reported_as_lost(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        var pig = helper.spawn(EntityType.PIG, new BlockPos(12, 2, 4));
+        pig.setNoAi(true);
+        pig.setHealth(1);
+        var villager = helper.spawn(EntityType.VILLAGER, new BlockPos(7, 2, 4));
+        villager.setNoAi(true);
+        var record = new AttackTaskRecord("attack", "lost-consent", helper.getLevel().getGameTime() + 2000,
+                List.of(pig.getId(), villager.getId()), false);
+        TaskDispatch.setTask(companion, record);
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(record.pending().containsKey(villager.getId()),
+                        "the villager has not been left for a later consent"))
+                .thenExecute(villager::discard)
+                .thenWaitUntil(() -> helper.assertTrue(record.getResult() != null, "the attack has not ended"))
+                .thenExecute(() -> {
+                    var result = record.getResult();
+                    Fought fought = (Fought) result.value();
+                    helper.assertTrue(result.success() && pig.isDeadOrDying() && pig.getLastHurtByMob() == companion,
+                            "the permitted pig did not really fall to her: " + result);
+                    helper.assertTrue(record.pending().isEmpty() && record.lost().contains(villager.getId())
+                                    && fought.fought().get(1).status().equals("lost")
+                                    && fought.fought().get(1).strikes() == 0
+                                    && !result.message().contains("left for later consent"),
+                            "the absent target retained stale consent state: " + result);
+                    pig.discard();
+                    CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+                })
+                .thenSucceed();
+    }
+
+    /** 主人回场不让旧活反复征询;下一次正式调用重新问,点头之后才打。 */
+    @GameTest(template = "floor16", timeoutTicks = 2000, batch = "numen_combat")
+    public static void an_unanswered_attack_is_retried_only_by_a_new_call(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        var pig = helper.spawn(EntityType.PIG, new BlockPos(12, 2, 4));
+        pig.setNoAi(true);
+        pig.getAttribute(Attributes.MAX_HEALTH).setBaseValue(40);
+        pig.setHealth(40);
+        var villager = helper.spawn(EntityType.VILLAGER, new BlockPos(7, 2, 4));
+        villager.setNoAi(true);
+        var record = new AttackTaskRecord("attack", "later-consent", helper.getLevel().getGameTime() + 2000,
+                List.of(pig.getId(), villager.getId()), false);
+        TaskDispatch.setTask(companion, record);
+        var owner = new net.minecraft.server.level.ServerPlayer[1];
+        var retry = new ToolRun[1];
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(record.pending().containsKey(villager.getId()),
+                        "the villager has not been left for a later consent"))
+                .thenExecute(() -> owner[0] = presentOwner(helper, companion, "gametest_later_attack_owner"))
+                .thenIdle(10)
+                .thenExecute(() -> {
+                    helper.assertTrue(com.dwinovo.numen.permission.ConsentDesk.of(companion).pending() == null,
+                            "the same unanswered attack was asked again in the same task");
+                    helper.assertTrue(villager.getHealth() == villager.getMaxHealth(),
+                            "the villager was hurt before a new authorization");
+                })
+                .thenWaitUntil(() -> helper.assertTrue(record.getResult() != null, "the attack has not ended"))
+                .thenExecute(() -> {
+                    var result = record.getResult();
+                    Fought fought = (Fought) result.value();
+                    helper.assertTrue(result.success() && pig.getLastHurtByMob() == companion
+                                    && fought.fought().get(0).status().equals("defeated")
+                                    && fought.fought().get(1).status().equals("pending")
+                                    && fought.fought().get(1).strikes() == 0
+                                    && villager.getHealth() == villager.getMaxHealth(),
+                            "the old attack revisited its unanswered target: " + result);
+                    retry[0] = lua(companion, "numen.fight.attack(" + villager.getId() + ")");
+                })
+                .thenWaitUntil(() -> helper.assertTrue(
+                        com.dwinovo.numen.permission.ConsentDesk.of(companion).pending() != null,
+                        "the new attack did not ask the present owner"))
+                .thenExecute(() -> {
+                    helper.assertTrue(villager.getHealth() == villager.getMaxHealth(),
+                            "the new attack hit before consent");
+                    var desk = com.dwinovo.numen.permission.ConsentDesk.of(companion);
+                    desk.answer(desk.pending().id(), com.dwinovo.numen.permission.ConsentAnswer.Decision.ALLOW_ONCE, "");
+                })
+                .thenWaitUntil(() -> helper.assertTrue(retry[0].done(), "the retried attack has not ended"))
+                .thenExecute(() -> {
+                    helper.assertTrue(retry[0].succeeded() && villager.isDeadOrDying()
+                                    && villager.getLastHurtByMob() == companion
+                                    && retry[0].result(Fought.class).fought().getFirst().status().equals("defeated"),
+                            "the new attack did not run after actual consent: " + retry[0].outcome());
+                    pig.discard();
+                    villager.discard();
+                    CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+                    leave(owner[0]);
+                })
+                .thenSucceed();
+    }
+
+    /** 无差别战斗里还追着她的目标没获同意:零出手按 needs_consent 收尾,不能报成功或已清场。 */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_combat")
+    public static void an_unanswered_hostile_does_not_count_as_a_cleared_fight(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        Zombie zombie = still(helper, new BlockPos(7, 2, 4));
+        zombie.setCustomName(net.minecraft.network.chat.Component.literal("gametest_unanswered_foe"));
+        zombie.setTarget(companion);
+        var record = new AttackTaskRecord("attack", "uncleared-consent", helper.getLevel().getGameTime() + 200,
+                List.of(), true);
+        TaskDispatch.setTask(companion, record);
+
+        succeedWhen(helper, () -> {
+            var result = record.getResult();
+            helper.assertTrue(result != null, "the unanswered fight has not ended");
+            helper.assertTrue(!result.success()
+                            && result.kind() == com.dwinovo.numen.agent.script.ErrorKind.NEEDS_CONSENT
+                            && result.message().contains("owner could not be reached")
+                            && !result.message().contains("nothing is coming after you any more"),
+                    "an unanswered threat was reported as a cleared fight: " + result);
+            Fought fought = (Fought) result.value();
+            helper.assertTrue(zombie.isAlive() && zombie.getTarget() == companion
+                            && zombie.getHealth() == zombie.getMaxHealth()
+                            && fought.strikes() == 0 && fought.fought().size() == 1
+                            && fought.fought().getFirst().id() == zombie.getId()
+                            && fought.fought().getFirst().status().equals("pending"),
+                    "the unconsented threat was hit or disappeared from the account: " + fought);
+            zombie.discard();
+            CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+        });
+    }
+
+    /** 无差别战斗真的打倒一只,另一只仍追她但没获同意:说清已停手与部分战果,不能报威胁已经没了。 */
+    @GameTest(template = "floor16", timeoutTicks = 2000, batch = "numen_combat")
+    public static void a_partial_fight_keeps_the_unanswered_threat_in_its_account(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        Zombie allowed = still(helper, new BlockPos(5, 2, 4));
+        allowed.setTarget(companion);
+        allowed.setHealth(1);
+        Zombie unanswered = still(helper, new BlockPos(9, 2, 4));
+        unanswered.setCustomName(net.minecraft.network.chat.Component.literal("gametest_pending_threat"));
+        unanswered.setTarget(companion);
+        var record = new AttackTaskRecord("attack", "partial-threat", helper.getLevel().getGameTime() + 2000,
+                List.of(), true);
+        TaskDispatch.setTask(companion, record);
+
+        succeedWhen(helper, () -> {
+            var result = record.getResult();
+            helper.assertTrue(result != null, "the partial fight has not ended");
+            Fought fought = (Fought) result.value();
+            helper.assertTrue(result.success() && allowed.isDeadOrDying() && allowed.getLastHurtByMob() == companion
+                            && result.message().contains("stopped fighting after defeating 1 hostiles")
+                            && result.message().contains("left for later consent")
+                            && !result.message().contains("nothing is coming after you any more"),
+                    "the partial fight was reported as clearing every threat: " + result);
+            helper.assertTrue(unanswered.isAlive() && unanswered.getTarget() == companion
+                            && unanswered.getHealth() == unanswered.getMaxHealth()
+                            && fought.fought().stream().anyMatch(f -> f.id() == unanswered.getId()
+                                    && f.status().equals("pending") && f.strikes() == 0),
+                    "the unanswered threat was hit or lost from the partial account: " + fought);
+            allowed.discard();
+            unanswered.discard();
+            CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+        });
+    }
+
+    /** 无差别战斗的未获同意目标随后离场:经手账仍会看到它,把 pending 清成 lost。 */
+    @GameTest(template = "floor16", timeoutTicks = 2000, batch = "numen_combat")
+    public static void an_unanswered_hostile_that_leaves_is_settled_in_a_fight(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        Zombie allowed = still(helper, new BlockPos(12, 2, 4));
+        allowed.setTarget(companion);
+        allowed.setHealth(1);
+        Zombie unanswered = still(helper, new BlockPos(7, 2, 4));
+        unanswered.setCustomName(net.minecraft.network.chat.Component.literal("gametest_departing_threat"));
+        unanswered.setTarget(companion);
+        var record = new AttackTaskRecord("attack", "departing-threat", helper.getLevel().getGameTime() + 2000,
+                List.of(), true);
+        TaskDispatch.setTask(companion, record);
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(record.pending().containsKey(unanswered.getId()),
+                        "the named threat has not been left for a later consent"))
+                .thenExecute(unanswered::discard)
+                .thenWaitUntil(() -> helper.assertTrue(record.getResult() != null, "the fight has not ended"))
+                .thenExecute(() -> {
+                    var result = record.getResult();
+                    Fought fought = (Fought) result.value();
+                    helper.assertTrue(result.success() && allowed.isDeadOrDying()
+                                    && allowed.getLastHurtByMob() == companion,
+                            "the permitted threat did not really fall to her: " + result);
+                    helper.assertTrue(record.pending().isEmpty() && record.lost().contains(unanswered.getId())
+                                    && fought.fought().stream().anyMatch(f -> f.id() == unanswered.getId()
+                                            && f.status().equals("lost") && f.strikes() == 0)
+                                    && !result.message().contains("left for later consent"),
+                            "the departed threat retained stale consent state: " + result);
+                    allowed.discard();
+                    CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+                })
+                .thenSucceed();
+    }
+
+    /** 同一战斗口区分明确不许打与真的没有目标:前者 denied、零出手,后者才是空场成功。 */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_combat")
+    public static void a_refused_fight_is_denied_while_an_empty_fight_succeeds(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+        Zombie zombie = still(helper, new BlockPos(7, 2, 4));
+        zombie.setTarget(companion);
+        com.dwinovo.numen.permission.PermissionStore.of(helper.getLevel().getServer(), companion.getOwnerUuid())
+                .add(com.dwinovo.numen.permission.Verdict.Kind.DENY,
+                        com.dwinovo.numen.permission.Rule.parse("attack(entity:" + zombie.getUUID() + ")"));
+        var refused = new AttackTaskRecord("attack", "refused-fight", helper.getLevel().getGameTime() + 200,
+                List.of(), true);
+        var empty = new AttackTaskRecord("attack", "empty-fight", helper.getLevel().getGameTime() + 200,
+                List.of(), true);
+        TaskDispatch.setTask(companion, refused);
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(refused.getResult() != null, "the refused fight has not ended"))
+                .thenExecute(() -> {
+                    var result = refused.getResult();
+                    helper.assertTrue(!result.success()
+                                    && result.kind() == com.dwinovo.numen.agent.script.ErrorKind.DENIED
+                                    && result.message().contains("denied by rule")
+                                    && ((Fought) result.value()).strikes() == 0
+                                    && zombie.getHealth() == zombie.getMaxHealth(),
+                            "a forbidden threat was attacked or treated as a cleared fight: " + result);
+                    zombie.discard();
+                    TaskDispatch.setTask(companion, empty);
+                })
+                .thenWaitUntil(() -> helper.assertTrue(empty.getResult() != null, "the empty fight has not ended"))
+                .thenExecute(() -> {
+                    var result = empty.getResult();
+                    helper.assertTrue(result.success() && ((Fought) result.value()).strikes() == 0,
+                            "a genuinely empty fight did not retain its normal success: " + result);
+                    CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+                })
+                .thenSucceed();
+    }
+
+    /** 已搁下的征询理由随超时或取消一起交账,终态仍各自是 timeout / interrupted。 */
+    @GameTest(template = "floor16", timeoutTicks = 40, batch = "numen_combat")
+    public static void an_unanswered_target_stays_in_timeout_and_cancelled_fight_receipts(GameTestHelper helper) {
+        for (var ending : List.of(com.dwinovo.numen.task.TaskState.TIMEOUT, com.dwinovo.numen.task.TaskState.CANCELLED)) {
+            NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 4));
+            Zombie allowed = still(helper, new BlockPos(12, 2, 4));
+            allowed.setTarget(companion);
+            Zombie unanswered = still(helper, new BlockPos(7, 2, 4));
+            unanswered.setCustomName(net.minecraft.network.chat.Component.literal("gametest_ended_threat"));
+            unanswered.setTarget(companion);
+            var record = new AttackTaskRecord("attack", "ended-threat", helper.getLevel().getGameTime() + 200,
+                    List.of(), true);
+            var attack = new com.dwinovo.numen.core.task.combat.AttackCompanionTask(companion, record);
+            attack.start(companion);
+            helper.assertTrue(attack.tick(companion) == com.dwinovo.numen.task.TaskState.RUNNING
+                            && record.pending().containsKey(unanswered.getId()),
+                    "the fight has no real unanswered target before ending");
+            var result = attack.result(ending);
+            helper.assertTrue((ending == com.dwinovo.numen.task.TaskState.TIMEOUT ? result.timedOut() : result.interrupted())
+                            && result.message().contains("left for later consent")
+                            && result.message().contains(com.dwinovo.numen.permission.ConsentDesk.OWNER_ABSENT)
+                            && ((Fought) result.value()).fought().stream().anyMatch(f -> f.id() == unanswered.getId()
+                                    && f.status().equals("pending") && f.strikes() == 0)
+                            && unanswered.getHealth() == unanswered.getMaxHealth(),
+                    "ending the fight lost its unanswered consent or changed the terminal kind: " + result);
+            allowed.discard();
+            unanswered.discard();
+            CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+        }
+        helper.succeed();
     }
 
     /**

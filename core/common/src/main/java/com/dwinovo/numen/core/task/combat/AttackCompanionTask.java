@@ -250,6 +250,7 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
             }
         }
         java.util.Set<Integer> cleared = cleared(candidates);
+        var pending = r.pending();
         List<Battlefield.Foe> foes = new ArrayList<>();
         for (var mob : hostiles) {
             // 点名的一场仗只看点名的那几只:打完了就收工,下一只打不打、打哪只是程序的事(numen.fight.clear),路上被别的
@@ -262,7 +263,7 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
             if (authorized && !r.terminal(mob.getId()) && !cleared.contains(mob.getId())) {
                 authorized = false;   // 在等主人点头:在场,但这一刻不是目标
             }
-            if (r.terminal(mob.getId())) {
+            if (r.terminal(mob.getId()) || pending.containsKey(mob.getId())) {
                 // 打完了、丢了、走不到又射不到、或者不许打的:<b>整只移出局面</b>。留着当"还有
                 // 东西在追我"的话,判据会永远喊走位 —— 一只在悬崖对面射她的骷髅就能把任务钉死。
                 // 躲它归寻路的势场管,那一层看的是场上的怪,不是这份名单。
@@ -280,7 +281,7 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
         // 点名模式还可能被要求打不敌对的东西(一只鸡、一个末影水晶),它们不在敌对扫描里。
         if (!r.indiscriminate) {
             for (int id : r.entityIds) {
-                if (r.terminal(id) || containsId(foes, id)) {
+                if (r.terminal(id) || pending.containsKey(id) || containsId(foes, id)) {
                     continue;
                 }
                 Entity e = liveEntity(id);
@@ -305,6 +306,11 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
      * @return 这一刻放行的实体 id
      */
     private java.util.Set<Integer> cleared(List<Entity> candidates) {
+        // 这一件活已经没问到同意的目标留待下一次调用,不反复征询;它离场或倒下仍由 settleFinishedTargets 对账。
+        var pending = r.pending();
+        if (!pending.isEmpty()) {
+            candidates = candidates.stream().filter(e -> !pending.containsKey(e.getId())).toList();
+        }
         List<Action> attacks = new ArrayList<>(candidates.size());
         for (Entity e : candidates) {
             attacks.add(Action.attack(e));
@@ -318,8 +324,9 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
                 case ALLOWED -> cleared.add(id);
                 case REFUSED -> r.refused(id, permits.get(i).refusal());
                 case WAITING -> awaitingOwner = true;
-                // 主人不在、到点没答复:这一只这刻不进场,也不记成被拒;名单里那一只由收场如实交代
                 case PENDING -> {
+                    r.pending(id, permits.get(i).refusal());
+                    touchedIds.add(id);   // 经手过但没有攻击授权,以后离场或倒下仍要对账。
                 }
             }
         }
@@ -396,15 +403,23 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
     private TaskState finish() {
         player.controls().stop();
         stopNav();
-        if (r.indiscriminate || !r.defeated().isEmpty()) {
+        if (!r.defeated().isEmpty()) {
             succeed();
             return TaskState.SUCCESS;
         }
-        if (!r.refused().isEmpty() && r.refused().size() + r.lost().size() + r.unreachable().size()
+        if (!r.refused().isEmpty() && r.refused().size() + r.lost().size() + r.unreachable().size() + r.pending().size()
                 >= r.entityIds.size()) {
             // 一只都没打:不是找不到,是不许打。让模型去问主人,别换个法子再试。
-            fail("could not attack: " + refusedSummary(), FailureType.REFUSED);
+            fail("could not attack: " + refusedSummary() + pendingNote(), FailureType.REFUSED);
             return TaskState.FAILED;
+        }
+        if (!r.pending().isEmpty()) {
+            fail("could not attack: " + pendingSummary(), FailureType.PENDING);
+            return TaskState.FAILED;
+        }
+        if (r.indiscriminate) {
+            succeed();
+            return TaskState.SUCCESS;
         }
         fail("none of the requested entity ids could be attacked", FailureType.TARGET_LOST);
         return TaskState.FAILED;
@@ -415,6 +430,16 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
         List<String> parts = new ArrayList<>();
         r.refused().forEach((id, why) -> parts.add(refusal(id, why)));
         return String.join("; ", parts);
+    }
+
+    private String pendingSummary() {
+        List<String> parts = new ArrayList<>();
+        r.pending().forEach((id, why) -> parts.add("entity " + id + " the owner could not be reached: " + why));
+        return String.join("; ", parts);
+    }
+
+    private String pendingNote() {
+        return r.pending().isEmpty() ? "" : "; left for later consent: " + pendingSummary();
     }
 
     /** 不许打的一只怎么说:{@code entity 12 denied by rule …}。 */
@@ -885,6 +910,7 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
         touched.addAll(r.lost());
         touched.addAll(r.unreachable());
         touched.addAll(r.refused().keySet());
+        touched.addAll(r.pending().keySet());
         List<Fought.Foe> fought = new java.util.ArrayList<>();
         for (int id : touched) {
             fought.add(new Fought.Foe(id, r.status(id), r.strikes(id)));
@@ -905,9 +931,11 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
 
     @Override
     protected String successMessage() {
-        String refusedNote = r.refused().isEmpty() ? "" : "; left alone: " + refusedSummary();
+        String refusedNote = (r.refused().isEmpty() ? "" : "; left alone: " + refusedSummary()) + pendingNote();
         if (r.indiscriminate) {
-            return "fought off " + tally() + "; nothing is coming after you any more" + refusedNote + drops();
+            return (r.pending().isEmpty() && r.refused().isEmpty()
+                    ? "fought off " + tally() + "; nothing is coming after you any more"
+                    : "stopped fighting after defeating " + tally()) + refusedNote + drops();
         }
         int incomplete = r.lost().size() + r.unreachable().size();
         return "defeated " + tally()
@@ -917,11 +945,11 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
 
     @Override
     protected String timeoutMessage() {
-        return "attack timed out after defeating " + tally();
+        return "attack timed out after defeating " + tally() + pendingNote();
     }
 
     @Override
     protected String cancelledMessage() {
-        return "attack interrupted after defeating " + tally();
+        return "attack interrupted after defeating " + tally() + pendingNote();
     }
 }

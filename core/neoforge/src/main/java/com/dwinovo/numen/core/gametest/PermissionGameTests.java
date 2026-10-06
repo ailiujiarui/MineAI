@@ -1366,8 +1366,8 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(build.done(), "build has not finished");
-            helper.assertTrue(!build.succeeded() && build.outcome().contains("refused by the owner"),
-                    "the reply does not say the owner refused that cell: " + build.outcome());
+            helper.assertTrue(!build.succeeded() && "needs_consent".equals(build.kind()),
+                    "the unresolved placement did not retain its consent kind: " + build.outcome());
             helper.assertTrue(!level.getBlockState(spot).is(Blocks.TNT)
                             && companion.getInventory().countItem(Items.TNT) == 1,
                     "the TNT was placed next to the owner's planks");
@@ -1395,7 +1395,7 @@ public class PermissionGameTests {
 
     // ---- 打村民、打别人的狼、拆装着东西的箱子、拆活板门 ----
 
-    /** 村民在出厂 ask 表里:主人不在,问不到就不打;attack 以主人拒绝收场,村民一滴血没掉。 */
+    /** 村民在出厂 ask 表里:主人不在,问不到就不打;回执保留未获同意的原因,村民一滴血没掉。 */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_permission")
     public static void attack_a_villager_with_the_owner_away_is_refused(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -1410,8 +1410,9 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(attack.done(), "attack has not finished");
-            helper.assertTrue(!attack.succeeded() && attack.outcome().contains("refused by the owner"),
-                    "the refusal does not come from asking the owner: " + attack.outcome());
+            helper.assertTrue(!attack.succeeded() && "needs_consent".equals(attack.kind())
+                            && attack.outcome().contains("the owner could not be reached"),
+                    "the unresolved attack did not retain its consent reason: " + attack.outcome());
             helper.assertTrue(villager.getHealth() == villager.getMaxHealth(), "the villager was hit");
             villager.discard();
             CompanionFactory.despawn(level.getServer(), companion);
@@ -1471,8 +1472,9 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(attack.done(), "attack has not finished");
-            helper.assertTrue(!attack.succeeded() && attack.outcome().contains("refused by the owner"),
-                    "the refusal does not come from asking the owner: " + attack.outcome());
+            helper.assertTrue(!attack.succeeded() && "needs_consent".equals(attack.kind())
+                            && attack.outcome().contains("the owner could not be reached"),
+                    "the unresolved attack did not retain its consent reason: " + attack.outcome());
             helper.assertTrue(wolf.getHealth() == wolf.getMaxHealth(), "the tamed wolf was hit");
             wolf.discard();
             CompanionFactory.despawn(level.getServer(), companion);
@@ -1490,8 +1492,9 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(mine.done(), "mine has not finished");
-            helper.assertTrue(!mine.succeeded() && mine.outcome().contains("refused by the owner"),
-                    "the refusal does not come from asking the owner: " + mine.outcome());
+            helper.assertTrue(!mine.succeeded() && "needs_consent".equals(mine.kind())
+                            && mine.outcome().contains("the owner could not be reached"),
+                    "the withheld chest did not retain its consent reason: " + mine.outcome());
             helper.assertTrue(level.getBlockState(chest).is(Blocks.CHEST)
                             && level.getBlockEntity(chest) instanceof net.minecraft.world.Container box
                             && box.countItem(Items.DIAMOND) == 5,
@@ -1512,8 +1515,9 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(mine.done(), "mine has not finished");
-            helper.assertTrue(!mine.succeeded() && mine.outcome().contains("refused by the owner"),
-                    "the refusal does not come from asking the owner: " + mine.outcome());
+            helper.assertTrue(!mine.succeeded() && "needs_consent".equals(mine.kind())
+                            && mine.outcome().contains("the owner could not be reached"),
+                    "the withheld trapdoor did not retain its consent reason: " + mine.outcome());
             helper.assertTrue(level.getBlockState(trapdoor).is(Blocks.OAK_TRAPDOOR), "the trapdoor was broken");
             CompanionFactory.despawn(level.getServer(), companion);
         });
@@ -1534,8 +1538,8 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(pour.done(), "use block has not finished");
-            helper.assertTrue(!pour.succeeded() && pour.outcome().contains("refused by the owner"),
-                    "the refusal does not come from asking the owner: " + pour.outcome());
+            helper.assertTrue(!pour.succeeded() && "needs_consent".equals(pour.kind()),
+                    "the unresolved use did not retain its consent kind: " + pour.outcome());
             helper.assertTrue(!level.getBlockState(floor.above()).is(Blocks.WATER)
                             && companion.getInventory().countItem(Items.WATER_BUCKET) == 1,
                     "the water was poured next to the owner's planks");

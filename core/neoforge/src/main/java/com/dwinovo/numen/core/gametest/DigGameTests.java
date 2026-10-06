@@ -443,6 +443,181 @@ public class DigGameTests {
     }
     // ==================== 挖点名的格 ====================
 
+    /** 手边两扇活板门都要征询,主人离线:零挖掘按 needs_consent 收场,不冒充够不着,没有掉落或库存改动。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_dig")
+    public static void dig_with_every_cell_awaiting_consent_reports_needs_consent(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        List<BlockPos> doors = List.of(helper.absolutePos(new BlockPos(8, 2, 4)),
+                helper.absolutePos(new BlockPos(8, 2, 6)));
+        doors.forEach(pos -> level.setBlockAndUpdate(pos, Blocks.OAK_TRAPDOOR.defaultBlockState()));
+        NumenPlayer companion = spawnAt(helper, "gametest_waiting_digger", new BlockPos(5, 2, 5), false);
+        companion.getInventory().add(new ItemStack(Items.IRON_AXE));
+        BlockPos stand = companion.blockPosition();
+        ToolRun dig = lua(companion, "numen.work.dig(" + xyz(doors.get(0)) + ", " + xyz(doors.get(1)) + ")");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(dig.done(), "work dig has not finished");
+            helper.assertTrue(doors.stream().allMatch(pos -> level.getBlockState(pos).is(Blocks.OAK_TRAPDOOR)),
+                    "a trapdoor was dug without consent");
+            var result = dig.result(com.dwinovo.numen.core.task.dig.DigCompanionTask.Dug.class);
+            helper.assertTrue(result != null && result.dug() == 0 && result.left() == 2 && result.outOfReach() == 0
+                            && result.drops().isEmpty(),
+                    "the zero dig receipt does not preserve the two reachable cells: " + result);
+            helper.assertTrue(companion.getInventory().countItem(Items.IRON_AXE) == 1
+                            && companion.getInventory().countItem(Items.OAK_TRAPDOOR) == 0
+                            && companion.blockPosition().equals(stand),
+                    "waiting for consent changed her inventory or position");
+            helper.assertTrue(!dig.succeeded() && "needs_consent".equals(dig.kind())
+                            && dig.outcome().contains("the owner's consent could not be obtained")
+                            && dig.outcome().contains("2 were left for a later consent")
+                            && !dig.outcome().contains("none of the cells") && dig.hint() == null,
+                    "the refusal does not report the unresolved consent: " + dig.kind() + " | " + dig.outcome());
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /** 问不到主人的活板门搁下,旁边可挖的干草照挖;真实部分完成与一件掉落都进回执,没有挖掉被搁下的格。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_dig")
+    public static void dig_continues_with_allowed_cells_when_consent_cannot_be_obtained(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos door = helper.absolutePos(new BlockPos(8, 2, 4));
+        BlockPos hay = helper.absolutePos(new BlockPos(8, 2, 6));
+        level.setBlockAndUpdate(door, Blocks.OAK_TRAPDOOR.defaultBlockState());
+        level.setBlockAndUpdate(hay, Blocks.HAY_BLOCK.defaultBlockState());
+        NumenPlayer companion = spawnAt(helper, "gametest_partial_digger", new BlockPos(5, 2, 5), false);
+        companion.getInventory().add(new ItemStack(Items.IRON_AXE));
+        BlockPos stand = companion.blockPosition();
+        ToolRun dig = lua(companion, "numen.work.dig(" + xyz(door) + ", " + xyz(hay) + ")");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(dig.done(), "work dig has not finished");
+            helper.assertTrue(level.getBlockState(door).is(Blocks.OAK_TRAPDOOR) && level.getBlockState(hay).isAir(),
+                    "she did not dig only the allowed cell");
+            var result = dig.result(com.dwinovo.numen.core.task.dig.DigCompanionTask.Dug.class);
+            helper.assertTrue(dig.succeeded() && result != null && result.dug() == 1 && result.left() == 1
+                            && result.outOfReach() == 0 && dig.outcome().contains("1 were left for a later consent"),
+                    "the receipt does not account for the partial dig: " + result + " | " + dig.outcome());
+            var drop = onlyDrop(dig);
+            helper.assertTrue(drop.item().equals("minecraft:hay_block") && drop.count() == 1
+                            && drop.fate() == com.dwinovo.numen.core.act.Drops.Fate.LANDED
+                            && drop.id().isPresent() && level.getEntity(drop.id().get())
+                                    instanceof net.minecraft.world.entity.item.ItemEntity item
+                            && item.getItem().is(Items.HAY_BLOCK) && item.getItem().getCount() == 1,
+                    "the real drop does not match the partial dig receipt: " + drop);
+            helper.assertTrue(companion.getInventory().countItem(Items.HAY_BLOCK) == 0
+                            && companion.getInventory().countItem(Items.OAK_TRAPDOOR) == 0
+                            && companion.getInventory().countItem(Items.IRON_AXE) == 1
+                            && companion.blockPosition().equals(stand),
+                    "the partial dig moved her or changed inventory conservation");
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /** 零完成时同时有悬而未决和主人写的硬拒:回执仍是 denied 与那条规则,不能被 PENDING 覆盖。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_dig")
+    public static void dig_with_pending_and_denied_cells_preserves_the_denial(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos door = helper.absolutePos(new BlockPos(8, 2, 4));
+        BlockPos planks = helper.absolutePos(new BlockPos(8, 2, 6));
+        level.setBlockAndUpdate(door, Blocks.OAK_TRAPDOOR.defaultBlockState());
+        level.setBlockAndUpdate(planks, Blocks.OAK_PLANKS.defaultBlockState());
+        NumenPlayer companion = spawnAt(helper, "gametest_denied_digger", new BlockPos(5, 2, 5), false);
+        companion.getInventory().add(new ItemStack(Items.IRON_AXE));
+        com.dwinovo.numen.permission.PermissionStore.of(level.getServer(), companion.getOwnerUuid()).add(
+                com.dwinovo.numen.permission.Verdict.Kind.DENY,
+                com.dwinovo.numen.permission.Rule.parse("break(minecraft:oak_planks)"));
+        ToolRun dig = lua(companion, "numen.work.dig(" + xyz(door) + ", " + xyz(planks) + ")");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(dig.done(), "work dig has not finished");
+            helper.assertTrue(level.getBlockState(door).is(Blocks.OAK_TRAPDOOR)
+                            && level.getBlockState(planks).is(Blocks.OAK_PLANKS),
+                    "a pending or denied cell was dug");
+            var result = dig.result(com.dwinovo.numen.core.task.dig.DigCompanionTask.Dug.class);
+            helper.assertTrue(result != null && result.dug() == 0 && result.left() == 2 && result.drops().isEmpty()
+                            && companion.getInventory().countItem(Items.IRON_AXE) == 1
+                            && companion.getInventory().countItem(Items.OAK_PLANKS) == 0
+                            && companion.getInventory().countItem(Items.OAK_TRAPDOOR) == 0,
+                    "the denied dig changed inventory or reported drops: " + result);
+            helper.assertTrue(!dig.succeeded() && "denied".equals(dig.kind())
+                            && dig.outcome().contains("denied by rule break(minecraft:oak_planks)")
+                            && dig.outcome().contains("1 were left for a later consent"),
+                    "the pending cell masked the owner's denial: " + dig.kind() + " | " + dig.outcome());
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /** 一格问不到主人、另一格没有正确工具:零完成仍报告工具不够,两格完好且没有虚构掉落。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_dig")
+    public static void dig_with_pending_cells_does_not_mask_missing_harvest_tools(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos door = helper.absolutePos(new BlockPos(8, 2, 4));
+        BlockPos ore = helper.absolutePos(new BlockPos(8, 2, 6));
+        level.setBlockAndUpdate(door, Blocks.OAK_TRAPDOOR.defaultBlockState());
+        level.setBlockAndUpdate(ore, Blocks.DIAMOND_ORE.defaultBlockState());
+        NumenPlayer companion = spawnAt(helper, "gametest_untooled_digger", new BlockPos(5, 2, 5), false);
+        companion.getInventory().add(new ItemStack(Items.IRON_AXE));
+        ToolRun dig = lua(companion, "numen.work.dig(" + xyz(door) + ", " + xyz(ore) + ")");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(dig.done(), "work dig has not finished");
+            helper.assertTrue(level.getBlockState(door).is(Blocks.OAK_TRAPDOOR)
+                            && level.getBlockState(ore).is(Blocks.DIAMOND_ORE),
+                    "a pending or unharvestable cell was dug");
+            var result = dig.result(com.dwinovo.numen.core.task.dig.DigCompanionTask.Dug.class);
+            helper.assertTrue(result != null && result.dug() == 0 && result.left() == 2 && result.drops().isEmpty()
+                            && companion.getInventory().countItem(Items.IRON_AXE) == 1
+                            && companion.getInventory().countItem(Items.DIAMOND) == 0
+                            && companion.getInventory().countItem(Items.OAK_TRAPDOOR) == 0,
+                    "the unharvestable dig changed inventory or reported drops: " + result);
+            helper.assertTrue(!dig.succeeded() && "failed".equals(dig.kind())
+                            && dig.outcome().contains("my tools can't harvest")
+                            && dig.outcome().contains("1 were left for a later consent"),
+                    "the pending cell masked the missing tool: " + dig.kind() + " | " + dig.outcome());
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /** 铁傀儡挡着干草的准星、另一格活板门问不到主人:零完成保留 no clear shot,不把物理遮挡误报为 PENDING。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_dig")
+    public static void dig_with_pending_cells_preserves_an_entity_blocking_the_crosshair(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos hay = helper.absolutePos(new BlockPos(8, 2, 5));
+        BlockPos door = helper.absolutePos(new BlockPos(8, 2, 7));
+        level.setBlockAndUpdate(hay, Blocks.HAY_BLOCK.defaultBlockState());
+        level.setBlockAndUpdate(door, Blocks.OAK_TRAPDOOR.defaultBlockState());
+        var golem = net.minecraft.world.entity.EntityType.IRON_GOLEM.create(level);
+        BlockPos between = helper.absolutePos(new BlockPos(6, 2, 5));
+        golem.moveTo(between.getX() + 0.8, between.getY(), between.getZ() + 0.5, 0, 0);
+        golem.setNoAi(true);
+        level.addFreshEntity(golem);
+        NumenPlayer companion = spawnAt(helper, "gametest_occluded_digger", new BlockPos(5, 2, 5), false);
+        companion.getInventory().add(new ItemStack(Items.IRON_AXE));
+        BlockPos stand = companion.blockPosition();
+        ToolRun dig = lua(companion, "numen.work.dig(" + xyz(hay) + ", " + xyz(door) + ")");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(dig.done(), "work dig has not finished");
+            helper.assertTrue(level.getBlockState(hay).is(Blocks.HAY_BLOCK)
+                            && level.getBlockState(door).is(Blocks.OAK_TRAPDOOR)
+                            && golem.getHealth() == golem.getMaxHealth(),
+                    "the obstructing entity or a block was hit");
+            var result = dig.result(com.dwinovo.numen.core.task.dig.DigCompanionTask.Dug.class);
+            helper.assertTrue(result != null && result.dug() == 0 && result.left() == 2 && result.drops().isEmpty()
+                            && companion.getInventory().countItem(Items.IRON_AXE) == 1
+                            && companion.getInventory().countItem(Items.HAY_BLOCK) == 0
+                            && companion.getInventory().countItem(Items.OAK_TRAPDOOR) == 0
+                            && companion.blockPosition().equals(stand),
+                    "the blocked dig changed inventory or position: " + result);
+            helper.assertTrue(!dig.succeeded() && "out_of_reach".equals(dig.kind())
+                            && dig.outcome().contains("I found no clear shot")
+                            && dig.outcome().contains("1 were left for a later consent"),
+                    "the pending cell masked the physical obstruction: " + dig.kind() + " | " + dig.outcome());
+            golem.discard();
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
     /**
      * 挖一格:点名它的坐标。一捆干草块在她手边,{@code numen.work.dig(pos)} 当场挖掉;收场说挖了 1 格、掉下来的那一捆落在了哪一格
      * ——那段账与交回的 {@code drops} 说的是同一件:落地、在被挖那一格(或滑到隔壁一格)、还躺在那儿的那一件的编号。她一步没动。
