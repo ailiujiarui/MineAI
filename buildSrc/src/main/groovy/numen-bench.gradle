@@ -25,6 +25,13 @@ def benchConfigFile = rootProject.file('bench/bench.json')
 def benchConfig = benchConfigFile.exists()
         ? (new groovy.json.JsonSlurper().parse(benchConfigFile) as Map)
         : [:]
+// 字段名大小写与下划线不敏感:api_key / apiKey / api_Key、base_url / baseURL 都认
+def benchConfigNorm = [:]
+benchConfig.each { k, v ->
+    if (v != null && !v.toString().isBlank()) {
+        benchConfigNorm[k.toString().toLowerCase().replaceAll('_', '')] = v.toString()
+    }
+}
 
 /** 跑的是哪个提交;工作区有改动时带 +dirty。只在真要跑评测时才去问 git。 */
 def benchCommit = providers.exec { commandLine 'git', 'rev-parse', '--short=9', 'HEAD' }.standardOutput.asText
@@ -76,9 +83,9 @@ neoForge {
                         .orElse(''))
             }
             // 仓库根 bench/bench.json 里的值盖过上面的默认(provider/model/base_url/reasoning),并带上 api_key
-            [['bench.provider', 'provider'], ['bench.model', 'model'], ['bench.baseUrl', 'base_url'],
-             ['bench.reasoning', 'reasoning'], ['bench.api_key', 'api_key']].each { propName, cfgName ->
-                def value = benchConfig[cfgName]
+            [['bench.provider', 'provider'], ['bench.model', 'model'], ['bench.baseUrl', 'baseurl'],
+             ['bench.reasoning', 'reasoning'], ['bench.api_key', 'apikey']].each { propName, cfgName ->
+                def value = benchConfigNorm[cfgName]
                 if (value != null && !value.toString().isBlank()) {
                     systemProperties.put(propName, value.toString())
                 }
