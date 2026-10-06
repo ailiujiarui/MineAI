@@ -65,7 +65,8 @@ interface Mind {
 
         @Override
         public String unavailable() {
-            return endpoint.hasApiKey() ? null : "没有 API key(环境变量 " + Settings.KEY_ENV + ")";
+            return endpoint.hasApiKey() ? null : "没有 API key(在 " + Settings.CONFIG_FILE
+                    + " 里填 api_key,模板见 bench/bench.example.json)";
         }
 
         /** 不要流式增量:评测不落思考,正文等整条回复。 */

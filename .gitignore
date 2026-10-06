@@ -40,3 +40,6 @@ logs
 
 **/.env
 !**/.env.example
+
+# bench 真模型评测的本地密钥配置,不入库(模板见 bench/bench.example.json)
+bench/bench.json

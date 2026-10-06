@@ -9,18 +9,20 @@ pass^k、轮数、token、每次成功的成本与失败类型。每次改命令
 
 ## 一、怎么跑
 
+先在仓库根建 `bench/bench.json`(gitignore;照模板 `bench/bench.example.json` 填 `api_key`,也可顺带写 `provider`/`model`/`base_url`/`reasoning`)。key **只从这份文件读,不用环境变量**。
+
 ```bash
 # 只跑两种基线(标准解、空操作),不花 API:验证场景与断言
 ./gradlew --no-daemon :core:neoforge:runBench -Dbench.scenarios=all -Dbench.repeats=0
 
-# 真实模型,每个场景 3 次(key 只从环境变量读)
-NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :core:neoforge:runBench -Dbench.scenarios=all -Dbench.repeats=3
+# 真实模型,每个场景 3 次(key 从 bench/bench.json 读)
+./gradlew --no-daemon :core:neoforge:runBench -Dbench.scenarios=all -Dbench.repeats=3
 
 # 并行跑:几个服务器进程各跑一份场景,跑完并成一份结果(几份由 bench.parallel 给,不给按处理器数取,见 §九)
-NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :core:neoforge:runBenchParallel -Dbench.scenarios=all -Dbench.repeats=3 -Pbench.parallel=4
+./gradlew --no-daemon :core:neoforge:runBenchParallel -Dbench.scenarios=all -Dbench.repeats=3 -Pbench.parallel=4
 
 # 车万女仆的场景:挂着车万女仆单开一次(原版那次不挂)
-NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :plugins:tlm:runBench -Dbench.scenarios=tlm -Dbench.repeats=3
+./gradlew --no-daemon :plugins:tlm:runBench -Dbench.scenarios=tlm -Dbench.repeats=3
 
 # 对比两份结果(路径相对仓库根,报告打到标准输出)
 ./gradlew --no-daemon -q :bench:compare -Pbefore=core/neoforge/runs/bench/results/<时间戳> -Pafter=core/neoforge/runs/bench/results/<时间戳>
@@ -35,7 +37,7 @@ NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :plugins:tlm:runBench -Dbench.s
 | `bench.baseUrl` | `https://api.deepseek.com/beta` | 端点 |
 | `bench.reasoning` | 空(= 产品的 auto,不发) | 思考档位,同产品 |
 | `bench.parallel` | 处理器数 ÷ 4,1 到 4 | 只给 `runBenchParallel`:起几个服务器进程 |
-| 环境变量 `NUMEN_BENCH_API_KEY` | — | API key。**只从环境变量读**,不进任何属性、文件、日志、报告 |
+| `bench/bench.json` | — | 本地评测配置(gitignore;模板 `bench/bench.example.json`):`provider` / `model` / `base_url` / `reasoning` / `api_key`。key **只从这份文件读**,不用环境变量,不进日志与报告 |
 
 参数用 `-D` 或 `-P` 给 Gradle 都行,构建脚本转成游戏进程的系统属性;单价表 `bench/pricing.json` 与提交号由构建脚本
 自动带上。没选中任何场景时一条用例都不生成;平时的 `runGameTestServer` 不加载评测。
