@@ -7,7 +7,7 @@ import com.dwinovo.numen.pathing.plan.Breath;
 import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.Stance;
-import com.dwinovo.numen.pathing.search.baritone.bridge.BridgeHeuristic;
+import com.dwinovo.numen.pathing.search.baritone.bridge.BurialFloor;
 import com.dwinovo.numen.pathing.search.baritone.bridge.BridgeSearch;
 import com.dwinovo.numen.pathing.world.BodyStats;
 
@@ -42,8 +42,8 @@ public final class AStar {
             return new SearchResult(SearchResult.Stop.STRANDED, null, 0, false);
         }
         Burial burial = Burial.of(view, model, goal, startPos, search.budget());
-        BridgeHeuristic heuristic = (x, y, z) -> goal.estimate(x, y, z) + burial.floor(x, y, z);
+        BurialFloor floor = burial::floor;
         ToDoubleFunction<BlockPos> favoring = to -> search.favoring().factor(to);
-        return new BridgeSearch(search, model, body, breath, startStance, heuristic, favoring).run(cancelled);
+        return new BridgeSearch(search, model, body, breath, startStance, floor, favoring).run(cancelled);
     }
 }

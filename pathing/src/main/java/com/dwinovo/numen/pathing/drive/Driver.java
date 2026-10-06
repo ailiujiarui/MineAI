@@ -25,6 +25,7 @@ import com.dwinovo.numen.pathing.search.Search;
 import com.dwinovo.numen.pathing.search.SearchResult;
 import com.dwinovo.numen.pathing.search.Searches;
 import com.dwinovo.numen.pathing.search.WorldSnapshot;
+import com.dwinovo.numen.pathing.search.baritone.recover.Recovery;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.pathing.world.BodyStats;
 import com.dwinovo.numen.pathing.world.Sight;
@@ -99,6 +100,8 @@ public final class Driver {
     /** 路过这个目标,不停下。 */
     private final boolean passing;
     private final Watchdog watchdog = new Watchdog();
+    /** 卡住/回退恢复:搜索交出路时走它,一步超过期限或久在路线之外时攒够几次就从脚下重搜。 */
+    private final RecoveryPort recovery = new RecoveryPort();
     private Goal goal;
 
     private final List<Route.Leg> legs = new ArrayList<>();
@@ -451,6 +454,7 @@ public final class Driver {
                 cur = j;
                 step = null;
                 offRoute = 0;
+                recovery.onStuck(false, node);
                 return;
             }
         }
@@ -474,6 +478,9 @@ public final class Driver {
             if (++offRoute > OFF_ROUTE_TICKS) {
                 // 落在路线之外:从这里重新搜,不算这一步走不下去
                 offRoute = 0;
+                if (stuck("离开路线,落在 " + PathLog.pos(node) + ",该在 " + PathLog.step(current))) {
+                    return;
+                }
                 replan("离开路线,落在 " + PathLog.pos(node) + ",该在 " + PathLog.step(current));
             }
         }
@@ -599,26 +606,31 @@ public final class Driver {
             }
             return;
         }
-        if (result.route() == null) {
-            BlockPos node = node();
-            Stance here = node == null ? null : Stance.at(rig.world(), rig.snapshot().stats(), node);
-            if (here != null && goalHas(node, here) && settled(here.kind())) {
-                // 最后一步进了目标的同一刻,这次搜索没交出路:她已经到了
-                PathLog.debug("{} 搜索没交出路,可她已经站在目标里 {}", rig.who, PathLog.pos(node));
-                start = node;
-                startStance = here;
-                legs.clear();
-                cur = 0;
-                complete = true;
+        Recovery recovered = recovery.onResult(result);
+        if (recovered instanceof Recovery.Fallback fallback) {
+            // 搜索交出了半程路线(或恢复助手从搜索里救回一段):走它,不收场
+            Route route = RecoveryPort.routeOrNull(fallback);
+            if (route != null) {
+                install(route, result.arrived());
+                partial(result);
                 return;
             }
-            halt(lastBlockage != null && result.stop() == SearchResult.Stop.EXHAUSTED
-                    ? new Halt.Blocked(lastBlockage)
-                    : new Halt.Searched(result.stop(), result.breathless(), search));
+        }
+        BlockPos node = node();
+        Stance here = node == null ? null : Stance.at(rig.world(), rig.snapshot().stats(), node);
+        if (here != null && goalHas(node, here) && settled(here.kind())) {
+            // 最后一步进了目标的同一刻,这次搜索没交出路:她已经到了
+            PathLog.debug("{} 搜索没交出路,可她已经站在目标里 {}", rig.who, PathLog.pos(node));
+            start = node;
+            startStance = here;
+            legs.clear();
+            cur = 0;
+            complete = true;
             return;
         }
-        install(result.route(), result.arrived());
-        partial(result);
+        halt(lastBlockage != null && result.stop() == SearchResult.Stop.EXHAUSTED
+                ? new Halt.Blocked(lastBlockage)
+                : new Halt.Searched(result.stop(), result.breathless(), search));
     }
 
     /**
@@ -685,6 +697,20 @@ public final class Driver {
         reset();
     }
 
+    /**
+     * 卡住一刻:把身体此刻的节点交给恢复助手。它攒够连续几次卡住就要求从那里重搜,那就照 {@link #reset()} 扔掉旧路,
+     * 下一刻从脚下按旧路打折重搜。返回是否已经按助手的要求重搜——是的话调用方不要再按"这一步走不下去"记一次。
+     */
+    private boolean stuck(String why) {
+        BlockPos current = node();
+        if (recovery.onStuck(true, current) instanceof Recovery.Recompute) {
+            PathLog.info("{} 卡住重搜:{} 从 {}", rig.who, why, current == null ? "脚下" : PathLog.pos(current));
+            reset();
+            return true;
+        }
+        return false;
+    }
+
     /** 扔掉当前路线,下一刻从身体脚下重新搜,旧路打折。 */
     private void reset() {
         if (!legs.isEmpty()) {
@@ -705,6 +731,12 @@ public final class Driver {
     /** 一步走不下去:记一次;同一步第三次,就以它收场,否则重新搜。 */
     private void fail(Blockage blockage) {
         lastBlockage = blockage;
+        if (blockage.hitch() == Blockage.Hitch.STUCK) {
+            // 超过了这一步的期限:交给恢复助手;它要求重搜就照办,不再算这一步走不下去
+            if (stuck("走不下去 " + PathLog.blockage(blockage))) {
+                return;
+            }
+        }
         Maneuver m = legs.get(cur).maneuver();
         List<Object> key = List.of(m.kind(), m.from(), m.to());
         int count = strikes.merge(key, 1, Integer::sum);

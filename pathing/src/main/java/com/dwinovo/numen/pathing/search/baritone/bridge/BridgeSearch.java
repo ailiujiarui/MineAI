@@ -12,6 +12,7 @@ import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.EditedView;
 import com.dwinovo.numen.pathing.plan.Heading;
 import com.dwinovo.numen.pathing.plan.Maneuver;
+import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.plan.Moves;
 import com.dwinovo.numen.pathing.plan.Premise;
 import com.dwinovo.numen.pathing.plan.Stance;
@@ -28,6 +29,7 @@ import com.dwinovo.numen.pathing.search.baritone.Favoring;
 import com.dwinovo.numen.pathing.search.baritone.MutableMoveResult;
 import com.dwinovo.numen.pathing.search.baritone.PathCalculationResult;
 import com.dwinovo.numen.pathing.search.baritone.calc.AStarPathFinder;
+import com.dwinovo.numen.pathing.search.baritone.goals.GoalAdapters;
 import com.dwinovo.numen.pathing.world.BodyStats;
 import com.dwinovo.numen.pathing.world.Bounds;
 import com.dwinovo.numen.pathing.world.Recall;
@@ -80,7 +82,12 @@ public final class BridgeSearch implements CalculationContext {
     private final CostModel model;
     private final BodyStats body;
     private final Breath breath;
-    private final BridgeHeuristic heuristic;
+    /** The goal's own estimate is now the ported Baritone goal's; the bridge only adds the digging floor. */
+    private final BurialFloor burial;
+    /** Numen's goal translated to the vendored Baritone goal (position goals keep their exact shape). */
+    private final com.dwinovo.numen.pathing.search.baritone.Goal adaptedGoal;
+    /** Prices a step with Baritone's ported movement cost calculators over the locked snapshot. */
+    private final SnapshotMovement ported;
     private final ToDoubleFunction<BlockPos> favoring;
     private final boolean budgeted;
     private final int alterBudget;
@@ -115,13 +122,13 @@ public final class BridgeSearch implements CalculationContext {
     private boolean suppressedStart;
 
     public BridgeSearch(Search search, CostModel model, BodyStats body, Breath breath, Stance startStance,
-                        BridgeHeuristic heuristic, ToDoubleFunction<BlockPos> favoring) {
+                        BurialFloor burial, ToDoubleFunction<BlockPos> favoring) {
         this.search = search;
         this.model = model;
         this.body = body;
         this.breath = breath;
         this.startStance = startStance;
-        this.heuristic = heuristic;
+        this.burial = burial;
         this.favoring = favoring;
         this.budgeted = model.spec().budgeted();
         this.alterBudget = model.spec().alterBudget();
@@ -131,12 +138,25 @@ public final class BridgeSearch implements CalculationContext {
         this.startX = search.start().getX();
         this.startY = search.start().getY();
         this.startZ = search.start().getZ();
+        this.ported = new SnapshotMovement(view);
+        this.adaptedGoal = GoalAdapters.adapt(search.goal(), this::stanceAt);
         this.goal = new BridgeGoal();
         for (com.dwinovo.numen.pathing.plan.Move move : Moves.ALL) {
             for (Heading heading : move.headings()) {
                 this.moves.add(new MoveAdapter(move, heading));
             }
         }
+    }
+
+    /** The goal's estimate for a real cell: the ported goal's own lower bound plus the digging floor. */
+    private double heuristicAt(int x, int y, int z) {
+        return adaptedGoal.heuristic(x, y, z) + burial.at(x, y, z);
+    }
+
+    /** How the body would stand at an already-reached cell, for the ported goal's stance-dependent fallback. */
+    private Stance stanceAt(int x, int y, int z) {
+        SearchNode node = nodes.head(Coord.base(x, y, z));
+        return node == null ? null : node.stance;
     }
 
     public SearchResult run(BooleanSupplier cancelled) {
@@ -184,7 +204,7 @@ public final class BridgeSearch implements CalculationContext {
         int band = breath.band(air);
         long base = Coord.base(startX, startY, startZ);
         int st = Coord.st(band, 0);
-        SearchNode node = nodes.create(base, st, startX, startY, startZ, 0, band, heuristic.at(startX, startY, startZ));
+        SearchNode node = nodes.create(base, st, startX, startY, startZ, 0, band, heuristicAt(startX, startY, startZ));
         node.g = 0;
         node.stance = startStance;
         node.air = air;
@@ -310,10 +330,11 @@ public final class BridgeSearch implements CalculationContext {
         if (budgeted && used > alterBudget) {
             return;
         }
-        double cost = move.cost(model, maneuver);
-        if (!(cost > 0) || Double.isInfinite(cost)) {
-            throw new IllegalStateException(move.kind() + " 从 " + from + " 算出了非法的代价 " + cost);
+        double numen = move.cost(model, maneuver);
+        if (!(numen > 0) || Double.isInfinite(numen)) {
+            throw new IllegalStateException(move.kind() + " 从 " + from + " 算出了非法的代价 " + numen);
         }
+        double cost = portedCost(move.kind(), heading, from, maneuver, numen);
         Breath.Air air = src.air;
         if (maneuver.submerged() || !breath.rested(air)) {
             air = breath.after(air, maneuver.submerged(), move.ticks(model, maneuver));
@@ -344,13 +365,13 @@ public final class BridgeSearch implements CalculationContext {
         if (dst == null || dst.g - g > MIN_IMPROVEMENT) {
             if (dst == null) {
                 dst = nodes.create(base2, st2, to.getX(), to.getY(), to.getZ(), usedKey, band,
-                        heuristic.at(to.getX(), to.getY(), to.getZ()));
+                        heuristicAt(to.getX(), to.getY(), to.getZ()));
             }
             dst.g = g;
             dst.stance = maneuver.landing();
             dst.air = air;
             dst.via = maneuver;
-            dst.viaCost = cost;
+            dst.viaCost = numen;
             dst.inGoal = inGoal;
             dst.here = here;
             dst.parent = src;
@@ -362,6 +383,42 @@ public final class BridgeSearch implements CalculationContext {
         result.y = Coord.ey(base2);
         result.z = st2;
         result.cost = actionCost;
+    }
+
+    /**
+     * The step's cost: Baritone's ported movement cost where it is faithful to
+     * Numen's, Numen's own otherwise.
+     *
+     * <p>Baritone's model prices a move from the raw block states, so it is
+     * only consulted for the plain physical moves that carry no Numen-only
+     * term (no edits, no jump/sneak, no wading, normal step speed, no fall
+     * damage, no spec/danger surcharge). Even then the ported value is used
+     * only when it agrees with Numen's own cost; where Baritone's model
+     * diverges (sprint-jump ascends, per-position costs, digging, water,
+     * consent) Numen's model stays authoritative. The ported value and the
+     * Numen value are computed on the same snapshot, so an agreement is not a
+     * coincidence but the definition of "faithful".
+     */
+    private double portedCost(MoveKind kind, Heading heading, BlockPos from, Maneuver maneuver, double numen) {
+        if (!faithful(maneuver)) {
+            return numen;
+        }
+        double ported = this.ported.cost(kind, heading, from.getX(), from.getY(), from.getZ(),
+                maneuver.to().getX(), maneuver.to().getY(), maneuver.to().getZ());
+        if (Double.isFinite(ported) && Math.abs(ported - numen) <= 1e-9) {
+            return ported;
+        }
+        return numen;
+    }
+
+    /** Whether Baritone's movement model describes this step with no Numen-only term added on top. */
+    private boolean faithful(Maneuver maneuver) {
+        return switch (maneuver.kind()) {
+            case WALK, DIAGONAL, DESCEND, FALL -> maneuver.edits().isEmpty()
+                    && !maneuver.jump() && !maneuver.wading() && maneuver.fallDamage() == 0
+                    && maneuver.speedFactor() == 1.0 && model.overhead(maneuver) == 0.0;
+            default -> false;
+        };
     }
 
     /** 记一次展开;到了先交半程的节点数或展开预算就收回这次搜索。返回是否已经叫停。 */
@@ -465,7 +522,10 @@ public final class BridgeSearch implements CalculationContext {
         public boolean isInGoal(int ex, int ey, int ez) {
             long base = Coord.base(ex, ey);
             SearchNode node = nodes.find(base, ez);
-            return node != null && node.inGoal;
+            if (node != null) {
+                return node.inGoal;
+            }
+            return adaptedGoal.isInGoal(Coord.x(base), Coord.y(base), Coord.z(base));
         }
 
         @Override
@@ -475,7 +535,10 @@ public final class BridgeSearch implements CalculationContext {
             if (node != null && node.inGoal) {
                 return 0;
             }
-            return BridgeSearch.this.heuristic.at(Coord.x(base), Coord.y(base), Coord.z(base));
+            if (node != null) {
+                return node.h;
+            }
+            return heuristicAt(Coord.x(base), Coord.y(base), Coord.z(base));
         }
     }
 
@@ -493,6 +556,11 @@ public final class BridgeSearch implements CalculationContext {
                 }
             }
             return null;
+        }
+
+        /** 这一格上的任意一个节点;没有就空。给姿态回退用。 */
+        SearchNode head(long base) {
+            return byBase.get(base);
         }
 
         SearchNode create(long base, int st, int x, int y, int z, int used, int band, double h) {
