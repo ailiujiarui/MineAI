@@ -104,6 +104,12 @@ public final class EventTypes {
      * 的决定(停止键之后停牌要等主人再开口),为一份"你刚才被打断时做了什么"多开一轮没有意义。不进聊天流:对话里主人已经看见自己按了停止。
      */
     public static final String PROGRAM_STOPPED = "program_stopped";
+    /**
+     * 主人断线复连后,主人客户端现算的一份"你不在的这段时间世界变了什么"的回执:附近方块变了哪几格、
+     * 背包里进出了一些什么。它不是世界的一份模型,只是把离开时那枚有界指纹对着回来时的世界重读一遍
+     * (见 {@code ResumeDiffWatcher})。不急:她刚回来,随下一次调模型捎上就够,不必为它多开一轮。
+     */
+    public static final String RESUME = "resume";
     /** 队列满了丢掉了几条——丢弃可以,无声消失不行。 */
     public static final String DROPPED = "dropped";
     /**
@@ -273,6 +279,8 @@ public final class EventTypes {
         register(event(DIMENSION_CHANGE, false));
         register(event(REFLEX, false));
         register(event(DROPPED, false));
+        // 复连回执:一件世界上发生的事(附近变了什么),急不急由发送方定——她刚回来,不急。
+        register(event(RESUME, false));
         // 旁听到的话:捎带投递、不进聊天流,其余与世界的事同一行(原文、打断不清、不是主人说的)。
         register(new Type(TALK, s -> s, s -> null, false, false, Delivery.AMBIENT, false));
         register(new Type(LEFT, s -> s, s -> null, false, false, Delivery.AMBIENT, false));

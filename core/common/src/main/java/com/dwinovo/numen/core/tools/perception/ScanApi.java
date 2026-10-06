@@ -90,7 +90,8 @@ public final class ScanApi {
     @Note("Instant and read-only. @ is you, North is up, East is right, one cell is one block; each cell says how you "
             + "could move onto it and the legend comes with it. To route, trace it cell by cell: . ^ , are walkable; "
             + "# ~ ! v x block or endanger you.")
-    @Note("One map instead of many single-block looks; for things further out use `numen.scan.blocks` or "
+    @Note("Your default opening move: take this map before you poke blocks one by one or pick a route. One map "
+            + "instead of many single-block looks; for things further out use `numen.scan.blocks` or "
             + "`numen.scan.entities`.")
     @SeeAlso({"numen.scan.blocks", "numen.scan.entities", "numen.scan.block"})
     public static GroundMap map(ServerCall call, MapArgs args) {

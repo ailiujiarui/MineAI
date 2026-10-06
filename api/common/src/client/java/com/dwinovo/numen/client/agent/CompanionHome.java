@@ -107,7 +107,41 @@ public final class CompanionHome {
         root = numenConfigRoot;
         // 札记的落点由这里给:目录布局的知识只住在本类,NoteBook 自己不拼路径。
         // 天数是懒取的——要到她真的记一条时才问 Minecraft,所以这里没有时序问题。
-        com.dwinovo.numen.agent.memory.NoteBook.init(CompanionHome::memory, CompanionHome::gameDay);
+        // 世界那一侧(盖章与核验)也接在这里:只有客户端知道她的身体与维度在哪,NoteBook 照旧纯 JVM。
+        com.dwinovo.numen.agent.memory.NoteBook.init(CompanionHome::memory, CompanionHome::gameDay,
+                new com.dwinovo.numen.agent.memory.NoteBook.BlockLookup() {
+                    @Override
+                    public com.dwinovo.numen.agent.memory.WorldAnchor stamp(UUID owner, int x, int y, int z) {
+                        net.minecraft.client.player.AbstractClientPlayer body = ClientNumenLookup.resolve(owner);
+                        if (body == null) {
+                            return null;
+                        }
+                        net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(x, y, z);
+                        if (!body.level().isLoaded(p)) {
+                            return null;
+                        }
+                        String block = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                                .getKey(body.level().getBlockState(p).getBlock()).toString();
+                        return new com.dwinovo.numen.agent.memory.WorldAnchor(
+                                body.level().dimension().location().toString(), x, y, z, block);
+                    }
+
+                    @Override
+                    public String blockAt(UUID owner, com.dwinovo.numen.agent.memory.WorldAnchor anchor) {
+                        net.minecraft.client.player.AbstractClientPlayer body = ClientNumenLookup.resolve(owner);
+                        if (body == null
+                                || !body.level().dimension().location().toString().equals(anchor.dimension())) {
+                            return null;   // 她不在那个维度了:没法核,不算过期
+                        }
+                        net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(
+                                anchor.x(), anchor.y(), anchor.z());
+                        if (!body.level().isLoaded(p)) {
+                            return null;
+                        }
+                        return net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                                .getKey(body.level().getBlockState(p).getBlock()).toString();
+                    }
+                });
         // 她的 Lua 模块按主人放,不按同伴:同一主人的同伴共用一个目录 lua/<主人>/。主人就是这台客户端登录的那个账号,
         // 用到时才问,和天数同样没有时序问题。
         com.dwinovo.numen.script.Modules.init(companion -> numenRoot().resolve(LUA)
