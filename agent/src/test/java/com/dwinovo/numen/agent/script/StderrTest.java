@@ -38,6 +38,25 @@ class StderrTest {
                 + "line 3 numen.work.dig: not_found — no block there", stderr.text());
     }
 
+    /**
+     * 回执不因省字压结构:结构不同的一条条整条留着(字段都在),只有重复行才收成 ×N。这条锁住"只合并重复,不压缩结构"的规矩。
+     */
+    @Test
+    void distinctStructuredEntriesAreKeptWholeAndOnlyRepeatsCollapse() {
+        for (int i = 0; i < 30; i++) {
+            stderr.write(i + 1, "numen.work.dig", "dug 1 stone at " + i + " using a pickaxe, 0 s");
+        }
+        for (int i = 0; i < 5; i++) {
+            stderr.write(31, "numen.work.dig", "not_found — no block there");
+        }
+        String text = stderr.text();
+        for (int i = 0; i < 30; i++) {
+            assertTrue(text.contains("dug 1 stone at " + i + " using a pickaxe, 0 s"), "entry " + i + ": " + text);
+        }
+        assertTrue(text.contains("not_found — no block there (×5)"), text);
+        assertEquals(31, text.lines().count(), "30 distinct entries plus one collapsed run: " + text);
+    }
+
     @Test
     void sameWordsOnAnotherLineAreAnotherEntry() {
         stderr.write(1, "numen.work.dig", "dug 1 stone");

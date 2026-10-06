@@ -33,8 +33,8 @@ public final class FtbqApi {
 
     /** 任务的一个条件。 */
     @Doc("One task of a quest.")
-    public record QuestTask(String title,
-                            boolean done,
+    public record QuestTask(@Doc("What the task asks, in your owner's language.") String title,
+                            @Doc("Whether it is done.") boolean done,
                             @Doc("3/10; none for a task that is only done or not.") Optional<String> progress,
                             @Doc("Who does it: counts = you can do it too, submit = hand in with "
                                     + "ftbquests.quest.submit, crafted = only items at the moment they are crafted, "
@@ -44,15 +44,15 @@ public final class FtbqApi {
     /** 列出来的一个任务。 */
     @Doc("A quest you can work on now.")
     public record Workable(@Doc("What ftbquests.quest.show and ftbquests.quest.submit take.") String id,
-                          String title,
-                          String chapter,
+                          @Doc("Its title.") String title,
+                          @Doc("The chapter it is in.") String chapter,
                           @Doc("Pinned by your owner.") boolean pinned,
                           @Doc("The tasks not done yet.") List<QuestTask> left) {}
 
     /** 一个任务的编号与标题。 */
     @Doc("A quest by id and title.")
     public record QuestRef(@Doc("What ftbquests.quest.show and ftbquests.quest.submit take.") String id,
-                           String title) {}
+                           @Doc("Its title.") String title) {}
 
     /** 主人的任务书,此刻能做的。 */
     @Doc("Your owner's quest book: what can be worked on now.")
@@ -77,11 +77,12 @@ public final class FtbqApi {
 
     /** 一个前置任务。 */
     @Doc("A quest this one depends on.")
-    public record Dependency(String id, String title, boolean completed) {}
+    public record Dependency(@Doc("Its id.") String id, @Doc("Its title.") String title,
+                             @Doc("Whether it is done.") boolean completed) {}
 
     /** 一个奖励。 */
     @Doc("A reward of a quest.")
-    public record Reward(String title,
+    public record Reward(@Doc("Its title.") String title,
                          @Doc("A team reward, or a personal one.") boolean team,
                          @Doc("Claimed automatically, or by hand in the book.") boolean auto,
                          @Doc("A team reward: claimed.") Optional<Boolean> claimed,
@@ -90,15 +91,15 @@ public final class FtbqApi {
 
     /** 一个任务摊开。 */
     @Doc("One quest in full.")
-    public record Quest(String id,
-                        String title,
-                        String chapter,
+    public record Quest(@Doc("Its id, as list prints it.") String id,
+                        @Doc("Its title.") String title,
+                        @Doc("The chapter it is in.") String chapter,
                         @Doc("Your owner's team: whose progress this is.") String team,
-                        boolean inTeam,
-                        Optional<String> subtitle,
-                        Status status,
+                        @Doc("Whether you are in that team.") boolean inTeam,
+                        @Doc("Its subtitle, when it has one.") Optional<String> subtitle,
+                        @Doc("completed, workable or cannot_start.") Status status,
                         @Doc("Why it cannot start yet.") Optional<String> cannotStart,
-                        List<Dependency> dependencies,
+                        @Doc("The quests it depends on.") List<Dependency> dependencies,
                         @Doc("None while the book hides it.") Optional<String> description,
                         @Doc("The tasks the book shows; none while it hides the quest's details until it can start.")
                         Optional<List<QuestTask>> tasks,
@@ -123,10 +124,10 @@ public final class FtbqApi {
 
     /** 交了的一个条件。 */
     @Doc("A task handed in.")
-    public record Handed(String title,
+    public record Handed(@Doc("The task's title.") String title,
                          @Doc("Progress before.") String was,
                          @Doc("Progress now, 3/10.") String progress,
-                         boolean done) {}
+                         @Doc("Whether it is done now.") boolean done) {}
 
     /** 交了什么。 */
     @Doc("What a hand-in did.")
@@ -162,7 +163,7 @@ public final class FtbqApi {
     /** 入了的队伍。 */
     @Doc("The party you joined.")
     public record Joined(@Doc("The party's short name.") String party,
-                         String name,
+                         @Doc("Your owner's name on the team.") String name,
                          @Doc("Whether your owner is in it.") boolean ownerInside) {}
 
     @Fn("Accept a party invitation you have pending.")

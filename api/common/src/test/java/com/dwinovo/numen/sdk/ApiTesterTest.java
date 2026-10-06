@@ -48,10 +48,27 @@ class ApiTesterTest {
         }
     }
 
+    /** 有行为漂移的一组:返回值 record 只说明了一半字段,注记点了一个不存在的函数。 */
+    public static final class Drift {
+
+        private Drift() {}
+
+        @Doc("A result.")
+        public record Answer(@Doc("The count.") int count, String label) {}
+
+        @Fn("Do the thing.")
+        @Example("gt.gt_drift.do_it()")
+        @Note("Then call `gt.gt_drift.nope`.")
+        public static Answer doIt(ServerCall call) {
+            return new Answer(0, "");
+        }
+    }
+
     @BeforeAll
     static void register() {
         SdkFixture.register("gt_sloppy", Sloppy.class);
         SdkFixture.register("gt_tidy", Tidy.class);
+        SdkFixture.register("gt_drift", Drift.class);
     }
 
     private static List<String> about(String fn) {
@@ -77,6 +94,15 @@ class ApiTesterTest {
     @Test
     void aTidyFunctionIsNotReported() {
         assertEquals(List.of(), about("gt.gt_tidy.neat"));
+    }
+
+    @Test
+    void behaviorDriftIsReported() {
+        List<String> drift = ApiTester.drift().stream().filter(l -> l.where().startsWith("gt.gt_drift."))
+                .map(ApiTester.Lint::problem).toList();
+        assertTrue(drift.stream().anyMatch(p -> p.contains("documents some fields but not 'label'")),
+                drift.toString());
+        assertTrue(drift.contains("@Note names gt.gt_drift.nope, which does not exist"), drift.toString());
     }
 
     @Test

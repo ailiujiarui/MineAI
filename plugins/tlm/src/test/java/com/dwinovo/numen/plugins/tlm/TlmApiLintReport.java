@@ -21,6 +21,7 @@ class TlmApiLintReport {
     void writeTheReport() throws IOException, URISyntaxException {
         CoreApiFixture.install();
         NumenPlugins.register(NumenTlm.NAMESPACE, SkinApi::install);
+        ApiLintReport.assertNoDrift("tlm.");
         List<ApiTester.Lint> lint = new ArrayList<>(ApiTester.lint().stream()
                 .filter(l -> l.where().startsWith("tlm.")).toList());
         lint.addAll(ApiTester.lint(ApiLintReport.documents("plugins/tlm/skills")));

@@ -81,8 +81,8 @@ public final class ScanApi {
     public record GroundMap(@Doc("The map, one string per row, north first; cells are separated by spaces.")
                             List<String> rows,
                             @Doc("The cell you stand in: the @.") BlockPos center,
-                            String facing,
-                            String legend) {}
+                            @Doc("The direction you face: north, east, south or west.") String facing,
+                            @Doc("What each cell character means.") String legend) {}
 
     @Fn("A top-down map of the ground around you: where you can walk, step, drop, swim.")
     @Example("for _, row in ipairs(numen.scan.map().rows) do print(row) end")
@@ -227,16 +227,17 @@ public final class ScanApi {
     @Doc("One block in full: what it is and what digging it takes.")
     public record BlockInfo(@Flatten BlockAt block,
                             @Doc("Its state, facing = \"north\" ...") Optional<Map<String, String>> properties,
-                            boolean isAir,
-                            boolean isSolid,
-                            boolean isLiquid,
-                            double hardness,
-                            boolean unbreakable,
-                            boolean needsCorrectTool,
+                            @Doc("Whether the cell is air.") boolean isAir,
+                            @Doc("Whether it is a solid block.") boolean isSolid,
+                            @Doc("Whether it is a fluid (water, lava).") boolean isLiquid,
+                            @Doc("How hard it is to break; -1 when it is unbreakable.") double hardness,
+                            @Doc("Whether it cannot be broken at all (bedrock).") boolean unbreakable,
+                            @Doc("Whether it only drops with the right tool.") boolean needsCorrectTool,
+                            @Doc("Whether the tool in your hand is the right one for it.")
                             boolean currentHandCorrectTool,
-                            Optional<Integer> estimatedMiningTicks,
-                            double distance,
-                            boolean inReach) {}
+                            @Doc("Estimated ticks to dig it with what you hold.") Optional<Integer> estimatedMiningTicks,
+                            @Doc("Blocks from you to the cell.") double distance,
+                            @Doc("Whether the cell is within your reach.") boolean inReach) {}
 
     @Fn("One block: its id and state, hardness, whether your held tool is right, dig time, whether it is in reach.")
     @Example("numen.scan.block({x = 120, y = 64, z = -35})")

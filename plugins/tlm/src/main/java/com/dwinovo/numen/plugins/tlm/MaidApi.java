@@ -70,10 +70,10 @@ public final class MaidApi {
     public record Maid(@Flatten EntityInfo entity,
                        @Doc("The model she wears.") String model,
                        @Doc("Her work mode, touhou_little_maid:farm.") String task,
-                       Schedule schedule,
+                       @Doc("Her schedule's points, when she has one.") Schedule schedule,
                        @Doc("Home mode.") boolean home,
-                       int favorabilityLevel,
-                       boolean sitting,
+                       @Doc("Her favorability level, 0-3.") int favorabilityLevel,
+                       @Doc("Whether she is sitting.") boolean sitting,
                        @Doc("When she is in another dimension than you (then there is no distance).")
                        Optional<String> dimension) {}
 
@@ -103,7 +103,7 @@ public final class MaidApi {
 
     /** 一个工作模式。 */
     @Doc("A work mode in a maid's task list.")
-    public record WorkMode(String task,
+    public record WorkMode(@Doc("The work mode's id.") String task,
                            @Doc("true for the one she works as now.") Optional<Boolean> current,
                            @Doc("Whether TLM lets her switch to it now.") boolean canSwitch,
                            @Doc("What it waits for, true = met.") Optional<Map<String, Boolean>> toEnable,
@@ -120,28 +120,29 @@ public final class MaidApi {
 
     /** 身上的一个药水效果。 */
     @Doc("A potion effect on her.")
-    public record Effect(String effect, int amplifier, @Doc("Ticks left; -1 for endless.") int ticks) {}
+    public record Effect(@Doc("The effect id.") String effect, @Doc("Its level, 0 = level I.") int amplifier,
+                         @Doc("Ticks left; -1 for endless.") int ticks) {}
 
     /** 一只女仆的详情。 */
     @Doc("One maid in full.")
     public record Detail(@Doc("Her, as tlm.maid.list lists her.") Maid maid,
-                         boolean pickup,
-                         boolean ride,
-                         int favorability,
-                         int favorabilityToNextLevel,
-                         String backpack,
+                         @Doc("Whether she picks things up.") boolean pickup,
+                         @Doc("Whether you can ride her.") boolean ride,
+                         @Doc("Her favorability points.") int favorability,
+                         @Doc("Points to the next favorability level.") int favorabilityToNextLevel,
+                         @Doc("What she carries in her backpack.") String backpack,
                          @Doc("With home mode on.") Optional<BlockPos> homeCenter,
                          @Doc("With home mode on.") Optional<Double> homeRadius,
                          @Doc("When they are set.") Optional<SchedulePoints> schedulePoints,
-                         Preferences preferences,
+                         @Doc("Her config-page settings.") Preferences preferences,
                          @Doc("By slot: mainhand, offhand, head, chest, legs, feet; an empty slot is left out.")
                          Map<String, Held> equipment,
-                         List<Effect> effects,
+                         @Doc("Potion effects on her.") List<Effect> effects,
                          @Doc("The experience she carries.") int experience,
                          @Doc("Whether she cannot be hurt.") boolean invulnerable,
                          @Doc("What her schedule has her doing now: minecraft:work, minecraft:idle or "
                                  + "minecraft:rest.") String activity,
-                         boolean sleeping,
+                         @Doc("Whether she is asleep right now.") boolean sleeping,
                          @Doc("What she is fighting now.") Optional<EntityInfo> target,
                          @Doc("Every work mode in her task list.") List<WorkMode> tasks) {}
 
@@ -169,7 +170,8 @@ public final class MaidApi {
 
     /** 切完读回的工作模式。 */
     @Doc("Her work mode, read back.")
-    public record Switched(@Doc("Her entity id.") int maid, String task) {}
+    public record Switched(@Doc("Her entity id.") int maid,
+                           @Doc("Her work mode now, touhou_little_maid:farm.") String task) {}
 
     @Fn("Switch one of your maids to another work mode, like a click in her task list.")
     @Example("tlm.maid.task(\"touhou_little_maid:farm\", {maid = 812})")
@@ -240,8 +242,12 @@ public final class MaidApi {
 
     /** 改完读回的设置。 */
     @Doc("Her settings, read back.")
-    public record Configured(@Doc("Her entity id.") int maid, boolean home, boolean pickup, boolean ride,
-                             Schedule schedule, Preferences preferences) {}
+    public record Configured(@Doc("Her entity id.") int maid,
+                             @Doc("Home mode.") boolean home,
+                             @Doc("Whether she picks things up.") boolean pickup,
+                             @Doc("Whether you can ride her.") boolean ride,
+                             @Doc("Her schedule's points, when she has one.") Schedule schedule,
+                             @Doc("Her config-page settings.") Preferences preferences) {}
 
     @Fn("Change one of your maids' settings: home mode, picking up, riding, schedule, and the maid config page.")
     @Example("tlm.maid.config(812, {schedule = \"night\"})")
@@ -367,7 +373,9 @@ public final class MaidApi {
 
     /** 改完读回的名字。 */
     @Doc("Her name, read back.")
-    public record Named(@Doc("Her entity id.") int maid, String name, boolean alwaysShow,
+    public record Named(@Doc("Her entity id.") int maid,
+                        @Doc("Her name.") String name,
+                        @Doc("Whether it shows above her all the time.") boolean alwaysShow,
                         @Doc("Whether TLM took the name tag from your hand.") boolean nameTagUsed) {}
 
     @Fn("Name one of your maids, like using a name tag on her.")
@@ -407,7 +415,7 @@ public final class MaidApi {
 
     /** 她穿的模型。 */
     @Doc("The model a maid wears.")
-    public record Wearing(@Doc("Her entity id.") int maid, String model) {}
+    public record Wearing(@Doc("Her entity id.") int maid, @Doc("The model she wears.") String model) {}
 
     @Fn("Which model one maid wears.")
     @Example("tlm.maid.model(812)")

@@ -39,7 +39,7 @@ public final class GuiOps {
             + "slot, and your own filled ones.")
     @Methods("numen.gui")
     public record Window(@Doc("InventoryMenu when it is your own inventory.") String menu,
-                         List<WindowSlot> slots,
+                         @Doc("Every slot in menu order, each with its index and contents.") List<WindowSlot> slots,
                          @Doc("What the cursor holds.") Optional<String> cursor,
                          @Doc("The menu's numbers: progress, fuel, energy (meaning is GUI-specific; a furnace's are lit "
                                  + "time, lit duration, cook progress, cook total).") List<Integer> data,

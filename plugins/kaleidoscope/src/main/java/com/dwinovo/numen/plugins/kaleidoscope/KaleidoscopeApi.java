@@ -46,15 +46,16 @@ public final class KaleidoscopeApi {
                          @Doc("What comes out, with x2 when more than one.") String dish,
                          @Doc("Each with its portions, kaleidoscope_cookery:tomato x2.") List<String> ingredients,
                          @Doc("What to take the dish out with.") Optional<String> carrier,
-                         Optional<String> soupBase,
-                         List<String> kitchenware,
-                         int cookTicks,
+                         @Doc("Stockpot: the soup base, once set.") Optional<String> soupBase,
+                         @Doc("What it needs on hand (a pot lid, a wok).") List<String> kitchenware,
+                         @Doc("Ticks it takes to cook.") int cookTicks,
                          @Doc("Pot recipes.") Optional<Integer> stirFries,
                          @Doc("Fixed or flex, and what the portions mean.") String quality) {}
 
     /** 一口锅能做的。 */
     @Doc("What a cookware can cook.")
-    public record Recipes(@Doc("Every recipe that matches.") List<Recipe> recipes, List<String> qualityNotes) {}
+    public record Recipes(@Doc("Every recipe that matches.") List<Recipe> recipes,
+                          @Doc("How quality is graded here.") List<String> qualityNotes) {}
 
     /** 查哪种锅、怎么筛。 */
     public record Menu(@Doc("Which cookware.") Cookware cookware,
@@ -96,21 +97,23 @@ public final class KaleidoscopeApi {
 
     /** 一格锅此刻的样子。 */
     @Doc("One pot or stockpot as it is now.")
-    public record PotState(Cookware cookware,
-                           BlockPos pos,
+    public record PotState(@Doc("Which cookware it is: pot or stockpot.") Cookware cookware,
+                           @Doc("Where it is.") BlockPos pos,
                            @Doc("put_ingredient, cooking, finished, burnt (pot); put_soup_base, put_ingredient, cooking, "
                                    + "finished (stockpot).") String stage,
-                           boolean hasHeatSource,
+                           @Doc("Whether it has heat under it.") boolean hasHeatSource,
                            @Doc("Pot.") Optional<Boolean> hasOil,
                            @Doc("Stockpot.") Optional<Boolean> hasLid,
                            @Doc("Stockpot, once it has one.") Optional<String> soupBase,
-                           List<String> inThePot,
-                           Optional<String> dishBeingMade,
+                           @Doc("What is in it now, with portions.") List<String> inThePot,
+                           @Doc("The dish it is cooking, once known.") Optional<String> dishBeingMade,
+                           @Doc("Ticks until it starts on its own; empty when it does not.")
                            Optional<Integer> autoStartsInTicks,
-                           Optional<Integer> doneInTicks,
-                           Optional<Integer> burnsInTicks,
+                           @Doc("Ticks until it is done; empty when nothing is cooking.") Optional<Integer> doneInTicks,
+                           @Doc("Ticks until it burns; empty when it will not.") Optional<Integer> burnsInTicks,
+                           @Doc("Ticks until the finished dish is cleared; empty when it will not.")
                            Optional<Integer> clearsInTicks,
-                           Optional<Integer> servingsLeft,
+                           @Doc("Servings left in the finished dish.") Optional<Integer> servingsLeft,
                            @Doc("What it waits for.") List<String> needs) {}
 
     /** 哪一格锅。 */

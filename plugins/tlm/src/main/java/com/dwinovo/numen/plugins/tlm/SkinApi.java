@@ -41,7 +41,9 @@ public final class SkinApi {
 
     /** 一个模型。 */
     @Doc("A maid model installed on your owner's client.")
-    public record Model(@Doc("What tlm.skin.wear takes.") String id, String name, String pack) {}
+    public record Model(@Doc("What tlm.skin.wear takes.") String id,
+                        @Doc("Its display name.") String name,
+                        @Doc("The pack it comes from.") String pack) {}
 
     /** 一个模型包。 */
     @Doc("A model pack: its name, how many models, a few of their names.")
@@ -84,7 +86,7 @@ public final class SkinApi {
 
     /** 穿上的。 */
     @Doc("The maid model you now wear.")
-    public record Worn(String currentModel) {}
+    public record Worn(@Doc("The model you wear now.") String currentModel) {}
 
     /**
      * 只认清单里真实存在的 id。模型不存在时直接失败并指回清单——比默默换成一个空模型好:她会知道自己刚才那句没生效,下一轮能自己改口。

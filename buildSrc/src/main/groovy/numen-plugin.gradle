@@ -3,6 +3,10 @@ plugins {
     id 'net.neoforged.moddev'
 }
 
+repositories {
+    mavenCentral()
+}
+
 /**
  * 一个<b>联动模组</b>的构建约定。{@code plugins/} 下每个子目录是一个独立联动,
  * 被内嵌进成品 jar 一起发,但本质上就是一个独立模组。

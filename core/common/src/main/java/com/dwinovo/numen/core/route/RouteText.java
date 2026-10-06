@@ -45,7 +45,8 @@ public final class RouteText {
 
     /** 一段水下没有气的路。 */
     @Doc("A stretch under water with no air on the way.")
-    public record Dive(BlockPos from, BlockPos to,
+    public record Dive(@Doc("Where the dive starts.") BlockPos from,
+                       @Doc("Where it comes out.") BlockPos to,
                        @Doc("Without a breath.") double seconds,
                        @Doc("Seconds of air left after it.") double spare) {}
 
@@ -57,7 +58,7 @@ public final class RouteText {
                               + "after a partial or unreachable leg, not planned.")
                       com.dwinovo.numen.core.route.Plan.Reach reach,
                       @Doc("Where the seen part ends.") Optional<BlockPos> finish,
-                      int steps,
+                      @Doc("How many steps the seen part takes.") int steps,
                       @Doc("About how long, as priced.") double seconds,
                       @Doc("Step by step; not printed with the plan, read it as leg.path.") @Folded List<Step> path,
                       @Doc("Blocks it breaks.") List<BlockAt> breaks,

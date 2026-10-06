@@ -10,6 +10,8 @@ import java.util.List;
  *
  * <p>按构造有界({@link ScriptLimits}):一条至多 {@link ScriptLimits#STDERR_RECORD_CHARS} 字,超出的写明还有多少字没显示;连续相同的
  * 条合并成一条加 {@code (×N)};整栏至多 {@link ScriptLimits#STDERR_CHARS} 字,超出的条数与字数写明。纯 JVM。
+ *
+ * <p><b>只合并重复,不压缩结构。</b>结构不同的一条条整条留着(字段都在),不因省字把它们压成别的样子;要合并只合并连续相同的那些。
  */
 final class Stderr {
 

@@ -21,7 +21,7 @@ public record EntityInfo(
         @Doc("hostile, passive, player or item.") Optional<String> category,
         @Doc("Blocks from you.") Optional<Double> distance,
         @Doc("Health, for a living one.") Optional<Double> hp,
-        Optional<Double> maxHp,
+        @Doc("Max health, for a living one.") Optional<Double> maxHp,
         @Doc("Whose it is, for a tamed one: you, your owner, or another player's name.") Optional<String> owner)
         implements Seen {
 

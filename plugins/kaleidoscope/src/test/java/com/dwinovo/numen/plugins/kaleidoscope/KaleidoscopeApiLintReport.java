@@ -26,6 +26,7 @@ class KaleidoscopeApiLintReport {
             KaleidoscopeApi.install(numen);
             numen.bundleModules(modules);
         });
+        ApiLintReport.assertNoDrift("kaleidoscope.");
         List<ApiTester.Lint> lint = new ArrayList<>(ApiTester.lint().stream()
                 .filter(l -> l.where().startsWith("kaleidoscope.")).toList());
         lint.addAll(ApiTester.lint(ApiLintReport.documents("plugins/kaleidoscope/skills")));
