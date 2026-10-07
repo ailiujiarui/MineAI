@@ -584,6 +584,13 @@ public final class BridgeSearch implements CalculationContext {
     /** 照读快照,读到没加载的列就记一笔;这次搜索的记事本挂在这里。 */
     private final class Probe implements WorldView, Recall.Source {
 
+        /**
+         * 快照在这次搜索里不变,同一格读过一次就够:前提函数每一步要读几百格、格子反复重叠,不缓存的话同一格
+         * 要从快照取很多遍,没加载的列还要再走一遍区块查找。缓存只记"已加载的列"的方块:没加载的列每次照常问
+         * {@link SearchView#isLoaded} 并记进记事本,{@link Recall} 的语义一分不变。
+         */
+        private final Long2ObjectOpenHashMap<BlockState> loaded = new Long2ObjectOpenHashMap<>();
+
         @Override
         public Recall recall() {
             return recall;
@@ -591,10 +598,18 @@ public final class BridgeSearch implements CalculationContext {
 
         @Override
         public BlockState getBlockState(BlockPos pos) {
+            long key = pos.asLong();
+            BlockState state = loaded.get(key);
+            if (state != null) {
+                return state;
+            }
             if (!view.isLoaded(pos.getX(), pos.getZ())) {
                 recall.touchUnloaded();
+                return view.getBlockState(pos);
             }
-            return view.getBlockState(pos);
+            state = view.getBlockState(pos);
+            loaded.put(key, state);
+            return state;
         }
 
         @Override
