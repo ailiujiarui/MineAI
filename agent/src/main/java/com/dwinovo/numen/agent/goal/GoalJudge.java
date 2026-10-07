@@ -8,8 +8,7 @@ import java.util.function.Consumer;
  * 目标判官:一次 run 说完后,判目标达没达成。<b>判的人不是她</b>——执行与判定分开,她才骗不了自己。
  *
  * <p>把它抽成接口,是为了让"判断层"可替换:默认是另开一次干净模型调用的
- * {@link LlmGoalJudge};配了 JEV 就走 {@link JevGoalJudge}(便宜、带校准置信度)。换判官不
- * 影响 {@link GoalSteward} 的续跑/收工/额度逻辑。
+ * {@link LlmGoalJudge}。换判官不影响 {@link GoalSteward} 的续跑/收工/额度逻辑。
  *
  * <p>纯 JVM,不碰 Minecraft。
  */

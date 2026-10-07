@@ -6,13 +6,6 @@
 //
 // 现住户:agent.inbox(输入队列 EventQueue、类型表 EventTypes、落盘 JsonlJournal)、
 // agent.goal(长期目标 GoalState 与三段提示词 GoalPrompts)、
-// agent.acceptance(验收骨骼:ActionQueue、MineAI 式机器判据 Objective/GoalPredicate、
-// CompletionGuard、白名单 Whitelist、RCON 靶场与 Harness 报告——装在工具层外面,不改工具与内核)、
-// agent.decision/utility/bt/control(控制层:JEV 判断口、Utility 仲裁、行为树运行时、
-// 事件驱动的 AgentController——LLM 被收在边界节点里,出不了内循环)、
-// agent.plan(确定性执行:配方递归展开 GapCalculator、目标编译成行为树 Compiler)、
-// agent.recover(失败恢复:FailureClassifier、RecoveryPolicy、ProgressTracker、
-// 行为树上的 Recover 装饰——失败局部化、有界恢复)、
 // agent.adapter(模组适配框架:声明式 AdapterSpec、AdapterRegistry、目录热重载与 fail-soft——
 // 纯数据翻译表,世界操作由宿主按表去做)。
 plugins {
@@ -67,20 +60,7 @@ dependencies {
 }
 
 test {
-    useJUnitPlatform { excludeTags 'benchmark' }
-}
-
-// 评测的业务低分写进逐例记录,不混入回归测试的通过数。
-tasks.register('benchmark', Test) {
-    group = 'verification'
-    description = 'Run the offline bot planning and response benchmarks'
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform { includeTags 'benchmark' }
-    outputs.upToDateWhen { false }
-    doFirst {
-        systemProperty 'numen.eval.output', providers.gradleProperty('numenEvalOutput').get()
-    }
+    useJUnitPlatform()
 }
 
 publishing {
