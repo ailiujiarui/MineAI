@@ -12,7 +12,6 @@ import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.EditedView;
 import com.dwinovo.numen.pathing.plan.Heading;
 import com.dwinovo.numen.pathing.plan.Maneuver;
-import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.plan.Moves;
 import com.dwinovo.numen.pathing.plan.Premise;
 import com.dwinovo.numen.pathing.plan.Stance;
@@ -29,7 +28,6 @@ import com.dwinovo.numen.pathing.search.baritone.Favoring;
 import com.dwinovo.numen.pathing.search.baritone.MutableMoveResult;
 import com.dwinovo.numen.pathing.search.baritone.PathCalculationResult;
 import com.dwinovo.numen.pathing.search.baritone.calc.AStarPathFinder;
-import com.dwinovo.numen.pathing.search.baritone.goals.GoalAdapters;
 import com.dwinovo.numen.pathing.world.BodyStats;
 import com.dwinovo.numen.pathing.world.Bounds;
 import com.dwinovo.numen.pathing.world.Recall;
@@ -58,9 +56,15 @@ import net.minecraft.world.level.material.FluidState;
  *       {@code Move} whose {@code apply} recomputes Numen's premise from the
  *       source node's real stance and world and writes the encoded destination
  *       and price.</li>
- *   <li><b>Goal.</b> The vendored goal decodes a node, asks Numen whether the
- *       body there has arrived, and uses the goal's own arrival price as the
- *       heuristic on arrival cells so the finder selects the cheapest stop.</li>
+ *   <li><b>Goal.</b> The vendored goal decodes a node and asks Numen two
+ *       things: whether the body there has arrived, and whether stopping is
+ *       cheap enough to accept now. A reachable stop whose arrival price is
+ *       dearer than the remaining estimate is not a goal yet, so the finder
+ *       keeps searching past it (exactly the old loop's accept rule); the
+ *       cheapest such stop is kept as the fallback when every stop is
+ *       dear. The heuristic stays Numen's own estimate, never zeroed on a
+ *       goal cell, and the arrival price is never folded into a move so a
+ *       goal cell can be crossed without paying to stop there.</li>
  *   <li><b>Budget and partials.</b> The finder has no node budget, so the
  *       bridge cancels it once Numen's expansion budget (or early hand-over
  *       count) is reached, and keeps Numen's own coefficient table to pick the
@@ -82,12 +86,13 @@ public final class BridgeSearch implements CalculationContext {
     private final CostModel model;
     private final BodyStats body;
     private final Breath breath;
-    /** The goal's own estimate is now the ported Baritone goal's; the bridge only adds the digging floor. */
+    /**
+     * Numen's own estimate for a real cell is the search's guide: the goal's
+     * {@code estimate} plus the digging floor. The ported Baritone goal
+     * heuristic is deliberately not used here: it can disagree with Numen's,
+     * and the produced legs are priced by Numen's own cost model regardless.
+     */
     private final BurialFloor burial;
-    /** Numen's goal translated to the vendored Baritone goal (position goals keep their exact shape). */
-    private final com.dwinovo.numen.pathing.search.baritone.Goal adaptedGoal;
-    /** Prices a step with Baritone's ported movement cost calculators over the locked snapshot. */
-    private final SnapshotMovement ported;
     private final ToDoubleFunction<BlockPos> favoring;
     private final boolean budgeted;
     private final int alterBudget;
@@ -119,7 +124,17 @@ public final class BridgeSearch implements CalculationContext {
     private SearchNode start;
     private boolean startInGoal;
     private double startArrival;
-    private boolean suppressedStart;
+    /**
+     * The cheapest stop the finder reached ({@code g + arrival}), even one it
+     * was not allowed to stop at because stopping there is dearer than the
+     * goal estimate says the rest should cost ({@link BridgeGoal#isInGoal}).
+     * The old loop would pop such a node again after raising its price and
+     * accept it then; this is that fallback, picked once the finder is done.
+     */
+    private SearchNode bestStop;
+    private double bestStopCost = Double.POSITIVE_INFINITY;
+    /** Set by {@link BridgeGoal#isInGoal} when the finder's frontier has reached {@link #bestStopCost}: stop and use {@link #bestStop}. */
+    private boolean preferBestStop;
 
     public BridgeSearch(Search search, CostModel model, BodyStats body, Breath breath, Stance startStance,
                         BurialFloor burial, ToDoubleFunction<BlockPos> favoring) {
@@ -138,8 +153,6 @@ public final class BridgeSearch implements CalculationContext {
         this.startX = search.start().getX();
         this.startY = search.start().getY();
         this.startZ = search.start().getZ();
-        this.ported = new SnapshotMovement(view);
-        this.adaptedGoal = GoalAdapters.adapt(search.goal(), this::stanceAt);
         this.goal = new BridgeGoal();
         for (com.dwinovo.numen.pathing.plan.Move move : Moves.ALL) {
             for (Heading heading : move.headings()) {
@@ -148,15 +161,9 @@ public final class BridgeSearch implements CalculationContext {
         }
     }
 
-    /** The goal's estimate for a real cell: the ported goal's own lower bound plus the digging floor. */
+    /** The goal's own estimate for a real cell plus the digging floor, exactly as the live search used it before the swap. */
     private double heuristicAt(int x, int y, int z) {
-        return adaptedGoal.heuristic(x, y, z) + burial.at(x, y, z);
-    }
-
-    /** How the body would stand at an already-reached cell, for the ported goal's stance-dependent fallback. */
-    private Stance stanceAt(int x, int y, int z) {
-        SearchNode node = nodes.head(Coord.base(x, y, z));
-        return node == null ? null : node.stance;
+        return search.goal().estimate(x, y, z) + burial.at(x, y, z);
     }
 
     public SearchResult run(BooleanSupplier cancelled) {
@@ -165,18 +172,20 @@ public final class BridgeSearch implements CalculationContext {
         if (startInGoal && startArrival <= start.h + MIN_IMPROVEMENT) {
             return new SearchResult(SearchResult.Stop.ARRIVED, emptyRoute(), 0, false);
         }
-        if (startInGoal) {
-            // 起点本身就是一个停点,但到达价不便宜:旧搜索会把它按总价放回堆里、继续往外搜。
-            // 这里先不当它是目标,等搜完没有更好的停点时再退回它。
-            suppressedStart = true;
-            start.inGoal = false;
-        }
+        // 起点本身是停点但到达价不便宜:不当它是目标({@link BridgeGoal#isInGoal} 会拒),照常往外搜;
+        // 搜完没有更便宜的停点时由 {@link #bestStop} 退回它——与旧搜索"按总价放回堆里、再出堆才收"同义。
         int ex = Coord.ex(start.base);
         int ey = Coord.ey(start.base);
         AStarPathFinder pathFinder = new AStarPathFinder(new BetterBlockPos(ex, ey, start.st), ex, ey, start.st,
                 goal, Favoring.NONE, this);
         this.finder = pathFinder;
         PathCalculationResult result = pathFinder.calculate(TIMEOUT, TIMEOUT);
+        if (preferBestStop) {
+            // 搜到 frontier 的估价够到最便宜停点的总价:再没有更便宜的停点了,收下它。
+            if (bestStop != null && bestStop.inGoal) {
+                return new SearchResult(SearchResult.Stop.ARRIVED, buildRoute(bestStop), expanded, breathless);
+            }
+        }
         if (result.type() == PathCalculationResult.Type.SUCCESS_TO_GOAL && result.path() != null) {
             SearchNode arrived = nodes.find(Coord.base(result.path().getDest().x, result.path().getDest().y),
                     result.path().getDest().z);
@@ -190,8 +199,9 @@ public final class BridgeSearch implements CalculationContext {
         if (budgetStop) {
             return new SearchResult(SearchResult.Stop.BUDGET, partialRoute(), expanded, breathless);
         }
-        if (suppressedStart) {
-            return new SearchResult(SearchResult.Stop.ARRIVED, emptyRoute(), expanded, breathless);
+        if (bestStop != null && bestStop.inGoal) {
+            // 搜遍了:够了但到达价不便宜的停点,旧搜索会在它再次出堆时收下它;这里收下最便宜的那个。
+            return new SearchResult(SearchResult.Stop.ARRIVED, buildRoute(bestStop), expanded, breathless);
         }
         SearchResult.Stop stop = skippedUnloaded ? SearchResult.Stop.UNLOADED : SearchResult.Stop.EXHAUSTED;
         return new SearchResult(stop, partialRoute(), expanded, breathless);
@@ -215,12 +225,28 @@ public final class BridgeSearch implements CalculationContext {
                 : Double.POSITIVE_INFINITY;
         if (Double.isFinite(arrivalCost)) {
             node.inGoal = true;
+            node.arrival = arrivalCost;
             startArrival = arrivalCost;
             startInGoal = true;
+            considerStop(node);
         }
         this.start = node;
         Arrays.fill(best, node);
         Arrays.fill(bestScore, node.h);
+    }
+
+    /**
+     * Record the cheapest stop reached so far. Its priority is the old loop's:
+     * {@code g + max(estimate, arrival)} — a stop is accepted when the finder
+     * reaches that total, whether the arrival was below the estimate (accepted
+     * at once) or above it (rejected, expanded, accepted on the re-pop).
+     */
+    private void considerStop(SearchNode node) {
+        double total = node.g + Math.max(node.h, node.arrival);
+        if (total < bestStopCost - MIN_IMPROVEMENT) {
+            bestStopCost = total;
+            bestStop = node;
+        }
     }
 
     // ==================== CalculationContext ====================
@@ -330,11 +356,12 @@ public final class BridgeSearch implements CalculationContext {
         if (budgeted && used > alterBudget) {
             return;
         }
+        // The live route is priced by Numen's own cost model, exactly as before the swap; Baritone's movement prices
+        // were only ever meant to guide the search, and the ported value never differed from this one anyway.
         double numen = move.cost(model, maneuver);
         if (!(numen > 0) || Double.isInfinite(numen)) {
             throw new IllegalStateException(move.kind() + " 从 " + from + " 算出了非法的代价 " + numen);
         }
-        double cost = portedCost(move.kind(), heading, from, maneuver, numen);
         Breath.Air air = src.air;
         if (maneuver.submerged() || !breath.rested(air)) {
             air = breath.after(air, maneuver.submerged(), move.ticks(model, maneuver));
@@ -353,8 +380,7 @@ public final class BridgeSearch implements CalculationContext {
                 arrivalCost = 0;
             }
         }
-        double walk = cost * favoring.applyAsDouble(to);
-        double actionCost = walk + arrivalCost;
+        double walk = numen * favoring.applyAsDouble(to);
 
         int band = breath.band(air);
         long base2 = Coord.base(to.getX(), to.getY(), to.getZ());
@@ -373,8 +399,12 @@ public final class BridgeSearch implements CalculationContext {
             dst.via = maneuver;
             dst.viaCost = numen;
             dst.inGoal = inGoal;
+            dst.arrival = arrivalCost;
             dst.here = here;
             dst.parent = src;
+            if (inGoal) {
+                considerStop(dst);
+            }
             if (air.held() == 0) {
                 updateBest(dst);
             }
@@ -382,43 +412,9 @@ public final class BridgeSearch implements CalculationContext {
         result.x = Coord.ex(base2);
         result.y = Coord.ey(base2);
         result.z = st2;
-        result.cost = actionCost;
-    }
-
-    /**
-     * The step's cost: Baritone's ported movement cost where it is faithful to
-     * Numen's, Numen's own otherwise.
-     *
-     * <p>Baritone's model prices a move from the raw block states, so it is
-     * only consulted for the plain physical moves that carry no Numen-only
-     * term (no edits, no jump/sneak, no wading, normal step speed, no fall
-     * damage, no spec/danger surcharge). Even then the ported value is used
-     * only when it agrees with Numen's own cost; where Baritone's model
-     * diverges (sprint-jump ascends, per-position costs, digging, water,
-     * consent) Numen's model stays authoritative. The ported value and the
-     * Numen value are computed on the same snapshot, so an agreement is not a
-     * coincidence but the definition of "faithful".
-     */
-    private double portedCost(MoveKind kind, Heading heading, BlockPos from, Maneuver maneuver, double numen) {
-        if (!faithful(maneuver)) {
-            return numen;
-        }
-        double ported = this.ported.cost(kind, heading, from.getX(), from.getY(), from.getZ(),
-                maneuver.to().getX(), maneuver.to().getY(), maneuver.to().getZ());
-        if (Double.isFinite(ported) && Math.abs(ported - numen) <= 1e-9) {
-            return ported;
-        }
-        return numen;
-    }
-
-    /** Whether Baritone's movement model describes this step with no Numen-only term added on top. */
-    private boolean faithful(Maneuver maneuver) {
-        return switch (maneuver.kind()) {
-            case WALK, DIAGONAL, DESCEND, FALL -> maneuver.edits().isEmpty()
-                    && !maneuver.jump() && !maneuver.wading() && maneuver.fallDamage() == 0
-                    && maneuver.speedFactor() == 1.0 && model.overhead(maneuver) == 0.0;
-            default -> false;
-        };
+        // The arrival price is paid only when the body stops, never for merely stepping through a goal cell: the
+        // edge the finder sees is the plain movement cost, and the stop is chosen by {@link BridgeGoal}.
+        result.cost = walk;
     }
 
     /** 记一次展开;到了先交半程的节点数或展开预算就收回这次搜索。返回是否已经叫停。 */
@@ -518,23 +514,35 @@ public final class BridgeSearch implements CalculationContext {
 
     private final class BridgeGoal implements com.dwinovo.numen.pathing.search.baritone.Goal {
 
+        /**
+         * A node counts as the goal only when stopping here is not dearer than
+         * how much the estimate still expects the rest to cost. That is the
+         * old loop's rule exactly: a stop whose arrival price exceeds its
+         * remaining estimate is put back at the arrival price and expanded
+         * further, which is how a body starting inside a dear goal member
+         * walks out to a cheaper one ({@link #bestStop} is the fallback when
+         * every reachable stop is dear).
+         */
         @Override
         public boolean isInGoal(int ex, int ey, int ez) {
             long base = Coord.base(ex, ey);
             SearchNode node = nodes.find(base, ez);
-            if (node != null) {
-                return node.inGoal;
+            if (node == null) {
+                return false;
             }
-            return adaptedGoal.isInGoal(Coord.x(base), Coord.y(base), Coord.z(base));
+            // The finder's frontier (g + estimate) has reached the cheapest stop's total: nothing left can beat it.
+            if (bestStop != null && bestStopCost <= node.g + node.h + MIN_IMPROVEMENT) {
+                preferBestStop = true;
+                return true;
+            }
+            return node.inGoal && node.arrival <= node.h + MIN_IMPROVEMENT;
         }
 
+        /** Numen's own estimate, never zeroed on a goal cell: the finder needs it to keep searching past dear stops. */
         @Override
         public double heuristic(int ex, int ey, int ez) {
             long base = Coord.base(ex, ey);
             SearchNode node = nodes.find(base, ez);
-            if (node != null && node.inGoal) {
-                return 0;
-            }
             if (node != null) {
                 return node.h;
             }

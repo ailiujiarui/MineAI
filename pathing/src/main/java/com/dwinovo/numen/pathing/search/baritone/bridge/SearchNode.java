@@ -30,6 +30,8 @@ final class SearchNode {
     Maneuver via;
     double viaCost;
     boolean inGoal;
+    /** What stopping here costs on top of {@link #g} (Numen's {@code Goal#arrival}); only meaningful when {@link #inGoal}. */
+    double arrival;
     WorldView here;
     SearchNode parent;
     SearchNode next;

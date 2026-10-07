@@ -177,8 +177,9 @@ public class InteractGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(hit.done(), "use entity has not finished");
-            helper.assertTrue(!hit.succeeded() && hit.outcome().contains("owner"),
-                    "the refusal does not come from asking the owner: " + hit.outcome());
+            helper.assertTrue(!hit.succeeded()
+                            && hit.outcome().contains(com.dwinovo.numen.permission.ConsentDesk.OWNER_ABSENT),
+                    "the pig was not left unresolved as the owner being absent: " + hit.outcome());
             helper.assertTrue(pig.getHealth() == pig.getMaxHealth(), "the named pig was hit");
             CompanionFactory.despawn(helper.getLevel().getServer(), companion);
         });
@@ -314,8 +315,9 @@ public class InteractGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(pet.done(), "use entity has not finished");
-            helper.assertTrue(!pet.succeeded() && pet.outcome().contains("owner"),
-                    "the refusal does not come from asking the owner: " + pet.outcome());
+            helper.assertTrue(!pet.succeeded()
+                            && pet.outcome().contains(com.dwinovo.numen.permission.ConsentDesk.OWNER_ABSENT),
+                    "the wolf was not left unresolved as the owner being absent: " + pet.outcome());
             helper.assertTrue(!wolf.isOrderedToSit(), "someone else's wolf was told to sit");
             wolf.discard();
             CompanionFactory.despawn(helper.getLevel().getServer(), companion);
