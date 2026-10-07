@@ -1,5 +1,0 @@
-# Archived evidence is hashed byte-for-byte; preserve original newlines and log whitespace.
-bot-v1/baselines/** -text -whitespace
-live-v1/baselines/** -text -whitespace
-live-v1/verification/** -text -whitespace
-*.gz binary

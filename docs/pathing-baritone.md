@@ -2,7 +2,7 @@
 
 状态:进行中(2026-10-06)。这是一次**部分替换**:保留本模块自己的分层与门面,只把搜索内核换成 vendor 进来的 Baritone A*。
 第一步(vendor)已完成,第二步(接上真身)由其他改动并行接线,第三步起(移动代价、卡住/回退恢复)未开始。
-本文件是这条替换线的唯一说明,取代旧稿里散落的记录;整条寻路的设计见 `pathing.md`,评测怎么读见 `bench.md`。
+本文件是这条替换线的唯一说明,取代旧稿里散落的记录;整条寻路的设计见 `pathing.md`。
 
 ## 一、为什么换
 
@@ -42,8 +42,8 @@
 **第四步 卡住/回退恢复。** 执行层发现"这一步没发生""重规划算出同一条""原地打转"时的回退与再规划(Baritone 的 `recover` 一路),
 由另外的包 `.../baritone/recover/`(并行改动)补上。
 
-**第五步 bench 对比。** 接线前后各跑一遍真实模型评测,对比 `numen.move.go` 的 `no_path` 与整体成功率、pass^k、命令出错率、
-轮数、墙钟(见第四节)。
+**第五步 对比。** 接线前后各跑一遍真实模型评测,对比 `numen.move.go` 的 `no_path` 与整体成功率、pass^k、命令出错率、
+轮数、墙钟。评测工具本轮已移除,口径见第四节。
 
 ## 三、回归测试(本文件对应的一步)
 
@@ -63,44 +63,9 @@
 
 ## 四、怎么量 `numen.move.go no_path`(前后)
 
-`no_path` 是工具结果里的 `error_kind`,不单独进指标门;它藏在 `summary.md` 的"每个函数"表和 `runs.jsonl`/`transcripts` 里。
-量法:
-
-1. 跑一次真实模型评测(命令见 `bench.md` 第一节;key 放 `bench/bench.json`):
-
-   ```bash
-   ./gradlew --no-daemon :core:neoforge:runBench -Dbench.scenarios=all -Dbench.repeats=3
-   ```
-
-   结果落在 `core/neoforge/runs/bench/results/<时间戳>/`。
-
-2. 读那份 `summary.md` 的**"每个函数(真实模型)"**表,找 `numen.move.go` 行:
-   - "调用" = 总次数(对照 before 的 200),
-   - "失败率" = 失败占比(对照 before 的 20%),
-   - "其他失败" = `no_path×N`(对照 before 的 `no_path×40`)。
-
-   失败分布(`## 失败分布`)与 `transcripts/*.jsonl` 里 `error_kind=no_path` 的事件是逐条的原始出处。
-
-3. 指标门(CI 口径)跑:
-
-   ```bash
-   ./gradlew --no-daemon -q :bench:metricGate -Presults=core/neoforge/runs/bench/results/<时间戳>
-   ```
-
-   门只卡五项(见 `bench/metrics-thresholds.json`):成功率、pass^k、命令出错率、轮数、墙钟;`no_path` 本身不在门槛里,
-   但它计入"命令出错率",而且换搜索后应表现为 `numen.move.go` 的失败率与 `no_path` 条数一起降。所以**对比两份结果**时:
-   `:bench:metricGate` 看有没有整体退步,`summary.md` 的函数表看 `numen.move.go` 有没有具体变好。
-   要前后并排对比两条真实结果:
-
-   ```bash
-   ./gradlew --no-daemon -q :bench:compare \
-     -Pbefore=core/neoforge/runs/bench/results/<接线前> \
-     -Pafter=core/neoforge/runs/bench/results/<接线后>
-   ```
-
-   对比报告会按场景配对算成功率差、并按函数并排前后两份。
-
-4. 当前已知的 before 基线(20261006-132531):`numen.move.go` 200 次、20% 失败、`no_path×40`。接线后以此为对照。
+`no_path` 是工具结果里的 `error_kind`,原先靠 `bench/` 的真模型评测(每个函数表、`runs.jsonl`/`transcripts`)逐条读出来。
+`bench/` 评测已随本轮清理移除,刻画口径留作历史记录;接线后的对照数据需另行采集。当前已知的 before 基线(20261006-132531):
+`numen.move.go` 200 次、20% 失败、`no_path×40`。
 
 ## 五、边界
 

@@ -1,7 +1,0 @@
-{
-  "provider": "deepseek",
-  "model": "deepseek-v4-flash",
-  "base_url": "https://api.deepseek.com/beta",
-  "reasoning": "",
-  "api_key": ""
-}

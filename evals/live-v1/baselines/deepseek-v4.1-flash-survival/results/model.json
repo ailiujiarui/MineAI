@@ -1,6 +1,0 @@
-{
-  "provider": "deepseek",
-  "model": "deepseek-v4.1-flash",
-  "context_window": 1000000,
-  "reasoning_effort": ""
-}

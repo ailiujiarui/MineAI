@@ -6,7 +6,7 @@
 
 ## 一、为什么
 
-真模型评测的基线(`docs/bench.md`,`20261001-baseline`)里,命令写错是最常见的问题,连成功的局里也有:
+早先真模型评测的基线(`20261001-baseline`)里,命令写错是最常见的问题,连成功的局里也有:
 `work_dig` 的位置写成一整串 `"x y z"`(挖掘类 12 局里 8 局)、`fight attack 27 26` 漏了 `--entity_ids`(3/3)、
 `use block x y z` 漏了左右键(3/3)、`inv drop` 漏了数量。她是照 bash 的习惯写的,是我们的写法不像 bash。另一面,
 `work dig`、`build at` 这类胖命令在执行里替她做决定(下一格挖哪个、为够到它多挖哪些),违背总纲。
@@ -700,8 +700,7 @@ public static Pending<Switched> task(ServerCall call, Task args) {
 文字——长过 `ScriptLimits.CALL_TEXT_CHARS` 的留头部加摘要——第一个文字对象与失败的种类),经 `ScriptCall.Called` → `ToolPort.Sink.called` →
 `LoopEvent.ApiCalled` 报给循环;评测的 `Meter` 按函数记:调了几次、失败的各是哪一种(尤其 `bad_argument`)、第一次调它之前 `numen.api.help`
 查过几次它(或它的组、名字空间)、和之前一字不差又失败了几次。每次运行写进 `runs.jsonl` 的 `functions`;`summary.md` 有"每个函数"
-一张表,`Compare` 把前后两份按函数并排(调用、失败率、参数错率、查帮助/调用)。插件作者给自己的函数打分:用 `Bench.suite` 登记自己的
-场景,看这张表。
+一张表。插件作者给自己的函数打分:登记自己的场景,看这张表。
 
 ## 十四、程序整段在服务端跑,客户端想、服务端做(10-05)
 

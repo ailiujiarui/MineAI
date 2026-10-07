@@ -1,6 +1,0 @@
-{
-  "provider": "openai",
-  "model": "scripted-loopback-fixture",
-  "context_window": 64000,
-  "reasoning_effort": null
-}
