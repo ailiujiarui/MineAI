@@ -5,7 +5,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.ScreenEffectRenderer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluid;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -36,41 +35,5 @@ public abstract class SpectatorScreenEffectMixin {
             target = "Lnet/minecraft/client/player/LocalPlayer;isOnFire()Z"))
     private static boolean numen$targetFire(LocalPlayer owner) {
         return SpectatorClient.target() == null ? owner.isOnFire() : SpectatorClient.target().isOnFire();
-    }
-
-    @Redirect(method = {"renderWater", "renderFluid"}, at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/player/LocalPlayer;getX()D"))
-    private static double numen$waterX(LocalPlayer owner) {
-        return SpectatorClient.target() == null ? owner.getX() : SpectatorClient.target().getX();
-    }
-
-    @Redirect(method = {"renderWater", "renderFluid"}, at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/player/LocalPlayer;getEyeY()D"))
-    private static double numen$waterEyeY(LocalPlayer owner) {
-        return SpectatorClient.target() == null ? owner.getEyeY() : SpectatorClient.target().getEyeY();
-    }
-
-    @Redirect(method = {"renderWater", "renderFluid"}, at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/player/LocalPlayer;getZ()D"))
-    private static double numen$waterZ(LocalPlayer owner) {
-        return SpectatorClient.target() == null ? owner.getZ() : SpectatorClient.target().getZ();
-    }
-
-    @Redirect(method = {"renderWater", "renderFluid"}, at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/player/LocalPlayer;level()Lnet/minecraft/world/level/Level;"))
-    private static Level numen$waterLevel(LocalPlayer owner) {
-        return SpectatorClient.target() == null ? owner.level() : SpectatorClient.target().level();
-    }
-
-    @Redirect(method = {"renderWater", "renderFluid"}, at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/player/LocalPlayer;getYRot()F"))
-    private static float numen$waterYaw(LocalPlayer owner) {
-        return SpectatorClient.target() == null ? owner.getYRot() : SpectatorClient.target().getYRot();
-    }
-
-    @Redirect(method = {"renderWater", "renderFluid"}, at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/player/LocalPlayer;getXRot()F"))
-    private static float numen$waterPitch(LocalPlayer owner) {
-        return SpectatorClient.target() == null ? owner.getXRot() : SpectatorClient.target().getXRot();
     }
 }
