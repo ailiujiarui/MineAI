@@ -62,6 +62,21 @@ test {
     useJUnitPlatform()
 }
 
+// 独立实测入口:每次保留一份原始 JSONL,不参与普通单测的计时。
+tasks.register('sandboxMeasurement', JavaExec) {
+    group = 'verification'
+    description = '重复测量 Lua 沙箱边界与正常对照,原始数据写入 build/sandbox-measurements'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.dwinovo.lua.LuaSandboxMeasurement'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    maxHeapSize = '256m'
+    timeout = Duration.ofMinutes(2)
+    args layout.buildDirectory.dir('sandbox-measurements').get().asFile.absolutePath
+}
+
 publishing {
     publications {
         register('mavenJava', MavenPublication) {

@@ -1,0 +1,13 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "LGPL-3.0"
+[[mods]]
+modId = "numen_experiment"
+version = "1"
+displayName = "Numen isolated measurements"
+[[dependencies.numen_experiment]]
+modId = "numen"
+type = "required"
+versionRange = "[0.0,)"
+ordering = "AFTER"
+side = "SERVER"
