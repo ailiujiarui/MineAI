@@ -64,6 +64,7 @@ public abstract class MixinServerCommonPacketListener {
         // 这里是玩家连接唯一的下行出口,所以也是唯一该看的地方。
         if ((Object) this instanceof ServerGamePacketListenerImpl game
                 && game.getPlayer() instanceof NumenPlayer companion) {
+            com.dwinovo.numen.spectator.SpectatorMenuBridge.onOutbound(companion, packet);
             companion.fakeClient().onOutbound(packet);
         }
         ci.cancel();

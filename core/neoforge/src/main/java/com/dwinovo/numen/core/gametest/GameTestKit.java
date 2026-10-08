@@ -404,6 +404,11 @@ public final class GameTestKit {
             return last == null ? null : last.outcome();
         }
 
+        /** 收场那一步的失败分类,与模型收到的回执一致。 */
+        String kind() {
+            return last == null ? null : last.kind();
+        }
+
         /** 收场那一步当场的回执:受理的"已受理"或拒收的原因;还没收场是 null。 */
         String reply() {
             return last == null ? null : last.reply();
@@ -525,7 +530,7 @@ public final class GameTestKit {
     }
 
     /**
-     * 让主人"在场":一个玩家站到场地角上,认作她的主人。登记处只认主人在不在线——不在就当场按拒绝,答不答复就无从测起。
+     * 让主人"在场":一个玩家站到场地角上,认作她的主人。登记处只认主人在不在线——不在就当场悬而未决,答不答复就无从测起。
      * 答复由用例直接调登记处,等于主人在卡片上按了键。用完经 {@link #leave} 离开。
      */
     static net.minecraft.server.level.ServerPlayer presentOwner(GameTestHelper helper, NumenPlayer companion,

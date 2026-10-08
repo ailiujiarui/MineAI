@@ -74,8 +74,9 @@ public record SummonRequestPayload(String name, String skinValue, String skinSig
                 : new com.dwinovo.numen.entity.MojangSkins.Skin(value,
                         p.skinSig() == null ? "" : p.skinSig());
         try {
-            ServerLevel level = (ServerLevel) owner.level();
-            var body = Companions.summon(server, owner.getUUID(), name, level, owner.position(), skin);
+            var location = com.dwinovo.numen.spectator.OwnerLocation.of(owner);
+            ServerLevel level = location.level();
+            var body = Companions.summon(server, owner.getUUID(), name, level, location.position(), skin);
             Companions.applyGameMode(owner, body, p.creative());
             Companions.syncRosterToOwner(server, owner);   // push the new roster to the owner
         } finally {

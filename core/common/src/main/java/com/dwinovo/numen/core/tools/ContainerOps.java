@@ -5,6 +5,7 @@ import com.dwinovo.numen.core.act.MenuOrigin;
 import com.dwinovo.numen.core.task.inventory.TransferTaskRecord;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.permission.Action;
+import com.dwinovo.numen.spectator.SpectatorMenuBridge;
 import com.dwinovo.numen.task.TaskRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -91,7 +92,7 @@ public final class ContainerOps {
         if (to != null && (to < 0 || to > max)) {
             return "to slot " + to + " OUT OF RANGE (0.." + max + ") — skipped; numen.gui.view() shows the indices.";
         }
-        try {
+        try (var display = SpectatorMenuBridge.menuAction(self)) {
             return to == null ? route(menu, self, from) : place(menu, self, from, to, count);
         } catch (RuntimeException ex) {
             return "slot " + from + " — ERROR: " + ex.getMessage();
@@ -113,6 +114,7 @@ public final class ContainerOps {
             return "slot " + from + " is empty — nothing to move.";
         }
         menu.clicked(from, 0, ClickType.QUICK_MOVE, entity);
+        SpectatorMenuBridge.captureActionStep(entity);
         ItemStack after = menu.slots.get(from).getItem();
         int moved = before.getCount() - (sameItem(before, after) ? after.getCount() : 0);
         if (moved <= 0) {
@@ -148,9 +150,12 @@ public final class ContainerOps {
             MenuOps.dripInto(menu, entity, from, to, want);
         } else {
             menu.clicked(from, 0, ClickType.PICKUP, entity);          // grab the stack
+            SpectatorMenuBridge.captureActionStep(entity);
             menu.clicked(to, 0, ClickType.PICKUP, entity);            // place / merge / swap
+            SpectatorMenuBridge.captureActionStep(entity);
             if (!menu.getCarried().isEmpty()) {
                 menu.clicked(from, 0, ClickType.PICKUP, entity);      // settle leftover / swapped item back
+                SpectatorMenuBridge.captureActionStep(entity);
             }
         }
 

@@ -31,6 +31,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * 而宿主不许动背包;搭桥后手上的武器还在。
  *
  * <p>场景都是两块基岩台子中间一道四格宽的沟(沟挖不动、跳下去摔不起),过沟只能搭桥。
+ * 失败诊断还要在工作线程上换条件再搜,这些用例经 {@link Trial.Run#paced} 给每刻定节奏,
+ * 让不限速测试服的三百刻给搜索留下墙钟时间,导航与 GameTest 的原刻数期限照旧。
  */
 @GameTestHolder("numen")
 @PrefixGameTestTemplate(false)
@@ -74,7 +76,7 @@ public class MaterialGameTests {
     public static void reports_no_materials(GameTestHelper helper) {
         Trial t = ditch(helper);
         TestBody body = t.body(6, 5, 5);
-        t.go(body, Goals.at(t.at(17, 5, 5)), NATURAL).within(300).fails(Outcome.NoMaterials.class)
+        t.go(body, Goals.at(t.at(17, 5, 5)), NATURAL).within(300).paced(5).fails(Outcome.NoMaterials.class)
                 .then(Scenes::unaltered);
     }
 
@@ -85,10 +87,10 @@ public class MaterialGameTests {
         TestBody carrying = t.body(6, 5, 5);
         Trial.give(carrying, new ItemStack(Items.COBBLESTONE, 16));
         t.materials = Trial.carried(carrying, Blocks.COBBLESTONE);
-        t.go(carrying, Goals.at(t.at(17, 5, 5)), RouteSpec.defaults()).within(300).fails(Outcome.NeedsChanges.class);
+        t.go(carrying, Goals.at(t.at(17, 5, 5)), RouteSpec.defaults()).within(300).paced(5).fails(Outcome.NeedsChanges.class);
         TestBody empty = t.body(6, 5, 20);
         t.materials = Materials.NONE;
-        t.go(empty, Goals.at(t.at(17, 5, 20)), RouteSpec.defaults()).within(300).fails(Outcome.NeedsChanges.class);
+        t.go(empty, Goals.at(t.at(17, 5, 20)), RouteSpec.defaults()).within(300).paced(5).fails(Outcome.NeedsChanges.class);
     }
 
     /** 创造模式、背包空着:照料清单的第一种凭空取一叠搭桥,身体动作里记下取料。 */
@@ -206,7 +208,7 @@ public class MaterialGameTests {
             }
             return Optional.empty();
         };
-        t.go(body, Goals.at(t.at(17, 5, 5)), NATURAL).within(300).fails(Outcome.NoMaterials.class)
+        t.go(body, Goals.at(t.at(17, 5, 5)), NATURAL).within(300).paced(5).fails(Outcome.NoMaterials.class)
                 .then(Scenes::unaltered);
     }
 }

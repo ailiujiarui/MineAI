@@ -10,6 +10,7 @@ import com.dwinovo.numen.core.task.move.FollowTaskRecord;
 import com.dwinovo.numen.core.task.move.MoveToCompanionTask;
 import com.dwinovo.numen.core.task.move.MoveToTaskRecord;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.spectator.OwnerLocation;
 import com.dwinovo.numen.sdk.Doc;
 import com.dwinovo.numen.sdk.EntityRef;
 import com.dwinovo.numen.sdk.Example;
@@ -115,7 +116,16 @@ public final class MoveApi {
         if (args.entity().isEmpty()) {
             return Job.of(new FollowTaskRecord(call, distance, null, null, ticks));
         }
-        Entity target = call.entity(args.entity().get());
+        EntityRef ref = args.entity().get();
+        var owner = call.her().resolveOwnerPlayer();
+        boolean namedOwner = owner != null && (owner.getUUID().equals(ref.uuid())
+                || ref.id() != null && owner.getId() == ref.id());
+        // 主人的逻辑站位与摄像机实体可以在不同维度;只跟原站位所在的那一层。
+        if (namedOwner && OwnerLocation.of(owner).level() != call.her().serverLevel()) {
+            throw new ApiError(ErrorKind.NOT_FOUND, "your owner is in a different dimension",
+                    com.dwinovo.numen.sdk.Call.of("numen.status.owner"));
+        }
+        Entity target = namedOwner ? owner : call.entity(ref);
         return Job.<FollowCompanionTask.Followed>of(
                         new FollowTaskRecord(call, distance, target.getUUID(), target.getName().getString(), ticks))
                 .replayedAs(new Follow(Optional.of(EntityRef.of(target)), args.distance(), args.seconds()));

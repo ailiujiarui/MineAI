@@ -22,8 +22,10 @@ public final class SpeakingLookChain implements Task, Reflex {
     public boolean canRun(NumenPlayer companion) {
         if (!CompanionSpeech.isSpeaking(companion.getUUID())) return false;
         ServerPlayer owner = companion.resolveOwnerPlayer();
-        return owner != null && owner.level() == companion.level()
-                && companion.blockPosition().closerThan(owner.blockPosition(), LOOK_RANGE);
+        if (owner == null) return false;
+        var location = com.dwinovo.numen.spectator.OwnerLocation.of(owner);
+        return location.level() == companion.level()
+                && companion.blockPosition().closerThan(location.blockPosition(), LOOK_RANGE);
     }
 
     @Override
@@ -31,7 +33,7 @@ public final class SpeakingLookChain implements Task, Reflex {
         ServerPlayer owner = companion.resolveOwnerPlayer();
         if (owner == null) return TaskState.RUNNING;
         companion.controls().stop();
-        InputDriver.lookAt(companion, owner.getEyePosition());
+        InputDriver.lookAt(companion, com.dwinovo.numen.spectator.OwnerLocation.of(owner).eyePosition());
         return TaskState.RUNNING;
     }
 

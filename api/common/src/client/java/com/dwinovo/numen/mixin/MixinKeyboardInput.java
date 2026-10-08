@@ -25,6 +25,12 @@ public abstract class MixinKeyboardInput extends Input {
     private void numen$wheelMovement(boolean isSneaking, float sneakingSpeedMultiplier,
                                      CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null && mc.player.input == (Object) this
+                && com.dwinovo.numen.client.spectator.SpectatorClient.active()) {
+            forwardImpulse = leftImpulse = 0F;
+            up = down = left = right = jumping = shiftKeyDown = false;
+            return;
+        }
         // 只喂本地玩家的真输入:Freecam 之类会给玩家换假输入对象,别喂错人
         if (mc.player != null && mc.player.input == (Object) this
                 && mc.screen instanceof CompanionWheelScreen) {

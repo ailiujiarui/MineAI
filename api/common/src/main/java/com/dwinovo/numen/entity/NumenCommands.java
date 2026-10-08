@@ -177,9 +177,10 @@ public final class NumenCommands {
     private static int summon(CommandContext<CommandSourceStack> ctx, String name)
             throws CommandSyntaxException {
         ServerPlayer owner = ctx.getSource().getPlayerOrException();
-        ServerLevel level = (ServerLevel) owner.level();
+        var location = com.dwinovo.numen.spectator.OwnerLocation.of(owner);
+        ServerLevel level = location.level();
         NumenPlayer body = Companions.summon(
-                level.getServer(), owner.getUUID(), name, level, owner.position());
+                level.getServer(), owner.getUUID(), name, level, location.position());
         // Push the updated roster so the owner's G panel can reach the new companion.
         Companions.syncRosterToOwner(level.getServer(), owner);
         ctx.getSource().sendSuccess(() ->

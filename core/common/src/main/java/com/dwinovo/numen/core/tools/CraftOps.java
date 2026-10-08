@@ -4,6 +4,7 @@ import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.core.PlayerInv;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.spectator.SpectatorMenuBridge;
 import com.dwinovo.numen.sdk.Doc;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -86,73 +87,79 @@ public final class CraftOps {
                     + "crafting grid — numen.gui.close() it to craft in your own 2x2, or numen.use.block a crafting "
                     + "table", null);
         }
-        // 先把搁在格子里的收回来,再数料
-        sweepGrid(menu, self, grid);
-        List<Ingredient> ings = ingredientsOf(recipe);
-        Map<Item, Integer> pool = poolOf(menu, self);
-        if (feasibleBatch(ings, pool, 1) == 0) {
-            throw new ApiError(ErrorKind.NO_MATERIAL, "not enough materials for " + name + " — missing: "
-                    + String.join(", ", missingFor(ings, pool)), null, Map.of("missing", missingFor(ings, pool)));
-        }
-        if (!fits(recipe, grid.w(), grid.h())) {
-            throw new ApiError(ErrorKind.FAILED, name + " needs a " + gridOf(recipe) + "x" + gridOf(recipe) + " grid; "
-                    + "the open one is " + grid.w() + "x" + grid.h() + " — numen.use.block a crafting table, then "
-                    + "craft again (numen.inv.make finds one and opens it)", null);
-        }
-        if (!settleCarried(menu, self)) {
-            throw new ApiError(ErrorKind.FAILED, "the cursor is holding items and no inventory slot is free to put "
-                    + "them down — free a slot first (numen.inv.drop).", null);
-        }
-
-        Map<Item, Integer> before = poolOf(menu, self);
-        int output = Math.max(1, result.getCount());
-        int batch = feasibleBatch(ings, before, Math.min(Math.ceilDiv(want, output), MAX_BATCH));
-        // Lay out the batch: per cell, the matching inventory item with the deepest supply.
-        Map<Item, Integer> sim = new HashMap<>(before);
-        for (Placement pl : placements(recipe, grid.w())) {
-            Item pick = pickItem(pl.ing(), sim);
-            int cellIdx = pick == null ? -1 : grid.cells()[pl.gridPos()];
-            if (cellIdx < 0 || placeIntoCell(menu, self, cellIdx, pick, pl.ing(), batch) < batch) {
-                sweepGrid(menu, self, grid);
-                throw new ApiError(ErrorKind.FAILED, "couldn't lay " + name + " out in the grid: a cell took fewer "
-                        + "items than the recipe needs", null);
-            }
-            sim.merge(pick, -batch, Integer::sum);
-        }
-        // 摆完就自己要一次重算,不等 slotsChanged。那是个可被覆写的触发器:把重算推迟到
-        // 之后 server tick 的模组覆写的正是它,于是这一刻读到的结果槽还是空的(#110)。
-        // 结果槽只有原版那一趟写,这里直接要它算,对原版和那类模组都成立。
-        recompute(menu, grid, self, holder);
-        if (menu.slots.get(grid.result()).getItem().isEmpty()) {
+        if (menu == self.inventoryMenu) SpectatorMenuBridge.beginInventory(self);
+        try {
+            // 先把搁在格子里的收回来,再数料
             sweepGrid(menu, self, grid);
-            throw new ApiError(ErrorKind.FAILED, "the laid-out grid doesn't form " + name + " (another mod overrides "
-                    + "this grid?)", null);
-        }
-        int have0 = PlayerInv.count(self.getInventory(), target);
-        menu.clicked(grid.result(), 0, ClickType.QUICK_MOVE, self);   // vanilla mass-craft + onTake
-        self.swing(InteractionHand.MAIN_HAND);
-        sweepGrid(menu, self, grid);
-        int crafted = PlayerInv.count(self.getInventory(), target) - have0;
-        if (crafted <= 0) {
-            throw new ApiError(ErrorKind.FAILED, "crafted nothing — your inventory is full and the result doesn't "
-                    + "fit.", null);
-        }
-
-        // Report material flow as inventory deltas (covers remainders like buckets coming back).
-        Map<Item, Integer> after = poolOf(menu, self);
-        List<String> used = new ArrayList<>();
-        List<String> back = new ArrayList<>();
-        for (Item item : new TreeSet<>(union(before, after))) {
-            int delta = after.getOrDefault(item, 0) - before.getOrDefault(item, 0);
-            String path = BuiltInRegistries.ITEM.getKey(item).getPath();
-            if (delta < 0) {
-                used.add((-delta) + "x " + path);
-            } else if (delta > 0 && item != target) {
-                back.add(delta + "x " + path);
+            List<Ingredient> ings = ingredientsOf(recipe);
+            Map<Item, Integer> pool = poolOf(menu, self);
+            if (feasibleBatch(ings, pool, 1) == 0) {
+                throw new ApiError(ErrorKind.NO_MATERIAL, "not enough materials for " + name + " — missing: "
+                        + String.join(", ", missingFor(ings, pool)), null, Map.of("missing", missingFor(ings, pool)));
             }
+            if (!fits(recipe, grid.w(), grid.h())) {
+                throw new ApiError(ErrorKind.FAILED, name + " needs a " + gridOf(recipe) + "x" + gridOf(recipe) + " grid; "
+                        + "the open one is " + grid.w() + "x" + grid.h() + " — numen.use.block a crafting table, then "
+                        + "craft again (numen.inv.make finds one and opens it)", null);
+            }
+            if (!settleCarried(menu, self)) {
+                throw new ApiError(ErrorKind.FAILED, "the cursor is holding items and no inventory slot is free to put "
+                        + "them down — free a slot first (numen.inv.drop).", null);
+            }
+
+            Map<Item, Integer> before = poolOf(menu, self);
+            int output = Math.max(1, result.getCount());
+            int batch = feasibleBatch(ings, before, Math.min(Math.ceilDiv(want, output), MAX_BATCH));
+            // Lay out the batch: per cell, the matching inventory item with the deepest supply.
+            Map<Item, Integer> sim = new HashMap<>(before);
+            for (Placement pl : placements(recipe, grid.w())) {
+                Item pick = pickItem(pl.ing(), sim);
+                int cellIdx = pick == null ? -1 : grid.cells()[pl.gridPos()];
+                if (cellIdx < 0 || placeIntoCell(menu, self, cellIdx, pick, pl.ing(), batch) < batch) {
+                    sweepGrid(menu, self, grid);
+                    throw new ApiError(ErrorKind.FAILED, "couldn't lay " + name + " out in the grid: a cell took fewer "
+                            + "items than the recipe needs", null);
+                }
+                sim.merge(pick, -batch, Integer::sum);
+            }
+            // 摆完就自己要一次重算,不等 slotsChanged。那是个可被覆写的触发器:把重算推迟到
+            // 之后 server tick 的模组覆写的正是它,于是这一刻读到的结果槽还是空的(#110)。
+            // 结果槽只有原版那一趟写,这里直接要它算,对原版和那类模组都成立。
+            recompute(menu, grid, self, holder);
+            if (menu.slots.get(grid.result()).getItem().isEmpty()) {
+                sweepGrid(menu, self, grid);
+                throw new ApiError(ErrorKind.FAILED, "the laid-out grid doesn't form " + name + " (another mod overrides "
+                        + "this grid?)", null);
+            }
+            SpectatorMenuBridge.captureRecipe(self, menu);
+            int have0 = PlayerInv.count(self.getInventory(), target);
+            menu.clicked(grid.result(), 0, ClickType.QUICK_MOVE, self);   // vanilla mass-craft + onTake
+            self.swing(InteractionHand.MAIN_HAND);
+            sweepGrid(menu, self, grid);
+            int crafted = PlayerInv.count(self.getInventory(), target) - have0;
+            if (crafted <= 0) {
+                throw new ApiError(ErrorKind.FAILED, "crafted nothing — your inventory is full and the result doesn't "
+                        + "fit.", null);
+            }
+
+            // Report material flow as inventory deltas (covers remainders like buckets coming back).
+            Map<Item, Integer> after = poolOf(menu, self);
+            List<String> used = new ArrayList<>();
+            List<String> back = new ArrayList<>();
+            for (Item item : new TreeSet<>(union(before, after))) {
+                int delta = after.getOrDefault(item, 0) - before.getOrDefault(item, 0);
+                String path = BuiltInRegistries.ITEM.getKey(item).getPath();
+                if (delta < 0) {
+                    used.add((-delta) + "x " + path);
+                } else if (delta > 0 && item != target) {
+                    back.add(delta + "x " + path);
+                }
+            }
+            return new Crafted(crafted, PlayerInv.count(self.getInventory(), target), used, back,
+                    feasibleBatch(ings, after, 1) > 0);
+        } finally {
+            if (menu == self.inventoryMenu) SpectatorMenuBridge.endInventory(self);
         }
-        return new Crafted(crafted, PlayerInv.count(self.getInventory(), target), used, back,
-                feasibleBatch(ings, after, 1) > 0);
     }
 
     /** {@code numen.inv.craftable}:她背着的料现在合得出的每一条合成配方。 */

@@ -302,10 +302,11 @@ public final class Companions {
      *  a death loop until the owner happened to move. */
     private static boolean respawnDead(MinecraftServer server, UUID uuid, CompanionRegistry.Entry entry,
                                        ServerPlayer owner) {
-        ServerLevel level = (ServerLevel) owner.level();
-        Vec3 pos = SafeSpawn.findNear(level, owner.position());
-        if (pos == null && owner.onGround() && SafeSpawn.hasStandingRoom(level, owner.position())) {
-            pos = owner.position();   // non-full-block floor (slab/carpet): the owner's own spot fits
+        var location = com.dwinovo.numen.spectator.OwnerLocation.of(owner);
+        ServerLevel level = location.level();
+        Vec3 pos = SafeSpawn.findNear(level, location.position());
+        if (pos == null && location.onGround() && SafeSpawn.hasStandingRoom(level, location.position())) {
+            pos = location.position();   // non-full-block floor (slab/carpet): the owner's own spot fits
         }
         if (pos == null) return false;
         NumenPlayer body = CompanionFactory.spawn(server, uuid, entry.name(), entry.owner(), level, pos);
