@@ -25,18 +25,23 @@ MineAI 是一个**运行在 Minecraft 内部的具身智能体**，作为模组�
 MineAI 是 Numen 的二开分支，跟踪上游最新架构。与上游的差别集中在“让智能体真正会用科技模组”这件事上：
 
 - 以**上游最新的 Lua 程序模型**为底座（模型编写在沙箱中运行的 Lua 程序，自由组合原子动作，一次调用连续完成数十个步骤）；
-- 在 `plugins/` 下补齐了面向科技整合包的联动，向外暴露成 `ae2.*` / `mekanism.*` / `jei.*` 等 Lua API；
+- 在 `plugins/` 下补齐了面向科技整合包的 **NeoForge 联动**，向外暴露成 `ae2.*` / `mekanism.*` / `jei.*` 等 Lua API；
 - 增加了确定性的**自验证**能力与**离线知识库**，让智能体在下结论前先量真实世界。
 
 上游的通用能力、安装方式与完整架构说明，请见 [Numen 官网](https://numen.dwinovo.cn)。
 
 ## 安装
 
-MineAI 目前面向 **Minecraft 1.21.1（Fabric / NeoForge，Java 21）**。从本仓库的构建产物安装：
+MineAI 目前面向 **Minecraft 1.21.1（Fabric / NeoForge，Java 21）**。从本仓库的 [GitHub Releases](../../releases) 下载对应 loader 的 `mineai-<版本>-<loader>-1.21.1.jar`，放入整合包的 `mods/`。科技整合包联动请选择 **NeoForge**；Fabric 当前只内嵌 YSM 联动。
 
-1. 用 Java 21 构建：`./gradlew :core:neoforge:build`（或 `:core:fabric:build`）；
-2. 把 `core/neoforge/build/libs/` 下生成的 jar 放进整合包的 `mods/`；
-3. 若目标模组（AE2、Mekanism、JEI 等）已安装，对应联动会自动接上；不装也不影响本体。
+自行构建玩家发行包时，用 Java 21 **分两次**运行：
+
+```bash
+./gradlew datagenAll --no-daemon
+./gradlew releaseJars --no-daemon
+```
+
+从 `build/release/fabric/` 或 `build/release/neoforge/` 取对应 jar。目标模组在场且对应 loader 支持时，联动自动装载；未安装目标模组不影响本体。发行文件名使用 MineAI，内部 `mod_id`（`numen` / `numen_api`）、API 包名与 Lua 命名空间仍保留 Numen。
 
 > 智能体的推理发生在你自己的客户端上，API key 只保存在本地。联机时服务端与客户端都需安装。
 
@@ -64,11 +69,15 @@ MineAI 目前面向 **Minecraft 1.21.1（Fabric / NeoForge，Java 21）**。从�
 
 以下联动在目标模组在场时自动装载，全部以上游的 **Lua API 组**形式暴露给模型（脚本里是 `组.函数(...)`）：
 
-| 模组 | Lua 命名空间 | 能力 |
-|---|---|---|
-| **Applied Energistics 2** | `ae2.network` / `ae2.config` / `ae2.pattern` / `ae2.craft` | 读 ME 网络（频道/控制器/电量/设备）、读写机器与线缆 part 的服务端配置、在模式编码终端编样板、向合成 CPU 下单并查询进度 |
-| **Mekanism** | `mekanism.machine` | 读机器状态、逐面传输配置、化学品罐与热量 |
-| **JEI** | `jei.recipe` | 查询物品的配方（产物/用途/催化剂） |
+| 模组 | Fabric 1.21.1 | NeoForge 1.21.1 | Lua 命名空间 / 能力 |
+|---|---|---|---|
+| **Yes Steve Model（YSM）** | 支持 | 支持 | 模型联动 |
+| **Applied Energistics 2** | 未接入 | 支持 | `ae2.network` / `ae2.config` / `ae2.pattern` / `ae2.craft`：读 ME 网络（频道/控制器/电量/设备）、读写机器与线缆 part 的服务端配置、在模式编码终端编样板、向合成 CPU 下单并查询进度 |
+| **Mekanism** | 未接入 | 支持（只读） | `mekanism.machine.inspect`：读取机器状态、逐面传输配置、化学品罐与热量；不能修改机器侧配置 |
+| **JEI** | 未接入 | 支持 | `jei.recipe`：查询物品的配方（产物/用途/催化剂） |
+| **车万女仆、Curios、FTB Quests、森罗物语** | 未接入 | 支持 | 随 NeoForge 发行包内嵌的其他联动 |
+
+上表描述本仓库已接入的联动，不代表目标模组本身的 loader 支持范围。Fabric 当前只有 YSM 联动，不包含 AE2、Mekanism、JEI 等科技联动。
 
 本体自带、不依赖任何模组的能力：
 
@@ -93,7 +102,21 @@ MineAI 目前面向 **Minecraft 1.21.1（Fabric / NeoForge，Java 21）**。从�
 
 任何开发者都可以通过插件向智能体注册新的 Lua API，让它学会使用其他模组。本仓库 `plugins/` 下既有继承自
 上游的联动（是，史蒂夫模型、车万女仆、Curios、FTB Quests、森罗物语等），也有本仓库新增的科技模组联动，
-可作为编写插件的参考模板。
+可作为编写插件的参考模板。实际发行包中的 loader 支持范围见上表。
+
+## 发版
+
+`Build` 对 `main` 与 `1.21.1` 的 push 和 PR 做编译、数据生成与 JVM 测试回归。`Publish` 仅支持手动触发，必须选与 `gradle.properties` 中 `minecraft_version` 一致的 MC 版本分支（本分支为 `1.21.1`）；`main` 不能发版，并要求被发布提交已有成功的 `Build`。
+
+在 Actions 页面选择 `Publish`，或使用 GitHub CLI：
+
+```bash
+gh workflow run publish.yml --ref 1.21.1 -f channel=beta
+```
+
+`channel=beta` 创建预发布，`channel=release` 创建正式 GitHub Release。发布链为 `datagenAll` → `releaseJars` → 保存产物并打 tag → GitHub Release，仅使用本仓库内置 `GITHUB_TOKEN`（需允许 Actions 写入 contents），无需额外发布 secrets，不发布 Maven、Modrinth 或 CurseForge。
+
+版本唯一来源是 `gradle.properties` 的 `version`。Tag 为 `v<版本>-<MC>-beta` 或正式版的 `v<版本>-<MC>`；同一版本与 MC 组合只允许发布一次，beta 后不能用同版号再发 release。已有 tag 时应更新版本后发新版；若原运行中途失败，应在原运行选择 **Re-run failed jobs**。
 
 ## 常见问题
 

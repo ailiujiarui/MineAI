@@ -90,7 +90,11 @@ tasks.register('releaseJars', Sync) {
         forge   : { p -> p.tasks.getByName('jarJar') },
     ]
     ['fabric', secondLoader].each { loader ->
-        from({ shipped[loader](project(":core:${loader}")) }) { into loader }
+        from({ shipped[loader](project(":core:${loader}")) }) {
+            into loader
+            // 只在玩家发行资产边界命名 MineAI;内部模块身份与 API 坐标仍是 Numen。
+            rename { "mineai-${project.version}-${loader}-${minecraft_version}.jar" }
+        }
     }
     // Forge 的成品还要过一道 reobf(official 名换成 SRG 名),它原地改写 jarJar 的产物,
     // 由 build 挂上、不是 jarJar 自己的一步。这里明确等它:只依赖 jarJar 的话,拷走的是
