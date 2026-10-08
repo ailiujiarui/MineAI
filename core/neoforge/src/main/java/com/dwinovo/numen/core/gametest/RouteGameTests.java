@@ -47,6 +47,146 @@ public class RouteGameTests {
     /** 许挖许放、要问主人的格当墙。 */
     private static final String DIGGING = "costs = {dig = true, place = true, consent = false}";
 
+    /** 普通 Lua 附加的承诺和目标都不可信,即使程序名声称 restored 也只采纳服务端计划。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
+    public static void lua_commit_cannot_widen_the_promise_or_change_the_saved_goal(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        BlockPos spawn = helper.absolutePos(new BlockPos(2, 2, 7));
+        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 7));
+        NumenPlayer body = com.dwinovo.numen.entity.Companions.summon(server, java.util.UUID.randomUUID(),
+                "gametest_untrusted_commit", level, Vec3.atBottomCenterOf(spawn));
+        String code = "local p = numen.route.plan({to = " + xyz(target) + "})\n"
+                + "p.commit = {spec = {to = {x = 9000, y = 64, z = 0}}, first = 50, "
+                + "digs = {{pos = " + xyz(spawn) + ", block = 'minecraft:stone'}}}\nnumen.move.go(p)";
+        com.dwinovo.numen.program.ServerPrograms.launch(body, "restored-numen.move.go", code,
+                new com.dwinovo.numen.program.CallObserver() {}, receipt -> { });
+        steps(helper)
+                .thenWaitUntil(() -> {
+                    var now = com.dwinovo.numen.task.CompanionTickDispatcher.currentTaskFor(body.getUUID());
+                    helper.assertTrue(now instanceof com.dwinovo.numen.core.task.move.MoveToTaskRecord r
+                                    && !r.replayed && r.commit.first() == 0 && r.commit.digs().isEmpty()
+                                    && r.commit.spec().equals(r.plan.description().written()),
+                            "Lua commit affected server task: " + now);
+                    String saved = com.dwinovo.numen.entity.CompanionRegistry.get(server).find(body.getUUID()).taskLua();
+                    helper.assertTrue(!saved.contains("9000") && !saved.contains("first = 50"),
+                            "forged goal leaked into persistence: " + saved);
+                })
+                .thenExecute(() -> com.dwinovo.numen.entity.Companions.dismiss(server, body))
+                .thenSucceed();
+    }
+
+    /** 世界身份不同的落盘配方不能接回,即使维度和地形相同。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
+    public static void restored_go_rejects_another_world_id(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        BlockPos spawn = helper.absolutePos(new BlockPos(2, 2, 7));
+        NumenPlayer first = com.dwinovo.numen.entity.Companions.summon(server, java.util.UUID.randomUUID(),
+                "gametest_wrong_world_commit", level, Vec3.atBottomCenterOf(spawn));
+        var uuid = first.getUUID();
+        var registry = com.dwinovo.numen.entity.CompanionRegistry.get(server);
+        ToolRun walk = lua(first, "numen.move.go(numen.route.plan({to = "
+                + at(helper, new BlockPos(13, 2, 7)) + "}))");
+        NumenPlayer[] second = new NumenPlayer[1];
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(walk.task() != null, "walk has not been accepted"))
+                .thenExecute(() -> {
+                    var recorded = registry.find(uuid);
+                    String foreign = recorded.taskLua().replace(registry.worldId(), java.util.UUID.randomUUID().toString());
+                    com.dwinovo.numen.entity.Companions.dormant(server, first);
+                    registry.put(uuid, registry.find(uuid).doing(recorded.taskName(), foreign));
+                    second[0] = com.dwinovo.numen.entity.Companions.respawn(server, uuid);
+                    helper.assertTrue(second[0] != null, "the body was not rebuilt");
+                })
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(registry.find(uuid).taskLua().isBlank(), "foreign recipe was not refused");
+                    helper.assertTrue(com.dwinovo.numen.task.CompanionTickDispatcher.currentTaskFor(uuid) == null,
+                            "foreign walk occupied the body");
+                })
+                .thenExecute(() -> com.dwinovo.numen.entity.Companions.dismiss(server, second[0]))
+                .thenSucceed();
+    }
+
+    /** 换维度的那一刻停止旧导航,下一 tick 经原任务结算释放征询与授权。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
+    public static void move_go_stops_when_the_body_changes_dimension(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var nether = level.getServer().getLevel(net.minecraft.world.level.Level.NETHER);
+        helper.assertTrue(nether != null, "this server has no nether");
+        nether.setChunkForced(0, 0, true);
+        NumenPlayer body = spawnAt(helper, "gametest_move_realm", new BlockPos(2, 2, 7), false);
+        ToolRun walk = lua(body, "numen.move.go(numen.route.plan({to = "
+                + at(helper, new BlockPos(13, 2, 7)) + "}))");
+        com.dwinovo.numen.task.TaskRecord[] record = new com.dwinovo.numen.task.TaskRecord[1];
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(walk.task() != null, "walk has not been accepted"))
+                .thenExecute(() -> {
+                    record[0] = com.dwinovo.numen.task.CompanionTickDispatcher.currentTaskFor(body.getUUID());
+                    body.changeDimension(new net.minecraft.world.level.portal.DimensionTransition(nether,
+                            new Vec3(0.5, 70, 0.5), Vec3.ZERO, 0, 0,
+                            net.minecraft.world.level.portal.DimensionTransition.DO_NOTHING));
+                })
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(record[0].getResult() != null, "old walk has not settled");
+                    helper.assertTrue(!record[0].getResult().success()
+                                    && record[0].getResult().message().contains("another world or dimension"),
+                            "old walk did not report its realm change: " + record[0].getResult());
+                    helper.assertTrue(com.dwinovo.numen.task.CompanionTickDispatcher.currentTaskFor(body.getUUID()) == null,
+                            "old navigation still owns the body");
+                })
+                .thenExecute(() -> {
+                    CompanionFactory.despawn(level.getServer(), body);
+                    nether.setChunkForced(0, 0, false);
+                })
+                .thenSucceed();
+    }
+
+    /** 重建身体后重新搜剩下的段:已完成的途经点不能再走回去。真实双进程重启另由实验测量。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
+    public static void restored_go_replans_remaining_stops_under_the_original_commit(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        BlockPos spawn = helper.absolutePos(new BlockPos(2, 2, 7));
+        BlockPos via = helper.absolutePos(new BlockPos(5, 2, 7));
+        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 7));
+        NumenPlayer first = com.dwinovo.numen.entity.Companions.summon(server, java.util.UUID.randomUUID(),
+                "gametest_restored_go", level, Vec3.atBottomCenterOf(spawn));
+        var uuid = first.getUUID();
+        var registry = com.dwinovo.numen.entity.CompanionRegistry.get(server);
+        ToolRun walk = lua(first, "local p = numen.route.plan({to = " + xyz(target)
+                + ", stops = {{to = " + xyz(via) + "}}})\nnumen.move.go(p)");
+        NumenPlayer[] second = new NumenPlayer[1];
+        steps(helper)
+                .thenWaitUntil(() -> {
+                    var entry = registry.find(uuid);
+                    helper.assertTrue(walk.task() != null && entry.taskLua().contains("first = 1"),
+                            "walk has not completed its first leg: " + entry.taskLua());
+                })
+                .thenExecute(() -> {
+                    var recorded = registry.find(uuid);
+                    helper.assertTrue(recorded.taskLua().contains("numen.route.plan")
+                                    && recorded.taskLua().contains("numen.move.go")
+                                    && !recorded.taskLua().contains("path ="),
+                            "saved recipe must replan, without a search path: " + recorded.taskLua());
+                    com.dwinovo.numen.entity.Companions.dormant(server, first);
+                    registry.put(uuid, registry.find(uuid).doing(recorded.taskName(), recorded.taskLua()));
+                    second[0] = com.dwinovo.numen.entity.Companions.respawn(server, uuid);
+                    helper.assertTrue(second[0] != null, "the body was not rebuilt");
+                })
+                .thenWaitUntil(() -> {
+                    var now = com.dwinovo.numen.task.CompanionTickDispatcher.currentTaskFor(uuid);
+                    helper.assertTrue(now instanceof com.dwinovo.numen.core.task.move.MoveToTaskRecord r
+                                    && r.replayed && r.plan.description().stops().size() == 1 && r.commit.first() == 1,
+                            "restored walk must keep only its remaining leg: " + now);
+                })
+                .thenWaitUntil(() -> helper.assertTrue(second[0].blockPosition().distSqr(target) <= 2
+                                && registry.find(uuid).taskLua().isBlank(),
+                        "the restored walk did not finish at the original destination"))
+                .thenExecute(() -> com.dwinovo.numen.entity.Companions.dismiss(server, second[0]))
+                .thenSucceed();
+    }
+
     /** 整段程序返回的那个值(表)。 */
     private static JsonObject returned(ToolRun run) {
         JsonElement value = run.data().get("returned");

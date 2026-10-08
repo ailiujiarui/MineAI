@@ -62,19 +62,20 @@ public final class RouteApi {
         String program = Plans.program(call.callId());
         Plans plans = Plans.of(her);
         Planning planning = Planning.of(her, plans.nextId(program), description);
+        String realm = Plans.realm(her);
         Pending<RouteText.Plan> out = Pending.create();
         Plan now = planning.poll();
         if (now != null) {
-            out.complete(planned(plans, program, now));
+            out.complete(planned(plans, program, now, realm));
             return out;
         }
-        RouteQueries.deliver(planning::poll, planning::cancel, plan -> out.complete(planned(plans, program, plan)));
+        RouteQueries.deliver(planning::poll, planning::cancel, plan -> out.complete(planned(plans, program, plan, realm)));
         return out;
     }
 
     /** 计划记下(这一段程序里 {@code numen.move.go} 照它走),交回计划本身。走不通也是一份计划,不是失败。 */
-    private static RouteText.Plan planned(Plans plans, String program, Plan plan) {
-        plans.put(program, plan);
+    private static RouteText.Plan planned(Plans plans, String program, Plan plan, String realm) {
+        plans.put(program, plan, realm);
         return RouteText.data(plan);
     }
 }

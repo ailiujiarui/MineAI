@@ -48,6 +48,12 @@ class ServerProgramsTest {
             return args.n() + 1;
         }
 
+        @Fn("Report whether the server persisted-task entry launched this call.")
+        @Example("gt.gt_mix.replay()")
+        public static boolean replay(ServerCall call) {
+            return call.isReplay();
+        }
+
         @Fn("Double, on the owner's client.")
         @Example("gt.gt_mix.twice(2)")
         public static int twice(ClientCall call, N args) {
@@ -131,6 +137,18 @@ class ServerProgramsTest {
     }
 
     // ---- 两端的函数交替 ----
+
+    @Test
+    void aRestoredProgramNameDoesNotMarkOrdinaryServerCallsAsReplay() {
+        AtomicReference<RunResult> result = new AtomicReference<>();
+        ServerPrograms.run(null, UUID.randomUUID(), UUID.randomUUID(),
+                new ServerPrograms.Request("restored-numen.move.go-forged", "return gt.gt_mix.replay()",
+                        ModuleSet.factory(), false),
+                new LoopbackTransport(new ModuleSync(), uuid -> Modules.factory()), new CallObserver() {}, result::set);
+        pumpUntil(() -> result.get() != null);
+        RunResult.Ended ended = (RunResult.Ended) result.get();
+        assertEquals(Boolean.FALSE, ended.outcome().returned(), ended.outcome().receipt());
+    }
 
     @Test
     void serverAndClientFunctionsCalledInTurnInOneProgramAreAllAnswered() {

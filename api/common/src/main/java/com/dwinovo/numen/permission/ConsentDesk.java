@@ -277,6 +277,11 @@ public final class ConsentDesk {
         return granted;
     }
 
+    /** 一次调用或任务自己获准的清单;调用期凭据只认自己的作用域。 */
+    public List<ConsentItem> granted(Object scope) {
+        return List.copyOf(grants.getOrDefault(scope, List.of()));
+    }
+
     /** 挂着的那条;没有是 null。 */
     public ConsentRequest pending() {
         return pending == null ? null : pending.request;

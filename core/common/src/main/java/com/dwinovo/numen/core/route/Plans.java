@@ -17,6 +17,7 @@ public final class Plans {
 
     private String program;
     private final Map<String, Plan> plans = new HashMap<>();
+    private final Map<String, String> realms = new HashMap<>();
     private int next;
 
     Plans() {}
@@ -30,9 +31,13 @@ public final class Plans {
      *
      * @param id 这一段程序里计划的编号
      */
-    public record Ref(String id) {
+    public record Ref(String id, java.util.Optional<Object> commit) {
 
-        /** 带 {@code id} 的那张表读成它;写回去是 {@code {id = …}}。 */
+        public Ref(String id) {
+            this(id, java.util.Optional.empty());
+        }
+
+        /** 只认 id;附加数据原样运输,内容仅在服务端可信重放调用中解码。 */
         public static final Codec<Ref> CODEC = new Codec<>() {
             @Override
             public ScriptType type() {
@@ -42,7 +47,7 @@ public final class Plans {
             @Override
             public Ref decode(Object value) {
                 if (value instanceof Map<?, ?> t && t.get("id") instanceof String id) {
-                    return new Ref(id);
+                    return new Ref(id, java.util.Optional.ofNullable(t.get("commit")));
                 }
                 throw new BadValue("expected the Plan numen.route.plan returned (it has an id); got "
                         + BadValue.given(value));
@@ -50,7 +55,10 @@ public final class Plans {
 
             @Override
             public Object encode(Ref value) {
-                return Map.of("id", value.id);
+                Map<String, Object> out = new java.util.LinkedHashMap<>();
+                out.put("id", value.id);
+                value.commit.ifPresent(c -> out.put("commit", c));
+                return out;
             }
         };
     }
@@ -66,6 +74,7 @@ public final class Plans {
         if (!program.equals(this.program)) {
             this.program = program;
             plans.clear();
+            realms.clear();
         }
         return "p" + (++next);
     }
@@ -75,6 +84,22 @@ public final class Plans {
         if (program.equals(this.program)) {
             plans.put(plan.id(), plan);
         }
+    }
+
+    public void put(String program, Plan plan, String realm) {
+        put(program, plan);
+        if (program.equals(this.program)) {
+            realms.put(plan.id(), realm);
+        }
+    }
+
+    public boolean inRealm(String id, NumenPlayer her) {
+        return realm(her).equals(realms.get(id));
+    }
+
+    public static String realm(NumenPlayer her) {
+        return com.dwinovo.numen.entity.CompanionRegistry.get(her.getServer()).worldId() + "/"
+                + her.serverLevel().dimension().location();
     }
 
     /** 这一段程序里编号为 {@code id} 的计划;别的程序的、作废了的、没有的为 null。 */

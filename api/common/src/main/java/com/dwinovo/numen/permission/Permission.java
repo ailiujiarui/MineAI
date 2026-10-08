@@ -30,6 +30,13 @@ public final class Permission {
                 PlacedBlocks.of(level), ConsentDesk.of(companion).granted(), ownerTrusted(companion));
     }
 
+    /** 延迟执行的调用按自己的授权复核;模式和规则仍取此刻的值,拒绝优先于授权。 */
+    public static Gate gateFor(NumenPlayer companion, Object scope) {
+        ServerLevel level = companion.serverLevel();
+        return new Gate(companion.getUUID(), modeOf(companion), ownerRules(companion), RuleSet.factory(),
+                PlacedBlocks.of(level), ConsentDesk.of(companion).granted(scope), ownerTrusted(companion));
+    }
+
     /** 主线程:对活世界裁决一个动作。 */
     public static Verdict judge(NumenPlayer companion, Action action) {
         return gateFor(companion).judgeLive(action, (ServerLevel) companion.level());

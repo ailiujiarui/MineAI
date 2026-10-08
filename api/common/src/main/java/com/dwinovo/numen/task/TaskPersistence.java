@@ -47,6 +47,33 @@ public final class TaskPersistence {
 
     private TaskPersistence() {}
 
+    /** 只有落盘重放入口能创建的来源凭据;绑定身体与这一段程序,不靠调用名或 Lua 参数认。 */
+    public static final class ReplaySource {
+        private final java.util.UUID companion;
+        private final String programId;
+
+        private ReplaySource(NumenPlayer her, String tag) {
+            this(her.getUUID(), tag);
+        }
+
+        private ReplaySource(java.util.UUID companion, String tag) {
+            this.companion = companion;
+            programId = tag + "-" + java.util.UUID.randomUUID();
+        }
+
+        public String programId() {
+            return programId;
+        }
+
+        public boolean matches(NumenPlayer her, String callId) {
+            return her != null && matches(her.getUUID(), callId);
+        }
+
+        public boolean matches(java.util.UUID companion, String callId) {
+            return this.companion.equals(companion) && callId.startsWith(programId + "#");
+        }
+    }
+
     /**
      * 记下她现在在做什么(换槽时调):{@code taskName} 是这件活的名字,{@code lua} 是重启后再跑的那一行。全为 null = 记为空闲;
      * 只有名字没有那一行 = 在做、但接不回来。
@@ -107,7 +134,7 @@ public final class TaskPersistence {
         // 再跑,和她写的程序走同一个入口。受理了,它干完时的 task_finished 照常送到她手里;没受理(读不通、调用被拒、准备没过)就是
         // 这件活没接回来,程序的回执说为什么
         boolean[] accepted = {false};
-        ServerPrograms.launch(companion, REPLAY_CALL_ID + "-" + taskName, left.lua(), new CallObserver() {
+        ServerPrograms.replay(companion, new ReplaySource(companion, REPLAY_CALL_ID + "-" + taskName), left.lua(), new CallObserver() {
             @Override
             public void replied(String callId, String reply) {
                 ApiReply.Parsed parsed = ApiReply.parse(reply);

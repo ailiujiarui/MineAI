@@ -19,11 +19,17 @@ public final class Job<R> {
     private final TaskRecord record;
     private final Record replay;
     private final R done;
+    private final String replayLua;
 
     private Job(TaskRecord record, Record replay, R done) {
+        this(record, replay, done, null);
+    }
+
+    private Job(TaskRecord record, Record replay, R done, String replayLua) {
         this.record = record;
         this.replay = replay;
         this.done = done;
+        this.replayLua = replayLua;
     }
 
     /** 这件活。 */
@@ -44,6 +50,15 @@ public final class Job<R> {
      */
     public Job<R> replayedAs(Record args) {
         return new Job<>(record, args, done);
+    }
+
+    /** 重建需要先取得程序内的值时,保存完整程序;仍由 ServerPrograms 的同一入口重放。 */
+    public Job<R> replayedAs(String lua) {
+        return new Job<>(record, null, done, java.util.Objects.requireNonNull(lua));
+    }
+
+    String replayLua() {
+        return replayLua;
     }
 
     /** 这件活;{@link #done} 的是 null。 */

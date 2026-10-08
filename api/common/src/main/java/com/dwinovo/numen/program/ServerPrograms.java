@@ -103,6 +103,12 @@ public final class ServerPrograms {
      */
     public static void run(NumenPlayer her, UUID companion, UUID owner, Request request, ClientTransport transport,
                            CallObserver observer, Consumer<RunResult> done) {
+        run(her, companion, owner, request, transport, observer, done, null);
+    }
+
+    private static void run(NumenPlayer her, UUID companion, UUID owner, Request request, ClientTransport transport,
+                            CallObserver observer, Consumer<RunResult> done,
+                            com.dwinovo.numen.task.TaskPersistence.ReplaySource replay) {
         RunModules.Opened opened;
         try {
             opened = RunModules.open(owner, request.modules(), CACHE);
@@ -131,7 +137,7 @@ public final class ServerPrograms {
             return;
         }
         ProgramCalls calls = new ObservedCalls(new RoutedCalls(
-                new ServerCalls(her, running.lane, job -> running.claimed = request.reportsToModel() ? job : null),
+                new ServerCalls(her, running.lane, job -> running.claimed = request.reportsToModel() ? job : null, replay),
                 client), observer);
         Constants.LOG.info("[numen-program] {} runs {} on the server: {}", companion, request.programId(),
                 request.code());
@@ -158,13 +164,24 @@ public final class ServerPrograms {
      */
     public static void launch(NumenPlayer her, String tag, String code, CallObserver observer,
                               Consumer<String> receipt) {
+        launch(her, tag + "-" + UUID.randomUUID(), code, observer, receipt, null);
+    }
+
+    /** 落盘入口交来的凭据随当前程序的车道生灭,不登记额外的全局恢复状态。 */
+    public static void replay(NumenPlayer her, com.dwinovo.numen.task.TaskPersistence.ReplaySource source,
+                              String code, CallObserver observer, Consumer<String> receipt) {
+        launch(her, source.programId(), code, observer, receipt, source);
+    }
+
+    private static void launch(NumenPlayer her, String programId, String code, CallObserver observer,
+                               Consumer<String> receipt, com.dwinovo.numen.task.TaskPersistence.ReplaySource replay) {
         UUID owner = her.getOwnerUuid() != null ? her.getOwnerUuid() : her.getUUID();
-        run(her, her.getUUID(), owner, new Request(tag + "-" + UUID.randomUUID(), code, ModuleSet.factory(), false),
+        run(her, her.getUUID(), owner, new Request(programId, code, ModuleSet.factory(), false),
                 NetworkTransport.INSTANCE, observer, result -> receipt.accept(switch (result) {
                     case RunResult.Ended ended -> ended.outcome().receipt();
                     case RunResult.Missing missing -> throw new IllegalStateException(
                             "the built-in modules were sent whole, yet the server lacks " + missing.hashes());
-                }));
+                }), replay);
     }
 
     /** 能不能再开一段:不能就是给模型的那句话。 */

@@ -83,7 +83,13 @@ public final class MoveApi {
             throw new ApiError(ErrorKind.NO_PATH, "plan " + id + " can't be walked: " + plan.why(),
                     "numen.route.plan(...) again with the description changed where that reason points");
         }
-        return Job.of(new MoveToTaskRecord(call, plan));
+        var restored = com.dwinovo.numen.core.route.WalkCommit.restored(args.plan(), call.isReplay(), plan);
+        var commit = restored != null ? restored : com.dwinovo.numen.core.route.WalkCommit.of(call.her(), plan);
+        if (!Plans.of(call.her()).inRealm(id, call.her()) || !commit.inRealm(call.her())) {
+            throw new ApiError(ErrorKind.NOT_FOUND, "the saved walk belongs to another world or dimension", null);
+        }
+        return Job.<MoveToCompanionTask.Walked>of(new MoveToTaskRecord(call, plan, commit,
+                restored != null)).replayedAs(commit.lua());
     }
 
     /** 跟谁、多近、多久。 */

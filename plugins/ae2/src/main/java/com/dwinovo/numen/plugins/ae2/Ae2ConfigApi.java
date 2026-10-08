@@ -3,10 +3,12 @@ package com.dwinovo.numen.plugins.ae2;
 import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.api.NumenApi;
+import com.dwinovo.numen.permission.Action;
 import com.dwinovo.numen.sdk.Doc;
 import com.dwinovo.numen.sdk.Example;
 import com.dwinovo.numen.sdk.Fn;
 import com.dwinovo.numen.sdk.Omitted;
+import com.dwinovo.numen.sdk.Pending;
 import com.dwinovo.numen.sdk.ServerCall;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -30,7 +32,7 @@ import java.util.Optional;
  * 多个可配 part 时,读列出全部,写用 {@code side} 指定哪一个。
  *
  * <p>全程按接口名/方法名反射,不加载任何 AE2 类(core 与插件都不为它背编译依赖),每一步包 {@code Throwable}。
- * 写不改世界方块,不占身体。
+ * 写经 use_block 授权,不占身体。
  */
 public final class Ae2ConfigApi {
 
@@ -122,7 +124,42 @@ public final class Ae2ConfigApi {
     @Fn("Change one server-side setting on an AE2 machine or a part on a cable.")
     @Example("ae2.config.write(120, 64, -3, \"io_direction\", \"LEFT\")")
     @Example("ae2.config.write(120, 64, -3, \"blocking_mode\", \"YES\", \"north\")")
-    public static Changed write(ServerCall call, WriteArgs args) {
+    public static Pending<Changed> write(ServerCall call, WriteArgs args) {
+        BlockPos pos = new BlockPos(args.x(), args.y(), args.z());
+        var level = call.her().serverLevel();
+        WriteTarget target = prepareWrite(call, args);
+        return call.authorize(List.of(Action.useBlock(pos, level.getBlockState(pos))))
+                .then(authorization -> {
+                    try (authorization) {
+                    if (call.her().serverLevel() != level) {
+                        throw new ApiError(ErrorKind.NOT_FOUND, "left the setting's level before writing", null);
+                    }
+                    if (!level.hasChunkAt(pos)) {
+                        throw new ApiError(ErrorKind.NOT_FOUND, "configuration target's chunk is no longer loaded", null);
+                    }
+                    // 答复回来后重新认机器、part、配置项与合法值,不能拿旧 manager 写进已拆掉的设备。
+                    WriteTarget still = prepareWrite(call, args);
+                    if (still.be() != target.be() || still.target() != target.target()) {
+                        throw new ApiError(ErrorKind.NOT_FOUND, "configuration target changed before writing", null);
+                    }
+                    authorization.verify(List.of(Action.useBlock(pos, level.getBlockState(pos))));
+                    Object before = readValue(still.setting(), still.manager());
+                    if (!putSetting(still.manager(), still.setting(), still.parsed())) {
+                        throw new ApiError(ErrorKind.FAILED, "the config manager on " + still.id() + " at " + coord(pos)
+                                + " exposes no setter for " + nameOf(still.setting()) + " — it can only be read.", null);
+                    }
+                    still.be().setChanged();
+                    Object after = readValue(still.setting(), still.manager());
+                    return new Changed(still.id(), still.part(), still.side(), nameOf(still.setting()), nameOf(before),
+                            nameOf(after), namesOf(still.allowed()));
+                    }
+                });
+    }
+
+    private record WriteTarget(BlockEntity be, Object target, Object manager, Object setting, Object parsed,
+                               List<Object> allowed, String id, String part, String side) {}
+
+    private static WriteTarget prepareWrite(ServerCall call, WriteArgs args) {
         BlockPos pos = new BlockPos(args.x(), args.y(), args.z());
         BlockEntity be = entity(call, pos);
         String id = blockId(call, pos);
@@ -161,14 +198,7 @@ public final class Ae2ConfigApi {
             throw new ApiError(ErrorKind.BAD_ARGUMENT, "'" + args.value() + "' is not a valid value for "
                     + nameOf(setting) + allowedHint(allowed), null);
         }
-        Object before = readValue(setting, manager);
-        if (!putSetting(manager, setting, parsed)) {
-            throw new ApiError(ErrorKind.FAILED, "the config manager on " + id + " at " + coord(pos)
-                    + " exposes no setter for " + nameOf(setting) + " — it can only be read.", null);
-        }
-        be.setChanged();
-        Object after = readValue(setting, manager);
-        return new Changed(id, part, sideLabel, nameOf(setting), nameOf(before), nameOf(after), namesOf(allowed));
+        return new WriteTarget(be, target, manager, setting, parsed, allowed, id, part, sideLabel);
     }
 
     // ---- read/write helpers ----

@@ -8,8 +8,8 @@ import com.dwinovo.numen.task.TaskRecord;
 /**
  * Typed task descriptor for {@code numen.move.go(plan)}, which the library function {@code numen.move.to} calls: walk a plan that
  * {@code numen.route.plan} made in the same program. The plan itself — stops, description, the way she saw — rides along
- * in memory; it is not saved, so a restart has nothing to walk and the task ends saying so. The deadline is handled by
- * the base class.
+ * in memory. Replay saves only the description, committed cells and current leg, and searches the live world again.
+ * The deadline is handled by the base class.
  */
 public final class MoveToTaskRecord extends TaskRecord {
 
@@ -18,10 +18,19 @@ public final class MoveToTaskRecord extends TaskRecord {
 
     /** 走哪一份计划。 */
     public final Plan plan;
+    public final com.dwinovo.numen.core.route.WalkCommit commit;
+    public final boolean replayed;
 
     public MoveToTaskRecord(ServerCall source, Plan plan) {
+        this(source, plan, com.dwinovo.numen.core.route.WalkCommit.of(source.her(), plan), false);
+    }
+
+    public MoveToTaskRecord(ServerCall source, Plan plan, com.dwinovo.numen.core.route.WalkCommit commit,
+                            boolean replayed) {
         super(source, source.her().level().getGameTime() + BUDGET_TICKS);
         this.plan = plan;
+        this.commit = commit;
+        this.replayed = replayed;
     }
 
     /** 走一条规划好的路是自主长跑的活:路上要问主人的格等同无限等。 */

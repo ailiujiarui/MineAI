@@ -124,6 +124,11 @@ public final class Dispatcher {
      * {@code reply} 恰好回一次。
      */
     public static void serve(String function, JsonObject args, NumenPlayer her, String callId, Consumer<String> reply) {
+        serve(function, args, her, callId, reply, null);
+    }
+
+    public static void serve(String function, JsonObject args, NumenPlayer her, String callId, Consumer<String> reply,
+                              com.dwinovo.numen.task.TaskPersistence.ReplaySource replay) {
         ApiFunction fn = ApiRegistry.function(function);
         if (fn == null || fn.side() != ApiFunction.Side.SERVER) {
             reply.accept(ApiReply.error(ErrorKind.NO_FUNCTION, "there is no API function " + function
@@ -134,7 +139,7 @@ public final class Dispatcher {
         if (values == null && fn.argsType() != null) {
             return;
         }
-        run(fn, () -> fn.invoke(new ServerCall(her, fn, values, callId), values), her, values, callId, reply);
+        run(fn, () -> fn.invoke(new ServerCall(her, fn, values, callId, replay), values), her, values, callId, reply);
     }
 
     /** 这次调用写成脚本里的那一行:失败的下一步是同一行再来一次。 */
@@ -209,7 +214,8 @@ public final class Dispatcher {
             return;
         }
         record.calledAs(fn);
-        String replay = Call.of(fn, job.replay() != null ? job.replay() : args);
+        String replay = job.replayLua() != null ? job.replayLua()
+                : Call.of(fn, job.replay() != null ? job.replay() : args);
         TaskDispatch.setTask(her, record, replay, refused -> reply.accept(failure(refused).toString()),
                 () -> reply.accept(ApiReply.job(record.publicId()).toString()));
     }

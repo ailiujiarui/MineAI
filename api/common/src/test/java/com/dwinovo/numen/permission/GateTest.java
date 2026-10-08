@@ -462,5 +462,11 @@ class GateTest {
                 "换一种方块另问");
         assertEquals(Verdict.Kind.DENY, new Gate(null, Mode.OBSERVE, RuleSet.EMPTY, RuleSet.factory(),
                 placed, List.of(grant)).judge(digFirst, world).kind(), "授权只把问变成放行,解不开拒绝");
+        assertEquals(Verdict.Kind.DENY, new Gate(null, Mode.ASK,
+                rules(List.of("break(placed)"), List.of(), List.of()), RuleSet.factory(), placed, List.of(grant))
+                .judge(digFirst, world).kind(), "授权后的新 deny 仍优先");
+        assertTrue(new Gate(null, Mode.ASK,
+                rules(List.of(), List.of("break(minecraft:oak_log)"), List.of()), RuleSet.factory(), placed,
+                List.of(grant)).judge(digFirst, world).asks(), "ask 规则改变后旧授权不能覆盖");
     }
 }

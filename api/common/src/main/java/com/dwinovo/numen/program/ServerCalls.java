@@ -20,11 +20,18 @@ final class ServerCalls implements ProgramCalls {
     private final MainQueue.Lane lane;
     /** 受理了一件占身体的活,收到它的编号:程序要等的这件活的收尾归程序({@link ServerPrograms})。 */
     private final Consumer<String> accepted;
+    private final com.dwinovo.numen.task.TaskPersistence.ReplaySource replay;
 
     ServerCalls(NumenPlayer her, MainQueue.Lane lane, Consumer<String> accepted) {
+        this(her, lane, accepted, null);
+    }
+
+    ServerCalls(NumenPlayer her, MainQueue.Lane lane, Consumer<String> accepted,
+                com.dwinovo.numen.task.TaskPersistence.ReplaySource replay) {
         this.her = her;
         this.lane = lane;
         this.accepted = accepted;
+        this.replay = replay;
     }
 
     @Override
@@ -39,7 +46,7 @@ final class ServerCalls implements ProgramCalls {
             done.accept(reply);
         };
         lane.post(() -> {
-            Dispatcher.serve(invocation.function(), invocation.args(), her, callId, landed);
+            Dispatcher.serve(invocation.function(), invocation.args(), her, callId, landed, replay);
             sent.run();
         });
     }

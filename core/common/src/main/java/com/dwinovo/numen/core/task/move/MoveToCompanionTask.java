@@ -96,16 +96,29 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
      */
     @Override
     protected Preparation preparation() {
-        promise = r.plan;
+        if (!r.commit.inRealm(player)) {
+            return Preparation.refused(realmFailure());
+        }
+        promise = r.replayed ? r.commit.promise(r.plan.id()) : r.plan;
+        if (r.replayed) {
+            Blocked blocked = hold(r.plan);
+            if (blocked != null) {
+                return Preparation.refused(TaskResult.fail(blocked.type().kind(), blocked.why(), blocked.hint(), value()));
+            }
+        }
         if (atStart()) {
-            planned = promise;
+            planned = r.plan;
             return Preparation.READY;
         }
-        Planning again = Planning.of(player, promise.id(), promise.description());
+        Planning again = Planning.of(player, promise.id(), r.plan.description());
         com.dwinovo.numen.core.Constants.LOG.info("[numen-task] go {} 不在起点,受理前从脚下重新规划", promise.id());
         return new Preparation() {
             @Override
             public Preparation.Readiness poll() {
+                if (!r.commit.inRealm(player)) {
+                    again.cancel();
+                    return Preparation.Readiness.refused(realmFailure());
+                }
                 Plan fresh = again.poll();
                 if (fresh == null) {
                     return null;
@@ -129,19 +142,23 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
 
     @Override
     protected void onStart() {
-        promise = r.plan;
+        if (!r.commit.inRealm(player)) {
+            fail(realmFailure().message(), FailureType.TERRAIN_BLOCKED, null);
+            return;
+        }
+        promise = r.replayed ? r.commit.promise(r.plan.id()) : r.plan;
         extendDeadline();
         if (planned != null) {
             setOff();
             return;
         }
         if (atStart()) {
-            planned = promise;
+            planned = r.plan;
             setOff();
             return;
         }
         // 没准备过,而她不在起点上:从这里重新规划,拿那份计划当承诺比
-        planning = Planning.of(player, promise.id(), promise.description());
+        planning = Planning.of(player, promise.id(), r.plan.description());
         phase = Phase.PLANNING;
     }
 
@@ -172,6 +189,20 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
                 yield fresh == null ? TaskState.RUNNING : explained(fresh);
             }
         };
+    }
+
+    private TaskResult realmFailure() {
+        return TaskResult.fail(FailureType.TERRAIN_BLOCKED.kind(),
+                "the walk stopped because the body is in another world or dimension; plan again here", null);
+    }
+
+    @Override
+    protected TaskState beforeTick() {
+        if (r.commit.inRealm(player)) {
+            return null;
+        }
+        cleanup();
+        return end(realmFailure().message(), FailureType.TERRAIN_BLOCKED, null);
     }
 
     /** 不走的那句话、归到哪一种失败、能照抄的下一步(没有为 null)。 */
@@ -212,6 +243,8 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
         if (leg >= planned.legs().size()) {
             return TaskState.SUCCESS;
         }
+        com.dwinovo.numen.task.TaskPersistence.remember(player, r.getToolName(),
+                r.commit.at(r.commit.first() + leg).lua());
         Plan.Leg target = planned.legs().get(leg);
         phase = Phase.DRIVING;
         if (target.chart() != null || planned.description().mode() == com.dwinovo.numen.core.route.Description.Mode.BOAT) {
@@ -226,6 +259,7 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
         nav = target.route() == null ? Trip.to(player, goal, spec, target.to().toward())
                 : Trip.following(player, goal, spec, target.route(), target.to().toward());
         nav.spending(planned.description().materials());
+        nav.askingOnly(promise.asks());
         if (target.stop().through()) {
             nav.passing();
         }
@@ -316,7 +350,7 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
      */
     @Override
     protected String refusedHint(List<ConsentItem> refused) {
-        com.dwinovo.numen.core.route.Description d = promise.description();
+        com.dwinovo.numen.core.route.Description d = planned.description();
         Description.Places avoid = d.avoid().plus(refused.stream().map(ConsentItem::pos).toList());
         return "numen.move.go(" + com.dwinovo.numen.sdk.Call.of("numen.route.plan", d.written().avoiding(avoid)) + ")";
     }
@@ -324,7 +358,7 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
     /** "第 2 段(共 3 段)"的英文:只有一段就说这一趟。 */
     private String legName(int index) {
         int legs = promise.legs().size();
-        return legs == 1 ? "the walk" : "leg " + (index + 1) + " of " + legs;
+        return legs == 1 ? "the walk" : "leg " + (r.commit.first() + index + 1) + " of " + legs;
     }
 
     /** 续约:期限保持在租约窗口里,但这一程干活的刻数不超过 {@link #CHECK_IN_CAP_TICKS}。 */

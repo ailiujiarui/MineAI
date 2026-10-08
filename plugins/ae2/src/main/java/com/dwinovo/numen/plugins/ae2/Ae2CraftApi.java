@@ -15,12 +15,13 @@ import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.api.NumenApi;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.permission.Action;
-import com.dwinovo.numen.permission.Permission;
 import com.dwinovo.numen.sdk.Doc;
+import com.dwinovo.numen.sdk.Authorization;
 import com.dwinovo.numen.sdk.Example;
 import com.dwinovo.numen.sdk.Fn;
 import com.dwinovo.numen.sdk.Omitted;
 import com.dwinovo.numen.sdk.Positional;
+import com.dwinovo.numen.sdk.Pending;
 import com.dwinovo.numen.sdk.ServerCall;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -32,6 +33,7 @@ import net.minecraft.world.item.Items;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -86,7 +88,7 @@ public final class Ae2CraftApi {
     @Fn("Request AE2 autocrafting: hand a network device, an item and a count to the crafting CPUs. Returns a "
             + "request_id that is NOT completion — query it with ae2.craft.status.")
     @Example("local r = ae2.craft.request(120, 64, -3, \"minecraft:oak_planks\", 4)\nreturn ae2.craft.status(r.requestId)")
-    public static Submitted request(ServerCall call, RequestArgs args) {
+    public static Pending<Submitted> request(ServerCall call, RequestArgs args) {
         if (args.item() == null || args.item().isBlank()) {
             throw bad("give the item to craft.");
         }
@@ -108,7 +110,6 @@ public final class Ae2CraftApi {
         if (self.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > 64.0) {
             throw new ApiError(ErrorKind.OUT_OF_REACH, "move within 8 blocks of the network device first.", null);
         }
-        requirePermission(self, pos, item);
         IGridNode node = Ae2NetworkApi.resolveNode(level, pos);
         if (node == null || !node.isActive() || node.getGrid() == null) {
             throw bad("that block is not on an active powered AE2 network.");
@@ -118,20 +119,42 @@ public final class Ae2CraftApi {
         if (crafting == null || !crafting.isCraftable(key)) {
             throw bad("no installed pattern for " + args.item() + " on that network.");
         }
-        pruneFinished();
-        if (REQUESTS.size() >= MAX_REQUESTS) {
-            throw bad("too many active requests; query the existing ones first.");
-        }
-        IActionSource source = IActionSource.ofPlayer(self);
-        ICraftingSimulationRequester requester = new ICraftingSimulationRequester() {
-            @Override public IActionSource getActionSource() { return source; }
-            @Override public IGridNode getGridNode() { return node; }
-        };
-        Future<ICraftingPlan> calculation = crafting.beginCraftingCalculation(level, requester, key, count,
-                CalculationStrategy.REPORT_MISSING_ITEMS);
-        Request request = new Request(self, pos, node, key, count, calculation);
-        REQUESTS.put(request.id, request);
-        return new Submitted(request.id.toString(), request.state, request.detail);
+        var grid = node.getGrid();
+        return call.authorize(actions(level, pos, item)).then(authorization -> {
+            boolean transferred = false;
+            try {
+                if (self.serverLevel() != level || !level.hasChunkAt(pos)
+                        || Ae2NetworkApi.resolveNode(level, pos) != node || !node.isActive() || node.getGrid() != grid) {
+                    throw bad("network device changed or went offline before calculation.");
+                }
+                if (self.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > 64.0) {
+                    throw new ApiError(ErrorKind.OUT_OF_REACH, "move within 8 blocks of the network device first.", null);
+                }
+                authorization.verify(actions(level, pos, item));
+                if (!crafting.isCraftable(key)) {
+                    throw bad("no installed pattern for " + args.item() + " on that network.");
+                }
+                pruneFinished();
+                if (REQUESTS.size() >= MAX_REQUESTS) {
+                    throw bad("too many active requests; query the existing ones first.");
+                }
+                IActionSource source = IActionSource.ofPlayer(self);
+                ICraftingSimulationRequester requester = new ICraftingSimulationRequester() {
+                    @Override public IActionSource getActionSource() { return source; }
+                    @Override public IGridNode getGridNode() { return node; }
+                };
+                Future<ICraftingPlan> calculation = crafting.beginCraftingCalculation(level, requester, key, count,
+                        CalculationStrategy.REPORT_MISSING_ITEMS);
+                Request request = new Request(self, pos, node, key, count, calculation, authorization);
+                REQUESTS.put(request.id, request);
+                transferred = true;
+                return new Submitted(request.id.toString(), request.state, request.detail);
+            } finally {
+                if (!transferred) {
+                    authorization.close();
+                }
+            }
+        });
     }
 
     @Fn("Read the state of a request you started: calculating / submitted / completed / failed / canceled.")
@@ -169,6 +192,7 @@ public final class Ae2CraftApi {
             if (request.state.equals("calculating")) {
                 request.calculation.cancel(true);
             }
+            request.authorization.close();
         }
         REQUESTS.clear();
     }
@@ -199,16 +223,9 @@ public final class Ae2CraftApi {
         return request;
     }
 
-    private static void requirePermission(NumenPlayer body, BlockPos pos, Item item) {
-        var state = body.level().getBlockState(pos);
-        var use = Permission.judge(body, Action.useBlock(pos, state));
-        if (!use.allowed()) {
-            throw new ApiError(ErrorKind.DENIED, use.reason(), null);
-        }
-        var take = Permission.judge(body, Action.take(pos, state, item));
-        if (!take.allowed()) {
-            throw new ApiError(ErrorKind.DENIED, take.reason(), null);
-        }
+    private static List<Action> actions(ServerLevel level, BlockPos pos, Item item) {
+        var state = level.getBlockState(pos);
+        return List.of(Action.useBlock(pos, state), Action.take(pos, state, item));
     }
 
     private static ApiError bad(String message) {
@@ -221,6 +238,8 @@ public final class Ae2CraftApi {
         final ServerLevel level;
         final BlockPos pos;
         final IGridNode node;
+        final appeng.api.networking.IGrid grid;
+        final Authorization authorization;
         final AEItemKey key;
         final long count;
         final Future<ICraftingPlan> calculation;
@@ -232,11 +251,13 @@ public final class Ae2CraftApi {
         long bytes;
 
         Request(NumenPlayer body, BlockPos pos, IGridNode node, AEItemKey key, long count,
-                Future<ICraftingPlan> calculation) {
+                Future<ICraftingPlan> calculation, Authorization authorization) {
             this.body = body;
             this.level = body.serverLevel();
             this.pos = pos;
             this.node = node;
+            this.grid = node.getGrid();
+            this.authorization = authorization;
             this.key = key;
             this.count = count;
             this.calculation = calculation;
@@ -248,6 +269,10 @@ public final class Ae2CraftApi {
         }
 
         void fail(String why) {
+            if (state.equals("calculating")) {
+                calculation.cancel(true);
+            }
+            authorization.close();
             state = "failed";
             detail = why;
         }
@@ -258,6 +283,7 @@ public final class Ae2CraftApi {
                     calculation.cancel(true);
                     throw new IllegalStateException("companion left the request's level before submission");
                 }
+                authorization.verify(actions(level, pos, key.getItem()));
                 if (!calculation.isDone()) {
                     if (server.getTickCount() - started > 1200) {
                         calculation.cancel(true);
@@ -274,11 +300,11 @@ public final class Ae2CraftApi {
                     }
                     throw new IllegalStateException(missing.toString());
                 }
-                requirePermission(body, pos, key.getItem());
                 if (!level.hasChunkAt(pos) || Ae2NetworkApi.resolveNode(level, pos) != node
-                        || !node.isActive() || node.getGrid() == null) {
+                        || !node.isActive() || node.getGrid() != grid) {
                     throw new IllegalStateException("network device changed or went offline before submission");
                 }
+                authorization.verify(actions(level, pos, key.getItem()));
                 var source = IActionSource.ofPlayer(body);
                 var crafting = node.getGrid().getCraftingService();
                 CraftingCPUCluster chosen = crafting.getCpus().stream()
@@ -294,6 +320,7 @@ public final class Ae2CraftApi {
                             ? "NO_CPU_FOUND" : "NO_SUITABLE_CPU_FOUND (busy, storage too small, or auto-selection disabled)");
                 }
                 var result = crafting.submitJob(plan, null, chosen, false, source);
+                authorization.close();
                 if (!result.successful()) {
                     throw new IllegalStateException("AE2 refused submission: " + result.errorCode() + " "
                             + result.errorDetail());

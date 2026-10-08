@@ -70,6 +70,13 @@ public final class Trip {
 
     private Phase phase = Phase.IDLE;
     private List<ConsentItem> consent = List.of();
+    private it.unimi.dsi.fastutil.longs.LongSet promisedAsks;
+
+    /** 照计划走时,征询同样不能超出她看过的格;其他导航不附带计划承诺。 */
+    public Trip askingOnly(it.unimi.dsi.fastutil.longs.LongSet cells) {
+        promisedAsks = new it.unimi.dsi.fastutil.longs.LongOpenHashSet(cells);
+        return this;
+    }
     private Navigation navigation;
     /** 这一趟没走到时的结局;还在走或到了为 null。 */
     private Outcome outcome;
@@ -192,6 +199,17 @@ public final class Trip {
             seed = rest.isEmpty() ? null
                     : new Route(rest.get(0).maneuver().from(), rest.get(0).maneuver().start(), rest);
             consent = covered(unasked.item(), rest);
+            if (promisedAsks != null) {
+                var more = consent.stream().filter(c -> !promisedAsks.contains(c.pos().asLong()))
+                        .map(c -> new com.dwinovo.numen.core.route.Plan.Ask(c.pos(), c.cause())).toList();
+                if (!more.isEmpty()) {
+                    fail("the way on needs cells outside the plan: it would "
+                            + com.dwinovo.numen.core.route.RouteText.beyond(
+                            new com.dwinovo.numen.core.route.Plan.Difference(List.of(), List.of(), more)),
+                            FailureType.TERRAIN_BLOCKED);
+                    return;
+                }
+            }
             phase = Phase.CONSENT;
             com.dwinovo.numen.core.Constants.LOG.info("[numen-task] 走到 {} 要问主人({}),停下等答复",
                     denied.cell().toShortString(), unasked.verdict().reason());

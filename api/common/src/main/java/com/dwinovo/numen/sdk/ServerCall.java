@@ -43,12 +43,24 @@ public final class ServerCall {
     private final ApiFunction function;
     private final Record args;
     private final String callId;
+    private final boolean replay;
 
     ServerCall(NumenPlayer her, ApiFunction function, Record args, String callId) {
+        this(her, function, args, callId, null);
+    }
+
+    ServerCall(NumenPlayer her, ApiFunction function, Record args, String callId,
+                com.dwinovo.numen.task.TaskPersistence.ReplaySource source) {
         this.her = her;
         this.function = function;
         this.args = args;
         this.callId = callId;
+        this.replay = source != null && source.matches(her, callId);
+    }
+
+    /** 这次调用确由服务端落盘重放入口派出,而非程序名或脚本参数声称的恢复。 */
+    public boolean isReplay() {
+        return replay;
     }
 
     /** 这具身体。 */
@@ -89,6 +101,11 @@ public final class ServerCall {
             // 如实说"没问到同意"({@link ErrorKind#NEEDS_CONSENT})——脚本原样再调一次是安全的。
             case PENDING -> Pending.failed(withheld(lua(), verdict.reason()));
         };
+    }
+
+    /** 批量授权一次延迟执行的操作;返回的作用域在操作提交或失败时必须 close。 */
+    public Pending<Authorization> authorize(List<Action> actions) {
+        return Authorization.start(this, actions);
     }
 
     /** 没做这件事的失败:{@code what} 是要做的事,理由是规则、模式或主人的原话。 */

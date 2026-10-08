@@ -2,19 +2,23 @@ package com.dwinovo.numen.plugins.ae2;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.slot.FakeSlot;
+import appeng.parts.AEBasePart;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.api.NumenApi;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.permission.Action;
 import com.dwinovo.numen.sdk.Doc;
 import com.dwinovo.numen.sdk.Example;
 import com.dwinovo.numen.sdk.Fn;
 import com.dwinovo.numen.sdk.Omitted;
 import com.dwinovo.numen.sdk.Positional;
+import com.dwinovo.numen.sdk.Pending;
 import com.dwinovo.numen.sdk.ServerCall;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.ClickType;
@@ -83,7 +87,7 @@ public final class Ae2PatternApi {
             + "{{item=\"minecraft:oak_planks\", count=4}}, mode=\"crafting\"})")
     @Example("ae2.pattern.encode({inputs = {{item=\"minecraft:iron_ingot\", count=3}}, outputs = "
             + "{{item=\"minecraft:iron_block\"}}})")
-    public static Encoded encode(ServerCall call, EncodeArgs args) {
+    public static Pending<Encoded> encode(ServerCall call, EncodeArgs args) {
         NumenPlayer self = call.her();
         if (!(self.containerMenu instanceof PatternEncodingTermMenu menu)) {
             throw new ApiError(ErrorKind.NOT_FOUND, notEncodingTerminal(self), null);
@@ -118,6 +122,49 @@ public final class Ae2PatternApi {
             throw new ApiError(ErrorKind.FAILED, "something is on the cursor (" + name(menu.getCarried())
                     + ") — put it down first and call again.", null);
         }
+
+        var level = self.serverLevel();
+        var target = menu.getTarget();
+        var be = target instanceof AEBasePart part ? part.getBlockEntity() : menu.getBlockEntity();
+        BlockPos pos = be == null ? null : be.getBlockPos();
+        return call.authorize(encodingActions(menu, self, pos, crafting))
+                .then(authorization -> {
+                    try (authorization) {
+                    if (self.serverLevel() != level || self.containerMenu != menu || !menu.stillValid(self)
+                            || (be != null && (!level.hasChunkAt(pos) || level.getBlockEntity(pos) != be))
+                            || (target instanceof AEBasePart part
+                            && part.getHost().getPart(part.getSide()) != part)) {
+                        throw new ApiError(ErrorKind.NOT_FOUND, "encoding terminal changed or closed before encoding", null);
+                    }
+                    if (!menu.getCarried().isEmpty()) {
+                        throw new ApiError(ErrorKind.FAILED, "put down the cursor item before encoding", null);
+                    }
+                    authorization.verify(encodingActions(menu, self, pos, crafting));
+                    return encodeAuthorized(menu, self, args, crafting, inputs, outputs, blankSlot, encodedSlot);
+                    }
+                });
+    }
+
+    private static List<Action> encodingActions(PatternEncodingTermMenu menu, NumenPlayer self, BlockPos pos,
+                                                 boolean crafting) {
+        var state = pos == null ? null : self.level().getBlockState(pos);
+        List<Action> actions = new ArrayList<>();
+        actions.add(Action.useBlock(pos, state));
+        Item blank = BuiltInRegistries.ITEM.get(ResourceLocation.parse(BLANK_PATTERN_ID));
+        actions.add(Action.take(pos, state, blank));
+        Slot encoded = privateSlot(menu, "encodedPatternSlot", 1);
+        if (encoded != null && !encoded.getItem().isEmpty()) {
+            actions.add(Action.take(pos, state, encoded.getItem().getItem()));
+        }
+        Item result = BuiltInRegistries.ITEM.get(ResourceLocation.parse(
+                crafting ? "ae2:crafting_pattern" : "ae2:processing_pattern"));
+        actions.add(Action.take(pos, state, result));
+        return actions;
+    }
+
+    private static Encoded encodeAuthorized(PatternEncodingTermMenu menu, NumenPlayer self, EncodeArgs args,
+                                            boolean crafting, List<ItemStack> inputs, List<ItemStack> outputs,
+                                            Slot blankSlot, Slot encodedSlot) {
 
         if (!encodedSlot.getItem().isEmpty()) {
             menu.clicked(encodedSlot.index, 0, ClickType.QUICK_MOVE, self);

@@ -122,6 +122,24 @@ class ConsentDeskTest {
     }
 
     @Test
+    void delayedOperationRetainsOnlyItsOwnGrantUntilRelease() {
+        Object operation = new Object();
+        Object other = new Object();
+        ConsentDesk.Ticket first = desk.ask(operation, List.of(log(1)));
+        desk.answer(first.request().id(), ConsentAnswer.Decision.ALLOW_ONCE, "");
+        assertTrue(first.poll().allowed());
+        assertEquals(List.of(log(1)), desk.granted(operation), "读取答复不释放延迟操作的授权");
+        ConsentDesk.Ticket second = desk.ask(other, List.of(log(2)));
+        desk.answer(second.request().id(), ConsentAnswer.Decision.ALLOW_ONCE, "");
+        List<ConsentItem> snapshot = desk.granted(operation);
+        assertEquals(List.of(log(1)), snapshot, "别的任务的授权不能混入凭据");
+        desk.release(operation, ConsentDesk.Withdrawal.UNNEEDED);
+        assertTrue(desk.granted(operation).isEmpty());
+        assertEquals(List.of(log(2)), desk.granted(other));
+        assertEquals(List.of(log(1)), snapshot, "授权快照不可变");
+    }
+
+    @Test
     void aNoteOnlyGoesWithADeny() {
         ConsentDesk.Ticket ticket = desk.ask(new Task(), List.of(log(1)));
         for (ConsentAnswer.Decision allow : List.of(ConsentAnswer.Decision.ALLOW_ONCE,

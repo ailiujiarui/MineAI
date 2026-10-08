@@ -20,21 +20,28 @@ import java.util.List;
 @Internal
 public final class Consents {
 
-    /** 一次挂着的调用。它自己就是征询的作用域:主人允许的授权记在它名下,收场时一并清掉。 */
+    /** 一次挂着的调用。普通调用以自身为作用域;延迟操作以显式凭据为作用域。 */
     private static final class Waiting {
         final String what;
         final List<ConsentItem> items;
         final Pending<Void> answer = Pending.create();
         ConsentDesk.Ticket ticket;
+        final Object scope;
 
         Waiting(String what, List<ConsentItem> items) {
+            this(what, items, null);
+        }
+
+        Waiting(String what, List<ConsentItem> items, Object scope) {
             this.what = what;
             this.items = items;
+            this.scope = scope == null ? this : scope;
         }
     }
 
     private final NumenPlayer her;
     private final List<Waiting> waiting = new ArrayList<>();
+    private final List<Authorization> authorizations = new ArrayList<>();
 
     private Consents(NumenPlayer her) {
         this.her = her;
@@ -52,6 +59,21 @@ public final class Consents {
         return w.answer;
     }
 
+    Pending<Void> await(String what, List<ConsentItem> items, Authorization scope) {
+        Waiting w = new Waiting(what, items, scope);
+        w.ticket = ConsentDesk.of(her).ask(scope, items);
+        waiting.add(w);
+        return w.answer;
+    }
+
+    void track(Authorization authorization) {
+        authorizations.add(authorization);
+    }
+
+    void forget(Authorization authorization) {
+        authorizations.remove(authorization);
+    }
+
     /** 每服务端刻一次:有结论的收场。 */
     public static void tick(NumenPlayer her) {
         Consents pending = of(her);
@@ -64,8 +86,10 @@ public final class Consents {
                 continue;
             }
             pending.waiting.remove(w);
-            // 它的请求刚有了结论,已经不挂着了:这里只清它名下的授权
-            ConsentDesk.of(her).release(w, ConsentDesk.Withdrawal.UNNEEDED);
+            // 普通调用答复即收场;延迟操作的授权留到凭据 close,供提交前按当前规则复核。
+            if (w.scope == w) {
+                ConsentDesk.of(her).release(w, ConsentDesk.Withdrawal.UNNEEDED);
+            }
             if (answer.allowed()) {
                 w.answer.report(answer.allowance(w.items) + ".");
                 w.answer.complete(null);
@@ -94,7 +118,10 @@ public final class Consents {
         List<Waiting> all = List.copyOf(waiting);
         waiting.clear();
         for (Waiting w : all) {
-            ConsentDesk.of(her).release(w, why);
+            ConsentDesk.of(her).release(w.scope, why);
+        }
+        for (Authorization authorization : List.copyOf(authorizations)) {
+            authorization.close(why);
         }
         return all;
     }

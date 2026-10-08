@@ -180,7 +180,8 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
         awaitingSearch = false;
         TaskState state;
         try {
-            TaskState routeConsent = awaitRouteConsent();
+            TaskState checked = beforeTick();
+            TaskState routeConsent = checked == null ? awaitRouteConsent() : checked;
             state = routeConsent != null ? routeConsent : onTick();
         } catch (RuntimeException e) {
             crashed("tick", e);
@@ -461,6 +462,11 @@ public abstract class AbstractCompanionTask<R extends TaskRecord>
 
     /** First-tick setup (build the nav, snapshot baselines, …). Default: no-op. */
     protected void onStart() {}
+
+    /** 导航与征询都用身体所在的世界;有世界约束的任务在两者推进之前验证。 */
+    protected TaskState beforeTick() {
+        return null;
+    }
 
     /** Advance one tick; return {@link TaskState#RUNNING} or a terminal state. */
     protected abstract TaskState onTick();
