@@ -13,12 +13,15 @@ import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.search.Route;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.spectator.OwnerLocation;
 import com.dwinovo.numen.task.Preparation;
 import com.dwinovo.numen.task.TaskState;
 import com.dwinovo.numen.core.FailureType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
@@ -89,7 +92,7 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
             return true;
         }
         // 迟滞:走出 keepWithin + margin 才起步——一跟到就起步会让她在临界距离上一步一停地抖
-        return companion.position().distanceTo(target.position()) > r.keepWithin + RESUME_MARGIN;
+        return companion.position().distanceTo(targetPosition(target)) > r.keepWithin + RESUME_MARGIN;
     }
 
     /**
@@ -196,9 +199,9 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
      * <p>不同维度天然落进 null:{@code ServerLevel.getEntity} 只认自己这一层。
      */
     private Entity target(NumenPlayer companion) {
-        if (r.target == null) {
+        if (r.target == null || r.target.equals(companion.getOwnerUuid())) {
             var owner = companion.resolveOwnerPlayer();
-            return owner == null || owner.level() != companion.level() ? null : owner;
+            return owner == null || OwnerLocation.of(owner).level() != companion.level() ? null : owner;
         }
         Entity e = ((ServerLevel) companion.level()).getEntity(r.target);
         return e == null || e.isRemoved() ? null : e;
@@ -217,7 +220,18 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
      * 时是他下方的地面。那一列都待不住(悬在虚空上)就还是他那一格:那里够不着,于是照实报,而不是假装找到了。
      */
     private BlockPos anchor(Entity target) {
-        return Terrain.of(player).settle(target.blockPosition());
+        OwnerLocation owner = ownerLocation(target);
+        return Terrain.of(player).settle(owner == null ? target.blockPosition() : owner.blockPosition());
+    }
+
+    private Vec3 targetPosition(Entity target) {
+        OwnerLocation owner = ownerLocation(target);
+        return owner == null ? target.position() : owner.position();
+    }
+
+    private OwnerLocation ownerLocation(Entity target) {
+        return target instanceof ServerPlayer owner && owner.getUUID().equals(player.getOwnerUuid())
+                ? OwnerLocation.of(owner) : null;
     }
 
     /** {@code numen.move.follow} 交回的值。 */

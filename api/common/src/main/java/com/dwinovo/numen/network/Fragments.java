@@ -129,12 +129,18 @@ public final class Fragments {
     }
 
     /**
-     * 拼回的字节解成原包。原包的编解码器不碰注册表(见 {@link Wire.Fragmentable}),所以用空的注册表就够。
+     * 不带注册表内容的包,拼回后用空注册表解码。
      *
      * @throws DecoderException 字节读不成这种包,或读完还剩字节
      */
     public static <T> T decode(StreamCodec<? super RegistryFriendlyByteBuf, T> codec, byte[] bytes) {
-        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(bytes), RegistryAccess.EMPTY);
+        return decode(codec, bytes, RegistryAccess.EMPTY);
+    }
+
+    /** 物品和组件等注册表内容使用接收连接的注册表,与未分片的包相同。 */
+    public static <T> T decode(StreamCodec<? super RegistryFriendlyByteBuf, T> codec, byte[] bytes,
+                               RegistryAccess registries) {
+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(bytes), registries);
         try {
             T payload = codec.decode(buf);
             if (buf.isReadable()) {

@@ -5,6 +5,7 @@ import com.dwinovo.numen.pathing.TestWorld;
 import com.dwinovo.numen.pathing.Vanilla;
 import com.dwinovo.numen.pathing.plan.Breath;
 import com.dwinovo.numen.pathing.plan.CostModel;
+import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.Materials;
 import com.dwinovo.numen.pathing.plan.Permit;
 import com.dwinovo.numen.pathing.plan.TerrainPolicy;
@@ -17,7 +18,11 @@ import com.dwinovo.numen.pathing.search.SearchResult;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -26,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 没路时的诊断:憋不住气的那一段水下先报。 */
+/** 没路时的诊断:气息、规格与宿主材料端口分别决定真实原因。 */
 class DiagnosisTest {
 
     private static final int Y = 64;
@@ -78,5 +83,81 @@ class DiagnosisTest {
         assertEquals(SearchResult.Stop.EXHAUSTED, failed.stop());
         Outcome outcome = Diagnosis.of(failed.stop(), failed.breathless(), search, () -> false);
         assertInstanceOf(Outcome.NoRoute.class, outcome);
+    }
+
+    /** 四格宽的沟摔不起、两边基岩挖不动:许搭桥但宿主没交出材料,诊断才是没有料。 */
+    @Test
+    void aDitchWithoutMaterialsReportsNoMaterials() {
+        TestWorld world = new TestWorld().floor(0, 0, 39, 39, Y - 5)
+                .fill(0, Y - 4, 0, 9, Y - 1, 39, Blocks.BEDROCK.defaultBlockState())
+                .fill(14, Y - 4, 0, 39, Y - 1, 39, Blocks.BEDROCK.defaultBlockState());
+        Search search = new Search(world, Fixtures.model(Fixtures.natural()), new BlockPos(6, Y, 5),
+                Goals.at(new BlockPos(17, Y, 5)), Fixtures.BUDGET, Favoring.NONE);
+        SearchResult failed = AStar.run(search, () -> false);
+
+        assertEquals(SearchResult.Stop.EXHAUSTED, failed.stop());
+        assertInstanceOf(Outcome.NoMaterials.class,
+                Diagnosis.of(failed.stop(), failed.breathless(), search, () -> false));
+        assertTrue(world.getBlockState(new BlockPos(9, Y - 1, 5)).is(Blocks.BEDROCK));
+        for (int x = 10; x <= 13; x++) {
+            assertTrue(world.getBlockState(new BlockPos(x, Y - 1, 5)).isAir(), "诊断不能真的搭桥");
+        }
+    }
+
+    /** 不许改地形时,有料与没料都先报需要放块,交出跨沟的真实放置清单而不是没有料。 */
+    @Test
+    void aDitchWithChangesDisabledReportsTheBridgeWithAndWithoutMaterials() {
+        for (Materials materials : List.of(Materials.NONE, Fixtures.COBBLE)) {
+            TestWorld world = new TestWorld().floor(0, 0, 39, 39, Y - 5)
+                    .fill(0, Y - 4, 0, 9, Y - 1, 39, Blocks.BEDROCK.defaultBlockState())
+                    .fill(14, Y - 4, 0, 39, Y - 1, 39, Blocks.BEDROCK.defaultBlockState());
+            CostModel model = CostModel.of(RouteSpec.defaults(), Fixtures.body(), TerrainPolicy.ALLOW_ALL,
+                    materials, Threats.NONE);
+            Search search = new Search(world, model, new BlockPos(6, Y, 5),
+                    Goals.at(new BlockPos(17, Y, 5)), Fixtures.BUDGET, Favoring.NONE);
+            SearchResult failed = AStar.run(search, () -> false);
+
+            assertEquals(SearchResult.Stop.EXHAUSTED, failed.stop());
+            Outcome.NeedsChanges needs = assertInstanceOf(Outcome.NeedsChanges.class,
+                    Diagnosis.of(failed.stop(), failed.breathless(), search, () -> false));
+            assertTrue(needs.places() && !needs.digs() && !needs.asks(), "过沟缺的是放块许可");
+            assertTrue(!needs.changes().isEmpty(), "需要改动的诊断必须交出那几格");
+            for (Edit change : needs.changes()) {
+                Edit.Place place = assertInstanceOf(Edit.Place.class, change);
+                assertEquals(Blocks.COBBLESTONE, place.block());
+                assertTrue(place.pos().getX() >= 10 && place.pos().getX() <= 13
+                        && place.pos().getY() == Y - 1, "放置清单应当在两块台子间的沟上");
+                assertTrue(place.replaced().isAir() && world.getBlockState(place.pos()).isAir(),
+                        "诊断清单是计划,不能真的改世界");
+            }
+            assertTrue(world.getBlockState(new BlockPos(9, Y - 1, 5)).is(Blocks.BEDROCK));
+        }
+    }
+
+    /** 背包深处有圆石而宿主不准用:材料只认端口;同一身体由端口交出圆石才真的有桥路。 */
+    @Test
+    void materialAvailabilityComesFromTheHostRatherThanTheInventorySnapshot() {
+        TestWorld world = new TestWorld().floor(0, 0, 39, 39, Y - 5)
+                .fill(0, Y - 4, 0, 9, Y - 1, 39, Blocks.BEDROCK.defaultBlockState())
+                .fill(14, Y - 4, 0, 39, Y - 1, 39, Blocks.BEDROCK.defaultBlockState());
+        var body = Fixtures.carrying(20, new ItemStack(Items.COBBLESTONE, 16));
+        CostModel model = CostModel.of(Fixtures.natural(), body, TerrainPolicy.ALLOW_ALL, Materials.NONE,
+                Threats.NONE);
+        Search search = new Search(world, model, new BlockPos(6, Y, 5),
+                Goals.at(new BlockPos(17, Y, 5)), Fixtures.BUDGET, Favoring.NONE);
+        SearchResult failed = AStar.run(search, () -> false);
+
+        assertEquals(SearchResult.Stop.EXHAUSTED, failed.stop());
+        assertInstanceOf(Outcome.NoMaterials.class,
+                Diagnosis.of(failed.stop(), failed.breathless(), search, () -> false));
+        CostModel permitted = CostModel.of(Fixtures.natural(), body, TerrainPolicy.ALLOW_ALL, Fixtures.COBBLE,
+                Threats.NONE);
+        SearchResult bridge = Fixtures.search(world, permitted, search.start(), search.goal());
+        assertEquals(SearchResult.Stop.ARRIVED, bridge.stop(), "同一身体、地形与规格,只有宿主交出的材料端口变了");
+        assertTrue(bridge.route().edits().stream().anyMatch(edit -> edit instanceof Edit.Place));
+        assertEquals(16, body.inventory().get(20).getCount(), "规划与诊断不能消耗背包里的圆石");
+        for (int x = 10; x <= 13; x++) {
+            assertTrue(world.getBlockState(new BlockPos(x, Y - 1, 5)).isAir(), "规划不能真的搭桥");
+        }
     }
 }

@@ -108,6 +108,9 @@ public final class ModLanguageData {
         /** Hotkey (hold): push-to-talk voice to the current interaction target. */
         public static final String KEY_QUICK_VOICE = "key.numen.quick_voice";
 
+        /** Hotkey: view the selected companion, or leave the current viewing session. */
+        public static final String KEY_WATCH_COMPANION = "key.numen.watch_companion";
+
         /** Dedicated Minecraft Controls category so the hotkey gets its own "Numen" section. */
         public static final String KEY_CATEGORY_NUMEN = "key.categories.numen";
 
@@ -416,6 +419,7 @@ public final class ModLanguageData {
         adder.add(Keys.KEY_TALK_COMPANION, "Talk to Companion");
         adder.add(Keys.KEY_COMPANION_WHEEL, "Companion Wheel (hold)");
         adder.add(Keys.KEY_QUICK_VOICE, "Quick Voice (hold)");
+        adder.add(Keys.KEY_WATCH_COMPANION, "Watch Companion / Exit Viewing");
         adder.add(Keys.KEY_CATEGORY_NUMEN, "Numen");
 
         // --- consolidated into the datagen source (persona / mcp / reasoning / tabs / status ...) ---
@@ -938,6 +942,7 @@ public final class ModLanguageData {
         adder.add(Keys.KEY_TALK_COMPANION, "与同伴对话");
         adder.add(Keys.KEY_COMPANION_WHEEL, "同伴轮盘(按住)");
         adder.add(Keys.KEY_QUICK_VOICE, "快捷语音(按住)");
+        adder.add(Keys.KEY_WATCH_COMPANION, "观看同伴 / 退出观看");
 
         // --- consolidated into the datagen source (persona / mcp / reasoning / tabs / status ...) ---
         adder.add("numen.tab.settings", "设置");

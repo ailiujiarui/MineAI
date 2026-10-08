@@ -1,7 +1,6 @@
 package com.dwinovo.numen.core.task.dig;
 
 import com.dwinovo.numen.task.TaskResult;
-import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.area.Cells;
 import com.dwinovo.numen.core.FailureType;
 import com.dwinovo.numen.core.WorkProfile;
@@ -122,25 +121,34 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord>
             return Preparation.READY;
         }
         BlockPos near = nearestBeyond();
-        return Preparation.refused(TaskResult.fail(nothingHereKind(), nothingHere(true), near == null ? null
+        return Preparation.refused(TaskResult.fail(nothingHereFailure().kind(), nothingHere(true), near == null ? null
                 : DigTaskRecord.reachLine(r.named, near), value()));
     }
 
-    /** 手边没有可挖的那一刻是哪一类失败:被不许挖的挡着、目标本身不许挖是 denied,工具不对、挖不成是 failed,其余是够不着。 */
-    private ErrorKind nothingHereKind() {
+    /** 没有可挖的格时按实际缘由收场:硬拒与工具、物理失败优先;问不到主人是 PENDING,其余是够不着。 */
+    private FailureType nothingHereFailure() {
         Feet here = Feet.of(player);
         for (BlockPos cell : wantedInReach(here)) {
             if (clearing.walledIn(cell) != null) {
-                return ErrorKind.DENIED;
+                return FailureType.REFUSED;
             }
         }
         if (deniedWhy != null) {
-            return ErrorKind.DENIED;
+            return FailureType.REFUSED;
         }
-        if (!unharvestable.isEmpty() || !ruledOut.isEmpty() || here == null) {
-            return ErrorKind.FAILED;
+        if (!unharvestable.isEmpty()) {
+            return FailureType.WRONG_TOOL;
         }
-        return ErrorKind.OUT_OF_REACH;
+        if (!ruledOut.isEmpty() || here == null) {
+            return FailureType.UNKNOWN;
+        }
+        if (!unworkable.isEmpty()) {
+            return FailureType.OCCLUDED;
+        }
+        if (!withheld.isEmpty()) {
+            return FailureType.PENDING;
+        }
+        return FailureType.OUT_OF_REACH;
     }
 
     /** 还要挖、站在这儿够不着的格里离她最近的那一格;都够得着(或一格不剩)是 null。 */
@@ -190,7 +198,7 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord>
             if (dug.isEmpty()) {
                 return end(TaskState.FAILED, () -> {
                     BlockPos near = nearestBeyond();
-                    fail(nothingHere(false) + dropsLine(), FailureType.OUT_OF_REACH, near == null ? null
+                    fail(nothingHere(false) + dropsLine(), nothingHereFailure(), near == null ? null
                             : DigTaskRecord.reachLine(r.named, near));
                 });
             }
@@ -460,6 +468,8 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord>
             why = "I found no clear shot at the " + unworkable.size() + " cell(s) of " + r.what + " within my reach";
         } else if (here == null) {
             why = "I am not standing anywhere (falling or stuck in a block), so nothing is within reach";
+        } else if (!withheld.isEmpty()) {
+            why = "the owner's consent could not be obtained for " + r.what;
         } else {
             why = "none of the cells of " + r.what + " still to dig is within my reach where I stand";
         }

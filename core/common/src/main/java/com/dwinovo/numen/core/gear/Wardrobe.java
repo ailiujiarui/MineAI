@@ -5,6 +5,7 @@ import com.dwinovo.numen.api.gear.GearSlot;
 import com.dwinovo.numen.core.FailureType;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.pathing.body.Hotbar;
+import com.dwinovo.numen.spectator.SpectatorMenuBridge;
 import com.dwinovo.numen.sdk.Doc;
 
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -100,95 +101,98 @@ public final class Wardrobe {
      *             否则是 {@code mainhand}、{@code offhand}(拿到手上,见 {@link #handFor})或 {@code <worn>} 里的槽名
      */
     public static Outcome wear(NumenPlayer body, Item item, String slot) {
-        Inventory inv = body.getInventory();
-        String label = label(item);
-        Sheet data = new Sheet();
-        data.item = label;
-        int src = carriedSlot(inv, item);
-        if (src < 0) {
-            return Outcome.failed("no " + label + " in inventory to equip", FailureType.NO_MATERIAL, data);
-        }
-        ItemStack one = inv.getItem(src).copyWithCount(1);
+        try (var display = SpectatorMenuBridge.inventoryAction(body)) {
+            Inventory inv = body.getInventory();
+            String label = label(item);
+            Sheet data = new Sheet();
+            data.item = label;
+            int src = carriedSlot(inv, item);
+            if (src < 0) {
+                return Outcome.failed("no " + label + " in inventory to equip", FailureType.NO_MATERIAL, data);
+            }
+            ItemStack one = inv.getItem(src).copyWithCount(1);
 
-        String where = slot;
-        List<GearSlot> candidates = List.of();
-        if (where == null) {
-            Set<String> kinds = NumenPlugins.gearKinds(body, one);
-            if (kinds.isEmpty()) {
-                return Outcome.failed(label + " is not something you wear — numen.gear.hold(\""
-                        + BuiltInRegistries.ITEM.getKey(item) + "\") takes it in hand", FailureType.UNKNOWN, data);
-            } else {
-                candidates = named(body, kinds);
-                if (candidates.isEmpty()) {
-                    return Outcome.failed(label + " is worn in " + String.join(" or ", kinds)
-                            + ", and you have no such slot", FailureType.UNKNOWN, data);
+            String where = slot;
+            List<GearSlot> candidates = List.of();
+            if (where == null) {
+                Set<String> kinds = NumenPlugins.gearKinds(body, one);
+                if (kinds.isEmpty()) {
+                    return Outcome.failed(label + " is not something you wear — numen.gear.hold(\""
+                            + BuiltInRegistries.ITEM.getKey(item) + "\") takes it in hand", FailureType.UNKNOWN, data);
+                } else {
+                    candidates = named(body, kinds);
+                    if (candidates.isEmpty()) {
+                        return Outcome.failed(label + " is worn in " + String.join(" or ", kinds)
+                                + ", and you have no such slot", FailureType.UNKNOWN, data);
+                    }
                 }
             }
-        }
-        if (MAINHAND.equals(where)) {
-            Hotbar.hold(body, src);
-            data.slot = MAINHAND;
-            return Outcome.done("holding " + label + " in main hand", data);
-        }
-        if (OFFHAND.equals(where)) {
-            candidates = List.of(new OffHand(body));
-        } else if (where != null) {
-            candidates = named(body, Set.of(where));
-            if (candidates.isEmpty()) {
-                return Outcome.failed("you have no slot named '" + where + "' — your slots: "
-                        + String.join(", ", slotNames(body)), FailureType.UNKNOWN, data);
+            if (MAINHAND.equals(where)) {
+                Hotbar.hold(body, src);
+                data.slot = MAINHAND;
+                return Outcome.done("holding " + label + " in main hand", data);
             }
-        }
+            if (OFFHAND.equals(where)) {
+                candidates = List.of(new OffHand(body));
+            } else if (where != null) {
+                candidates = named(body, Set.of(where));
+                if (candidates.isEmpty()) {
+                    return Outcome.failed("you have no slot named '" + where + "' — your slots: "
+                            + String.join(", ", slotNames(body)), FailureType.UNKNOWN, data);
+                }
+            }
 
-        // 先找收它的空位;没有空位时,已经戴着同一件就不必换;再找收它、而且原物摘得下的去换
-        GearSlot empty = null;
-        GearSlot same = null;
-        GearSlot swappable = null;
-        String refusal = null;
-        for (GearSlot s : candidates) {
-            Optional<String> no = s.refuseWear(one);
-            if (no.isPresent()) {
-                if (refusal == null) refusal = no.get();
-                continue;
+            // 先找收它的空位;没有空位时,已经戴着同一件就不必换;再找收它、而且原物摘得下的去换
+            GearSlot empty = null;
+            GearSlot same = null;
+            GearSlot swappable = null;
+            String refusal = null;
+            for (GearSlot s : candidates) {
+                Optional<String> no = s.refuseWear(one);
+                if (no.isPresent()) {
+                    if (refusal == null) refusal = no.get();
+                    continue;
+                }
+                ItemStack worn = s.worn();
+                if (worn.isEmpty()) {
+                    empty = s;
+                    break;
+                }
+                if (worn.is(item)) {
+                    if (same == null) same = s;
+                    continue;
+                }
+                Optional<String> stuck = s.refuseRemove();
+                if (stuck.isPresent()) {
+                    if (refusal == null) refusal = stuck.get();
+                    continue;
+                }
+                if (swappable == null) swappable = s;
             }
-            ItemStack worn = s.worn();
-            if (worn.isEmpty()) {
-                empty = s;
-                break;
+            if (empty == null && same != null) {
+                data.slot = same.name();
+                return Outcome.done(label + " already equipped in " + same.name(), data);
             }
-            if (worn.is(item)) {
-                if (same == null) same = s;
-                continue;
+            GearSlot target = empty != null ? empty : swappable;
+            if (target == null) {
+                return Outcome.failed(refusal, FailureType.UNKNOWN, data);
             }
-            Optional<String> stuck = s.refuseRemove();
-            if (stuck.isPresent()) {
-                if (refusal == null) refusal = stuck.get();
-                continue;
-            }
-            if (swappable == null) swappable = s;
-        }
-        if (empty == null && same != null) {
-            data.slot = same.name();
-            return Outcome.done(label + " already equipped in " + same.name(), data);
-        }
-        GearSlot target = empty != null ? empty : swappable;
-        if (target == null) {
-            return Outcome.failed(refusal, FailureType.UNKNOWN, data);
-        }
 
-        // 换下来的要收回背包:取走的那格若只剩这一件,腾出来的正好放它;否则要有空格,没有就不动手
-        ItemStack worn = target.worn();
-        if (!worn.isEmpty() && inv.getItem(src).getCount() > 1 && inv.getFreeSlot() < 0) {
-            return Outcome.failed("inventory is full — no room to stow " + label(worn.getItem())
-                    + " from " + target.name(), FailureType.NO_SPACE, data);
+            // 换下来的要收回背包:取走的那格若只剩这一件,腾出来的正好放它;否则要有空格,没有就不动手
+            ItemStack worn = target.worn();
+            if (!worn.isEmpty() && inv.getItem(src).getCount() > 1 && inv.getFreeSlot() < 0) {
+                return Outcome.failed("inventory is full — no room to stow " + label(worn.getItem())
+                        + " from " + target.name(), FailureType.NO_SPACE, data);
+            }
+            ItemStack old = target.swap(inv.removeItem(src, 1));
+            if (!old.isEmpty()) {
+                inv.add(old);
+            }
+            inv.setChanged();
+            display.step();
+            data.slot = target.name();
+            return Outcome.done("equipped " + label + " in " + target.name(), data);
         }
-        ItemStack old = target.swap(inv.removeItem(src, 1));
-        if (!old.isEmpty()) {
-            inv.add(old);
-        }
-        inv.setChanged();
-        data.slot = target.name();
-        return Outcome.done("equipped " + label + " in " + target.name(), data);
     }
 
     // ---------------------------------------------------------------------
@@ -204,77 +208,80 @@ public final class Wardrobe {
      * @param item 只摘戴着这件的格子;{@code null} = 这些槽里有什么摘什么
      */
     public static Outcome remove(NumenPlayer body, String slot, Item item) {
-        if (MAINHAND.equals(slot)) {
-            return freeMainHand(body);
-        }
-        Sheet data = new Sheet();
-        String label = slot != null ? slot : label(item);
-        List<GearSlot> slots;
-        if (OFFHAND.equals(slot)) {
-            slots = List.of(new OffHand(body));
-        } else if (slot != null) {
-            slots = named(body, namesFor(slot));
-            if (slots.isEmpty()) {
-                return Outcome.failed("you have no slot named '" + slot + "' — your slots: "
-                        + String.join(", ", slotNames(body)), FailureType.UNKNOWN, data);
+        try (var display = SpectatorMenuBridge.inventoryAction(body)) {
+            if (MAINHAND.equals(slot)) {
+                return freeMainHand(body);
             }
-        } else {
-            slots = NumenPlugins.gearSlots(body);
-        }
-        if (item != null) {
-            List<GearSlot> wearing = new ArrayList<>();
+            Sheet data = new Sheet();
+            String label = slot != null ? slot : label(item);
+            List<GearSlot> slots;
+            if (OFFHAND.equals(slot)) {
+                slots = List.of(new OffHand(body));
+            } else if (slot != null) {
+                slots = named(body, namesFor(slot));
+                if (slots.isEmpty()) {
+                    return Outcome.failed("you have no slot named '" + slot + "' — your slots: "
+                            + String.join(", ", slotNames(body)), FailureType.UNKNOWN, data);
+                }
+            } else {
+                slots = NumenPlugins.gearSlots(body);
+            }
+            if (item != null) {
+                List<GearSlot> wearing = new ArrayList<>();
+                for (GearSlot s : slots) {
+                    if (s.worn().is(item)) wearing.add(s);
+                }
+                if (wearing.isEmpty()) {
+                    return Outcome.failed("you are not wearing " + label(item)
+                            + (slot != null ? " in " + slot : ""), FailureType.UNKNOWN, data);
+                }
+                slots = slot != null ? wearing : List.of(wearing.get(0));
+            }
+
+            Inventory inv = body.getInventory();
+            List<String> removed = new ArrayList<>();
+            List<String> noRoom = new ArrayList<>();
+            List<String> refused = new ArrayList<>();
+            List<String> stillWorn = new ArrayList<>();
             for (GearSlot s : slots) {
-                if (s.worn().is(item)) wearing.add(s);
+                ItemStack worn = s.worn();
+                if (worn.isEmpty()) {
+                    continue;
+                }
+                String what = label(worn.getItem()) + " (" + s.name() + ")";
+                Optional<String> stuck = s.refuseRemove();
+                if (stuck.isPresent()) {
+                    refused.add(stuck.get());
+                    stillWorn.add(what);
+                    continue;
+                }
+                if (inv.getFreeSlot() < 0) {
+                    noRoom.add(what);
+                    stillWorn.add(what);
+                    continue;
+                }
+                inv.add(s.swap(ItemStack.EMPTY));
+                removed.add(what);
+                display.step();
             }
-            if (wearing.isEmpty()) {
-                return Outcome.failed("you are not wearing " + label(item)
-                        + (slot != null ? " in " + slot : ""), FailureType.UNKNOWN, data);
-            }
-            slots = slot != null ? wearing : List.of(wearing.get(0));
-        }
+            inv.setChanged();
+            if (!removed.isEmpty()) data.removed = List.copyOf(removed);
+            if (!stillWorn.isEmpty()) data.stillWorn = List.copyOf(stillWorn);
 
-        Inventory inv = body.getInventory();
-        List<String> removed = new ArrayList<>();
-        List<String> noRoom = new ArrayList<>();
-        List<String> refused = new ArrayList<>();
-        List<String> stillWorn = new ArrayList<>();
-        for (GearSlot s : slots) {
-            ItemStack worn = s.worn();
-            if (worn.isEmpty()) {
-                continue;
+            if (removed.isEmpty() && stillWorn.isEmpty()) {
+                return Outcome.done("nothing to take off — " + label + " already empty", data);
             }
-            String what = label(worn.getItem()) + " (" + s.name() + ")";
-            Optional<String> stuck = s.refuseRemove();
-            if (stuck.isPresent()) {
-                refused.add(stuck.get());
-                stillWorn.add(what);
-                continue;
+            String refusals = refused.isEmpty() ? "" : String.join("; ", refused);
+            if (removed.isEmpty()) {
+                return noRoom.isEmpty()
+                        ? Outcome.failed(refusals, FailureType.UNKNOWN, data)
+                        : Outcome.failed("inventory is full — no room to stow " + label
+                                + (refusals.isEmpty() ? "" : "; " + refusals), FailureType.NO_SPACE, data);
             }
-            if (inv.getFreeSlot() < 0) {
-                noRoom.add(what);
-                stillWorn.add(what);
-                continue;
-            }
-            inv.add(s.swap(ItemStack.EMPTY));
-            removed.add(what);
+            return Outcome.done("took off " + String.join(", ", removed)
+                    + (noRoom.isEmpty() ? "" : "; inventory full, still wearing " + String.join(", ", noRoom))
+                    + (refusals.isEmpty() ? "" : "; " + refusals), data);
         }
-        inv.setChanged();
-        if (!removed.isEmpty()) data.removed = List.copyOf(removed);
-        if (!stillWorn.isEmpty()) data.stillWorn = List.copyOf(stillWorn);
-
-        if (removed.isEmpty() && stillWorn.isEmpty()) {
-            return Outcome.done("nothing to take off — " + label + " already empty", data);
-        }
-        String refusals = refused.isEmpty() ? "" : String.join("; ", refused);
-        if (removed.isEmpty()) {
-            return noRoom.isEmpty()
-                    ? Outcome.failed(refusals, FailureType.UNKNOWN, data)
-                    : Outcome.failed("inventory is full — no room to stow " + label
-                            + (refusals.isEmpty() ? "" : "; " + refusals), FailureType.NO_SPACE, data);
-        }
-        return Outcome.done("took off " + String.join(", ", removed)
-                + (noRoom.isEmpty() ? "" : "; inventory full, still wearing " + String.join(", ", noRoom))
-                + (refusals.isEmpty() ? "" : "; " + refusals), data);
     }
 
     /**

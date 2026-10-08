@@ -170,8 +170,8 @@ public enum Wire {
     }
 
     /**
-     * 内容随数据长、一个包装不下就分成片送的包:拼回后至多 {@link #MESSAGE_BYTES}。编解码器必须写在 {@code ByteBuf} 上,不碰
-     * 注册表(对端拼回时没有这位玩家的注册表)。哪些包可分片只由这个接口声明,发送与接收都看它。
+     * 内容随数据长、一个包装不下就分成片送的包:拼回后至多 {@link #MESSAGE_BYTES}。注册表内容在对端使用接收连接的注册表
+     * 解码,不带注册表内容的包也可写在 {@code ByteBuf} 上。哪些包可分片只由这个接口声明,发送与接收都看它。
      */
     public interface Fragmentable {
     }
