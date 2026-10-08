@@ -29,7 +29,7 @@ public interface GoalJudge {
      * 一次判定结果。
      *
      * @param verdict     判词(达成 / 打转 / 还差 + 理由)
-     * @param freshTokens 这次判断烧掉的 token(LLM 判官才有;JEV 记 0)
+     * @param freshTokens 这次判断烧掉的 token
      * @param failure     判不出来时的原因;为 {@code null} 表示判成功了。判不出来≠做完了
      */
     record Outcome(GoalPrompts.Verdict verdict, long freshTokens, String failure) {

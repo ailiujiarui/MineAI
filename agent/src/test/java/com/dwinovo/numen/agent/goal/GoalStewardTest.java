@@ -33,7 +33,7 @@ class GoalStewardTest extends LoopHarness {
     @BeforeEach
     void setUpGoals() {
         goals = new GoalSteward("test", loop, transcript, inbox, () -> "<runtime_state/>", () -> bodyBusy,
-                persisted::add, null);
+                this::persistSnapshot, null);
         loop.subscribe(goals::on);
     }
 
@@ -54,9 +54,13 @@ class GoalStewardTest extends LoopHarness {
     /** 另起一个挂了假判官/假验证者的目标管家;默认那个 goal 为 null,不受影响。 */
     private GoalSteward stewardWith(GoalJudge judge, GoalVerifier verifier) {
         GoalSteward steward = new GoalSteward("test", loop, transcript, inbox, () -> "<runtime_state/>",
-                () -> bodyBusy, persisted::add, null, judge, verifier);
+                () -> bodyBusy, this::persistSnapshot, null, judge, verifier);
         loop.subscribe(steward::on);
         return steward;
+    }
+
+    private void persistSnapshot(GoalState goal) {
+        persisted.add(goal == null ? null : GoalState.fromJson(goal.toJson()));
     }
 
     /** 一个永远判"达成"、并附带这条机检宣称的判官。 */
@@ -95,7 +99,7 @@ class GoalStewardTest extends LoopHarness {
         assertFalse(isEvaluation(model.last()));
         assertTrue(model.last().lastUser().contains("背包里只有 20 个铁"), "只补评估器那句还差什么");
         assertEquals(2, goal.turnsExecuted());
-        assertEquals(goal, persisted.get(persisted.size() - 1), "续跑一轮就落盘一次");
+        assertEquals(goal.toJson(), persisted.get(persisted.size() - 1).toJson(), "续跑一轮就落盘一次");
     }
 
     @Test
@@ -121,7 +125,7 @@ class GoalStewardTest extends LoopHarness {
         assertEquals(goal, steward.goal(), "世界不认,就不能收工");
         assertTrue(goal.lastReason().contains("world does not confirm"), goal.lastReason());
         assertEquals(2, goal.turnsExecuted(), "没核对过也算一轮,推她接着做");
-        assertEquals(goal, persisted.get(persisted.size() - 1), "不收工也要落盘");
+        assertEquals(goal.toJson(), persisted.get(persisted.size() - 1).toJson(), "不收工也要落盘");
         assertTrue(model.last().lastUser().contains("expected 3 x minecraft:iron_ingot"),
                 "下一轮得让她看见世界实际长什么样");
     }
@@ -139,6 +143,65 @@ class GoalStewardTest extends LoopHarness {
         assertEquals(2, goal.turnsExecuted(), "没核对上也算一轮,推她接着做");
         assertTrue(model.last().lastUser().contains("could not be checked"),
                 "下一轮得让她知道这次核对没量出结果");
+        assertEquals(goal.toJson(), persisted.get(persisted.size() - 1).toJson(),
+                "未核对原因与续跑额度必须一起落盘");
+    }
+
+    @Test
+    void aClaimWithoutAVerifierIsUnmeasuredAndRemainsActive() {
+        GoalSteward steward = stewardWith(claimMet("have minecraft:iron_ingot 3"), null);
+
+        GoalState goal = goalSetAndFirstRunDone(steward, "挖 3 个铁");
+
+        assertEquals(goal, steward.goal());
+        assertTrue(goal.lastReason().contains("no verifier"));
+        assertTrue(goal.lastReason().contains("could not be checked"));
+        assertEquals(goal.toJson(), persisted.get(persisted.size() - 1).toJson());
+    }
+
+    @Test
+    void failedJudgementIsPersistedWithoutRetryAndRecoversAfterOwnerInput() {
+        GoalState goal = goalSetAndFirstRunDone("挖 64 个铁");
+        int callsBefore = model.calls.size();
+        int turnsBefore = goal.turnsExecuted();
+        int stuckBefore = goal.stuckStreak();
+
+        model.last().onDone().accept(new ModelOutcome.Failed("endpoint unavailable"));
+
+        assertEquals(goal, goals.goal(), "失败保留目标");
+        assertTrue(goal.lastReason().contains("endpoint unavailable"), "现有 /goal 展示读取 lastReason");
+        GoalState restored = persisted.get(persisted.size() - 1);
+        assertEquals(goal.toJson(), restored.toJson(), "失败原因不能只留在内存对象里");
+        assertEquals(turnsBefore, restored.turnsExecuted());
+        assertEquals(stuckBefore, restored.stuckStreak(), "传输失败不算目标原地打转");
+        assertNull(loop.status().hold(), "旁路失败不锁住正常 run");
+        assertNull(loop.status().phase());
+        loop.tick();
+        assertEquals(callsBefore, model.calls.size(), "不新增重试或 tick 调度");
+
+        loop.push(List.of(new EventQueue.Entry(EventTypes.QUERY, EventQueue.query("继续看看"), 0, false)));
+        model.last().say("我再检查一下");
+        assertTrue(isEvaluation(model.last()), "下一个合法 run 完成后重新评估");
+        assertTrue(model.last().lastUser().contains("endpoint unavailable"), "判官读到持久化的失败原因");
+        verdict("NOT_MET: 还差 10 个铁");
+
+        assertEquals("还差 10 个铁", goal.lastReason());
+        assertEquals(turnsBefore + 1, goal.turnsExecuted());
+        assertEquals(goal.toJson(), persisted.get(persisted.size() - 1).toJson());
+        assertTrue(restored.lastReason().contains("endpoint unavailable"), "旧落盘快照不会被恢复后的修改污染");
+    }
+
+    @Test
+    void semanticCompletionWithoutAClaimDoesNotInvokeDeterministicVerification() {
+        GoalSteward steward = stewardWith(claimMet(null), (goal, claim, onDone) -> {
+            throw new AssertionError("没有机检宣称的语义目标不派核对");
+        });
+
+        goalSetAndFirstRunDone(steward, "陪主人聊一会儿");
+
+        assertNull(steward.goal());
+        assertNull(persisted.get(persisted.size() - 1));
+        assertTrue(GoalPrompts.evaluatorSystem().contains("semantic judgment"));
     }
 
     @Test
@@ -251,7 +314,7 @@ class GoalStewardTest extends LoopHarness {
 
         assertFalse(goals.set(goal), "死着的时候交出去也只会躺着");
         assertEquals(goal, goals.goal());
-        assertEquals(goal, persisted.get(persisted.size() - 1));
+        assertEquals(goal.toJson(), persisted.get(persisted.size() - 1).toJson());
     }
 
     @Test

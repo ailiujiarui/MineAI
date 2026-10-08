@@ -75,7 +75,7 @@ public final class EntityAgentLoop {
 
     /**
      * 目标核对程序的兜底时限(见 {@link #verifyGoalClaim})。核对是一次只读查询,本该秒回;到这个点还没回就当连接
-     * 出了问题,<b>放行</b>——一个会抽风的检查不该把本来就已经完成的目标卡死。
+     * 出了问题,如实交回未核对,不能把超时当作世界确认。
      */
     private static final long VERIFY_TIMEOUT_MS = 30_000L;
 
@@ -468,37 +468,36 @@ public final class EntityAgentLoop {
      * 目标核对(见 {@link GoalVerifier}):判官说达成、又给了机检宣称时,把宣称翻成一段只调用 {@code numen.verify.*}
      * 的小程序,经 {@link com.dwinovo.numen.program.ProgramUplink} 送去服务端,读回程序结局当判词。
      *
-     * <p>新模型下 {@code verify} 是一组服务端 API 函数(见 {@code core/.../verify/VerifyApi}),不再是工具;宣称因此
-     * 要翻译成程序里的一次调用。只认 {@code have}/{@code block}/{@code near} 三种;翻译不出来的宣称当作"宿主没能力量",
-     * 按放行处理,不去卡一个本来就会收工的目标。
+     * <p>{@code verify} 是一组服务端 API 函数;宣称翻译成程序里的一次调用。只认
+     * {@code have}/{@code block}/{@code near} 三种;翻译不出来的宣称如实交回未核对。
      *
-     * <p>放行优先,口径同 {@link GoalVerifier}:派发失败、超时、回执读不出判词都放行;只有程序明确抛出"世界不认"
-     * 的判词(带 {@link #VERIFY_DENIED_MARK})时,才把 expected/actual 交回,目标管家据此不收工、推一轮续跑。
+     * <p>派发失败、超时、回执没有判词都交回未核对。程序明确抛出"世界不认"的判词
+     * (带 {@link #VERIFY_DENIED_MARK})时,把 expected/actual 交回;只有核对程序成功才算世界确认。
      *
      * <p>回调可能在别的线程上,统一切回主线程再交给目标管家。
      */
     private void verifyGoalClaim(GoalState goal, String claim, Consumer<GoalVerifier.Result> onDone) {
         String code = verifyProgram(claim);
         if (code == null) {
-            onDone.accept(new GoalVerifier.Result(true, "no verify form for claim: " + claim));
+            onDone.accept(GoalVerifier.Result.unmeasured("no verify form for claim: " + claim));
             return;
         }
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) {
-            onDone.accept(new GoalVerifier.Result(true, "no client to run verify"));
+            onDone.accept(GoalVerifier.Result.unmeasured("no client to run verify"));
             return;
         }
         CompletableFuture<GoalVerifier.Result> verdict = new CompletableFuture<>();
         verdict.orTimeout(VERIFY_TIMEOUT_MS, TimeUnit.MILLISECONDS).whenComplete((result, err) ->
                 mc.execute(() -> onDone.accept(err == null ? result
-                        : new GoalVerifier.Result(true, "verify timed out"))));
+                        : GoalVerifier.Result.unmeasured("verify timed out"))));
         mc.execute(() -> {
             try {
                 com.dwinovo.numen.program.ProgramUplink.CONNECTION.run(entityUuid,
                         "goal-verify-" + UUID.randomUUID(), code, run -> verdict.complete(readVerifyRun(run)));
             } catch (RuntimeException ex) {
-                Constants.LOG.warn("[numen-entity#{}] 目标核对派发失败,放行:{} ({})", entityUuid, claim, ex.getMessage());
-                verdict.complete(new GoalVerifier.Result(true, "dispatch failed: " + ex.getMessage()));
+                Constants.LOG.warn("[numen-entity#{}] 目标核对派发失败,未核对:{} ({})", entityUuid, claim, ex.getMessage());
+                verdict.complete(GoalVerifier.Result.unmeasured("dispatch failed: " + ex.getMessage()));
             }
         });
     }
@@ -507,7 +506,7 @@ public final class EntityAgentLoop {
      * 一段核对程序的结局读成判词:跑完({@code OK})= 世界认;带 {@link #VERIFY_DENIED_MARK} 的报错 = 世界明确不认;
      * 别的(没跑成、答非所问、被停下)= 跑了但没判词,交 {@link GoalVerifier.Result#unmeasured}。
      */
-    private static GoalVerifier.Result readVerifyRun(com.dwinovo.numen.program.RunResult run) {
+    static GoalVerifier.Result readVerifyRun(com.dwinovo.numen.program.RunResult run) {
         if (!(run instanceof com.dwinovo.numen.program.RunResult.Ended ended)) {
             return GoalVerifier.Result.unmeasured("verify did not run to a verdict");
         }
@@ -521,8 +520,8 @@ public final class EntityAgentLoop {
                 : new GoalVerifier.Result(false, message.substring(at + VERIFY_DENIED_MARK.length()).strip());
     }
 
-    /** 把一条机检宣称翻成一段只调用 {@code numen.verify.*} 的程序;认不出的宣称回 {@code null}(放行)。 */
-    private static String verifyProgram(String claim) {
+    /** 把一条机检宣称翻成一段只调用 {@code numen.verify.*} 的程序;认不出的宣称回 {@code null}(未核对)。 */
+    static String verifyProgram(String claim) {
         if (claim == null) {
             return null;
         }
@@ -570,7 +569,7 @@ public final class EntityAgentLoop {
         }
         Integer radius = integer(words[2]);
         return radius == null ? null
-                : verifyCall("numen.verify.near(" + luaString(words[1]) + ", " + radius + ")");
+                : verifyCall("numen.verify.near(" + luaString(words[1]) + ", {radius = " + radius + "})");
     }
 
     /** 一段核对程序:调一次 verify;世界不认就把 expected/actual 抛成带标记的错误,回执那一侧据此认判词。 */

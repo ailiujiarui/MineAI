@@ -40,9 +40,9 @@ public final class GoalSteward {
     private final Supplier<String> runtimeState;
     private final BooleanSupplier bodyOnFiniteTask;
     private final Consumer<GoalState> persist;
-    /** 判官:默认另开一次模型调用({@link LlmGoalJudge}),可换成 JEV。 */
+    /** 判官:默认另开一次模型调用({@link LlmGoalJudge})。 */
     private final GoalJudge judge;
-    /** 判官说达成、又给了机检宣称时,拿宣称去量真实世界的那一关;没给验证者的走放行。 */
+    /** 判官说达成、又给了机检宣称时,拿宣称去量真实世界;没给验证者则未核对。 */
     private final GoalVerifier verifier;
 
     /** 当前的长期目标;{@code null} = 没有。 */
@@ -65,7 +65,7 @@ public final class GoalSteward {
                 new LlmGoalJudge(loop));
     }
 
-    /** 换一个判官(比如 JEV);其余不变。核对仍是放行。 */
+    /** 换一个判官;未接验证者时机检宣称仍算未核对。 */
     public GoalSteward(String name, AgentLoop loop, ConvoState convo, EventQueue inbox,
                        Supplier<String> runtimeState, BooleanSupplier bodyOnFiniteTask,
                        Consumer<GoalState> persist, GoalState restored, GoalJudge judge) {
@@ -220,7 +220,9 @@ public final class GoalSteward {
             return;
         }
         if (!outcome.ok()) {
-            // 判不出来不等于做完了。歇一轮,下次做完再判。
+            // 判不出来不等于做完了。原因沿用目标展示与落盘路径,等下一次正常 run 做完再判。
+            judged.setLastReason("目标评估失败,未确认达成:" + outcome.failure());
+            persist.accept(judged);
             AiLog.LOG.warn("[numen-entity#{}] 目标评估失败,这一轮先不续:{}", name, outcome.failure());
             return;
         }
@@ -233,7 +235,7 @@ public final class GoalSteward {
                 verdict.reason());
         if (verdict.met()) {
             if (verdict.verify() == null) {
-                clear("目标达成:" + verdict.reason());
+                clear("目标语义判断达成(未经确定性核对):" + verdict.reason());
                 return;
             }
             // 判官说达成,但它还给了可机检的宣称:先拿宣称去量真实世界,量过了才收工。

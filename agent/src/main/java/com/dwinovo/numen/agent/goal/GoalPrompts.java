@@ -103,6 +103,8 @@ public final class GoalPrompts {
                 %s: near <block> [radius]
                 Derive the claim from the condition and the measured facts — never invent one the \
                 facts do not show. If the end state cannot be machine-checked, write `%s: none`. \
+                A MET answer without a machine-checkable claim is a semantic judgment, not a \
+                deterministic verification. Do not describe it as deterministically verified. \
                 Do not write a %s line when you answer %s or %s."""
                 .formatted(MET, NOT_MET, STUCK, NOT_MET, STUCK, NOT_MET,
                         MET, VERIFY, VERIFY, VERIFY, VERIFY, VERIFY, NOT_MET, STUCK);
@@ -144,7 +146,7 @@ public final class GoalPrompts {
      */
     public record Verdict(boolean met, boolean stuck, String reason, String verify) {
 
-        /** 不带机检宣称的判词(JEV 和旧调用点用)。 */
+        /** 不带机检宣称的语义判词。 */
         public Verdict(boolean met, boolean stuck, String reason) {
             this(met, stuck, reason, null);
         }
