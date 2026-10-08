@@ -2,6 +2,8 @@ package com.dwinovo.numen.mixin;
 
 import com.dwinovo.numen.client.spectator.SpectatorClient;
 import com.dwinovo.numen.client.spectator.SpectatorHandRenderer;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -26,13 +28,14 @@ public abstract class SpectatorGameRendererMixin {
                 : mode.getPlayerMode();
     }
 
-    @Redirect(method = "renderItemInHand", at = @At(value = "INVOKE",
+    @WrapOperation(method = "renderItemInHand", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderHandsWithItems(FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;Lnet/minecraft/client/player/LocalPlayer;I)V"))
     private void numen$renderTargetHands(ItemInHandRenderer renderer, float partialTick, PoseStack pose,
-                                         MultiBufferSource.BufferSource buffers, LocalPlayer owner, int light) {
+                                         MultiBufferSource.BufferSource buffers, LocalPlayer owner, int light,
+                                         Operation<Void> original) {
         AbstractClientPlayer target = SpectatorClient.target();
         if (target == null) {
-            renderer.renderHandsWithItems(partialTick, pose, buffers, owner, light);
+            original.call(renderer, partialTick, pose, buffers, owner, light);
         } else {
             int targetLight = Minecraft.getInstance().getEntityRenderDispatcher().getPackedLightCoords(target, partialTick);
             ((SpectatorHandRenderer) renderer).numen$renderHands(partialTick, pose, buffers, target, targetLight);
