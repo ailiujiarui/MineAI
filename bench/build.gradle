@@ -46,3 +46,22 @@ tasks.register('compare', JavaExec) {
         args(project.property('before'), project.property('after'))
     }
 }
+
+/**
+ * 指标门:把一份结果聚合成指标,和 {@code bench/metrics-thresholds.json} 的门槛比,有一项越界就非零退出。
+ * 默认跑仓库里的夹具(不联网、不调模型),CI 与本地都用它拦回归:
+ *   ./gradlew :bench:metricGate
+ *   ./gradlew :bench:metricGate -Presults=core/neoforge/runs/bench/results/<时间戳>
+ */
+tasks.register('metricGate', JavaExec) {
+    group = 'verification'
+    description = '指标门:五项指标越界就失败(见 docs/bench.md)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.dwinovo.numen.bench.report.MetricGate'
+    workingDir = rootProject.projectDir
+    jvmArgs '-Dstdout.encoding=UTF-8'
+    doFirst {
+        args(project.findProperty('results') ?: 'bench/fixtures/sample',
+                project.findProperty('thresholds') ?: 'bench/metrics-thresholds.json')
+    }
+}

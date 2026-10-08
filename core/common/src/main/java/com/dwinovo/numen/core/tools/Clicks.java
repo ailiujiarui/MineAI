@@ -26,7 +26,7 @@ public final class Clicks {
 
     /** 点一格(或朝前方)的结果。 */
     @Doc("What a click did.")
-    public record Clicked(Button button,
+    public record Clicked(@Doc("Which mouse button: LEFT or RIGHT.") Button button,
                           @Doc("The cell aimed at.") Optional<BlockPos> aim,
                           @Doc("The block the click used, when it opened or worked a station.") Optional<BlockAt> block,
                           @Doc("What changed: your inventory, health and riding, the block, new entities; empty means the click did nothing.")
@@ -34,8 +34,8 @@ public final class Clicks {
 
     /** 点一只实体的结果。 */
     @Doc("What a click on an entity did.")
-    public record EntityClicked(Button button,
-                                int entityId,
+    public record EntityClicked(@Doc("Which mouse button: LEFT or RIGHT.") Button button,
+                                @Doc("The entity's runtime id.") int entityId,
                                 @Doc("What changed; empty means the click did nothing.") List<String> changes)
             implements Hit {}
 }

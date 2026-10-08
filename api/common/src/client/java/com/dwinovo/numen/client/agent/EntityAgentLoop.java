@@ -158,6 +158,12 @@ public final class EntityAgentLoop {
     /** 上一个 tick 驾驶席在不在外接模型手里——只用来找"翻转成外接"的那一下。 */
     private boolean wasDriving;
 
+    /**
+     * 断线复连时替她算一份"你不在的这段时间世界变了什么"的回执(见 {@link ResumeDiffWatcher})。
+     * 只有一枚离开时采的有界指纹在离开到回来之间醒着,算完即丢——不是第二份世界模型。
+     */
+    private final ResumeDiffWatcher resumeDiff = new ResumeDiffWatcher();
+
     EntityAgentLoop(UUID entityUuid) {
         this.entityUuid = entityUuid;
         this.log = ConvoLog.atFile(CompanionHome.chat(entityUuid));
@@ -399,6 +405,8 @@ public final class EntityAgentLoop {
      * 离线补发回来的 {@code task_finished} 也唤不醒她。
      */
     void quiesce() {
+        // 先记下离开那一刻她周围的有界指纹,复连后好算出"你不在时世界变了什么"。
+        resumeDiff.capture(entityUuid, resolveEntity());
         loop.halt(HaltReason.DISCONNECT);
     }
 
@@ -422,6 +430,13 @@ public final class EntityAgentLoop {
         }
         wasDriving = driving;
         loop.tick();
+        // 复连后的头几个 tick:身体一解析得到,就把"你不在时世界变了什么"算出来交给她;
+        // 没差异、或还在等身体解析,都不产生事件。算完指纹即丢。
+        String whileAway = resumeDiff.resumeReceipt(entityUuid, resolveEntity());
+        if (whileAway != null && !whileAway.isEmpty()) {
+            loop.push(List.of(com.dwinovo.numen.event.NumenEvents.entry(gameDayTime(), EventTypes.RESUME, null,
+                    whileAway, System.currentTimeMillis(), false)));
+        }
     }
 
 

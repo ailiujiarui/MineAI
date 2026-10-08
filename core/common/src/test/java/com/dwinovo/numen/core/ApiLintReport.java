@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * core 的 lint 报告,不是守卫:登记的每个函数与随模组发的模块的写法({@link ApiTester#lint()}),技能文档、系统提示、工具说明里写着的
@@ -29,6 +30,8 @@ public class ApiLintReport {
     @Test
     void writeTheReport() throws IOException, URISyntaxException {
         CoreApiFixture.install();
+        // 行为漂移是守卫:说明/例子/相关/注记/返回值字段与实际对不上,这一条测试就红。接口风格仍在报告里,由分数说话。
+        assertNoDrift("numen.");
         List<ApiTester.Lint> lint = new ArrayList<>(ApiTester.lint());
         List<ApiTester.Text> texts = new ArrayList<>(documents("skills"));
         texts.add(new ApiTester.Text("NumenPrompts.ENTITY_PROMPT", NumenPrompts.ENTITY_PROMPT));
@@ -53,6 +56,16 @@ public class ApiLintReport {
         Files.writeString(out, report + "\n");
         System.out.println("[api-lint] " + lint.size() + " finding(s), written to " + out.toAbsolutePath()
                 + (lint.isEmpty() ? "" : ":\n" + report));
+    }
+
+    /**
+     * 行为漂移是守卫,不是报告:{@link ApiTester#drift()} 里 {@code where} 以 {@code prefix} 打头的那些(插件测试只对自己
+     * 的名字空间设闸,core 的清理归 core)。空的才算过。
+     */
+    public static void assertNoDrift(String prefix) {
+        List<ApiTester.Lint> drift = ApiTester.drift().stream().filter(l -> l.where().startsWith(prefix)).toList();
+        assertTrue(drift.isEmpty(), "behavior drift for " + prefix + ":\n" + String.join("\n", drift.stream()
+                .map(ApiTester.Lint::toString).toList()));
     }
 
     /** 类路径上一个目录里的每一份 Markdown(技能正文与它按需读的参考文件)。 */

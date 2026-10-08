@@ -25,7 +25,9 @@ import java.util.function.Consumer;
  * 订阅循环内核的事件记账:调了几次模型、几个工具调用、几个失败、同一个失败的调用重复了几次、用量三项,以及她说的话;程序里的每次
  * API 调用按函数记一笔({@link #functions}:调了几次、失败的各是哪种、调用前查过几次帮助、重复失败几次)。
  * 同时把这些写进这次的 {@link Transcript}:她写的程序与回执整段落下(诊断只读这两样),每个失败的程序记下回执里错误值的种类
- * ({@link #errorKind})并按它归一类({@link #errorClass})。流式增量({@code ModelDelta})一概不看——思考流不落。
+ * ({@link #errorKind})并按它归一类({@link #errorClass})。另外落三类原始事件,给纯 JVM 的聚合器量新指标:{@code turn}
+ * (轮次边界)、{@code api_call}(程序里每次 API 调用的函数与结局)、{@code program_end}(程序结局,被停下时算一次打断)。
+ * 流式增量({@code ModelDelta})一概不看——思考流不落。
  */
 final class Meter implements Consumer<LoopEvent> {
 
@@ -74,7 +76,10 @@ final class Meter implements Consumer<LoopEvent> {
     @Override
     public void accept(LoopEvent event) {
         switch (event) {
-            case LoopEvent.TurnStarted started -> turns++;
+            case LoopEvent.TurnStarted started -> {
+                turns++;
+                transcript.write("turn", "n", String.valueOf(turns), "owner_spoke", String.valueOf(started.ownerSpoke()));
+            }
             case LoopEvent.ModelUsed used -> add(used.usage());
             case LoopEvent.AssistantMessage message -> {
                 String content = message.turn().content();
@@ -85,11 +90,20 @@ final class Meter implements Consumer<LoopEvent> {
             }
             case LoopEvent.ToolStarted started -> {
                 toolCalls++;
-                transcript.write("tool_call", "tool", started.call().name(), "args", started.call().arguments());
+                transcript.write("tool_call", "id", started.call().id(), "tool", started.call().name(),
+                        "args", started.call().arguments());
             }
-            case LoopEvent.ProgramEnded ended -> ending = ended;
+            case LoopEvent.ProgramEnded ended -> {
+                ending = ended;
+                transcript.write("program_end", "id", ended.program().id(),
+                        "status", ended.ending().status().wire(), "calls", String.valueOf(ended.calls()));
+            }
             case LoopEvent.ToolFinished finished -> finished(finished.call(), finished.resultJson());
-            case LoopEvent.ApiCalled api -> called(api.called());
+            case LoopEvent.ApiCalled api -> {
+                transcript.write("api_call", "program", api.program().id(), "function", api.called().function(),
+                        "error_kind", api.called().kind() == null ? "" : api.called().kind());
+                called(api.called());
+            }
             case LoopEvent.TurnFailed failed -> {
                 apiFailure = failed.words();
                 transcript.write("turn_failed", "words", failed.words());
@@ -148,8 +162,8 @@ final class Meter implements Consumer<LoopEvent> {
         boolean failed = failed(result);
         String errorKind = failed ? errorKind(program) : "";
         String errorClass = failed ? errorClass(errorKind) : "";
-        transcript.write("tool_result", "tool", call.name(), "success", String.valueOf(!failed),
-                "error_class", errorClass, "error_kind", errorKind,
+        transcript.write("tool_result", "id", call.id(), "tool", call.name(),
+                "success", String.valueOf(!failed), "error_class", errorClass, "error_kind", errorKind,
                 "calls", String.valueOf(program == null ? 0 : program.calls()), "result", result);
         if (!failed) {
             return;

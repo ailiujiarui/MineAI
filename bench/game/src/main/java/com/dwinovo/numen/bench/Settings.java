@@ -8,8 +8,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * 这一次评测的设置,全部来自运行配置传进来的系统属性(见 {@code docs/bench.md}),API key 例外:只从环境变量
- * {@value #KEY_ENV} 读,不经任何属性、文件或日志。
+ * 这一次评测的设置,全部来自运行配置传进来的系统属性(见 {@code docs/bench.md})。API key 例外:它来自仓库根的
+ * {@code bench/bench.json}(gitignore;模板 {@code bench/bench.example.json}),由构建脚本读出来注入
+ * {@code bench.api_key} 系统属性——<b>不用环境变量</b>,key 也不进任何日志或报告。
  *
  * @param scenarios 要跑的场景({@code bench.scenarios},逗号隔开:{@code all}、组名、场景名);空 = 什么都不跑
  * @param repeats   真实模型每个场景跑几次({@code bench.repeats});0 = 只跑两种基线
@@ -20,10 +21,10 @@ import java.util.List;
  *                  {@code <游戏目录>/results/<时间戳>/}
  */
 record Settings(List<String> scenarios, int repeats, String provider, String model, String baseUrl,
-                String reasoning, Pricing pricing, String commit, int shard, int shards, Path results) {
+                String reasoning, String apiKey, Pricing pricing, String commit, int shard, int shards, Path results) {
 
-    /** API key 所在的环境变量。 */
-    static final String KEY_ENV = "NUMEN_BENCH_API_KEY";
+    /** 本地评测配置:仓库根 {@code bench/bench.json}。key 只从这里读,不用环境变量。 */
+    static final String CONFIG_FILE = "bench/bench.json";
 
     static Settings fromSystem() {
         String pricing = prop("bench.pricing", "");
@@ -37,6 +38,7 @@ record Settings(List<String> scenarios, int repeats, String provider, String mod
                 prop("bench.model", "deepseek-v4-flash"),
                 prop("bench.baseUrl", "https://api.deepseek.com/beta"),
                 prop("bench.reasoning", ""),
+                prop("bench.api_key", ""),
                 pricing.isEmpty() ? Pricing.NONE : Pricing.load(Path.of(pricing)),
                 prop("bench.commit", "unknown"),
                 Integer.parseInt(shard[0]), Integer.parseInt(shard[1]),
@@ -70,12 +72,11 @@ record Settings(List<String> scenarios, int repeats, String provider, String mod
 
     /** 有没有 API key。只答有没有,key 本身不出这个类。 */
     boolean hasKey() {
-        String key = System.getenv(KEY_ENV);
-        return key != null && !key.isBlank();
+        return apiKey != null && !apiKey.isBlank();
     }
 
     /** 真实模型的端点。代理不走:评测直连。 */
     LlmEndpoint endpoint() {
-        return new LlmEndpoint(provider, model, System.getenv(KEY_ENV), baseUrl, "", reasoning);
+        return new LlmEndpoint(provider, model, apiKey, baseUrl, "", reasoning);
     }
 }

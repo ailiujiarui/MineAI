@@ -21,6 +21,7 @@ class FtbqApiLintReport {
     void writeTheReport() throws IOException, URISyntaxException {
         CoreApiFixture.install();
         NumenPlugins.register(FtbqApi.NAMESPACE, FtbqApi::install);
+        ApiLintReport.assertNoDrift("ftbquests.");
         List<ApiTester.Lint> lint = new ArrayList<>(ApiTester.lint().stream()
                 .filter(l -> l.where().startsWith("ftbquests.")).toList());
         lint.addAll(ApiTester.lint(ApiLintReport.documents("plugins/ftbquests/skills")));

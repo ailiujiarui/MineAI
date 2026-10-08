@@ -66,6 +66,16 @@ public class PermissionGameTests {
         return com.dwinovo.numen.permission.ConsentDesk.of(companion);
     }
 
+    /**
+     * 一次 {@code numen.fight.attack} 的账里,点名的那只实体是不是"悬而未决"(主人不在、没问到同意):
+     * 状态是 {@code pending},不是被打倒、走丢、够不着,更不是被拒({@code refused: …})。
+     */
+    private static boolean leftUnresolved(ToolRun attack, int entityId) {
+        var fought = attack.result(com.dwinovo.numen.core.task.combat.Fought.class);
+        return fought != null && fought.fought().stream()
+                .anyMatch(foe -> foe.id() == entityId && foe.status().startsWith("pending"));
+    }
+
     /** 屋子四面墙与脚下地板都记成玩家放的(一间房子的地板也是主人铺的)。 */
     private static void ownersRoom(GameTestHelper helper, int cx, int cz) {
         plankRoomAround(helper, cx, cz);
@@ -1366,8 +1376,9 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(build.done(), "build has not finished");
-            helper.assertTrue(!build.succeeded() && "needs_consent".equals(build.kind()),
-                    "the unresolved placement did not retain its consent kind: " + build.outcome());
+            helper.assertTrue(!build.succeeded()
+                            && build.outcome().contains(com.dwinovo.numen.permission.ConsentDesk.OWNER_ABSENT),
+                    "the cell was not left unresolved as the owner being absent: " + build.outcome());
             helper.assertTrue(!level.getBlockState(spot).is(Blocks.TNT)
                             && companion.getInventory().countItem(Items.TNT) == 1,
                     "the TNT was placed next to the owner's planks");
@@ -1395,7 +1406,7 @@ public class PermissionGameTests {
 
     // ---- 打村民、打别人的狼、拆装着东西的箱子、拆活板门 ----
 
-    /** 村民在出厂 ask 表里:主人不在,问不到就不打;回执保留未获同意的原因,村民一滴血没掉。 */
+    /** 村民在出厂 ask 表里:主人不在,问不到就不打;attack 以主人拒绝收场,村民一滴血没掉。 */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_permission")
     public static void attack_a_villager_with_the_owner_away_is_refused(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -1410,9 +1421,9 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(attack.done(), "attack has not finished");
-            helper.assertTrue(!attack.succeeded() && "needs_consent".equals(attack.kind())
-                            && attack.outcome().contains("the owner could not be reached"),
-                    "the unresolved attack did not retain its consent reason: " + attack.outcome());
+            helper.assertTrue(!attack.succeeded(), "the attack went ahead without the owner: " + attack.outcome());
+            helper.assertTrue(leftUnresolved(attack, villager.getId()),
+                    "the villager was not left unresolved as the owner being absent: " + attack.outcome());
             helper.assertTrue(villager.getHealth() == villager.getMaxHealth(), "the villager was hit");
             villager.discard();
             CompanionFactory.despawn(level.getServer(), companion);
@@ -1472,9 +1483,9 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(attack.done(), "attack has not finished");
-            helper.assertTrue(!attack.succeeded() && "needs_consent".equals(attack.kind())
-                            && attack.outcome().contains("the owner could not be reached"),
-                    "the unresolved attack did not retain its consent reason: " + attack.outcome());
+            helper.assertTrue(!attack.succeeded(), "the attack went ahead without the owner: " + attack.outcome());
+            helper.assertTrue(leftUnresolved(attack, wolf.getId()),
+                    "the tamed wolf was not left unresolved as the owner being absent: " + attack.outcome());
             helper.assertTrue(wolf.getHealth() == wolf.getMaxHealth(), "the tamed wolf was hit");
             wolf.discard();
             CompanionFactory.despawn(level.getServer(), companion);
@@ -1492,9 +1503,10 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(mine.done(), "mine has not finished");
-            helper.assertTrue(!mine.succeeded() && "needs_consent".equals(mine.kind())
+            helper.assertTrue(!mine.succeeded()
+                            && mine.outcome().contains("left for a later consent")
                             && mine.outcome().contains("the owner could not be reached"),
-                    "the withheld chest did not retain its consent reason: " + mine.outcome());
+                    "the chest was not left unresolved as the owner being absent: " + mine.outcome());
             helper.assertTrue(level.getBlockState(chest).is(Blocks.CHEST)
                             && level.getBlockEntity(chest) instanceof net.minecraft.world.Container box
                             && box.countItem(Items.DIAMOND) == 5,
@@ -1515,9 +1527,10 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(mine.done(), "mine has not finished");
-            helper.assertTrue(!mine.succeeded() && "needs_consent".equals(mine.kind())
+            helper.assertTrue(!mine.succeeded()
+                            && mine.outcome().contains("left for a later consent")
                             && mine.outcome().contains("the owner could not be reached"),
-                    "the withheld trapdoor did not retain its consent reason: " + mine.outcome());
+                    "the trapdoor was not left unresolved as the owner being absent: " + mine.outcome());
             helper.assertTrue(level.getBlockState(trapdoor).is(Blocks.OAK_TRAPDOOR), "the trapdoor was broken");
             CompanionFactory.despawn(level.getServer(), companion);
         });
@@ -1538,8 +1551,9 @@ public class PermissionGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(pour.done(), "use block has not finished");
-            helper.assertTrue(!pour.succeeded() && "needs_consent".equals(pour.kind()),
-                    "the unresolved use did not retain its consent kind: " + pour.outcome());
+            helper.assertTrue(!pour.succeeded()
+                            && pour.outcome().contains(com.dwinovo.numen.permission.ConsentDesk.OWNER_ABSENT),
+                    "the water was not left unresolved as the owner being absent: " + pour.outcome());
             helper.assertTrue(!level.getBlockState(floor.above()).is(Blocks.WATER)
                             && companion.getInventory().countItem(Items.WATER_BUCKET) == 1,
                     "the water was poured next to the owner's planks");

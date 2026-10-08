@@ -69,7 +69,8 @@ final class Session {
         level = helper.getLevel();
         anchor = helper.absolutePos(BlockPos.ZERO).above();
         if (settings.repeats() > 0 && !settings.hasKey()) {
-            problems.add("要跑真实模型却没有 API key(环境变量 " + Settings.KEY_ENV + ")");
+            problems.add("要跑真实模型却没有 API key(在 " + Settings.CONFIG_FILE
+                    + " 里填 api_key,模板见 bench/bench.example.json)");
             liveOff = true;
         }
         helper.startSequence()

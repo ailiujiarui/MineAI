@@ -50,23 +50,23 @@ public final class StatusApi {
     /** 她的身体。 */
     @Doc("Your body right now.")
     public record Self(@Doc("Your own entity id.") int id,
-                       String name,
+                       @Doc("Your name.") String name,
                        @Doc("survival, creative, adventure or spectator.") String gameMode,
-                       double hp,
-                       double maxHp,
+                       @Doc("Health now.") double hp,
+                       @Doc("Health at most.") double maxHp,
                        @Doc("0-20.") int hunger,
-                       double saturation,
+                       @Doc("Hunger's reserve before it starts dropping.") double saturation,
                        @Doc("Where you are (decimals).") Vec3 pos,
-                       String dimension,
-                       String biome,
+                       @Doc("Which dimension you are in, e.g. minecraft:overworld.") String dimension,
+                       @Doc("Which biome you stand in, e.g. minecraft:plains.") String biome,
                        @Doc("Structures you stand in.") List<String> structures,
                        @Doc("What is in your hands.") Hands hands,
-                       Slots backpackSlots,
-                       boolean onGround,
-                       boolean inWater,
+                       @Doc("How many of your backpack slots are filled, out of the whole.") Slots backpackSlots,
+                       @Doc("Whether you stand on something.") boolean onGround,
+                       @Doc("Whether your body is in water.") boolean inWater,
                        @Doc("Breath left, in ticks.") int air,
-                       int maxAir,
-                       boolean inLava,
+                       @Doc("Breath at most, in ticks.") int maxAir,
+                       @Doc("Whether your body is in lava.") boolean inLava,
                        @Doc("What you wear and what mods report about your body.") Optional<String> bodyState) {}
 
     @Fn("Your body: health, hunger, position, biome, what is in your hands and on you, movement state.")
@@ -119,19 +119,19 @@ public final class StatusApi {
 
     /** 她的主人。 */
     @Doc("Your owner right now; when they are offline, only online (false) is there.")
-    public record Owner(boolean online,
+    public record Owner(@Doc("Whether they are online right now.") boolean online,
                         @Doc("Their entity id.") Optional<Integer> id,
-                        Optional<String> name,
+                        @Doc("Their name.") Optional<String> name,
                         @Doc("Where they are (decimals), in their dimension's coordinates.") Optional<Vec3> pos,
                         @Doc("Blocks from you, in the same dimension.") Optional<Double> distance,
-                        Optional<Boolean> sameDimension,
-                        Optional<String> dimension,
-                        Optional<Double> hp,
-                        Optional<Double> maxHp,
-                        Optional<Integer> hunger,
-                        Optional<Double> saturation,
-                        Optional<String> mainHand,
-                        Optional<String> offHand) {}
+                        @Doc("Whether they are in your dimension.") Optional<Boolean> sameDimension,
+                        @Doc("Which dimension they are in.") Optional<String> dimension,
+                        @Doc("Their health now.") Optional<Double> hp,
+                        @Doc("Their health at most.") Optional<Double> maxHp,
+                        @Doc("Their hunger, 0-20.") Optional<Integer> hunger,
+                        @Doc("Their hunger's reserve.") Optional<Double> saturation,
+                        @Doc("The item id in their main hand.") Optional<String> mainHand,
+                        @Doc("The item id in their off hand.") Optional<String> offHand) {}
 
     @Fn("Your owner: online or not, health, hunger, position, distance from you, held items.")
     @Example("local owner = numen.status.owner()\nif owner.online then print(owner.pos.x, owner.pos.z) end")

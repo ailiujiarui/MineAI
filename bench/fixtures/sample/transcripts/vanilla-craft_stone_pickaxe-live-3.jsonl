@@ -1,0 +1,13 @@
+{"ms":100,"kind":"turn","n":"1","owner_spoke":"true"}
+{"ms":120,"kind":"tool_call","id":"c1","tool":"lua","args":"{}"}
+{"ms":300,"kind":"program_end","id":"c1","status":"ok","calls":"1"}
+{"ms":320,"kind":"tool_result","id":"c1","tool":"lua","success":"true","error_class":"","error_kind":"","calls":"1","result":"{}"}
+{"ms":340,"kind":"api_call","program":"c1","function":"numen.scan.blocks","error_kind":""}
+{"ms":360,"kind":"consent","asked":"place crafting_table","answer":"PENDING"}
+{"ms":500,"kind":"turn","n":"2","owner_spoke":"false"}
+{"ms":520,"kind":"tool_call","id":"c2","tool":"lua","args":"{}"}
+{"ms":700,"kind":"program_end","id":"c2","status":"ok","calls":"1"}
+{"ms":720,"kind":"tool_result","id":"c2","tool":"lua","success":"true","error_class":"","error_kind":"","calls":"1","result":"{}"}
+{"ms":740,"kind":"api_call","program":"c2","function":"numen.inv.make","error_kind":""}
+{"ms":1300,"kind":"turn","n":"3","owner_spoke":"false"}
+{"ms":1400,"kind":"end","end":"TURN_LIMIT","passed":"false"}

@@ -142,6 +142,15 @@ public final class LuaCodecs {
     }
 
     /**
+     * 这个名字的类是不是由一个 Java record 声明的:{@link #POS}、{@link #ERROR}、{@link #CELLS} 是手写的共用类型,没有
+     * 对应的 record,也就没有"组件"可以有 {@link Doc}。lint 查返回值字段说明时据此略过它们。
+     */
+    static synchronized boolean fromRecord(String name) {
+        Class<?> owner = NAMED.get(name);
+        return owner != null && owner.isRecord();
+    }
+
+    /**
      * 这个 Java 类型的值转换:登记了的、内置的,或按它的样子现造(record、枚举、{@code List}、{@code Map<String, T>})。
      *
      * @param namespace 现造 record 时它的类名用哪个名字空间

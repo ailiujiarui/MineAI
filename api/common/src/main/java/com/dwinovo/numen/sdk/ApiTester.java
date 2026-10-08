@@ -4,6 +4,7 @@ import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ScriptCatalog;
 import com.dwinovo.numen.agent.script.ScriptEngine;
 import com.dwinovo.numen.agent.script.ScriptRun;
+import com.dwinovo.numen.agent.script.ScriptType;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.program.CallObserver;
 import com.dwinovo.numen.program.LoopbackClient;
@@ -15,7 +16,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,9 +57,37 @@ public final class ApiTester {
 
     /** 登记了的函数与随模组发的模块的写法问题,按函数全名、模块名的顺序。 */
     public static List<Lint> lint() {
+        List<Lint> out = new ArrayList<>(drift());
+        Modules factory = Modules.factory();
+        ScriptCatalog catalog = ApiRegistry.catalog(factory);
+        ScriptEngine engine = ScriptEngine.IN_USE;
+        BuiltinModules.all().forEach((name, module) -> {
+            String broken = engine.checkModule(name, module.code(), catalog);
+            if (broken != null) {
+                out.add(new Lint("module " + name, broken));
+            }
+            if (module.summary() == null) {
+                out.add(new Lint("module " + name, "no first comment line saying what it does ("
+                        + engine.comment("...") + ")"));
+            }
+            for (ScriptEngine.Defined fn : engine.functions(name, module.code())) {
+                if (engine.summaryOf(fn).isEmpty()) {
+                    out.add(new Lint("module " + name, "the function " + fn.name() + " has no comment above it"));
+                }
+            }
+        });
+        return out;
+    }
+
+    /**
+     * 行为漂移:说明、例子、相关、注记、返回值字段与实际行为对不上的地方。与 {@link #lint} 分开,好让报告测试只对"行为漂移"设闸,
+     * 把"还没写说明"这类接口风格留在报告里。全部是只读判断:不跑世界、不碰网络,一次登记表遍历里算完。
+     */
+    public static List<Lint> drift() {
         List<Lint> out = new ArrayList<>();
         Modules factory = Modules.factory();
         ScriptCatalog catalog = ApiRegistry.catalog(factory);
+        Map<String, ApiDocs.Library> library = ApiDocs.library(factory);
         for (ApiFunction fn : ApiRegistry.functions()) {
             String where = fn.fullName();
             if (fn.summary().isBlank()) {
@@ -77,28 +109,108 @@ public final class ApiTester {
                 }
             }
             for (String related : fn.seeAlso()) {
-                if (ApiRegistry.function(related) == null && !ApiDocs.library(factory).containsKey(related)) {
+                if (ApiRegistry.function(related) == null && !library.containsKey(related)) {
                     out.add(new Lint(where, "@SeeAlso names " + related + ", which is no function"));
                 }
             }
+            returnDocDrift(fn, out);
+            notesDrift(fn, factory, library, out);
         }
-        ScriptEngine engine = ScriptEngine.IN_USE;
-        BuiltinModules.all().forEach((name, module) -> {
-            String broken = engine.checkModule(name, module.code(), catalog);
-            if (broken != null) {
-                out.add(new Lint("module " + name, broken));
+        return out;
+    }
+
+    /**
+     * 返回值的 record 若有类上的 {@link Doc},字段说明要么一个都不写(类说明足够)、要么每个都写——写了几个漏几个是漂移。
+     * {@code @Doc} 写在组件上,字段删了就跟着没了,所以不会有"说明指着不存在的字段";这里查的是"覆盖不全"。手写的共用类型
+     * ({@code Pos}、{@code Error}、{@code Cells})没有组件可标,略过。
+     */
+    private static void returnDocDrift(ApiFunction fn, List<Lint> out) {
+        Set<String> visited = new LinkedHashSet<>();
+        collect(fn.returns().type(), visited);
+        for (String name : visited) {
+            ScriptType.Class type = LuaCodecs.classNamed(name);
+            if (type == null || type.doc() == null || type.doc().isBlank() || !LuaCodecs.fromRecord(name)) {
+                continue;
             }
-            if (module.summary() == null) {
-                out.add(new Lint("module " + name, "no first comment line saying what it does ("
-                        + engine.comment("...") + ")"));
+            long documented = type.fields().stream().filter(f -> f.doc() != null && !f.doc().isBlank()).count();
+            if (documented == 0 || documented == type.fields().size()) {
+                continue;
             }
-            for (ScriptEngine.Defined fn : engine.functions(name, module.code())) {
-                if (engine.summaryOf(fn).isEmpty()) {
-                    out.add(new Lint("module " + name, "the function " + fn.name() + " has no comment above it"));
+            for (ScriptType.Field field : type.fields()) {
+                if (field.doc() == null || field.doc().isBlank()) {
+                    out.add(new Lint(fn.fullName(), "the return type " + name + " documents some fields but not '"
+                            + field.name() + "' (@Doc)"));
                 }
             }
-        });
-        return out;
+        }
+    }
+
+    /** 一个类型按名字引用到的类,连同它们的父类、字段与元素里再引用的,按出现的先后(和帮助列类同一条路)。 */
+    private static void collect(ScriptType type, Set<String> out) {
+        switch (type) {
+            case ScriptType.Named n -> {
+                if (out.add(n.name())) {
+                    ScriptType.Class c = LuaCodecs.classNamed(n.name());
+                    if (c != null) {
+                        if (c.parent() != null) {
+                            collect(new ScriptType.Named(c.parent()), out);
+                        }
+                        c.fields().forEach(f -> collect(f.type(), out));
+                        if (c.items() != null) {
+                            collect(c.items(), out);
+                        }
+                    }
+                }
+            }
+            case ScriptType.ListOf l -> collect(l.item(), out);
+            case ScriptType.MapOf m -> collect(m.value(), out);
+            case ScriptType.Union u -> u.options().forEach(o -> collect(o, out));
+            case ScriptType.Table t -> t.fields().forEach(f -> collect(f.type(), out));
+            case ScriptType.Simple s -> { }
+            case ScriptType.Choice c -> { }
+        }
+    }
+
+    /** 一条 {@link Note} 里写着的函数或一组名要真的存在(和 {@link #lint(List)} 同一套识别,但不读参数:注记是散文)。 */
+    private static void notesDrift(ApiFunction fn, Modules factory, Map<String, ApiDocs.Library> library,
+                                   List<Lint> out) {
+        for (String note : fn.notes()) {
+            for (String code : written(note)) {
+                String problem = referenceProblem(code, factory, library);
+                if (problem != null) {
+                    out.add(new Lint(fn.fullName(), "@Note " + problem));
+                }
+            }
+        }
+    }
+
+    /** 一个写在文字里的名字存不存在;不存在是那句话,存在或认不出名字空间是 null。只看名字,不读参数。 */
+    private static String referenceProblem(String code, Modules factory, Map<String, ApiDocs.Library> library) {
+        Matcher mention = MENTION.matcher(code);
+        if (mention.matches()) {
+            boolean group = mention.group(3) == null;
+            boolean known = group ? ApiRegistry.group(code) != null || factory.get(code) != null
+                    : ApiRegistry.function(code) != null || library.containsKey(code);
+            return known || !namespaced(mention.group(1), factory) ? null
+                    : "names " + code + ", which does not exist";
+        }
+        Matcher call = CALL.matcher(code);
+        if (call.find()) {
+            String full = call.group(1) + "." + call.group(2) + "." + call.group(3);
+            if (ApiRegistry.function(full) != null || library.containsKey(full)) {
+                return null;
+            }
+            boolean groupKnown = ApiRegistry.group(call.group(1) + "." + call.group(2)) != null
+                    || factory.get(call.group(1) + "." + call.group(2)) != null;
+            return !groupKnown && namespaced(call.group(1), factory) ? "names " + full + ", which does not exist"
+                    : null;
+        }
+        return null;
+    }
+
+    private static boolean namespaced(String namespace, Modules factory) {
+        return ApiRegistry.groups().stream().anyMatch(g -> g.namespace().equals(namespace))
+                || factory.names().stream().anyMatch(n -> n.startsWith(namespace + "."));
     }
 
     /** 一个例子的问题:读不通、没调到它自己、哪一次调用的参数读不成;没问题是 null。 */

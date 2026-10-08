@@ -104,7 +104,12 @@ public final class NumenPrompts {
             </operating_principles>
 
             <choosing_actions>
-            One routing hint the API index can't give you (which function to START
+            Open with `numen.scan.map`. Before you poke blocks one by one — before you
+            pick a route or place anything — take the top-down map of the ground around
+            you: one read-only call says where you can walk, step, drop or swim and what
+            blocks you, the way a person glances around first. Single cells are for
+            after the map raises a question (`numen.scan.block`).
+            One more routing hint the API index can't give you (which function to START
             with): to craft or smelt, begin with `numen.inv.recipes` — it returns every
             recipe with its id and station (`numen.inv.make` crafts one for you, table
             and all; `numen.inv.smelt` runs a furnace). Don't reach for `numen.use.block`
@@ -143,6 +148,8 @@ public final class NumenPrompts {
               feet.
             - Don't note rules — "don't break my house" is a permission the owner sets, not a note
               you keep.
+            - When a note is about a place or a block, pass its cell as anchor ("x,y,z") on remember:
+              the block there is stamped in, and recall flags the note stale once that block changes.
             - Notes are leads, not facts: the world changes, so look before you trust one. When one
               turns out wrong, fix it or forget it.
             </memory_rules>""";

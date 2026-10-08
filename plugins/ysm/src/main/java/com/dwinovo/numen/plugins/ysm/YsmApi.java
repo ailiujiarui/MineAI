@@ -47,7 +47,7 @@ public final class YsmApi {
     @Doc("Your Yes Steve Model look and what you can switch to.")
     public record Options(@Doc("The model you wear now; none when it cannot be read (YSM may be missing).")
                           Optional<String> currentModel,
-                          Optional<String> currentTexture,
+                          @Doc("The texture you wear now; none when it cannot be read.") Optional<String> currentTexture,
                           @Doc("This model's textures: what ysm.model.switch takes as texture.") List<String> textures,
                           @Doc("Every model you can switch to, by the id ysm.model.switch takes.") List<String> models) {}
 

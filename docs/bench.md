@@ -9,18 +9,20 @@ pass^k、轮数、token、每次成功的成本与失败类型。每次改命令
 
 ## 一、怎么跑
 
+先在仓库根建 `bench/bench.json`(gitignore;照模板 `bench/bench.example.json` 填 `api_key`,也可顺带写 `provider`/`model`/`base_url`/`reasoning`)。key **只从这份文件读,不用环境变量**。
+
 ```bash
 # 只跑两种基线(标准解、空操作),不花 API:验证场景与断言
 ./gradlew --no-daemon :core:neoforge:runBench -Dbench.scenarios=all -Dbench.repeats=0
 
-# 真实模型,每个场景 3 次(key 只从环境变量读)
-NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :core:neoforge:runBench -Dbench.scenarios=all -Dbench.repeats=3
+# 真实模型,每个场景 3 次(key 从 bench/bench.json 读)
+./gradlew --no-daemon :core:neoforge:runBench -Dbench.scenarios=all -Dbench.repeats=3
 
 # 并行跑:几个服务器进程各跑一份场景,跑完并成一份结果(几份由 bench.parallel 给,不给按处理器数取,见 §九)
-NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :core:neoforge:runBenchParallel -Dbench.scenarios=all -Dbench.repeats=3 -Pbench.parallel=4
+./gradlew --no-daemon :core:neoforge:runBenchParallel -Dbench.scenarios=all -Dbench.repeats=3 -Pbench.parallel=4
 
 # 车万女仆的场景:挂着车万女仆单开一次(原版那次不挂)
-NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :plugins:tlm:runBench -Dbench.scenarios=tlm -Dbench.repeats=3
+./gradlew --no-daemon :plugins:tlm:runBench -Dbench.scenarios=tlm -Dbench.repeats=3
 
 # 对比两份结果(路径相对仓库根,报告打到标准输出)
 ./gradlew --no-daemon -q :bench:compare -Pbefore=core/neoforge/runs/bench/results/<时间戳> -Pafter=core/neoforge/runs/bench/results/<时间戳>
@@ -35,7 +37,7 @@ NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :plugins:tlm:runBench -Dbench.s
 | `bench.baseUrl` | `https://api.deepseek.com/beta` | 端点 |
 | `bench.reasoning` | 空(= 产品的 auto,不发) | 思考档位,同产品 |
 | `bench.parallel` | 处理器数 ÷ 4,1 到 4 | 只给 `runBenchParallel`:起几个服务器进程 |
-| 环境变量 `NUMEN_BENCH_API_KEY` | — | API key。**只从环境变量读**,不进任何属性、文件、日志、报告 |
+| `bench/bench.json` | — | 本地评测配置(gitignore;模板 `bench/bench.example.json`):`provider` / `model` / `base_url` / `reasoning` / `api_key`。key **只从这份文件读**,不用环境变量,不进日志与报告 |
 
 参数用 `-D` 或 `-P` 给 Gradle 都行,构建脚本转成游戏进程的系统属性;单价表 `bench/pricing.json` 与提交号由构建脚本
 自动带上。没选中任何场景时一条用例都不生成;平时的 `runGameTestServer` 不加载评测。
@@ -150,6 +152,11 @@ public final class TlmBench {
 | 每次成功成本 | 这些次的总花费 ÷ 成功次数 |
 | 游戏刻、墙钟 | 一次运行从开始到收场 |
 | 说完成没过 | 她自己收了工,断言却没过 |
+| 打断恢复成本 | 一次程序被停下(`program_end` 的 `status=stopped`)算一次打断;从它之后按次序找"第一次有效动作"(一次成功、且不是 `numen.scan.*`、不是 `numen.api.*` 的 API 调用),数这之前重定方向扫了几次 `numen.scan.*`、隔了几条轮次边界。报告恢复率、被打断的运行里平均扫几次、平均隔几轮 |
+| 征询的真实成本 | 每次到达主人的征询(`consent`)算一次,按主人的答复分拒绝(`DENY`)与悬而未决(`PENDING`);一个任务算"因征询被放弃"如果它以"权限被拒"收场,或者出现过拒绝/悬而未决且最终没过。报告次数、拒绝数、悬而未决数与被放弃任务的占比 |
+| 自我纠正 | 一次命令错(`error_class=api_args`,即程序停在没有这个函数或参数读不成)之后,下一轮有工具调用且没有再犯同样的命令错,算纠正一次。分母是后面还有轮次的命令错;报纠正率 |
+
+后三项从记录文件的原始事件读,用的就是 `transcripts/` 里已经落的行,不另猜:`turn`(轮次边界)、`api_call`(程序里每次 API 调用的函数与失败种类 `error_kind`)、`program_end`(程序结局,`stopped` 是一次打断)、`consent`(征询与答复)。聚合器 `EvalMetrics` 是纯 JVM,单测见 `bench/src/test`。
 
 两份结果的对比(`:bench:compare`)只看真实模型:按场景配对算成功率差值,场景层 bootstrap(一万轮、固定种子)
 给均值的 95% 区间;一个场景"过"指过半数次数成功,列出由过变挂、由挂变过。
@@ -247,3 +254,50 @@ GameTest 管,不在这里测。场景分三集:**回归集**每次改动都跑,*
 世界、目录与静态状态,彼此碰不到;一份里的场地照旧隔 512 格,远超任何扫描、寻路与实体搜索的半径。
 
 几份由 `-Pbench.parallel`(或 `-D`)给;不给按处理器数取:每份一个服务器约占四个核与两三 GB 内存,最少 1 份,最多 4 份。
+
+---
+
+## 十、指标门(CI)
+
+改了命令、提示词、回执之后,五项老指标不该悄悄退回去。`bench/metrics-thresholds.json` 给它们各定一个界,`:bench:metricGate`
+把一份结果聚合成指标再比,有一项越界就以非零退出码失败:
+
+```bash
+# 仓库里带的夹具:纯 JVM、不联网、不调模型
+./gradlew --no-daemon :bench:metricGate
+
+# 真跑完的一次结果
+./gradlew --no-daemon :bench:metricGate -Presults=core/neoforge/runs/bench/results/<时间戳>
+```
+
+| 门指标 | 方向 | 说明 |
+|---|---|---|
+| 成功率 | 不得低于 | 真实模型通过的比例 |
+| pass^k | 不得低于 | `Stats.passHatK`(k 次全成功的无偏估计),`Summary.K=3`,按场景算再对场景取均值 |
+| 命令出错率 | 不得高于 | 工具结果 `success:false` 的次数 ÷ 工具调用数 |
+| 轮数 | 不得高于 | 每次运行调模型次数的均值 |
+| 墙钟秒 | 不得高于 | 每次运行墙钟秒的均值 |
+
+三项新指标(打断恢复、征询成本、自我纠正)同表报出,但还不卡:它们刚能量,样本也少,先看几轮再定界。
+
+CI 是 `.github/workflows/bench-metrics.yml`:`./gradlew :bench:test` 跑聚合器单测,`./gradlew :bench:metricGate` 跑门,
+两条都在提交在仓库里的夹具 `bench/fixtures/sample` 上跑,不花 API、不起游戏。
+
+夹具(`bench/fixtures/sample/runs.jsonl` 与 `transcripts/`)的当前数字:
+
+| 指标 | 值 | 门槛 |
+|---|---|---|
+| 成功率 | 67%(4/6) | ≥ 0.50 |
+| pass^3 | 0.50 | ≥ 0.50 |
+| 命令出错率 | 22%(7/32) | < 0.25 |
+| 轮数(均) | 8.17 | < 9 |
+| 墙钟秒(均) | 60.50 | < 70 |
+| 打断恢复率 | 100%(1/1) | 只报 |
+| 重定方向扫描次数(均) | 1 | 只报 |
+| 到有效动作的轮数(均) | 2 | 只报 |
+| 征询次数 / 拒绝 / 悬而未决 | 2 / 1 / 1 | 只报 |
+| 因征询被放弃的任务占比 | 33%(2/6) | 只报 |
+| 自我纠正率 | 67%(2/3) | 只报 |
+
+看下一份真实结果时照这份读:门只回答"有没有退",新指标回答"退在哪"。新指标从 `runs.jsonl` 指的那份
+`transcripts/` 读,老记录(没有 `turn`/`api_call`/`program_end` 的)在新指标上没有样本,门只按能读到的算。

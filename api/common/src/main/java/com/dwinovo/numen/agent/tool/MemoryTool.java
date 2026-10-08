@@ -2,6 +2,7 @@ package com.dwinovo.numen.agent.tool;
 
 import com.dwinovo.numen.agent.llm.ToolOutcome;
 import com.dwinovo.numen.agent.memory.NoteBook;
+import com.dwinovo.numen.agent.memory.WorldAnchor;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -51,6 +52,9 @@ public final class MemoryTool implements NumenTool {
                 + "that note); content is a longer body, only when there is more worth reading later.\n"
                 + "- command \"recall\" reads the body of one note by its name, as <memory> lists it; a long body comes "
                 + "a page at a time and its last line says which page to ask for next.\n"
+                + "A world note that is about a place carries a light stamp of the block that was there when you "
+                + "wrote it; when that block has changed, the note comes back marked stale and must be re-checked, "
+                + "not trusted. Pass anchor \"x,y,z\" on remember to stamp a cell; omit it for notes about no place.\n"
                 + "- command \"forget\" drops one note for good, when it turned out wrong or after merging several "
                 + "into one. Nothing else ever removes a note.";
     }
@@ -66,6 +70,8 @@ public final class MemoryTool implements NumenTool {
                 + "have seen, lesson = something you tried that did not work. Omit to file it as " + DEFAULT_TYPE
                 + ".", TYPES.toArray(String[]::new));
         schema.optionalString("content", "remember: a longer body, read back with recall. Omit to keep just the line.");
+        schema.optionalString("anchor", "remember: the cell this note is about, as \"x,y,z\". The block there now is "
+                + "stamped in, and recall flags the note stale once that block changes. Omit for notes about no place.");
         schema.optionalInteger("page", "recall: which page of a long body. Omit for the first.", 1, 99);
         return schema.build();
     }
@@ -110,7 +116,7 @@ public final class MemoryTool implements NumenTool {
             }
             name = UNNAMED + k;
         }
-        NoteBook.Note note = book.write(name, description, type, text(args, "content"));
+        NoteBook.Note note = book.write(name, description, type, text(args, "content"), anchor(book, args));
         int count = book.index().size();
         return ToolOutcome.success(count >= NoteBook.SOFT_MAX
                 ? "remembered " + note.name() + " — you now keep " + count + " notes; look for ones to merge or forget"
@@ -128,7 +134,29 @@ public final class MemoryTool implements NumenTool {
         JsonElement page = args.get("page");
         String body = new Listing(List.of(note.content().split("\n", -1)))
                 .page(page == null || page.isJsonNull() ? 1 : page.getAsInt());
-        return ToolOutcome.success(note.name() + " (written on day " + note.day() + "):\n" + body);
+        String stale = book.isStale(note)
+                ? "STALE — this note pointed at a cell whose block is no longer " + note.anchor().block()
+                        + "; the world changed there, so go look before you trust it.\n"
+                : "";
+        return ToolOutcome.success(stale + note.name() + " (written on day " + note.day() + "):\n" + body);
+    }
+
+    /** {@code anchor} 参数 {@code "x,y,z"} → 一枚当下盖的印章;没给或世界读不到时 {@code null}。 */
+    private static WorldAnchor anchor(NoteBook book, JsonObject args) {
+        String raw = text(args, "anchor");
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String[] cell = raw.strip().split("[ ,]+");
+        if (cell.length != 3) {
+            throw new IllegalArgumentException("anchor is a cell \"x,y,z\"; got \"" + raw + "\"");
+        }
+        try {
+            return book.fingerprint(Integer.parseInt(cell[0]), Integer.parseInt(cell[1]),
+                    Integer.parseInt(cell[2]));
+        } catch (NumberFormatException notACell) {
+            throw new IllegalArgumentException("anchor is a cell \"x,y,z\"; got \"" + raw + "\"");
+        }
     }
 
     /** 忘掉一条。整理是她自己的事,我们不替她删,也不替她留。 */

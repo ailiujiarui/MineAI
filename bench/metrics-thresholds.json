@@ -1,0 +1,8 @@
+{
+  "_note": "CI 指标门的门槛(见 docs/bench.md 与 bench/fixtures/sample)。成功率、pass^k 是下限,命令出错率、轮数、墙钟是上限;没给的项跳过。数字按样例夹具算出来并留了余量。",
+  "successRate": { "min": 0.5 },
+  "passK3": { "min": 0.5 },
+  "commandErrorRate": { "max": 0.25 },
+  "turns": { "max": 9 },
+  "wallSeconds": { "max": 70 }
+}
