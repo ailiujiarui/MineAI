@@ -50,6 +50,12 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
     private String activatedBlockId;
     /** 准星没落在瞄的那一格上、落在了别的东西上:回执里说按的是谁;落在瞄的那一格上为 null。 */
     private String landedElsewhere;
+    private com.dwinovo.numen.api.adapter.AdapterHandlers.UseHandler adapterHandler;
+    private com.dwinovo.numen.api.adapter.AdapterHandlers.UseContext adapterContext;
+    private com.dwinovo.numen.permission.Action adapterAction;
+    private String adapterIntent;
+    /** 执行前就标记:即使处理器部分执行后失败,也不能再按一次或转走原版。 */
+    private TaskState adapterTerminal;
 
     public InteractAtCompanionTask(NumenPlayer player, InteractAtTaskRecord record) {
         super(player, record);
@@ -76,20 +82,28 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
 
     @Override
     protected TaskState act() {
-        // 数据适配器的右键意图优先:模型手上这件物品在适配文件里挂了 intent(如 TaCZ 开火),
-        // 且该 intent 有处理器,就交给它,别走原版(原版没有 use 钩子的枪本来点不动)。
-        if (interaction == null && r.item != null) {
-            String adapterItem = BuiltInRegistries.ITEM.getKey(r.item).toString();
+        if (adapterTerminal != null) return adapterTerminal;
+        // 右键路由只准备一次,等待主人期间保留处理器与具体目标;左键走原生交互。
+        if (adapterHandler != null) return actAdapter();
+        if (interaction == null && button() == Interaction.Button.USE) {
+            String adapterItem = BuiltInRegistries.ITEM.getKey(r.item != null
+                    ? r.item : player.getMainHandItem().getItem()).toString();
             var adapterRoute = com.dwinovo.numen.adapter.AdapterManager.registry().use(adapterItem);
             if (adapterRoute.isPresent()) {
-                var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.use(adapterRoute.get().intent());
-                if (handler != null) {
-                    Hotbar.grip(player, r.item);
-                    if (handler.act(player, adapterItem)) {
-                        successMsg = "adapter handled " + adapterRoute.get().intent();
-                        return TaskState.SUCCESS;
-                    }
+                adapterIntent = adapterRoute.get().intent();
+                adapterHandler = com.dwinovo.numen.api.adapter.AdapterHandlers.use(adapterIntent);
+                if (adapterHandler == null) {
+                    fail("missing use handler '" + adapterIntent + "'; nothing executed", FailureType.UNSUPPORTED);
+                    return adapterTerminal = TaskState.FAILED;
                 }
+                adapterContext = new com.dwinovo.numen.api.adapter.AdapterHandlers.UseContext(
+                        adapterItem, r.aim, r.holdTicks, r.sneak);
+                try {
+                    adapterAction = adapterHandler.action(player, adapterContext);
+                } catch (com.dwinovo.numen.agent.script.ApiError failure) {
+                    return adapterFailed(failure);
+                }
+                return actAdapter();
             }
         }
         // Resolve the crosshair once we're in position, then drive the action.
@@ -183,6 +197,65 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
             }
             case RUNNING -> TaskState.RUNNING;
         };
+    }
+
+    /** 许可唯一裁决在 permit;准备所指的对象丢失时不重选目标,交回模型。 */
+    private TaskState actAdapter() {
+        if (adapterAction.entity() != null && (adapterAction.entity().isRemoved()
+                || !adapterAction.entity().isAlive() || adapterAction.entity().level() != player.level())) {
+            fail("adapter target is no longer here; nothing executed", FailureType.TARGET_LOST);
+            return adapterTerminal = TaskState.FAILED;
+        }
+        // 主人答复期间方块可能变了:目标坐标不变,裁决读执行这一刻的状态。
+        if (adapterAction.kind().atBlock()) {
+            adapterAction = new com.dwinovo.numen.permission.Action(adapterAction.kind(), adapterAction.pos(),
+                    player.level().getBlockState(adapterAction.pos()), null, adapterAction.item(), null);
+        }
+        Permit allowed = permit(adapterAction);
+        switch (allowed.state()) {
+            case WAITING -> {
+                player.controls().stop();
+                return TaskState.RUNNING;
+            }
+            case REFUSED, PENDING -> {
+                fail("cannot " + adapterAction.describe() + ": " + allowed.refusal(),
+                        allowed.state() == PermitState.REFUSED ? FailureType.REFUSED : FailureType.PENDING);
+                return adapterTerminal = TaskState.FAILED;
+            }
+            case ALLOWED -> { }
+        }
+        receipt = PressReceipt.before(player, adapterAction.pos());
+        adapterTerminal = TaskState.FAILED;
+        try {
+            if (r.item != null) Hotbar.grip(player, r.item);
+            List<String> facts = adapterHandler.act(player, adapterContext, adapterAction);
+            String observed = settle();
+            java.util.ArrayList<String> actual = new java.util.ArrayList<>(changes);
+            actual.addAll(facts);
+            changes = List.copyOf(actual);
+            successMsg = "adapter " + adapterIntent + " executed " + adapterAction.describe()
+                    + (changes.isEmpty() ? observed : " — " + String.join("; ", changes));
+            return adapterTerminal = TaskState.SUCCESS;
+        } catch (com.dwinovo.numen.agent.script.ApiError failure) {
+            settle();
+            return adapterFailed(failure);
+        }
+    }
+
+    private TaskState adapterFailed(com.dwinovo.numen.agent.script.ApiError failure) {
+        FailureType type = switch (failure.kind()) {
+            case DENIED -> FailureType.REFUSED;
+            case NEEDS_CONSENT -> FailureType.PENDING;
+            case NOT_FOUND -> FailureType.TARGET_LOST;
+            case OUT_OF_REACH -> FailureType.OUT_OF_REACH;
+            case NO_MATERIAL -> FailureType.NO_MATERIAL;
+            case INTERRUPTED -> FailureType.INTERRUPTED;
+            case TIMEOUT -> FailureType.TIMED_OUT;
+            default -> FailureType.UNKNOWN;
+        };
+        fail(failure.getMessage() + (changes.isEmpty() ? "" : " — " + String.join("; ", changes)), type,
+                failure.hint());
+        return adapterTerminal = TaskState.FAILED;
     }
 
     /**

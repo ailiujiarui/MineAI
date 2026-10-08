@@ -274,6 +274,35 @@ public final class NumenPlugins {
         }
 
         @Override
+        public void bundleAdapters(Path root) {
+            com.dwinovo.numen.adapter.AdapterManager.bundle(root);
+        }
+
+        @Override
+        public void registerAdapterGear(String name, GearSource source) {
+            com.dwinovo.numen.api.adapter.AdapterHandlers.registerGear(name, source);
+            com.dwinovo.numen.adapter.AdapterManager.handlersChanged();
+        }
+
+        @Override
+        public void registerAdapterUse(String name, com.dwinovo.numen.api.adapter.AdapterHandlers.UseHandler handler) {
+            com.dwinovo.numen.api.adapter.AdapterHandlers.registerUse(name, handler);
+            com.dwinovo.numen.adapter.AdapterManager.handlersChanged();
+        }
+
+        @Override
+        public void registerAdapterGui(String name, com.dwinovo.numen.api.adapter.AdapterHandlers.GuiHandler handler) {
+            com.dwinovo.numen.api.adapter.AdapterHandlers.registerGui(name, handler);
+            com.dwinovo.numen.adapter.AdapterManager.handlersChanged();
+        }
+
+        @Override
+        public void registerAdapterContainer(String name, com.dwinovo.numen.api.adapter.AdapterHandlers.ContainerHandler handler) {
+            com.dwinovo.numen.api.adapter.AdapterHandlers.registerContainer(name, handler);
+            com.dwinovo.numen.adapter.AdapterManager.handlersChanged();
+        }
+
+        @Override
         public Path configDir() {
             return com.dwinovo.numen.NumenPaths.config();
         }

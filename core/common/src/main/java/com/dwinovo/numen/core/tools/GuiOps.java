@@ -43,12 +43,13 @@ public final class GuiOps {
                          @Doc("What the cursor holds.") Optional<String> cursor,
                          @Doc("The menu's numbers: progress, fuel, energy (meaning is GUI-specific; a furnace's are lit "
                                  + "time, lit duration, cook progress, cook total).") List<Integer> data,
-                         @Doc("The block whose window it is, when a click on it opened it.") Optional<BlockAt> block)
+                         @Doc("The block whose window it is, when a click on it opened it.") Optional<BlockAt> block,
+                         @Doc("Adapter-specific state of this menu, when a reader is registered.") List<String> state)
             implements Clicks.Pressed {
 
         /** 同一个界面,点开它的是那一格。 */
         public Window openedAt(BlockAt at) {
-            return new Window(menu, slots, cursor, data, Optional.of(at));
+            return new Window(menu, slots, cursor, data, Optional.of(at), state);
         }
     }
 
@@ -79,9 +80,23 @@ public final class GuiOps {
         // 数据槽是界面另一条同步通道:真屏幕画进度、燃料、能量条读的那几个数。一般地读(不按界面特判),意思随界面
         List<DataSlot> data = ((com.dwinovo.numen.mixin.MenuDataSlotsAccessor) (Object) menu).numen$dataSlots();
         List<Integer> numbers = data.stream().map(DataSlot::get).toList();
+        List<String> state = List.of();
+        if (!ownInventory) {
+            String menuId = BuiltInRegistries.MENU.getKey(menu.getType()).toString();
+            var route = com.dwinovo.numen.adapter.AdapterManager.registry().gui(menuId);
+            if (route.isPresent()) {
+                String source = route.get().source();
+                var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.gui(source);
+                if (handler == null) {
+                    throw new com.dwinovo.numen.agent.script.ApiError(
+                            com.dwinovo.numen.agent.script.ErrorKind.FAILED, "missing gui handler '" + source + "'", null);
+                }
+                state = handler.read(self, menu, source);
+            }
+        }
         return new Window(ownInventory ? "InventoryMenu" : menu.getClass().getSimpleName(), slots,
                 menu.getCarried().isEmpty() ? Optional.empty() : Optional.of(describe(menu.getCarried())), numbers,
-                Optional.empty());
+                Optional.empty(), state);
     }
 
     private static WindowSlot slot(int index, Side side, ItemStack it, boolean output) {

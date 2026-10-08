@@ -28,7 +28,7 @@ public final class AdapterGearSource implements GearSource {
     public List<GearSlot> slots(NumenPlayer body) {
         List<GearSlot> out = new ArrayList<>();
         Set<String> visited = new LinkedHashSet<>();
-        for (AdapterSpec spec : AdapterManager.registry().active()) {
+        for (AdapterSpec spec : AdapterManager.registry().ordered()) {
             for (AdapterSpec.EquipRoute route : spec.equipRoutes()) {
                 GearSource handler = AdapterHandlers.gear(route.container());
                 if (handler != null && visited.add(route.container())) {
@@ -46,16 +46,10 @@ public final class AdapterGearSource implements GearSource {
         }
         String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
         Set<String> kinds = new LinkedHashSet<>();
-        for (AdapterSpec spec : AdapterManager.registry().active()) {
-            for (AdapterSpec.EquipRoute route : spec.equipRoutes()) {
-                if (route.item().matches(itemId)) {
-                    GearSource handler = AdapterHandlers.gear(route.container());
-                    if (handler != null) {
-                        kinds.addAll(handler.kindsOf(body, stack));
-                    }
-                }
-            }
-        }
+        AdapterManager.registry().equip(itemId).ifPresent(route -> {
+            GearSource handler = AdapterHandlers.gear(route.container());
+            if (handler != null) kinds.addAll(handler.kindsOf(body, stack));
+        });
         return kinds;
     }
 }

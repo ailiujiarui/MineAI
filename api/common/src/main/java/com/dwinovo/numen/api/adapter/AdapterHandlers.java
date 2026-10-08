@@ -1,8 +1,12 @@
 package com.dwinovo.numen.api.adapter;
 
 import com.dwinovo.numen.api.gear.GearSlot;
+import com.dwinovo.numen.agent.adapter.HandlerKind;
+import com.dwinovo.numen.agent.script.ApiError;
+import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.api.gear.GearSource;
 import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.permission.Action;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -24,8 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <h2>故障隔离,不是吞异常</h2>
  * 处理器由第三方提供,一抛异常不该顺着任务链打穿本体。隔离收口在<b>注册这一刻</b>
- * (不是四个消费点各包一层):处理器抛异常时,把这次路由当作"没生效"返回中性值
- * (装备空集 / 右键 false / 读 null),并记一次日志。
+ * (不是四个消费点各包一层):装备处理器抛异常时返回空集,并记一次日志。
+ * 右键与读取失败成为调用失败,不回落为一次成功的原版动作或通用读取。
  *
  * <p>对齐 {@code core/plugins/Gate.install} 的 {@code catch(Throwable)}:模组 API 变更、
  * 第三方代码出错都在其中。日志按 {@code joinFragments} 的 {@code FAILING} 语义——<b>首次失败记一条,
@@ -36,22 +40,34 @@ public final class AdapterHandlers {
 
     private static final Logger LOG = LoggerFactory.getLogger("numen-adapter");
 
-    /** 物品右键意图。{@code true} = 已处理,别再走原版。 */
-    @FunctionalInterface
-    public interface UseHandler {
-        boolean act(NumenPlayer body, String itemId);
+    /** 模型点名的这一声右键;准备只读,不换手、不改身体或世界。 */
+    public record UseContext(String itemId, BlockPos aim, int holdTicks, boolean sneak) {
+        public UseContext {
+            aim = aim == null ? null : aim.immutable();
+        }
     }
 
-    /** 读一个专用菜单,返回**完整的工具结果 JSON**(即 {@code TaskResult.*.toJson()} 那样的一整份);null = 回落通用转储。 */
+    /**
+     * 一次有界的物品右键意图。先只读声明实际动作与目标,由任务送入权限层;
+     * 授权之后才执行一次,只做传入的动作,实际事实随返回值报告(实体受伤、模组内部状态等)。
+     * 原版 Action 表达不了的意图必须抛出 ApiError,不得拿别的动作代替。
+     */
+    public interface UseHandler {
+        Action action(NumenPlayer body, UseContext context);
+
+        List<String> act(NumenPlayer body, UseContext context, Action authorized);
+    }
+
+    /** 读专用菜单的状态行,随 Window 交回;不返回工具结果 JSON。 */
     @FunctionalInterface
     public interface GuiHandler {
-        String read(NumenPlayer body, AbstractContainerMenu menu, String source);
+        List<String> read(NumenPlayer body, AbstractContainerMenu menu, String source);
     }
 
-    /** 读一个方块容器,返回**完整的工具结果 JSON**;null = 回落。 */
+    /** 读方块容器的内容行,作为 Storage 的值交回。 */
     @FunctionalInterface
     public interface ContainerHandler {
-        String read(NumenPlayer body, BlockPos pos, String access);
+        List<String> read(NumenPlayer body, BlockPos pos, String access);
     }
 
     private static final Map<String, GearSource> GEAR = new ConcurrentHashMap<>();
@@ -75,16 +91,48 @@ public final class AdapterHandlers {
 
     public static void registerUse(String intent, UseHandler handler) {
         if (isName(intent) && handler != null) {
-            USE.put(intent, (body, itemId) -> {
-                try {
-                    boolean handled = handler.act(body, itemId);
-                    recovered(intent);
-                    return handled;
-                } catch (Throwable failure) {
-                    failed(intent, failure);
-                    return false;
+            USE.put(intent, new UseHandler() {
+                @Override
+                public Action action(NumenPlayer body, UseContext context) {
+                    try {
+                        Action action = handler.action(body, context);
+                        requireConcreteAction(action);
+                        recovered(intent);
+                        return action;
+                    } catch (Throwable failure) {
+                        failed(intent, failure);
+                        throw readFailure(intent, failure);
+                    }
+                }
+
+                @Override
+                public List<String> act(NumenPlayer body, UseContext context, Action authorized) {
+                    try {
+                        requireConcreteAction(authorized);
+                        List<String> facts = List.copyOf(handler.act(body, context, authorized));
+                        recovered(intent);
+                        return facts;
+                    } catch (Throwable failure) {
+                        failed(intent, failure);
+                        throw readFailure(intent, failure);
+                    }
                 }
             });
+        }
+    }
+
+    /** 校验声明的完整性,不做许可裁决;所有合法动作仍必须经任务的 permit。 */
+    private static void requireConcreteAction(Action action) {
+        boolean concrete = action != null && action.kind() != null && switch (action.kind()) {
+            case BREAK, USE_BLOCK -> action.pos() != null && action.state() != null;
+            case PLACE, TAKE -> action.pos() != null && action.state() != null && action.item() != null;
+            case ATTACK, USE_ENTITY -> action.entity() != null;
+            case DROP -> action.item() != null;
+            case COMMAND -> action.command() != null && !action.command().line().isBlank()
+                    && !action.command().root().isBlank() && action.command().names().contains(action.command().root());
+        };
+        if (!concrete) {
+            throw new ApiError(ErrorKind.FAILED, "adapter use requires a concrete Action and target; nothing executed", null);
         }
     }
 
@@ -96,12 +144,12 @@ public final class AdapterHandlers {
         if (isName(source) && handler != null) {
             GUI.put(source, (body, menu, key) -> {
                 try {
-                    String read = handler.read(body, menu, key);
+                    List<String> read = List.copyOf(handler.read(body, menu, key));
                     recovered(source);
                     return read;
                 } catch (Throwable failure) {
                     failed(source, failure);
-                    return null;
+                    throw readFailure(source, failure);
                 }
             });
         }
@@ -115,12 +163,12 @@ public final class AdapterHandlers {
         if (isName(access) && handler != null) {
             CONTAINER.put(access, (body, pos, key) -> {
                 try {
-                    String read = handler.read(body, pos, key);
+                    List<String> read = List.copyOf(handler.read(body, pos, key));
                     recovered(access);
                     return read;
                 } catch (Throwable failure) {
                     failed(access, failure);
-                    return null;
+                    throw readFailure(access, failure);
                 }
             });
         }
@@ -139,6 +187,22 @@ public final class AdapterHandlers {
     public static boolean has(String name) {
         return name != null && (GEAR.containsKey(name) || USE.containsKey(name)
                 || GUI.containsKey(name) || CONTAINER.containsKey(name));
+    }
+
+    public static boolean has(HandlerKind kind, String name) {
+        if (name == null) return false;
+        return switch (kind) {
+            case GEAR -> GEAR.containsKey(name);
+            case USE -> USE.containsKey(name);
+            case GUI -> GUI.containsKey(name);
+            case CONTAINER -> CONTAINER.containsKey(name);
+        };
+    }
+
+    private static ApiError readFailure(String name, Throwable failure) {
+        if (failure instanceof ApiError error) return error;
+        return new ApiError(ErrorKind.FAILED, "adapter handler '" + name + "' failed: "
+                + failure.getClass().getSimpleName() + ": " + failure.getMessage(), null);
     }
 
     public static void clear() {

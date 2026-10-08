@@ -178,6 +178,19 @@ public interface NumenApi {
      */
     void registerGear(GearSource source);
 
+    /** 随插件发布的适配目录;用户目录里的同名适配器覆盖它。 */
+    void bundleAdapters(Path root);
+
+    /** 数据路由使用的处理器名与适配文件里的名字相同。登记后重新判装载依赖。 */
+    void registerAdapterGear(String name, GearSource source);
+
+    /** 一次物品右键:只读声明具体 Action,任务经权限层授权后才执行并报告实际事实。 */
+    void registerAdapterUse(String name, com.dwinovo.numen.api.adapter.AdapterHandlers.UseHandler handler);
+
+    void registerAdapterGui(String name, com.dwinovo.numen.api.adapter.AdapterHandlers.GuiHandler handler);
+
+    void registerAdapterContainer(String name, com.dwinovo.numen.api.adapter.AdapterHandlers.ContainerHandler handler);
+
     /**
      * 登记一种事件——同伴身上会发生、她该知道的一种事(比如饰品插件的 {@code accessory_changed})。
      *

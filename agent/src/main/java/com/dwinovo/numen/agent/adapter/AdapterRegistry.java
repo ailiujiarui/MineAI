@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -70,6 +71,14 @@ public final class AdapterRegistry {
      */
     public synchronized ReloadReport reload(List<Path> dirs, Predicate<String> modPresent,
                                             Predicate<String> handlerPresent) {
+        return reload(dirs, modPresent, handlerPresent,
+                (kind, name) -> handlerPresent != null && handlerPresent.test(name));
+    }
+
+    /** 宿主装载同时检查 requires 名字与每条路由的实际处理器类型。 */
+    public synchronized ReloadReport reload(List<Path> dirs, Predicate<String> modPresent,
+                                            Predicate<String> handlerPresent,
+                                            BiPredicate<HandlerKind, String> typedHandlerPresent) {
         long at = System.currentTimeMillis();
         Map<String, AdapterSpec> next = new LinkedHashMap<>();
         Map<String, String> nextSource = new LinkedHashMap<>();
@@ -89,7 +98,7 @@ public final class AdapterRegistry {
                     errors.add(name + ": " + failure.getMessage());
                     continue;
                 }
-                String blocked = skipReason(spec, modPresent, handlerPresent);
+                String blocked = skipReason(spec, modPresent, handlerPresent, typedHandlerPresent);
                 if (blocked != null) {
                     skipped.add(new ReloadReport.Skipped(spec.id(), blocked));
                     continue;
@@ -116,7 +125,8 @@ public final class AdapterRegistry {
     }
 
     private static String skipReason(AdapterSpec spec, Predicate<String> modPresent,
-                                     Predicate<String> handlerPresent) {
+                                     Predicate<String> handlerPresent,
+                                     BiPredicate<HandlerKind, String> typedHandlerPresent) {
         if (!spec.enabled()) {
             return "disabled";
         }
@@ -132,6 +142,31 @@ public final class AdapterRegistry {
         for (String required : spec.requires()) {
             if (handlerPresent == null || !handlerPresent.test(required)) {
                 return "missing handler '" + required + "'";
+            }
+        }
+        for (AdapterSpec.EquipRoute route : spec.equipRoutes()) {
+            if (!typedHandlerPresent.test(HandlerKind.GEAR, route.container())) {
+                return "missing gear handler '" + route.container() + "'";
+            }
+        }
+        for (AdapterSpec.SlotMap slot : spec.slotMaps()) {
+            if (!typedHandlerPresent.test(HandlerKind.GEAR, slot.container())) {
+                return "missing gear handler '" + slot.container() + "'";
+            }
+        }
+        for (AdapterSpec.UseRoute route : spec.useRoutes()) {
+            if (!typedHandlerPresent.test(HandlerKind.USE, route.intent())) {
+                return "missing use handler '" + route.intent() + "'";
+            }
+        }
+        for (AdapterSpec.GuiRoute route : spec.guis()) {
+            if (!typedHandlerPresent.test(HandlerKind.GUI, route.source())) {
+                return "missing gui handler '" + route.source() + "'";
+            }
+        }
+        for (AdapterSpec.ContainerRoute route : spec.containers()) {
+            if (!typedHandlerPresent.test(HandlerKind.CONTAINER, route.access())) {
+                return "missing container handler '" + route.access() + "'";
             }
         }
         return null;

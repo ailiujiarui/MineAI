@@ -308,6 +308,16 @@ public final class ScanApi {
             throw new ApiError(ErrorKind.NOT_FOUND, "the block at " + pos.getX() + "," + pos.getY() + "," + pos.getZ()
                     + " is air — nothing to read", null);
         }
+        var route = com.dwinovo.numen.adapter.AdapterManager.registry().container(
+                net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
+        if (route.isPresent()) {
+            String access = route.get().access();
+            var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.container(access);
+            if (handler == null) {
+                throw new ApiError(ErrorKind.FAILED, "missing container handler '" + access + "'", null);
+            }
+            return new Storage(BlockAt.of(pos, state), handler.read(self, pos, access));
+        }
         return new Storage(BlockAt.of(pos, state), Services.CAPS.describe(self.level(), pos));
     }
 
