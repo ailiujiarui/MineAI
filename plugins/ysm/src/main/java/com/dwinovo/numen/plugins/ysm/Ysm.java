@@ -158,6 +158,15 @@ public final class Ysm {
         her.run(PLAY, "stop");
     }
 
+    /**
+     * 停掉一个玩家的动作,以服务器自己的来源执行,目标按名字认。
+     *
+     * <p>动作的收尾没有对应的调用可依托(计时到点才停,见 {@link EmoteStops}),所以不借 {@link OnHer},直接以服务器权威下发。
+     */
+    public void stopAnimation(MinecraftServer server, String playerName) {
+        asServer(server, PLAY + " " + arg(playerName) + " stop");
+    }
+
     /** 清空一个玩家的授权表。授权镜像的对账用,以服务器自己的来源执行(见类注释)。 */
     public void authClear(MinecraftServer server, String playerName) {
         asServer(server, AUTH + " " + arg(playerName) + " clear");

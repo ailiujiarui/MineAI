@@ -32,13 +32,23 @@ public final class YsmApi {
     /** YSM 自己的 {@code ysm play <玩家> stop} 就用这个词停下动作,这里照搬。 */
     private static final String STOP = "stop";
 
+    /** 动作默认几秒后收尾:同伴没有自己的客户端去清 YSM 的"动作中"状态(见 {@link #emote}),不主动停就会一直卡着。 */
+    private static final double DEFAULT_EMOTE_S = 4;
+
+    /** 至多留住几秒。再长只是把身体钉在原地,不是模型想要的"看得清一个动作"。 */
+    private static final double MAX_EMOTE_S = 60;
+
     /** 读 NBT、跑命令的那一份;联动装上时给。 */
     private static Ysm ysm;
 
+    /** 给动作收尾的那份计时;联动装上时给。 */
+    private static EmoteStops emoteStops;
+
     private YsmApi() {}
 
-    static void install(NumenApi numen, Ysm ysm) {
+    static void install(NumenApi numen, Ysm ysm, EmoteStops emoteStops) {
         YsmApi.ysm = ysm;
+        YsmApi.emoteStops = emoteStops;
         numen.api("model", "Yes Steve Model looks: what you wear and can switch to, switching, emotes.",
                 YsmApi.class);
     }
@@ -111,14 +121,25 @@ public final class YsmApi {
         return call.sync(new SwitchRecord(call, her, new Ysm.Look(model, texture)));
     }
 
-    /** 做哪个动作。 */
+    /** 做哪个动作,以及做多久。 */
     public record Emote(@Doc("The animation to play: an animation id of the model you wear, e.g. extra1 (YSM does not "
-            + "tell the server which ones a model has), or " + STOP + " to go back to idle.") String animation) {}
+            + "tell the server which ones a model has), or " + STOP + " to go back to idle.") String animation,
+                        @Doc("How long to hold it, in seconds (up to " + (int) MAX_EMOTE_S + "). It returns to idle "
+                                + "after this either way.") @Omitted("about " + (int) DEFAULT_EMOTE_S + " seconds")
+                        Optional<Double> seconds) {}
 
     /**
      * 做一个动作。动作名不写死在这里:每个模型自带一套。
      *
-     * <h2>只是发出</h2>
+     * <h2>做几秒自己收回</h2>
+     * YSM 记着"她正在做某个动作"这件事,而把这件清掉的只有<b>本地玩家自己的客户端</b>(主人移动时,或第一人称回到待机时);服务端连
+     * 超时都没有。同伴是服务端假玩家,没有那条客户端路径,所以不主动停,那身动作在主人屏幕上会一直卡着,而且每次重新同步还会重放。
+     * 唯一对所有玩家都生效的收尾是显式的 {@code ysm play <她> stop}。
+     *
+     * <p>所以这里发完 play 就把这次动作交给 {@link EmoteStops} 计时,到点以服务器权威停掉:默认 {@value #DEFAULT_EMOTE_S} 秒,
+     * 也可以用 {@code seconds} 指定,至多 {@value #MAX_EMOTE_S} 秒。{@code stop} 则是当场收尾,并撤掉待收尾的期限。
+     *
+     * <h2>只是发出,核对不了</h2>
      * YSM 的 play 命令是静默的,动作名不存在时它既不报错也不回执;服务端又拿不到这身模型的动作清单(见 {@link Ysm})。所以这里核对不了她
      * 做没做成,不交回"做了";说明里照实写核对不了。
      *
@@ -127,17 +148,29 @@ public final class YsmApi {
      */
     @Fn("Play one of this model's emotes, or stop the one playing.")
     @Example("ysm.model.emote(\"extra1\")")
+    @Example("ysm.model.emote(\"extra1\", {seconds = 2})")
     @Example("ysm.model.emote(\"" + STOP + "\")")
-    @Note("It only sends the command and returns nothing: YSM does not tell the server which animations a model has, "
-            + "so whether this one exists cannot be checked, and a missing one does nothing.")
+    @Note("YSM does not tell the server which animations a model has, so whether this one exists cannot be checked, "
+            + "and a missing one does nothing.")
+    @Note("Your body has no client of its own and YSM only ends an emote on a real player's client, so this schedules "
+            + "the stop itself: it goes back to idle after a few seconds (or {seconds}), instead of staying stuck on "
+            + "your last emote.")
     @SeeAlso("ysm.model.options")
     public static void emote(ServerCall call, Emote args) {
         String animation = args.animation();
         OnHer her = call.onHer();
         if (STOP.equalsIgnoreCase(animation)) {
+            emoteStops.cancel(call.her());
             ysm.stopAnimation(her);
         } else {
             ysm.playAnimation(her, animation);
+            emoteStops.schedule(call.her(), emoteTicks(args.seconds()));
         }
+    }
+
+    /** 动作秒数折成刻,至少一刻;不写用默认,超上限按上限。 */
+    private static int emoteTicks(Optional<Double> seconds) {
+        double s = Math.min(seconds.orElse(DEFAULT_EMOTE_S), MAX_EMOTE_S);
+        return (int) Math.max(1, Math.round(s * 20));
     }
 }

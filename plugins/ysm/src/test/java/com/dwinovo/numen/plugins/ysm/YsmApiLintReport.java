@@ -21,7 +21,8 @@ class YsmApiLintReport {
     void writeTheReport() throws IOException, URISyntaxException {
         CoreApiFixture.install();
         Ysm ysm = new Ysm(Ysm.Storage.NEOFORGE);
-        NumenPlugins.register(YsmApi.NAMESPACE, numen -> YsmApi.install(numen, ysm));
+        EmoteStops emoteStops = new EmoteStops(ysm);
+        NumenPlugins.register(YsmApi.NAMESPACE, numen -> YsmApi.install(numen, ysm, emoteStops));
         ApiLintReport.assertNoDrift("ysm.");
         List<ApiTester.Lint> lint = new ArrayList<>(ApiTester.lint().stream()
                 .filter(l -> l.where().startsWith("ysm.")).toList());

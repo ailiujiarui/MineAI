@@ -27,9 +27,10 @@ public final class NumenYsm {
     public static void install(YsmHost host, Path skillsRoot) {
         Ysm ysm = new Ysm(host.storage());
         OwnerSync sync = new OwnerSync(ysm);
+        EmoteStops emoteStops = new EmoteStops(ysm);
 
         NumenPlugins.register(YsmApi.NAMESPACE, numen -> {
-            YsmApi.install(numen, ysm);
+            YsmApi.install(numen, ysm, emoteStops);
             // ysm.model.switch 派下来的换装由谁来跑
             TaskFactory.register(SwitchRecord.class, (player, record) -> new SwitchTask(ysm, record));
 
@@ -40,5 +41,6 @@ public final class NumenYsm {
         });
 
         host.onServerTick(sync::tick);
+        host.onServerTick(emoteStops::tick);
     }
 }
