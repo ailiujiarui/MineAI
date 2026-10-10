@@ -28,6 +28,14 @@ public final class LlmHttpException extends RuntimeException {
     public boolean isClientError()    { return statusCode >= 400 && statusCode < 500; }
     public boolean isServerError()    { return statusCode >= 500; }
 
+    /**
+     * 这一口重发可能就成:限流、请求超时、冲突,以及服务端自己出的错。其余 4xx(400 参数/上下文超限、
+     * 401 密钥、404 路径)重发多少次都是同样的答复,重试只会把同一句话问两遍。
+     */
+    public boolean isTransient() {
+        return statusCode == 408 || statusCode == 409 || statusCode == 429 || statusCode >= 500;
+    }
+
     private static String truncate(String s, int max) {
         if (s == null) return "";
         return s.length() <= max ? s : s.substring(0, max) + "... (truncated)";

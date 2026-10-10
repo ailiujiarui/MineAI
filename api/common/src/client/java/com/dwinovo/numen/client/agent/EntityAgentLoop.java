@@ -922,7 +922,7 @@ public final class EntityAgentLoop {
                     // 面向主人的是分类人话;技术细节进日志(传输层还有全量)。
                     String words = LlmErrorWords.classify(err);
                     Constants.LOG.warn("[numen-entity#{}] LLM call failed: {} ({})", entityUuid, words, unwrap(err));
-                    onDone.accept(new ModelOutcome.Failed(words));
+                    onDone.accept(new ModelOutcome.Failed(words, LlmErrorWords.retryable(err)));
                     return;
                 }
                 onDone.accept(new ModelOutcome.Answered(res.turn(), res.usage()));

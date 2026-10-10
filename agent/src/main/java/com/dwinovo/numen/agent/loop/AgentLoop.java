@@ -364,7 +364,7 @@ public final class AgentLoop {
             return;
         }
         switch (outcome) {
-            case ModelOutcome.Failed failed -> end(new RunEnd.Failed(failed.words(), true));
+            case ModelOutcome.Failed failed -> end(new RunEnd.Failed(failed.words(), failed.retryable()));
             case ModelOutcome.Answered answered -> {
                 emit(new LoopEvent.ModelUsed(answered.usage(), LoopEvent.Purpose.TURN));
                 AssistantTurn reply = answered.turn();
@@ -546,7 +546,7 @@ public final class AgentLoop {
                         Consumer<ModelOutcome> onDone) {
         String problem = model.unavailable();
         if (problem != null) {
-            onDone.accept(new ModelOutcome.Failed(problem));
+            onDone.accept(new ModelOutcome.Failed(problem, false));
             return;
         }
         model.call(request, cancel, delta -> { }, outcome -> {

@@ -55,7 +55,11 @@ public abstract class LoopHarness {
         }
 
         public void fail(String words) {
-            onDone.accept(new ModelOutcome.Failed(words));
+            fail(words, true);
+        }
+
+        public void fail(String words, boolean retryable) {
+            onDone.accept(new ModelOutcome.Failed(words, retryable));
         }
 
         public void stream(String content) {

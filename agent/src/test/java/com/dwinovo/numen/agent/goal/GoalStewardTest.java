@@ -166,7 +166,7 @@ class GoalStewardTest extends LoopHarness {
         int turnsBefore = goal.turnsExecuted();
         int stuckBefore = goal.stuckStreak();
 
-        model.last().onDone().accept(new ModelOutcome.Failed("endpoint unavailable"));
+        model.last().onDone().accept(new ModelOutcome.Failed("endpoint unavailable", false));
 
         assertEquals(goal, goals.goal(), "失败保留目标");
         assertTrue(goal.lastReason().contains("endpoint unavailable"), "现有 /goal 展示读取 lastReason");

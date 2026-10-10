@@ -15,12 +15,8 @@ public final class LlmErrorWords {
     private LlmErrorWords() {}
 
     public static String classify(Throwable error) {
-        Throwable cause = error;
-        while (cause != null && !(cause instanceof LlmHttpException) && cause.getCause() != null
-                && cause.getCause() != cause) {
-            cause = cause.getCause();
-        }
-        if (cause instanceof LlmHttpException http) {
+        LlmHttpException http = unwrapHttp(error);
+        if (http != null) {
             if (http.isUnauthorized()) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED);
             if (http.statusCode() == 404) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_NOT_FOUND);
             if (http.isRateLimited()) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_RATE_LIMITED);
@@ -28,6 +24,23 @@ public final class LlmErrorWords {
             return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_BAD_REQUEST) + " (HTTP " + http.statusCode() + ")";
         }
         return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_NETWORK);
+    }
+
+    /**
+     * 这次失败重发一次有没有意义:拿不到 HTTP 响应(网络、超时)和一过性状态码值得重试,其余确定性错误不值。
+     */
+    public static boolean retryable(Throwable error) {
+        LlmHttpException http = unwrapHttp(error);
+        return http == null || http.isTransient();
+    }
+
+    private static LlmHttpException unwrapHttp(Throwable error) {
+        Throwable cause = error;
+        while (cause != null && !(cause instanceof LlmHttpException) && cause.getCause() != null
+                && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        return cause instanceof LlmHttpException http ? http : null;
     }
 
     private static String t(String key) {

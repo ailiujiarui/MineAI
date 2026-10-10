@@ -808,6 +808,16 @@ class AgentLoopTest extends LoopHarness {
         }
 
         @Test
+        void aNonRetryableFailureIsNotRerun() {
+            ownerSays("挖矿");
+            model.last().fail("参数错了", false);
+
+            assertEquals(1, model.calls.size(), "确定性失败不重试");
+            assertEquals(List.of(new LoopEvent.TurnFailed("参数错了")), eventsOf(LoopEvent.TurnFailed.class));
+            assertEquals(Hold.FAILED, loop.hold());
+        }
+
+        @Test
         void theRetryPassesTheEndpointCheck() {
             ownerSays("挖矿");
             model.unavailable = "档案被删了";
