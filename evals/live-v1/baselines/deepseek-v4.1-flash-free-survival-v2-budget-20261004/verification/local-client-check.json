@@ -1,0 +1,101 @@
+{
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false,
+  "purpose": "Verify real client v2 loading, public initial hunger and rejection of idle/no-food success",
+  "run_directory": "build/evals/live-v1/free-survival-v2-local-5f622e615cbd4935abab6d7750731a9b",
+  "source_frozen": true,
+  "status": "budget_exhausted",
+  "reason": "max_model_calls",
+  "model_calls": 2,
+  "local_fixture_requests": 2,
+  "registered_game_tests": 0,
+  "registered_tool_count": 42,
+  "initial_snapshot": {
+    "alive": true,
+    "game_tick": 48,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {},
+    "health": 20.0,
+    "food": 14,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "food_nutrition": 0,
+      "safe_meals": 0,
+      "restored_food": 0,
+      "elapsed_ticks": 0,
+      "safe_state": true,
+      "evidence": {
+        "started_game_tick": 48,
+        "scanned_game_tick": 48,
+        "dimension": "minecraft:overworld",
+        "food": [],
+        "meals": [],
+        "first_effective_safe_meal": null,
+        "consumed_meals": 0,
+        "meal_evidence_truncated": false,
+        "safety": {
+          "valid": true,
+          "on_fire": false,
+          "in_lava": false,
+          "drowning": false,
+          "air_supply": 300,
+          "fully_frozen": false,
+          "harmful_effects": [],
+          "visible_attackers_within_16": []
+        }
+      }
+    },
+    "position": [
+      160.5,
+      66.0,
+      -127.5
+    ],
+    "current_task": null
+  },
+  "final_snapshot": {
+    "alive": true,
+    "game_tick": 57,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {},
+    "health": 20.0,
+    "food": 14,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "food_nutrition": 0,
+      "safe_meals": 0,
+      "restored_food": 0,
+      "elapsed_ticks": 9,
+      "safe_state": true,
+      "evidence": {
+        "started_game_tick": 48,
+        "scanned_game_tick": 57,
+        "dimension": "minecraft:overworld",
+        "food": [],
+        "meals": [],
+        "first_effective_safe_meal": null,
+        "consumed_meals": 0,
+        "meal_evidence_truncated": false,
+        "safety": {
+          "valid": true,
+          "on_fire": false,
+          "in_lava": false,
+          "drowning": false,
+          "air_supply": 300,
+          "fully_frozen": false,
+          "harmful_effects": [],
+          "visible_attackers_within_16": []
+        }
+      }
+    },
+    "position": [
+      160.5,
+      66.0,
+      -127.5
+    ],
+    "current_task": null
+  }
+}

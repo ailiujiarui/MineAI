@@ -1,0 +1,359 @@
+{
+  "recorded_at_utc": "2026-10-04T13:05:19.786786+00:00",
+  "evaluation_version": "survival-v2",
+  "case_id": "live.free-survival",
+  "split": "dev",
+  "repetitions": 1,
+  "independent_test": false,
+  "source_run": "build/evals/live-v1/free-survival-v2-20261004",
+  "status": "budget_exhausted",
+  "reason": "max_tokens",
+  "task_success": false,
+  "budget": {
+    "max_model_calls": 80,
+    "max_seconds": 1700,
+    "max_tokens": 2600000
+  },
+  "elapsed_ms": 432195.586,
+  "model": "deepseek-v4.1-flash",
+  "source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+  "scenario_sha256": "824e6934526a4afa0631fd84f784ea0bd892a96ae9294339a48ac20cd425e2d1",
+  "model_calls": 70,
+  "usage_reports": 70,
+  "attempts_without_usage_report": 0,
+  "usage_complete": true,
+  "tokens_observed": {
+    "input": 88693,
+    "output": 15994,
+    "cache_read": 2540416,
+    "cache_write": 0,
+    "total": 2645103
+  },
+  "cost": null,
+  "token_threshold_overshoot": 45103,
+  "token_threshold_semantics": "Checked after returned usage; final response can exceed the threshold. Cache-read tokens are included.",
+  "milestones_reached": 2,
+  "milestones_total": 4,
+  "milestones": [
+    {
+      "id": "first-safe-food",
+      "condition": {
+        "world": {
+          "food_nutrition": 4
+        }
+      },
+      "status": "reached",
+      "elapsed_ms": 308745.5625
+    },
+    {
+      "id": "effective-refuel",
+      "condition": {
+        "world": {
+          "safe_meals": 1
+        }
+      },
+      "status": "reached",
+      "elapsed_ms": 391998.6506
+    },
+    {
+      "id": "safe-food-reserve",
+      "condition": {
+        "world": {
+          "food_nutrition": 20
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "survived-first-cycle",
+      "condition": {
+        "min_health": 10,
+        "min_food": 12,
+        "world": {
+          "elapsed_ticks": 24000,
+          "safe_state": true
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    }
+  ],
+  "initial_snapshot": {
+    "alive": true,
+    "game_tick": 48,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {},
+    "health": 20.0,
+    "food": 14,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "food_nutrition": 0,
+      "safe_meals": 0,
+      "restored_food": 0,
+      "elapsed_ticks": 0,
+      "safe_state": true,
+      "evidence": {
+        "started_game_tick": 48,
+        "scanned_game_tick": 48,
+        "dimension": "minecraft:overworld",
+        "food": [],
+        "meals": [],
+        "first_effective_safe_meal": null,
+        "consumed_meals": 0,
+        "meal_evidence_truncated": false,
+        "safety": {
+          "valid": true,
+          "on_fire": false,
+          "in_lava": false,
+          "drowning": false,
+          "air_supply": 300,
+          "fully_frozen": false,
+          "harmful_effects": [],
+          "visible_attackers_within_16": []
+        }
+      }
+    },
+    "position": [
+      160.5,
+      66.0,
+      -127.5
+    ],
+    "current_task": null
+  },
+  "final_snapshot": {
+    "alive": true,
+    "game_tick": 8692,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:cobblestone": 3,
+      "minecraft:dirt": 29,
+      "minecraft:oak_log": 9,
+      "minecraft:oak_planks": 1,
+      "minecraft:oak_sapling": 1,
+      "minecraft:porkchop": 2,
+      "minecraft:stick": 5,
+      "minecraft:stone_axe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_sword": 1,
+      "minecraft:wheat_seeds": 1,
+      "minecraft:white_wool": 2,
+      "minecraft:wooden_pickaxe": 1
+    },
+    "health": 20.0,
+    "food": 16,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "food_nutrition": 6,
+      "safe_meals": 1,
+      "restored_food": 6,
+      "elapsed_ticks": 8644,
+      "safe_state": true,
+      "evidence": {
+        "started_game_tick": 48,
+        "scanned_game_tick": 8692,
+        "dimension": "minecraft:overworld",
+        "food": [
+          {
+            "id": "minecraft:porkchop",
+            "count": 2,
+            "nutrition": 6
+          }
+        ],
+        "meals": [
+          {
+            "id": "minecraft:cooked_chicken",
+            "count": 1,
+            "game_tick": 7885,
+            "dimension": "minecraft:overworld",
+            "food_before": 10,
+            "food_after": 16,
+            "saturation_before": 0.0,
+            "saturation_after": 7.2000003,
+            "safe_nutrition": 6,
+            "effective_safe_meal": true
+          }
+        ],
+        "first_effective_safe_meal": {
+          "id": "minecraft:cooked_chicken",
+          "count": 1,
+          "game_tick": 7885,
+          "dimension": "minecraft:overworld",
+          "food_before": 10,
+          "food_after": 16,
+          "saturation_before": 0.0,
+          "saturation_after": 7.2000003,
+          "safe_nutrition": 6,
+          "effective_safe_meal": true
+        },
+        "consumed_meals": 1,
+        "meal_evidence_truncated": false,
+        "safety": {
+          "valid": true,
+          "on_fire": false,
+          "in_lava": false,
+          "drowning": false,
+          "air_supply": 300,
+          "fully_frozen": false,
+          "harmful_effects": [],
+          "visible_attackers_within_16": []
+        }
+      }
+    },
+    "position": [
+      167.54230441979416,
+      70.0,
+      -198.42825781662714
+    ],
+    "current_task": null
+  },
+  "initial_setup": {
+    "inventory": {},
+    "food_level": 14,
+    "saturation": 0
+  },
+  "first_reply_ms": 3811.1759,
+  "success_held_ticks": 0,
+  "registered_game_tests": 0,
+  "registered_tool_count": 42,
+  "test_tool_prefix_present": false,
+  "tool_calls": {
+    "load_skill": 1,
+    "look_around": 3,
+    "get_world_info": 1,
+    "scan_blocks": 2,
+    "scan_nearby_entities": 4,
+    "todowrite": 1,
+    "mine": 3,
+    "craft": 10,
+    "build": 2,
+    "get_self_status": 2,
+    "task_status": 30,
+    "equip_item": 1,
+    "fish": 1,
+    "goto": 2,
+    "inspect_gui": 3,
+    "attack": 3,
+    "collect_items": 1,
+    "interact_at": 2,
+    "transfer": 2,
+    "close_gui": 2,
+    "eat": 1
+  },
+  "transport_evidence": "verification/network-check.json",
+  "action_evidence": "verification/action-review.json",
+  "protocol_evidence": "verification/protocol-check.json",
+  "scoring_evidence": "verification/scoring-review.json",
+  "historical_context": {
+    "previous_agricultural_archive": "evals/live-v1/baselines/deepseek-v4.1-flash-survival-postfix-20261004",
+    "same_budget": true,
+    "same_model_config_metadata": true,
+    "same_scenario": false,
+    "same_grading": false,
+    "same_initial_position": false,
+    "score_fractions_comparable": false,
+    "note": "New case and scoring version change the goal, initial hunger and milestones. Historical 1/6 remains an agricultural-case result."
+  },
+  "limitations": [
+    "One exposed dev scenario, one seed and one run; no independent validation or general success rate.",
+    "Measures one effective safe resupply, remaining reserves and early survival; does not prove an indefinitely renewable food supply.",
+    "Milestones record historical first attainment and do not replace all final criteria held together for 1200 actual game ticks.",
+    "The 24000 survival ticks plus 1200 hold ticks require approximately 21 minutes at 20 TPS; call/token limits can end a run earlier.",
+    "A budget-exhausted run establishes non-completion under its recorded limits, not inability with every possible larger budget.",
+    "The initial saturation zero is specified and applied in the frozen initializer; the initial snapshot does not separately serialize it.",
+    "Observed token usage includes cached input and is not a monetary cost or an independently checked billing total."
+  ],
+  "archive_integrity": {
+    "request.json": {
+      "original_sha256": "3fa55d26113958e7a7305187781f1fd63d7d8f3520336d919bc98e7374a68453",
+      "archive_sha256": "3fa55d26113958e7a7305187781f1fd63d7d8f3520336d919bc98e7374a68453"
+    },
+    "run.json": {
+      "original_sha256": "201c386ced00506d74fb929b46df5e47ea75ad9f301f3aa738ffc8af73c1e512",
+      "archive_sha256": "201c386ced00506d74fb929b46df5e47ea75ad9f301f3aa738ffc8af73c1e512"
+    },
+    "source-hashes.json": {
+      "original_sha256": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53",
+      "archive_sha256": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53"
+    },
+    "launcher.log.gz": {
+      "original_sha256": "166931558a263483cb7885ffd9024b3e56e2c294ff58485b5b724141e7a0e2ee",
+      "archive_sha256": "b6f1695312cc90dea51d804b6ee1f2503394632ecffc4d2329cda64253c5fc23"
+    },
+    "results/model.json": {
+      "original_sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9",
+      "archive_sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+    },
+    "results/progress.json": {
+      "original_sha256": "66ecfb412d45143bc1096446e820c82209da98f3f74bd91ee08d3e1a9c1af145",
+      "archive_sha256": "66ecfb412d45143bc1096446e820c82209da98f3f74bd91ee08d3e1a9c1af145"
+    },
+    "results/result.json": {
+      "original_sha256": "66ecfb412d45143bc1096446e820c82209da98f3f74bd91ee08d3e1a9c1af145",
+      "archive_sha256": "66ecfb412d45143bc1096446e820c82209da98f3f74bd91ee08d3e1a9c1af145"
+    },
+    "results/trace.jsonl.gz": {
+      "original_sha256": "750f9f65279bafeab006da132416baedae379a950873a56d07ecd384054fc66a",
+      "archive_sha256": "f8095ae126bf17c4a61a6364d6b08be400e43dd2bd79c42c6dc3dbcadfc3b543"
+    },
+    "results/chat.jsonl.gz": {
+      "original_sha256": "21a1582a4ba60e00a67ec1accecd7531d4ca29ed72e3a4a41b74ef989c3a7d36",
+      "archive_sha256": "7705686d70dc919c5e8413826a9da6ea5d54079e1e8cf2f32cb6343a9688b1b7"
+    },
+    "verification/protocol-check.json": {
+      "original_sha256": "d863220331b7d354aef75cb05514756552c61af0143c33b65c79b3c6b15fcf1e",
+      "archive_sha256": "d863220331b7d354aef75cb05514756552c61af0143c33b65c79b3c6b15fcf1e"
+    },
+    "verification/scoring-review.json": {
+      "original_sha256": "5c1bc712b02346f1c40de26df8027f5d3d0fd22aa6bfb42df3c2441bbd4144c7",
+      "archive_sha256": "5c1bc712b02346f1c40de26df8027f5d3d0fd22aa6bfb42df3c2441bbd4144c7"
+    },
+    "verification/action-review.json": {
+      "original_sha256": "9c4acbedf0afacac59b82f3769cf333a8f317559b0dee5b0e581d4aface8f6db",
+      "archive_sha256": "9c4acbedf0afacac59b82f3769cf333a8f317559b0dee5b0e581d4aface8f6db"
+    },
+    "verification/network-check.json": {
+      "original_sha256": "760b1c5506de735530089b3e9cdc5d34ee91d22bd0d53a31dc93c68224a38404",
+      "archive_sha256": "760b1c5506de735530089b3e9cdc5d34ee91d22bd0d53a31dc93c68224a38404"
+    },
+    "verification/local-client-check.json": {
+      "original_sha256": "d8c84e75ab345f726d65ab8800bba640e741b6270f181dac7c349c30b7cf18d2",
+      "archive_sha256": "d8c84e75ab345f726d65ab8800bba640e741b6270f181dac7c349c30b7cf18d2"
+    },
+    "verification/verify-final-build.log.gz": {
+      "original_sha256": "e8b907524ed9c33dd444789479fa5622ffd10abe76e4d33c2c8f3c48af61a805",
+      "archive_sha256": "39de07662e3bd5ae48a7b8008a87b26250938759fda5717c59d24782c5fe72b9"
+    },
+    "verification/verify-jvm.log.gz": {
+      "original_sha256": "c9973249293d40503330baedfde42a1718f212b361cff54c75ef138facace8da",
+      "archive_sha256": "8bc5e9514e23b3c2103fd8fe85ca0ed078fb357fcc9211b9e0015dc468f66886"
+    },
+    "verification/verify-core-jvm.log.gz": {
+      "original_sha256": "5dd54a3bcccc9d1fbf613c03faceb90960ba83ebbf15b0a497fa38b7f15a1d8f",
+      "archive_sha256": "95cc4a6fb45ce6c2fcffdc6f3aaee2bf17a7202493285f77040bae0a1568b9a7"
+    },
+    "verification/verify-gametest.log.gz": {
+      "original_sha256": "80586a098cb01b38bcc37dbd09cc9af6ea1c2972ec57a13f4563aa5c533e27de",
+      "archive_sha256": "60acdb134c35d0e0b45f74c76698c2e840170f5042bb74849fb3759761f2e95e"
+    },
+    "verification/verify-python-live.log.gz": {
+      "original_sha256": "7af7427431c969022e76f68d32599ff9fada2e8513bee4515dfdf3cac2a18bfd",
+      "archive_sha256": "c2663c2c9e13dd30e707639270024f337ff6fb6c02f52877294be6506b9658f2"
+    },
+    "verification/verify-python-bot.log.gz": {
+      "original_sha256": "475f6194e740d014f8ce87e85001cf49f62f0d6ba15c43ca024f79aa61e0e3f1",
+      "archive_sha256": "4add9f4d9fe07c91df20ee7199234679e4bca334029a14caf93f8b584a600dbd"
+    },
+    "verification.json": {
+      "original_sha256": "7967c6e2392617fe361d730a38a81b219752bf0967621f6061dcbe39a845764d",
+      "archive_sha256": "7967c6e2392617fe361d730a38a81b219752bf0967621f6061dcbe39a845764d"
+    }
+  },
+  "secret_review": {
+    "selected_artifact_exact_key_scan": "passed",
+    "game_directory_copied": false,
+    "companion_transcript_only": true
+  }
+}

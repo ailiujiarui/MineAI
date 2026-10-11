@@ -1,0 +1,81 @@
+{
+  "preexisting_modified_files": [
+    {
+      "path": "agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java",
+      "sha256": "72a29906a0124364dcb737dc2101c090aea9fb7cb54ecc94b0e534d5fed061ae",
+      "current_sha256": "72a29906a0124364dcb737dc2101c090aea9fb7cb54ecc94b0e534d5fed061ae",
+      "unchanged": true
+    },
+    {
+      "path": "agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java",
+      "sha256": "e320c29f077220231bc057b6b334975f9017edbb6f4df7bab596ae4aaf4faff7",
+      "current_sha256": "e320c29f077220231bc057b6b334975f9017edbb6f4df7bab596ae4aaf4faff7",
+      "unchanged": true
+    },
+    {
+      "path": "ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java",
+      "sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53",
+      "current_sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53",
+      "unchanged": true
+    },
+    {
+      "path": "ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java",
+      "sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325",
+      "current_sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325",
+      "unchanged": true
+    },
+    {
+      "path": "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java",
+      "sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a",
+      "current_sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a",
+      "unchanged": true
+    },
+    {
+      "path": "core/neoforge/build.gradle",
+      "sha256": "126d7b83c170453651844fbfcaa641bde92af8d0a627ee219cdb5137a080cfb2",
+      "current_sha256": "126d7b83c170453651844fbfcaa641bde92af8d0a627ee219cdb5137a080cfb2",
+      "unchanged": true
+    },
+    {
+      "path": "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java",
+      "sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e",
+      "current_sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e",
+      "unchanged": true
+    },
+    {
+      "path": "docs/architecture-mind-model.md",
+      "sha256": "53fb5f7a40f9f736fa15df0d1e25b876f0d41a57252b64b9acf8a7b773956e54",
+      "current_sha256": "53fb5f7a40f9f736fa15df0d1e25b876f0d41a57252b64b9acf8a7b773956e54",
+      "unchanged": true
+    }
+  ],
+  "historical_scenarios": [
+    {
+      "path": "evals/live-v1/scenarios/defeat-dragon.json",
+      "head_sha256": "3171a5d7a0b3373e88aac239776b4f0315761a69ae188ae62270accfec4b990e",
+      "current_sha256": "3171a5d7a0b3373e88aac239776b4f0315761a69ae188ae62270accfec4b990e",
+      "unchanged": true
+    },
+    {
+      "path": "evals/live-v1/scenarios/end-entry.json",
+      "head_sha256": "bfcce77b354a9cb93f86d1e1279c887691f5951b524efa29c99d360eaae31098",
+      "current_sha256": "bfcce77b354a9cb93f86d1e1279c887691f5951b524efa29c99d360eaae31098",
+      "unchanged": true
+    },
+    {
+      "path": "evals/live-v1/scenarios/end-resources.json",
+      "head_sha256": "73809e5b59378781867e83677943af077079ab37b7daecc323f28503930eb522",
+      "current_sha256": "73809e5b59378781867e83677943af077079ab37b7daecc323f28503930eb522",
+      "unchanged": true
+    },
+    {
+      "path": "evals/live-v1/scenarios/expedition-preparation.json",
+      "head_sha256": "6a0e9373e2f0d047b11770c715581bef0b336687ba4d39986afe0606c9819b21",
+      "current_sha256": "6a0e9373e2f0d047b11770c715581bef0b336687ba4d39986afe0606c9819b21",
+      "unchanged": true
+    }
+  ],
+  "gradle_properties_unchanged": true,
+  "reset_clean_stash_used": false,
+  "commit_push_pr_created": false
+}

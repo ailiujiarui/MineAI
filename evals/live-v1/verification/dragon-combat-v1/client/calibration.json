@@ -1,0 +1,22 @@
+{
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false,
+  "scenario": "dragon-combat",
+  "launcher_exit_code": 0,
+  "purpose": "Verify the fresh native End battle and reject idle localhost replies as a dragon kill",
+  "expected_outcome": "budget_exhausted",
+  "scripted_request_budget_reached": true,
+  "starter_inventory_matches": true,
+  "initial_worn_armor_matches": true,
+  "initial_offhand_matches": true,
+  "initial_gear_full_durability": true,
+  "initial_public_spawn_matches": true,
+  "same_subject": true,
+  "same_target_and_fight": true,
+  "observer_evidence_valid": true,
+  "no_combat_progress": true,
+  "no_milestones": true,
+  "passed": true
+}

@@ -1,0 +1,12 @@
+{
+  "mode": "post_run_export_after_runner_enhancement",
+  "companion_chat": {
+    "status": "captured",
+    "companion_uuid": "470d4224-47f6-4aa9-a7ae-5cce34a5573d",
+    "source_ref": "game/config/numen/companions/470d4224-47f6-4aa9-a7ae-5cce34a5573d/chat.jsonl",
+    "file_ref": "results/chat.jsonl",
+    "sha256": "eaf57277dbcd5bea7566b47380d774e5cae5797ee34d4ae65adf3675293dc1a4"
+  },
+  "archive_decompressed_hash_matches": true,
+  "original_run_metadata_unchanged": true
+}

@@ -1,0 +1,363 @@
+{
+  "evaluation_version": "survival-v2",
+  "case_id": "live.free-survival",
+  "run_directory": "build/evals/live-v1/free-survival-v2-20261004",
+  "scope": "Read-only review of this completed formal v2 run. Different objective from v1; no cross-version improvement claim. No model, network, game, Gradle, source or archive mutations performed.",
+  "sources": {
+    "result": "build/evals/live-v1/free-survival-v2-20261004/results/result.json",
+    "trace": "build/evals/live-v1/free-survival-v2-20261004/results/trace.jsonl",
+    "chat": "build/evals/live-v1/free-survival-v2-20261004/results/chat.jsonl",
+    "usage": "build/evals/live-v1/free-survival-v2-20261004/launcher.log",
+    "fixed_source_manifest": "build/evals/live-v1/free-survival-v2-20261004/source-hashes.json"
+  },
+  "outcome": {
+    "status": "budget_exhausted",
+    "reason": "max_tokens",
+    "elapsed_ms": 432195.586,
+    "model_calls": 70,
+    "usage_reports": 70,
+    "unknown_usage_reports": 0,
+    "usage_complete": true,
+    "success_held_ticks": 0,
+    "tokens": {
+      "input": 88693,
+      "output": 15994,
+      "cache_read": 2540416,
+      "cache_write": 0,
+      "total": 2645103
+    },
+    "cost": null
+  },
+  "route": {
+    "observed": "Model selected logs -> crafting table and wooden pickaxe -> stone tools and furnace -> hunt chickens and sheep -> cook and eat one chicken -> hunt another sheep and pigs for reserve.",
+    "agriculture_executed": false,
+    "agriculture_evidence": "No hoe craft/equip, farmland placement, crop planting or harvest in the 77 dispatched tool calls. One wheat_seeds item was incidental inventory; it is not cultivation evidence.",
+    "model_selected_skill": {
+      "name": "tier_progression",
+      "trace_line": 26,
+      "note": "Loaded by model; content describes a dragon equipment route. The public v2 objective did not require this skill or tool sequence."
+    },
+    "public_objective_does_not_force": [
+      "wheat",
+      "hoe",
+      "crop_replanting",
+      "crafting_table",
+      "furnace",
+      "specified_house_shape"
+    ],
+    "phase_timing": [
+      {
+        "name": "resource_and_tool_setup",
+        "start_ms": 0,
+        "end_ms": 262869.3737,
+        "duration_ms": 262869.3737,
+        "trace_lines": [
+          88,
+          548,
+          661,
+          677,
+          716,
+          1098,
+          1135,
+          1257,
+          1263
+        ]
+      },
+      {
+        "name": "first_hunting_and_collection",
+        "start_ms": 262869.3737,
+        "end_ms": 314386.3435,
+        "duration_ms": 51516.9698,
+        "trace_lines": [
+          1369,
+          1551,
+          1603,
+          1679
+        ]
+      },
+      {
+        "name": "furnace_preparation_and_effective_refuel",
+        "start_ms": 314386.3435,
+        "end_ms": 391998.6506,
+        "duration_ms": 77612.3071,
+        "trace_lines": [
+          1831,
+          1899,
+          1928,
+          2023,
+          2049,
+          2093,
+          2104
+        ]
+      },
+      {
+        "name": "reserve_planning_and_second_hunt_before_budget",
+        "start_ms": 391998.6506,
+        "end_ms": 432195.586,
+        "duration_ms": 40196.9354,
+        "trace_lines": [
+          2151,
+          2328,
+          2345,
+          2347
+        ]
+      }
+    ],
+    "phase_timing_note": "Boundaries use exact dispatched tool times or first observed effective-refuel snapshot. The first hunting stage ends at a status response confirming idle, an upper bound on body task completion; these are descriptive phases, not separate scoring clocks."
+  },
+  "milestones": [
+    {
+      "id": "first-safe-food",
+      "achieved": true,
+      "elapsed_ms": 308745.5625,
+      "proof": "result.milestones[0].snapshot.world.food_nutrition = 4; evidence.food = two raw mutton; safe_meals still 0"
+    },
+    {
+      "id": "effective-refuel",
+      "achieved": true,
+      "elapsed_ms": 391998.6506,
+      "trace_line": 2104,
+      "proof": "result.milestones[1].snapshot.world.safe_meals = 1"
+    },
+    {
+      "id": "safe-food-reserve",
+      "achieved": false,
+      "required_nutrition": 20,
+      "final_nutrition": 6,
+      "maximum_observed_nutrition": 6,
+      "peak_evidence_trace_line": 2048
+    },
+    {
+      "id": "survived-first-cycle",
+      "achieved": false,
+      "required_elapsed_ticks": 24000,
+      "final_elapsed_ticks": 8644,
+      "remaining_ticks_to_duration_threshold": 15356,
+      "note": "This run ended at about 7.2 minutes. Final health 20, food 16 and safe_state true satisfy those snapshot components, but actual survival duration did not. Final success also needs all conditions together for another 1200 game ticks; hold was 0."
+    }
+  ],
+  "real_food_and_meal": {
+    "first_effective_safe_meal": {
+      "id": "minecraft:cooked_chicken",
+      "count": 1,
+      "game_tick": 7885,
+      "dimension": "minecraft:overworld",
+      "food_before": 10,
+      "food_after": 16,
+      "saturation_before": 0.0,
+      "saturation_after": 7.2000003,
+      "safe_nutrition": 6,
+      "effective_safe_meal": true
+    },
+    "evidence_paths": [
+      "result.final_snapshot.world.evidence.first_effective_safe_meal",
+      "result.final_snapshot.world.evidence.meals[0]",
+      "result.final_snapshot.world.evidence.consumed_meals"
+    ],
+    "trace_line": 2104,
+    "eat_dispatch_trace_line": 2093,
+    "eat_done_receipt_chat_line": 139,
+    "final_backpack_food": [
+      {
+        "id": "minecraft:porkchop",
+        "count": 2,
+        "nutrition": 6
+      }
+    ],
+    "safe_meals": 1,
+    "restored_food": 6,
+    "cooking_evidence": {
+      "furnace_gui_trace_lines": [
+        1899,
+        2023
+      ],
+      "cooked_chicken_taken_and_two_mutton_inserted_trace_line": 2049,
+      "note": "Two mutton were inserted into the furnace after taking cooked chicken. No later furnace inspect/take occurred; do not assume the final cooked-output contents or count these items as backpack reserve."
+    }
+  },
+  "final_state": {
+    "health": 20.0,
+    "food": 16,
+    "alive": true,
+    "deaths": 0,
+    "elapsed_ticks": 8644,
+    "food_nutrition": 6,
+    "safe_state": true,
+    "safety": {
+      "valid": true,
+      "on_fire": false,
+      "in_lava": false,
+      "drowning": false,
+      "air_supply": 300,
+      "fully_frozen": false,
+      "harmful_effects": [],
+      "visible_attackers_within_16": []
+    },
+    "inventory": {
+      "minecraft:cobblestone": 3,
+      "minecraft:dirt": 29,
+      "minecraft:oak_log": 9,
+      "minecraft:oak_planks": 1,
+      "minecraft:oak_sapling": 1,
+      "minecraft:porkchop": 2,
+      "minecraft:stick": 5,
+      "minecraft:stone_axe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_sword": 1,
+      "minecraft:wheat_seeds": 1,
+      "minecraft:white_wool": 2,
+      "minecraft:wooden_pickaxe": 1
+    },
+    "position": [
+      167.54230441979416,
+      70.0,
+      -198.42825781662714
+    ],
+    "current_task": null,
+    "trace_line": 2346,
+    "minimum_observed_health": 20.0,
+    "minimum_observed_food": 10
+  },
+  "tools": {
+    "started": 77,
+    "finished": 77,
+    "assistant_proposals": 78,
+    "finished_counts": {
+      "attack": 3,
+      "build": 2,
+      "close_gui": 2,
+      "collect_items": 1,
+      "craft": 10,
+      "eat": 1,
+      "equip_item": 1,
+      "fish": 1,
+      "get_self_status": 2,
+      "get_world_info": 1,
+      "goto": 2,
+      "inspect_gui": 3,
+      "interact_at": 2,
+      "load_skill": 1,
+      "look_around": 3,
+      "mine": 3,
+      "scan_blocks": 2,
+      "scan_nearby_entities": 4,
+      "task_status": 30,
+      "todowrite": 1,
+      "transfer": 2
+    },
+    "task_stop_calls": 0,
+    "inspect_gui_success_trace_lines": [
+      1292,
+      1899,
+      2023
+    ],
+    "inspect_gui_note": "Own inventory at line 1292 returns InventoryMenu with 2x2 grid and real slots; both furnace menus also succeed. No invalid_arguments and no task_stop occurred in this run.",
+    "json_success_false_count": 0
+  },
+  "verified_body_receipt_issues": [
+    {
+      "chat_line": 38,
+      "trace_lines": [
+        661,
+        677,
+        678
+      ],
+      "state": "stopped_then_failed",
+      "evidence": "Dispatching fish replaced the running stone mine at 0/24; fish then failed because no fishing rod existed. Model acknowledged this at chat line 39 and restarted mining."
+    },
+    {
+      "chat_line": 51,
+      "trace_lines": [
+        1098,
+        1135
+      ],
+      "state": "failed_then_recovered",
+      "evidence": "Initial goto found no route without altering terrain and offered route choices. Model selected r19; successful arrival receipt at chat line 60."
+    },
+    {
+      "trace_line": 1928,
+      "state": "partial_transfer_blocked_then_recovered",
+      "evidence": "One batch attempted chicken and mutton into the same furnace input slot. Chicken and fuel moved, mutton was refused while chicken occupied slot 0. Later transfer at line 2049 inserted mutton after removing cooked chicken."
+    }
+  ],
+  "token_accounting": {
+    "reported_total_tokens": 2645103,
+    "prompt_tokens_including_cache": 2629109,
+    "uncached_input_tokens": 88693,
+    "cache_read_tokens": 2540416,
+    "output_tokens": 15994,
+    "cache_read_percent_of_total": 96.042234,
+    "cache_read_percent_of_prompt": 96.6265,
+    "output_percent_of_total": 0.604665,
+    "average_tokens_per_request": 37787.186,
+    "first_request": {
+      "launcher_line": 183,
+      "latency_ms": 3692,
+      "chunks": 80,
+      "prompt_tokens_including_cache": 19085,
+      "output_tokens": 219,
+      "total_tokens": 19304
+    },
+    "last_request": {
+      "launcher_line": 1723,
+      "latency_ms": 3011,
+      "chunks": 14,
+      "prompt_tokens_including_cache": 51461,
+      "output_tokens": 38,
+      "total_tokens": 51499
+    },
+    "last_over_first_prompt_ratio": 2.696411,
+    "tokens_before_last_request": 2593604,
+    "model_request_latency_ms": {
+      "sum": 296000,
+      "median": 3436.0,
+      "min": 2340,
+      "max": 18158
+    },
+    "status_responses": {
+      "model_requests": 31,
+      "dispatched_tool_calls": 30,
+      "undispatched_tool_proposals": 1,
+      "total_tokens": 1282055,
+      "prompt_tokens_including_cache": 1279894,
+      "output_tokens": 2161,
+      "percent_of_run_total": 48.469001,
+      "request_percent": 44.285714,
+      "last_attack_status_requests": 10,
+      "last_attack_status_total_tokens": 509217,
+      "evidence_chat_lines": [
+        81,
+        83,
+        158,
+        160
+      ],
+      "note": "These assistant messages say they should stop polling or wait for task_finished but still emit task_status. Only two assistant responses in this run emitted text without tools. The final status response is counted in usage but was not dispatched."
+    },
+    "why_budget_was_consumed_quickly": "70 completed requests at a median 3436ms each repeatedly reported large prompt inputs including cache: first 19085, last 51461, average 37558.7. Summed cached reads are 2540416, 96.04% of total; output is only 15994. Thus 2.645M is cumulative prompt/cache/output token accounting, not 2.645M newly generated tokens. Status-producing responses alone consumed 1.282M reported tokens. Last response moved total from 2593604 to 2645103, crossing max_tokens=2600000.",
+    "budget_semantics_code": [
+      "agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java:120",
+      "agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java:160",
+      "ai/src/main/java/com/dwinovo/numen/agent/provider/Usage.java:26"
+    ],
+    "limits": "Per-request launcher prompt figures combine cached and uncached input; only result gives their run-wide split. cost=null, so no currency/cost estimate is inferred. No new network diagnostic or provider credential files were read."
+  },
+  "last_proposal": {
+    "trace_line": 2345,
+    "elapsed_ms": 432050.0051,
+    "call": {
+      "id": "call_00_ep8l2snbgsop2dgnepizfarp",
+      "type": "function",
+      "function": {
+        "name": "task_status",
+        "arguments": "{}"
+      }
+    },
+    "registered_tool": true,
+    "tool_started": false,
+    "tool_finished": false,
+    "finish_trace_line": 2347,
+    "finish_reason": "max_tokens",
+    "note": "Budget exhaustion after the final usage report prevented dispatch. This is neither a nonexistent-tool hallucination nor an executed action or tool failure. Last actually returned task status (line 2328) still showed t18 attack 4/5 running; final current_task=null is after run termination."
+  },
+  "interpretation": "This v2 run objectively acquired safe food and completed one effective cooked-food resupply. It did not establish the required backpack reserve or actual first-cycle duration. The termination was max_tokens, not max_seconds, death, unsafe final state or transport failure. Its 2/4 milestone history must not be compared numerically as an improvement over the differently specified v1 1/6."
+}

@@ -1,0 +1,266 @@
+{
+  "evaluation_version": "expedition-v1",
+  "case_id": "live.expedition-preparation",
+  "recorded_at_utc": "2026-10-04T15:28:22.527010+00:00",
+  "status": "partial_failure",
+  "reason": "API test compilation has a previously recorded adapter lambda return-type mismatch; expedition build, available JVM suites, GameTests, Python tests and local client calibration passed",
+  "environment": {
+    "minecraft": "1.21.1",
+    "neoforge_override": "21.1.233",
+    "gradle_offline": true,
+    "gradle_properties_unchanged": true
+  },
+  "scenario": {
+    "path": "scenarios/expedition-preparation.json",
+    "sha256": "6a0e9373e2f0d047b11770c715581bef0b336687ba4d39986afe0606c9819b21",
+    "split": "dev",
+    "initialization": "artificial starter inventory in a fresh normal world",
+    "restores_previous_stage": false,
+    "milestones": 5,
+    "real_model_baseline": null
+  },
+  "build": {
+    "status": "passed",
+    "command": ".\\gradlew.bat :core:fabric:build :core:neoforge:build --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "evidence": {
+      "path": "verification/expedition-v1/build-verified.log.gz",
+      "bytes": 2452,
+      "sha256": "c1a9bf8d2f9f6d61a8d8f7779592a410c1365512ebc061f6357abf6c210634ac",
+      "source_path": "build/evals/expedition-v1/build-verified.log"
+    },
+    "initial_invocation": {
+      "status": "failed_cli_argument",
+      "reason": "PowerShell split the unquoted version property; corrected by quoting the same property",
+      "evidence": {
+        "path": "verification/expedition-v1/build.log.gz",
+        "bytes": 875,
+        "sha256": "428fda0fa447752defbe6797f74969f8b211465883b443d53d74a18b96432614",
+        "source_path": "build/evals/expedition-v1/build.log"
+      }
+    }
+  },
+  "jvm_tests": {
+    "status": "partial_failure",
+    "command": ".\\gradlew.bat :ai:test :agent:test :api:common:test :core:common:test --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "passed_modules": [
+      {
+        "module": "ai",
+        "status": "passed",
+        "tests": 152,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_suites": 21,
+        "xml_aggregate_sha256": "7f67735209f431805878274ad19fd306208b18d9ec09a659e535b1d93f2edda6"
+      },
+      {
+        "module": "agent",
+        "status": "passed",
+        "tests": 315,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_suites": 43,
+        "xml_aggregate_sha256": "382a095d7c09529f6306dae21b0b997adaa0a20ae37c0c8901465b9ec01b7093"
+      },
+      {
+        "module": "core/common",
+        "status": "passed",
+        "tests": 381,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_suites": 50,
+        "xml_aggregate_sha256": "ba7ce5717f25e640bcbcc8d2a239bea919d727839e4c8881e510749ea70cc48f"
+      }
+    ],
+    "passed_tests": 848,
+    "blocked_task": ":api:common:compileTestJava",
+    "tests_run_in_blocked_module": false,
+    "error": "AdapterHandlersTest.java:72: JsonObject cannot be converted to String",
+    "preexisting_evidence": "baselines/deepseek-v4.1-flash-free-survival-v2-20261004/verification.json",
+    "core_followup_command": ".\\gradlew.bat :core:common:test --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "evidence": [
+      {
+        "path": "verification/expedition-v1/jvm.log.gz",
+        "bytes": 1361,
+        "sha256": "8bc5e9514e23b3c2103fd8fe85ca0ed078fb357fcc9211b9e0015dc468f66886",
+        "source_path": "build/evals/expedition-v1/jvm.log"
+      },
+      {
+        "path": "verification/expedition-v1/core-jvm.log.gz",
+        "bytes": 847,
+        "sha256": "3df456ed63e44ce8e1b5f8fca047c3a872d3b9d9f89a7c83d62fe049d585bce9",
+        "source_path": "build/evals/expedition-v1/core-jvm.log"
+      },
+      {
+        "path": "verification/expedition-v1/LiveEvalRunTest.xml",
+        "bytes": 6544,
+        "sha256": "6e1d16061b1faed4d3efab20bbb1aa88ce58af82755a91826cb7ca5b4240b24f",
+        "source_path": "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.LiveEvalRunTest.xml"
+      }
+    ]
+  },
+  "game_tests": {
+    "status": "passed",
+    "required_tests": 278,
+    "new_expedition_calibration_tests": 5,
+    "pass_marker": "All 278 required tests passed",
+    "command": ".\\gradlew.bat :core:neoforge:runGameTestServer --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "evidence": {
+      "path": "verification/expedition-v1/gametest.log.gz",
+      "bytes": 32871,
+      "sha256": "4daef5ea763f01491c41c6d1045c67949bed047b738c5f8aa1f34839243c1684",
+      "source_path": "build/evals/expedition-v1/gametest.log"
+    }
+  },
+  "python_tests": {
+    "status": "passed",
+    "live_runner_tests": 48,
+    "command": "python -B -m unittest discover -s tools -p test_run_live_eval.py",
+    "evidence": {
+      "path": "verification/expedition-v1/python-live.log.gz",
+      "bytes": 61,
+      "sha256": "ae742f2109a5de2ec79dec9d0acd4f2dedeb39857656ca573ab510818874861d",
+      "source_path": "build/evals/expedition-v1/python-live.log"
+    }
+  },
+  "prepare_only": {
+    "status": "prepared",
+    "command": "python -B tools/run_live_eval.py --prepare-only --scenario evals/live-v1/scenarios/expedition-preparation.json --offline --neoforge-version 21.1.233",
+    "model_requests": 0,
+    "evidence": [
+      {
+        "path": "verification/expedition-v1/prepare/run.json",
+        "bytes": 3800,
+        "sha256": "18d0248bee55867e5900b26cdc209fd4a45d3c5dc14de8df330b33eb73ed41cb",
+        "source_path": "build/evals/live-v1/20261004T152424142246Z-51e381d9/run.json"
+      },
+      {
+        "path": "verification/expedition-v1/prepare/request.json",
+        "bytes": 5007,
+        "sha256": "b6da8aac51726fbcafde5a41bdf18cb2cac7851096496b0cc6074b59ecb63e86",
+        "source_path": "build/evals/live-v1/20261004T152424142246Z-51e381d9/request.json"
+      },
+      {
+        "path": "verification/expedition-v1/prepare/source-hashes.json",
+        "bytes": 185272,
+        "sha256": "d56ccc85171c92bc973f8bb8f50e5c6bda333502c19f7088f8d51b5ac4cc1392",
+        "source_path": "build/evals/live-v1/20261004T152424142246Z-51e381d9/source-hashes.json"
+      }
+    ]
+  },
+  "local_client_calibration": {
+    "calibration_only": true,
+    "real_model": false,
+    "usage_is_synthetic": true,
+    "capability_baseline": false,
+    "scenario": "expedition-preparation",
+    "launcher_exit_code": 0,
+    "purpose": "Reject the real starter inventory as an expedition success with idle localhost replies",
+    "expected_outcome": "budget_exhausted",
+    "starter_inventory_matches": true,
+    "no_milestones": true,
+    "observer_rejected_incomplete_gear": true,
+    "initial_food_nutrition": 20,
+    "passed": true,
+    "command": "python -B tools/calibrate_live_eval.py --scenario expedition-preparation --offline --neoforge-version 21.1.233",
+    "result_status": "budget_exhausted",
+    "result_reason": "max_model_calls",
+    "milestones_reached": 0,
+    "elapsed_ms": 731.0914,
+    "scripted_requests": 4,
+    "synthetic_tokens": {
+      "input": 4,
+      "output": 4,
+      "cache_read": 0,
+      "cache_write": 0,
+      "total": 8
+    },
+    "registered_game_tests": 0,
+    "registered_tool_count": 42,
+    "source_frozen": true,
+    "source_sha256": "24c65d6aa5365c82630c8448fb6bbeaf714382f9fc3606d87541730fdbc8aa67",
+    "source_files": 1248,
+    "same_scenario_except_calibration_source_and_budget": true,
+    "evidence": [
+      {
+        "path": "verification/expedition-v1/client/run.json",
+        "bytes": 4772,
+        "sha256": "8e425af8ff46b423369fd6633af97ec664edef2749091650e26aad62fd2ca4ed",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/run.json"
+      },
+      {
+        "path": "verification/expedition-v1/client/request.json",
+        "bytes": 4894,
+        "sha256": "56ac501ddf4d1d75a9383648c51dba55868513640505e308772a39cff4c7a990",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/request.json"
+      },
+      {
+        "path": "verification/expedition-v1/client/source-hashes.json",
+        "bytes": 185296,
+        "sha256": "afa05bbd1851810b5c64221d5897295d15787555a70e92155725b2a3dfb8c3e3",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/source-hashes.json"
+      },
+      {
+        "path": "verification/expedition-v1/client/calibration.json",
+        "bytes": 500,
+        "sha256": "5582e2ded488fef6eda011d2e3d7ab80c21791ec6a4aab2a27ace3f1efd9f94e",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/calibration.json"
+      },
+      {
+        "path": "verification/expedition-v1/client/results/result.json",
+        "bytes": 11373,
+        "sha256": "8c1de2424c4129cbe264c21ff50f0890dbd03feaf771d25fc2dba17bc5c5bd9b",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/results/result.json"
+      },
+      {
+        "path": "verification/expedition-v1/client/results/progress.json",
+        "bytes": 11373,
+        "sha256": "8c1de2424c4129cbe264c21ff50f0890dbd03feaf771d25fc2dba17bc5c5bd9b",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/results/progress.json"
+      },
+      {
+        "path": "verification/expedition-v1/client/results/trace.json",
+        "bytes": 21121,
+        "sha256": "4918a95b47ff9c97000db05ce1f24cd85566838050fcb64ae9a4288030ef0cdb",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/results/trace.json"
+      },
+      {
+        "path": "verification/expedition-v1/client/results/trace.jsonl",
+        "bytes": 12364,
+        "sha256": "97fe93b51aad0e0b0b4b6ad61f78dc8316e80caf1a094a708523358901e81918",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/results/trace.jsonl"
+      },
+      {
+        "path": "verification/expedition-v1/client/results/chat.jsonl",
+        "bytes": 5698,
+        "sha256": "88ceadfde4671e121ac0cd4010f25f544ee6bd4364d6ea3b1799e8800f09a36d",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/results/chat.jsonl"
+      },
+      {
+        "path": "verification/expedition-v1/client/results/model.json",
+        "bytes": 121,
+        "sha256": "ce788ceaa6d7405cd6d8b2a0dff36ef1fa6aa68cdaf1330479b0500775711862",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/results/model.json"
+      },
+      {
+        "path": "verification/expedition-v1/client/launcher.log.gz",
+        "bytes": 7083,
+        "sha256": "3860586c6a60d89ddb1f3d28341cd77236d38dfe58f38441e3ff50fedf992d22",
+        "source_path": "build/evals/live-v1/calibration-a4d08e73c347450fa6205e4e3f3bb502/launcher.log"
+      }
+    ]
+  },
+  "real_model_run": {
+    "status": "not_run",
+    "capability_score": null,
+    "reason": "This construction run used only scripted localhost calibration; a real-model run needs a separately selected explicit request/time/token budget",
+    "external_model_requests": 0
+  },
+  "limits": [
+    "One hand-authored dev scenario, not an independent test set",
+    "Fixed starter inventory, not resumed stage-1 world or Agent memory",
+    "Preparation outcome only; no travel, resupply, Nether or dragon completion claim"
+  ]
+}

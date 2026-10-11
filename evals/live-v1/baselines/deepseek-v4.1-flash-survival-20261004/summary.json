@@ -1,0 +1,355 @@
+{
+  "recorded_at_utc": "2026-10-04T09:28:30.893734+00:00",
+  "evaluation_version": "survival-v1",
+  "case_id": "live.sustainable-survival",
+  "split": "dev",
+  "repetitions": 1,
+  "independent_test": false,
+  "source_run": "build/evals/live-v1/20261004T085904056498Z-9f759470",
+  "status": "budget_exhausted",
+  "reason": "max_seconds",
+  "task_success": false,
+  "budget": {
+    "max_model_calls": 80,
+    "max_seconds": 1700,
+    "max_tokens": 2600000
+  },
+  "elapsed_ms": 1700028.6634,
+  "model": "deepseek-v4.1-flash",
+  "source_sha256": "1b3e98c40b00cd8be8e937cabf769c3dce208b7eb304694c50694b0acd568006",
+  "model_calls": 56,
+  "usage_reports": 40,
+  "attempts_without_usage_report": 16,
+  "usage_complete": false,
+  "tokens_observed": {
+    "input": 80243,
+    "output": 23269,
+    "cache_read": 1434752,
+    "cache_write": 0,
+    "total": 1538264
+  },
+  "cost": null,
+  "milestones_reached": 1,
+  "milestones_total": 6,
+  "milestones": [
+    {
+      "id": "usable-tools",
+      "condition": {
+        "world": {
+          "usable_pickaxe": true,
+          "usable_hoe": true
+        }
+      },
+      "status": "reached",
+      "elapsed_ms": 1516560.4277
+    },
+    {
+      "id": "placed-workstations",
+      "condition": {
+        "world": {
+          "crafting_tables": 1,
+          "furnaces": 1
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "growing-field",
+      "condition": {
+        "world": {
+          "growing_wheat": 8
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "harvest-and-replant",
+      "condition": {
+        "world": {
+          "replanted_wheat": 3
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "safe-food-reserve",
+      "condition": {
+        "world": {
+          "food_nutrition": 20
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    },
+    {
+      "id": "safe-base",
+      "condition": {
+        "min_health": 10,
+        "min_food": 12,
+        "world": {
+          "shelter": true
+        }
+      },
+      "status": "unreached",
+      "elapsed_ms": null
+    }
+  ],
+  "initial_position": [
+    160.5,
+    78.0,
+    -127.5
+  ],
+  "final_snapshot": {
+    "alive": true,
+    "game_tick": 34046,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:coal": 6,
+      "minecraft:cobblestone": 21,
+      "minecraft:dirt": 12,
+      "minecraft:furnace": 1,
+      "minecraft:oak_log": 12,
+      "minecraft:oak_planks": 35,
+      "minecraft:stick": 9,
+      "minecraft:stone_hoe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_sword": 1
+    },
+    "health": 20.0,
+    "food": 20,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "growing_wheat": 0,
+      "crafting_tables": 1,
+      "furnaces": 0,
+      "evidence": {
+        "scan_origin": {
+          "position": [
+            152,
+            57,
+            -136
+          ]
+        },
+        "wheat": [],
+        "crafting_tables": [
+          {
+            "position": [
+              150,
+              63,
+              -136
+            ]
+          }
+        ],
+        "furnaces": [],
+        "coordinates_truncated": false,
+        "scanned_game_tick": 34046,
+        "dimension": "minecraft:overworld",
+        "food": [],
+        "tools": [
+          {
+            "id": "minecraft:stone_hoe",
+            "count": 1,
+            "remaining_durability": 131
+          },
+          {
+            "id": "minecraft:stone_pickaxe",
+            "count": 1,
+            "remaining_durability": 121
+          }
+        ],
+        "shelter": {
+          "valid": false,
+          "position": {
+            "position": [
+              152,
+              57,
+              -136
+            ]
+          },
+          "reason": "roof_gap"
+        },
+        "replanted_wheat": []
+      },
+      "usable_pickaxe": true,
+      "usable_hoe": true,
+      "food_nutrition": 0,
+      "shelter": false,
+      "replanted_wheat": 0
+    },
+    "position": [
+      152.23909900440336,
+      57.0,
+      -135.44157403656874
+    ],
+    "current_task": null
+  },
+  "first_reply_ms": 94112.9785,
+  "success_held_ticks": 0,
+  "registered_game_tests": 0,
+  "registered_tool_count": 42,
+  "test_tool_prefix_present": false,
+  "transport": {
+    "sse_idle_over_90000ms": 15,
+    "sse_launcher_log_lines": [
+      184,
+      272,
+      331,
+      335,
+      342,
+      397,
+      404,
+      477,
+      479,
+      481,
+      529,
+      536,
+      768,
+      789,
+      797
+    ],
+    "tls_handshake_retries": 0,
+    "tls_launcher_log_lines": [],
+    "completed_logical_requests": 40,
+    "logical_latency_ms_total": 1376591,
+    "logical_latency_ms_median": 6408.0,
+    "sse_wait_lower_bound_ms": 1350000,
+    "sse_wait_lower_bound_budget_fraction": 0.7941042578070687
+  },
+  "tool_calls": {
+    "get_self_status": 2,
+    "look_around": 7,
+    "load_skill": 1,
+    "scan_blocks": 2,
+    "todowrite": 1,
+    "mine": 4,
+    "task_status": 12,
+    "inspect_gui": 2,
+    "craft": 8,
+    "inspect_block": 3,
+    "interact_at": 1,
+    "equip_item": 2,
+    "task_stop": 1,
+    "goto": 1
+  },
+  "comparison": {
+    "previous_archive": "evals/live-v1/baselines/deepseek-v4.1-flash-survival",
+    "same_source": true,
+    "same_scenario": true,
+    "same_budget": true,
+    "same_model_config_metadata": true,
+    "requested_seed": 73002,
+    "actual_saved_seed_both_verified": 73002,
+    "previous_initial_position": [
+      160.5,
+      66.0,
+      -127.5
+    ],
+    "previous_milestones_reached": 1
+  },
+  "limitations": [
+    "One exposed dev scenario; no independent validation or population success rate.",
+    "Same configured seed and base terrain, but tree-canopy-sensitive initial spawn height differs (old 66, current 78).",
+    "Incomplete reported usage does not establish full consumption or monetary cost.",
+    "Transport failures and policy decisions coexist; no causal claim assigns all failed milestones to one factor."
+  ],
+  "archive_integrity": {
+    "request.json": {
+      "original_sha256": "8f5599b13808d2e2f38704723f061a8fec84369f950a7111abcb45b7f4d6bd79",
+      "archive_sha256": "8f5599b13808d2e2f38704723f061a8fec84369f950a7111abcb45b7f4d6bd79"
+    },
+    "run.json": {
+      "original_sha256": "bc8ac64ebfcbb13282d2dc5bca600f8236ae37edb287722b62ecf462b1f63c80",
+      "archive_sha256": "bc8ac64ebfcbb13282d2dc5bca600f8236ae37edb287722b62ecf462b1f63c80"
+    },
+    "source-hashes.json": {
+      "original_sha256": "6b4a9c916acb9e9803de4f09ad3572dbf95e04f3329147578030c992cef44f1d",
+      "archive_sha256": "6b4a9c916acb9e9803de4f09ad3572dbf95e04f3329147578030c992cef44f1d"
+    },
+    "launcher.log.gz": {
+      "original_sha256": "bedb5717d13fd11d91a88a78337218a9515f7434e6968b9521a131c0b838928d",
+      "archive_sha256": "75f7181a6a2a294d09deac48e7c4320f77cc37c8d2ac0d0da17262958218e7da"
+    },
+    "world-generation-check.json": {
+      "original_sha256": "4ada6c07a2c734f0954e454a28f564044a1d2941bcd2b7b7f64d35e1ac20db19",
+      "archive_sha256": "4ada6c07a2c734f0954e454a28f564044a1d2941bcd2b7b7f64d35e1ac20db19"
+    },
+    "results/model.json": {
+      "original_sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9",
+      "archive_sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+    },
+    "results/progress.json": {
+      "original_sha256": "79e6c02bb69b81fe711b8c50a43613a78b7ea3e8cc3b7d3fa62185cd890af33a",
+      "archive_sha256": "79e6c02bb69b81fe711b8c50a43613a78b7ea3e8cc3b7d3fa62185cd890af33a"
+    },
+    "results/result.json": {
+      "original_sha256": "79e6c02bb69b81fe711b8c50a43613a78b7ea3e8cc3b7d3fa62185cd890af33a",
+      "archive_sha256": "79e6c02bb69b81fe711b8c50a43613a78b7ea3e8cc3b7d3fa62185cd890af33a"
+    },
+    "results/trace.jsonl.gz": {
+      "original_sha256": "7e7237daf9c255c42efcf7ef0675acf44a3ff98b5e2142639ef6771071422846",
+      "archive_sha256": "e38afcb5e57b9e47bec603c6e54dbd2b08de4ad9d971bbf072eb1f828e28d001"
+    },
+    "results/companion-chat.jsonl.gz": {
+      "original_sha256": "eaf57277dbcd5bea7566b47380d774e5cae5797ee34d4ae65adf3675293dc1a4",
+      "archive_sha256": "4001dff756c57ccbe4ee8dbc1bbf2e2bf57683b1b301efd6432d1a7f4093cf68"
+    },
+    "verification/verification-build.log.gz": {
+      "original_sha256": "e470e64a0309fd250f001ad39fd17b5143266698833f18a6ccba00678c663e40",
+      "archive_sha256": "09b26c32644805914fee9cf7abc2388315ea1ec772edc1a95a5177a19e7bd013"
+    },
+    "verification/verification-unit.log.gz": {
+      "original_sha256": "7496d171b6a071cf314d97ae102b64b0b5210c6dafc4133d5bc0edeebcb19592",
+      "archive_sha256": "d843a9c4f1e4e18586389a78259ebfc02cd34bcc7c04bfa7babce3eaaa2ae937"
+    },
+    "verification/verification-core-unit.log.gz": {
+      "original_sha256": "12f28733ae3cb6b056e91c4f7f458e8ea6325c055238742bf7a3e5b0ccc55a82",
+      "archive_sha256": "48e4e47e236bf59da2828ef92020fe4bc13c41b5fb3c166040a75d9a16dbebb5"
+    },
+    "verification/verification-gametest.log.gz": {
+      "original_sha256": "cf59235107540ab70ca65064e42ea2914f7ea58bc0d283b2e6b7b8dec1f51f8d",
+      "archive_sha256": "3ac446b915198bea578bdd55e6168cc5dd930bc4d50be1fb83c5d9bda0a5dac8"
+    },
+    "verification/verification-python-bot.log.gz": {
+      "original_sha256": "5e257e238583d1dad7870f148eab2690298a684095adc77a30cc10bdaf4aa58e",
+      "archive_sha256": "be0419c74375be7720ec94b226a784224021a48f98e791c2c930daa5a5bb2a9d"
+    },
+    "verification/verification-python-live.log.gz": {
+      "original_sha256": "db2162002de151a1f0f31929b3be651bd94aecf9cfb4823c274520b2e55b2cf6",
+      "archive_sha256": "51d8445390901c489553275d6c190a1e81e39a9aca9ca8a196e6ea5009940e40"
+    },
+    "verification/companion-chat-export.json": {
+      "original_sha256": "894b9f91294625feb2c15c5768d4f01d94224f52b3139484abebce94b811e80b",
+      "archive_sha256": "894b9f91294625feb2c15c5768d4f01d94224f52b3139484abebce94b811e80b"
+    },
+    "verification.json": {
+      "archive_sha256": "efe516a66fbacfed98cc94666311e3c24bba47a9866c2295855a3745fb94d52a"
+    }
+  },
+  "secret_review": {
+    "selected_artifact_exact_key_scan": "passed",
+    "game_directory_copied": false,
+    "companion_transcript_only": true
+  },
+  "verification_ref": "verification.json",
+  "source_hash_check": "Live launcher exited 0 after result validation and frozen-source check; export enhancement happened afterward",
+  "action_observations": {
+    "task_status_calls": 12,
+    "tool_calls_total": 47,
+    "cancelled_stone_task": {
+      "elapsed_ms": 844091.0,
+      "task_id": "t4",
+      "gathered": 6,
+      "requested": 30,
+      "model_later_acknowledged_intended_end_of_turn": true,
+      "transcript_evidence": "results/companion-chat.jsonl.gz"
+    },
+    "inspect_gui_failures": 2,
+    "farming_started": false,
+    "food_acquisition_started": false,
+    "shelter_construction_started": false
+  }
+}
