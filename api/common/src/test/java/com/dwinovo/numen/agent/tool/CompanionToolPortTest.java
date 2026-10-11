@@ -83,6 +83,34 @@ class CompanionToolPortTest {
     }
 
     @Test
+    void anExhaustedBudgetDoesNotSendAProgramAndKeepsTheBatchCancellable() {
+        port.executionPermit(() -> false);
+
+        port.run(List.of(program("c1"), program("c2")), sink);
+
+        assertTrue(sent.isEmpty());
+        assertTrue(finished.isEmpty());
+        assertEquals(List.of("c1", "c2"), port.cancel(false));
+        assertFalse(port.holds("c1"));
+        assertFalse(port.holds("c2"));
+    }
+
+    @Test
+    void theBudgetIsCheckedAgainBeforeTheNextProgramInTheBatch() {
+        boolean[] allowed = {true};
+        port.executionPermit(() -> allowed[0]);
+        port.run(List.of(program("c1"), program("c2")), sink);
+        assertEquals(1, sent.size());
+
+        allowed[0] = false;
+        uplink.deliver("c1", ended("first program completed"));
+
+        assertEquals(1, sent.size(), "the second program must not reach the server");
+        assertEquals(List.of("c1 first program completed"), finished);
+        assertEquals(List.of("c2"), port.cancel(false));
+    }
+
+    @Test
     void aProgramCutOffByTheStopButtonStillHandsInItsReceiptAsAnEventLater() {
         port.run(List.of(program("c1")), sink);
 

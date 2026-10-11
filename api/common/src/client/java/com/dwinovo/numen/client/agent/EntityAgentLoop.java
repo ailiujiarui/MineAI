@@ -157,7 +157,24 @@ public final class EntityAgentLoop {
     private final AgentLoop loop;
     /** 上一个 tick 驾驶席在不在外接模型手里——只用来找"翻转成外接"的那一下。 */
     private boolean wasDriving;
+    private java.util.function.BooleanSupplier requestPermit;
+    private java.util.function.BooleanSupplier toolPermit;
 
+    /** Passive observation and optional bounded execution, installed before submitting a live eval. */
+    public void observe(Consumer<? super com.dwinovo.numen.agent.loop.LoopEvent> observer) {
+        loop.subscribe(observer);
+    }
+
+    public void unobserve(Consumer<? super com.dwinovo.numen.agent.loop.LoopEvent> observer) {
+        loop.unsubscribe(observer);
+    }
+
+    public void executionBudget(java.util.function.BooleanSupplier requests,
+                                java.util.function.BooleanSupplier tools) {
+        requestPermit = requests;
+        toolPermit = tools;
+        dispatcher.executionPermit(tools);
+    }
     /**
      * 断线复连时替她算一份"你不在的这段时间世界变了什么"的回执(见 {@link ResumeDiffWatcher})。
      * 只有一枚离开时采的有界指纹在离开到回来之间醒着,算完即丢——不是第二份世界模型。
@@ -493,6 +510,10 @@ public final class EntityAgentLoop {
                         : GoalVerifier.Result.unmeasured("verify timed out"))));
         mc.execute(() -> {
             try {
+                if (toolPermit != null && !toolPermit.getAsBoolean()) {
+                    verdict.complete(GoalVerifier.Result.unmeasured("evaluation execution budget exhausted"));
+                    return;
+                }
                 com.dwinovo.numen.program.ProgramUplink.CONNECTION.run(entityUuid,
                         "goal-verify-" + UUID.randomUUID(), code, run -> verdict.complete(readVerifyRun(run)));
             } catch (RuntimeException ex) {
@@ -907,6 +928,7 @@ public final class EntityAgentLoop {
         @Override
         public void call(ModelRequest request, CancelToken cancel, Consumer<Delta> onDelta,
                          Consumer<ModelOutcome> onDone) {
+            if (requestPermit != null) cancel.requestPermit(requestPermit);
             Minecraft mc = Minecraft.getInstance();
             java.util.concurrent.CompletableFuture<NumenLlmClient.ChatResult> result;
             try {
