@@ -23,17 +23,19 @@ import java.util.function.Consumer;
  * </ul>
  *
  * <h2>唯一的推进点 {@link #pump}</h2>
- * 入队、run 结束、停牌解开、每个 tick 之后都只调它。它只在真的开 run 或执行控制条目时打日志——
- * 停牌时每 tick 调一次也没有输出。
+ * 入队、run 结束、停牌解开、每个 tick 之后都只调它。它一步一步往下走({@link #step}:开 run / 执行控制条目 /
+ * 什么也不做,只有这一个判断),直到没有能同步做完的事;不递归,调用栈不随步数变深。它只在真的开 run 或
+ * 执行控制条目时打日志——停牌时每 tick 调一次也没有输出。
  *
  * <h2>一次 run 是两层循环</h2>
  * <pre>
- * startRun → turn:(先看自动压缩)→ 注入插话 → 调模型
+ * startRun → turn:要不要调模型 →(先看自动压缩)→ 注入 → 调模型
  *            onModel:有工具调用 → 串行跑工具 → 全部结算 → turn
- *                     最终回复   → 有插话就 turn;有接续就带上接续 turn;都没有才结束
+ *                     最终回复   → turn(队里有要她回应的就接着走,没有才结束)
  * </pre>
- * 插话(STEER)在这批工具结算后、下次调模型前注入,一次取光合成一条 user;接续(FOLLOW_UP)只在本来要停时
- * 接上;控制条目(CONTROL)只在闲时执行,排在它后面的等它执行完。
+ * 每次调模型带上哪些条目、本来要停时要不要接着走,只看各投递档自己的声明
+ * ({@link EventTypes.Delivery#wakes}/{@link EventTypes.Delivery#joins}),取件在 {@link EventQueue#takeForCall}
+ * 一处;带上的一次取光合成一条 user。控制条目是循环在闲时自己执行的,排在它后面的等它执行完。
  *
  * <h2>切断只有一个入口 {@link #halt}</h2>
  * 主人停止、死亡、登出、外接接管、遣散的差别只在 {@link HaltReason} 那张表。
@@ -69,6 +71,12 @@ public final class AgentLoop {
     private Hold announced;
     /** 这次整理记忆已经流回来的摘要字数。 */
     private int compactChars;
+    /** 正在 {@link #pump} 的那一圈里。这期间再来的推进请求不重入,只记下"再看一眼"。 */
+    private boolean pumping;
+    /** {@link #pump} 期间有人又要求推进(run 当场结束、订阅者推了新输入):那一圈做完接着再看一眼。 */
+    private boolean pumpAgain;
+    /** 外接大脑交来、正借用工具口的那一个调用的回报口({@link #runAside});没有是 {@code null}。 */
+    private Consumer<String> aside;
 
     /**
      * @param name       日志里认这只同伴用的名字
@@ -106,6 +114,9 @@ public final class AgentLoop {
      * 收一批输入。整批先入队、再推进一次:离线补发的条目一次到达,逐条推进的话第一条急件就开了 run,
      * 只带走已经到的那几条。
      *
+     * <p>一批工具调用还没结算时,入了队的每一条都转给工具口({@link ToolPort#arrived}),带着队列的急件规则算出的急不急:
+     * 一段程序在服务端跑着,急件让它停在调用之间。她派的活的收尾在服务端就交给了等它的程序(写进回执),不会作为一条输入到这里。
+     *
      * <p>来自主人的插话解开 {@link Hold.Release#OWNER_SPOKE} 那几种停牌,急件解开 FAILED。死着、外接驾驶时也照收:
      * 条目盖着真实时间戳,之后模型看得出哪些是那期间发生的。
      */
@@ -113,6 +124,7 @@ public final class AgentLoop {
         long now = host.now();
         boolean ownerSpoke = false;
         boolean urgent = false;
+        List<Queued> queued = new ArrayList<>();
         for (EventQueue.Entry e : entries) {
             if (e.text() == null || e.text().isBlank()) {
                 continue;
@@ -120,8 +132,13 @@ public final class AgentLoop {
             boolean asUrgent = inbox.push(e.type(), e.text(), e.ts() > 0 ? e.ts() : now, e.urgent());
             AiLog.LOG.info("[numen-entity#{}] queued {}{}: {}", name, e.type(), asUrgent ? " URGENT" : "",
                     brief(e.text(), 120));
+            queued.add(new Queued(e, asUrgent));
             urgent |= asUrgent;
-            ownerSpoke |= isOwnerWords(e);
+            ownerSpoke |= EventTypes.get(e.type()).ownerWords();
+        }
+        // 转给工具口可能让这一批当场结算、调下一次模型,那之后就不是它的事了
+        for (int i = 0; i < queued.size() && toolsRunning(); i++) {
+            tools.arrived(queued.get(i).entry(), queued.get(i).urgent());
         }
         if (ownerSpoke) {
             release(Hold.Release.OWNER_SPOKE);
@@ -131,6 +148,46 @@ public final class AgentLoop {
         }
         announceHold(null);
         pump();
+    }
+
+    /** 工具口手上有一批没结算的调用:内脑这一轮的,或外接大脑借用的那一个。 */
+    private boolean toolsRunning() {
+        return (run != null && run.phase == Phase.TOOLS) || aside != null;
+    }
+
+    /**
+     * 外接大脑的一次调用(一段程序):内核闲着时交给同一个工具口执行,结果交给 {@code done},不进会话历史。执行期间入队的条目
+     * 同样转给工具口——等身体收尾、被急件停在调用之间,和内脑自己的调用是同一个等法;这期间内核不开 run。切断({@link #halt})
+     * 照样收工具口,程序交出停在哪一行的回执。
+     *
+     * @return 收下了;内核手上有 run、或已有一个外接调用在跑时不收,{@code done} 不会被调
+     */
+    public boolean runAside(LlmToolCall call, Consumer<String> done) {
+        if (run != null || aside != null) {
+            return false;
+        }
+        aside = done;
+        tools.run(List.of(call), new ToolPort.Sink() {
+            @Override
+            public void started(LlmToolCall c) {
+            }
+
+            @Override
+            public void finished(LlmToolCall c, String resultJson) {
+                Consumer<String> reply = aside;
+                aside = null;
+                if (reply != null) {
+                    reply.accept(resultJson);
+                }
+            }
+
+            @Override
+            public void settled() {
+                aside = null;
+                pump();
+            }
+        });
+        return true;
     }
 
     /** 身体复活了。复活的叙事事件由调用方在这之前推进队列,解开后一起走。 */
@@ -155,34 +212,67 @@ public final class AgentLoop {
 
     // ---- 推进 ----
 
-    /** 能开 run 就开,能执行控制条目就执行;否则什么也不做,也不说话。 */
+    /**
+     * 推进:一步一步往下走,直到没有能同步做完的事。入队、run 结束、停牌解开、每个 tick 都只调它。
+     *
+     * <p>它不递归:一步里同步发生的事(端口当场回话让 run 当场结束、清空执行完、订阅者推了新输入)再要求推进时,
+     * 只记下"再看一眼",由这一圈接着走。调用栈不随步数变深——哪天某一步又没推进任何东西,循环停下,不会越陷越深。
+     */
     public void pump() {
-        if (run != null) {
-            return;   // run 里的边界自己取队列
+        if (pumping) {
+            pumpAgain = true;
+            return;
+        }
+        pumping = true;
+        try {
+            boolean again;
+            do {
+                pumpAgain = false;
+                again = step() || pumpAgain;
+            } while (again);
+        } finally {
+            pumping = false;
+        }
+    }
+
+    /**
+     * 闲时的一步。"下一步做什么"只有这一个判断,看的是队列里墙之前那一段——和 run 取件同一段、同一份声明:
+     * <ol>
+     *   <li>没停牌、那一段熟了({@link EventQueue#ripeness}):开 run。熟了就一定有叫醒她的条目,
+     *       开出来的 run 一定取得到它;</li>
+     *   <li>开不了 run(没熟、或者停着),而队里有控制条目:执行它。控制条目不叫醒她,它的"急"不是开 run 的
+     *       理由;排在它前面、此刻开不起 run 的条目(旁听、还没攒熟的事、停牌压着的话)不挡它——
+     *       清空/整理是主人对内脑的直接要求,按了停止之后照样立即执行;</li>
+     *   <li>否则什么也不做,也不说话。</li>
+     * </ol>
+     * 死着、外接驾驶时什么都不做:身体不在、驾驶席不在内脑手里。
+     *
+     * @return 这一步动了队列或停牌(开了 run、执行了控制条目),值得再看一眼;什么也没做、或者被端点挡下是 {@code false}
+     */
+    private boolean step() {
+        if (run != null || aside != null) {
+            return false;   // run 里的边界自己取队列;外接大脑的调用借着工具口时不开 run
         }
         Hold hold = hold();
         if (hold == Hold.DEAD || hold == Hold.EXTERNAL) {
-            return;
+            return false;
         }
-        if (headIsControl()) {
-            runControl();   // 清空/整理是主人对内脑的直接要求,按了停止之后照样立即执行
-            return;
-        }
-        if (hold != null) {
-            return;
-        }
-        long now = host.now();
         int level = host.initiativeLevel();
-        if (!inbox.shouldDrain(now, level)) {
-            return;
+        EventQueue.Ripeness ripeness = inbox.ripeness(host.now(), level);
+        if (hold == null && ripeness.ripe()) {
+            AiLog.LOG.info("[numen-queue#{}] 主动开轮:{}(攒了 {} 条/阈值 {},最老 {}s/上限 {}s,档位 {})",
+                    name,
+                    switch (ripeness.why()) {
+                        case URGENT -> "有急件";
+                        case ENOUGH -> "攒够了";
+                        case LONG_ENOUGH -> "攒久了";
+                    },
+                    ripeness.waiting(), EventQueue.thresholdOf(level),
+                    ripeness.oldestAge() / 1000L, EventQueue.maxWaitMsOf(level) / 1000L, level);
+            startRun(false, false);
+            return true;
         }
-        AiLog.LOG.info("[numen-queue#{}] 主动开轮:{}(攒了 {} 条/阈值 {},最老 {}s/上限 {}s,档位 {})",
-                name,
-                inbox.hasUrgent() ? "有急件"
-                        : (inbox.size() >= EventQueue.thresholdOf(level) ? "攒够了" : "攒久了"),
-                inbox.size(), EventQueue.thresholdOf(level),
-                inbox.oldestAgeMs(now) / 1000L, EventQueue.maxWaitMsOf(level) / 1000L, level);
-        startRun(false, false);
+        return !inbox.nextControls().isEmpty() && runControl();
     }
 
     /**
@@ -197,30 +287,40 @@ public final class AgentLoop {
         }
         run = new Run(++lastRunId, false, retried, ownerSpoke);
         emit(new LoopEvent.RunStarted(run.id));
-        turn(true);
+        // 重试接着回应失败那次的输入;闲时开的 run 是队里要她回应的条目引起的
+        turn(retried);
     }
 
     /**
-     * 内层循环的一次:先压缩(要压的话)、再注入、再调模型。压缩放在注入之前:切分会把近段原文留下、
-     * 更早的总结掉,先注入的话主人刚说的话也可能被总结进去。
+     * 内层循环的一个边界。这次调不调模型由边界自己知道的事定:有待回应的东西(一批工具结果、失败重试的那次输入)
+     * 就调;没有的话(run 开头、模型给了最终回复),只在队里有要她回应的条目时调
+     * ({@link EventQueue#wantsAnswer})——都没有就收尾。
      *
-     * @param withFollowUp 这次连接续条目一起取:run 开头(闲时开 run 的理由可能正是一条接续),
-     *                     或模型本来要停、队里只剩接续的时候
+     * <p>不从历史末尾去猜有没有待回应的:整理记忆留下的摘要、被切断的那句话都停在末尾,看上去"待回应",
+     * 却不是这次调用的原因。
+     *
+     * @param answerDue 有待回应的东西,这次调用无论如何都会发生
      */
-    private void turn(boolean withFollowUp) {
-        if (memory.compactionDue()) {
-            compact(true, () -> turn(withFollowUp));
-            return;
-        }
-        List<EventQueue.Entry> batch = inbox.takeAhead(AgentLoop::isControl,
-                e -> delivery(e) == EventTypes.Delivery.STEER
-                        || (withFollowUp && delivery(e) == EventTypes.Delivery.FOLLOW_UP),
-                host.now());
-        inject(batch);
-        if (!awaitsAnswer()) {
+    private void turn(boolean answerDue) {
+        if (!answerDue && !inbox.wantsAnswer()) {
             end(RunEnd.DONE);
             return;
         }
+        callModel(answerDue);
+    }
+
+    /**
+     * 调一次模型:先压缩(要压的话)、再注入、再调。压缩放在注入之前:切分会把近段原文留下、更早的总结掉,
+     * 先注入的话主人刚说的话也可能被总结进去。
+     *
+     * @param answerDue 同 {@link #turn}:取件按进边界时定下的原因,压缩改写历史不影响它
+     */
+    private void callModel(boolean answerDue) {
+        if (memory.compactionDue()) {
+            compact(true, () -> callModel(answerDue));
+            return;
+        }
+        inject(inbox.takeForCall(answerDue, host.now()));
         run.phase = Phase.MODEL;
         ModelRequest request = model.turnRequest();
         transcript.incrementTurn();
@@ -254,28 +354,9 @@ public final class AgentLoop {
         parts.addAll(rendered);
         transcript.addUser(String.join("\n", parts));
         transcript.resetTurnCount();   // 新输入开始一条新链:只是日志编号
-        if (batch.stream().anyMatch(AgentLoop::isOwnerWords)) {
+        if (batch.stream().anyMatch(e -> EventTypes.get(e.type()).ownerWords())) {
             run.ownerSpoke = true;
         }
-    }
-
-    /** 历史的末尾有没有待模型回应的东西:一条 user、工具结果,或还没结果的工具调用。切断点不算。 */
-    private boolean awaitsAnswer() {
-        List<ConvoState.Msg> history = transcript.snapshot();
-        for (int i = history.size() - 1; i >= 0; i--) {
-            switch (history.get(i)) {
-                case ConvoState.Msg.Halt ignored -> {
-                    continue;
-                }
-                case ConvoState.Msg.Assistant a -> {
-                    return a.turn().hasToolCalls();
-                }
-                default -> {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private void onModel(long id, ModelRequest request, ModelOutcome outcome) {
@@ -283,7 +364,7 @@ public final class AgentLoop {
             return;
         }
         switch (outcome) {
-            case ModelOutcome.Failed failed -> end(new RunEnd.Failed(failed.words(), true));
+            case ModelOutcome.Failed failed -> end(new RunEnd.Failed(failed.words(), failed.retryable()));
             case ModelOutcome.Answered answered -> {
                 emit(new LoopEvent.ModelUsed(answered.usage(), LoopEvent.Purpose.TURN));
                 AssistantTurn reply = answered.turn();
@@ -301,7 +382,7 @@ public final class AgentLoop {
                     tools.run(reply.toolCalls(), toolSink(id));
                 } else {
                     transcript.resetTurnCount();
-                    afterFinal();
+                    turn(false);   // 本来要停了:队里还有要她回应的就接着走,没有才收尾
                 }
             }
         }
@@ -328,23 +409,25 @@ public final class AgentLoop {
             @Override
             public void settled() {
                 if (current(id)) {
-                    turn(false);
+                    turn(true);   // 工具结果等着回应
+                }
+            }
+
+            @Override
+            public void ended(LlmToolCall program, com.dwinovo.numen.agent.script.ScriptCall.Ending ending,
+                              java.util.List<com.dwinovo.numen.agent.script.ScriptCall.Called> calls) {
+                if (current(id)) {
+                    emit(new LoopEvent.ProgramEnded(id, program, ending, calls.size()));
+                }
+            }
+
+            @Override
+            public void called(LlmToolCall program, com.dwinovo.numen.agent.script.ScriptCall.Called called) {
+                if (current(id)) {
+                    emit(new LoopEvent.ApiCalled(id, program, called));
                 }
             }
         };
-    }
-
-    /** 模型本来要停了:有插话接着内层;只剩接续就带上接续接着内层;都没有才收尾。 */
-    private void afterFinal() {
-        if (hasAhead(EventTypes.Delivery.STEER)) {
-            turn(false);
-            return;
-        }
-        if (hasAhead(EventTypes.Delivery.FOLLOW_UP)) {
-            turn(true);
-            return;
-        }
-        end(RunEnd.DONE);
     }
 
     private void end(RunEnd end) {
@@ -359,7 +442,7 @@ public final class AgentLoop {
             afterFailure(finished, failed);
         }
         announceHold(null);
-        pump();
+        pump();   // 端口当场回话、run 在推进那一步里就结束时,这里只记一笔"再看一眼",不重入
     }
 
     /**
@@ -383,25 +466,28 @@ public final class AgentLoop {
 
     // ---- 控制条目与整理记忆 ----
 
-    private void runControl() {
+    /** @return 执行了(清完了、整理发出去了);端点不可用、条目留着是 {@code false} */
+    private boolean runControl() {
         // 连着按的几次算一次;批里混着清空就清空说了算——整理要的是腾地方,清空把地方全腾出来了。
         // 分清是哪一条控制命令只能认 id:类型表只说"它是控制命令"。
-        boolean clears = leadingControl().stream().anyMatch(e -> EventTypes.CLEAR.equals(e.type()));
+        boolean clears = inbox.nextControls().stream().anyMatch(e -> EventTypes.CLEAR.equals(e.type()));
         if (!clears) {
-            // 整理要发一次请求。端点不可用就进 BLOCKED,条目留在队首——绑定改好了自己接着走,按了就一定会发生。
+            // 整理要发一次请求。端点不可用就进 BLOCKED,条目留在队里——绑定改好了自己接着走,按了就一定会发生。
             String problem = model.unavailable();
             if (problem != null) {
                 block(problem);
-                return;
+                return false;
             }
         }
-        inbox.takeWhile(AgentLoop::isControl, host.now());
+        inbox.takeControls();
         if (clears) {
-            AiLog.LOG.info("[numen-entity#{}] 清空上下文:排到了", name);
+            // 排在清空前面、没叫醒她的旁听是她在清空之前听见的,属于被清掉的那段上下文,一并清掉;要她回应的条目
+            // 留着,清完进新的上下文。整理不丢:它只把历史换成摘要,排着的条目还没进历史,照旧跟下一次调用走。
+            int heard = inbox.discardQuietAhead();
+            AiLog.LOG.info("[numen-entity#{}] 清空上下文:排到了(之前听见、还没交给她的 {} 条一并清掉)", name, heard);
             memory.clear();
             emit(new LoopEvent.TranscriptBoundary(LoopEvent.Boundary.CLEAR));
-            pump();   // 排在清空后面的话进全新的上下文
-            return;
+            return true;   // 排在清空后面的话,推进的下一步里进全新的上下文
         }
         AiLog.LOG.info("[numen-entity#{}] 整理记忆:排到了,开始", name);
         run = new Run(++lastRunId, true, false, false);
@@ -410,6 +496,7 @@ public final class AgentLoop {
             announceHold(null);
             pump();
         });
+        return true;
     }
 
     /**
@@ -459,7 +546,7 @@ public final class AgentLoop {
                         Consumer<ModelOutcome> onDone) {
         String problem = model.unavailable();
         if (problem != null) {
-            onDone.accept(new ModelOutcome.Failed(problem));
+            onDone.accept(new ModelOutcome.Failed(problem, false));
             return;
         }
         model.call(request, cancel, delta -> { }, outcome -> {
@@ -485,11 +572,12 @@ public final class AgentLoop {
      */
     public void halt(HaltReason reason, String detail) {
         Run cut = run;
+        // 先收工具口、再作废 run:在跑的脚本这时交出它停在哪一行的回执,还记在这次 run 名下进历史
+        List<String> abandoned = tools.cancel(reason.stopsBody());
         if (cut != null) {
             run = null;
             cut.cancel.cancel();
         }
-        List<String> abandoned = tools.cancel(reason.stopsBody());
         if (cut != null) {
             // 切断的是一次模型回复或一批工具往返才记切断点:悬空调用的结果、给模型的说明由下一次请求的
             // ProtocolView 按它现算。整理记忆被切断时对话本身没断,不记。
@@ -583,49 +671,8 @@ public final class AgentLoop {
         }
     }
 
-    private boolean headIsControl() {
-        List<EventQueue.Entry> entries = inbox.entries();
-        return !entries.isEmpty() && isControl(entries.get(0));
-    }
-
-    /** 队首连着的那几条控制条目(只看不取)。 */
-    private List<EventQueue.Entry> leadingControl() {
-        List<EventQueue.Entry> out = new ArrayList<>();
-        for (EventQueue.Entry e : inbox.entries()) {
-            if (!isControl(e)) {
-                break;
-            }
-            out.add(e);
-        }
-        return out;
-    }
-
-    /** 排在第一条控制条目之前,有没有这种投递方式的条目。 */
-    private boolean hasAhead(EventTypes.Delivery delivery) {
-        for (EventQueue.Entry e : inbox.entries()) {
-            if (isControl(e)) {
-                return false;
-            }
-            if (delivery(e) == delivery) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static EventTypes.Delivery delivery(EventQueue.Entry entry) {
-        return EventTypes.get(entry.type()).delivery();
-    }
-
-    private static boolean isControl(EventQueue.Entry entry) {
-        return delivery(entry) == EventTypes.Delivery.CONTROL;
-    }
-
-    /** 主人开口:类型表里来自主人、而且是插话的条目。目标续跑(接续)是她自己接着干,不算。 */
-    private static boolean isOwnerWords(EventQueue.Entry entry) {
-        EventTypes.Type type = EventTypes.get(entry.type());
-        return type.fromOwner() && type.delivery() == EventTypes.Delivery.STEER;
-    }
+    /** 入了队的一条,和队列的急件规则给它算出的急不急。 */
+    private record Queued(EventQueue.Entry entry, boolean urgent) {}
 
     private static String brief(String s, int max) {
         return s.length() <= max ? s : s.substring(0, max) + "...";

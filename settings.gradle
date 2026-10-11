@@ -35,14 +35,17 @@ include('ai')
 // numen-agent:大脑本身(队列、目标),纯 JVM,依赖 ai、被 api 依赖(详见 agent/build.gradle 头注)。
 include('agent')
 include('ui')
+// numen-lua:沙箱里的 Lua 5.2,纯 JVM,不依赖 Minecraft 与 Numen(详见 lua/build.gradle 头注与 lua/README.md)。
+include('lua')
+// numen-pathing:寻路,只依赖原版 Minecraft,Numen 经端口接入(详见 pathing/build.gradle 头注)。
+include('pathing')
 
 // 联动模块:一个联动一个,各自独立,内嵌发布不单独发坐标。见 buildSrc 的 numen-plugin.gradle
 include('plugins:ysm')
 include('plugins:tlm')
 include('plugins:kaleidoscope')
 include('plugins:curios')
+include('plugins:ftbquests')
+include('plugins:ae2')
 include('plugins:mekanism')
 include('plugins:jei')
-include('plugins:ftbquests')
-// 只编译、不内嵌:证明第三方能对着瘦 api jar 实现并注册适配器处理器(不被 core 引用,不进成品)
-include('plugins:adaptertest')

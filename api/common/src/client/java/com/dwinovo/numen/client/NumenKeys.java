@@ -1,5 +1,7 @@
 package com.dwinovo.numen.client;
 
+import net.minecraft.client.resources.language.I18n;
+import com.dwinovo.numen.data.ModLanguageData.Keys;
 import com.dwinovo.numen.agent.conversation.Conversation;
 import com.dwinovo.numen.client.agent.Conversations;
 import com.dwinovo.numen.client.agent.NumenRoster;
@@ -51,6 +53,11 @@ public final class NumenKeys {
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V,
             CATEGORY);
 
+    /** O — watch the selected companion; press again to leave, or select another to switch. */
+    public static final KeyMapping WATCH_COMPANION = new KeyMapping(
+            com.dwinovo.numen.data.ModLanguageData.Keys.KEY_WATCH_COMPANION,
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_O, CATEGORY);
+
     private static boolean voiceWasDown;
 
     private NumenKeys() {}
@@ -58,6 +65,23 @@ public final class NumenKeys {
     /** Per-client-tick poll; key presses only register while no screen is open. */
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
+        while (WATCH_COMPANION.consumeClick()) {
+            if (mc.player != null && (mc.screen == null || com.dwinovo.numen.spectator.SpectatorMenuClient.viewingScreen())) {
+                var selected = com.dwinovo.numen.client.spectator.SpectatorClient.active()
+                        ? SelectedCompanion.get() : SelectedCompanion.resolveTarget();
+                if (com.dwinovo.numen.client.spectator.SpectatorClient.active()
+                        && (selected == null || selected.members().size() != 1
+                        || com.dwinovo.numen.client.spectator.SpectatorClient.accepts(
+                                com.dwinovo.numen.client.spectator.SpectatorClient.sessionId(), selected.members().getFirst()))) {
+                    com.dwinovo.numen.client.spectator.SpectatorClient.exit();
+                } else if (selected != null && selected.members().size() == 1) {
+                    com.dwinovo.numen.client.spectator.SpectatorClient.enter(selected.members().getFirst());
+                } else {
+                    com.dwinovo.numen.client.hud.TalkHint.flash(I18n.get(Keys.KEYS_PICK_FIRST,
+                            COMPANION_WHEEL.getTranslatedKeyMessage().getString()), 3000);
+                }
+            }
+        }
         while (OPEN_ROSTER.consumeClick()) {
             if (mc.player != null && mc.screen == null) {
                 NumenScreen.openWorkspace();
@@ -68,7 +92,7 @@ public final class NumenKeys {
                 continue;
             }
             if (NumenRoster.instance().entries().isEmpty()) {
-                com.dwinovo.numen.client.hud.TalkHint.flash("还没有同伴——先在 G 面板召唤一位", 3000);
+                com.dwinovo.numen.client.hud.TalkHint.flash(I18n.get(Keys.KEYS_NO_COMPANION), 3000);
                 continue;
             }
             mc.setScreen(new CompanionWheelScreen());
@@ -85,9 +109,8 @@ public final class NumenKeys {
             }
             Conversation target = SelectedCompanion.resolveTarget();
             if (target == null) {
-                com.dwinovo.numen.client.hud.TalkHint.flash(
-                        "先按 [" + COMPANION_WHEEL.getTranslatedKeyMessage().getString()
-                                + "] 选一位同伴,或把准星对准它", 3000);
+                com.dwinovo.numen.client.hud.TalkHint.flash(I18n.get(Keys.KEYS_PICK_FIRST,
+                        COMPANION_WHEEL.getTranslatedKeyMessage().getString()), 3000);
                 continue;
             }
             mc.setScreen(new CompanionChatScreen(target));

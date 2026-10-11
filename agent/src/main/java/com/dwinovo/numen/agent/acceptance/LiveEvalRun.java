@@ -493,7 +493,7 @@ public final class LiveEvalRun {
             JsonObject items = snapshot.getAsJsonObject("inventory");
             for (Map.Entry<String, JsonElement> requirement : criterion.getAsJsonObject("items").entrySet()) {
                 int have = items.has(requirement.getKey()) ? items.get(requirement.getKey()).getAsInt() : 0;
-                if (!Objective.haveItem(requirement.getKey(), requirement.getValue().getAsInt()).met(have, 0)) return false;
+                if (have < requirement.getValue().getAsInt()) return false;
             }
         }
         if (criterion.has("min_health") && number(snapshot, "health") < number(criterion, "min_health")) return false;

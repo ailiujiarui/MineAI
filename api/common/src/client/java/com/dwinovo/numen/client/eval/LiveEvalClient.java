@@ -274,9 +274,20 @@ public final class LiveEvalClient {
                 data.addProperty("result", tool.resultJson());
                 run.event("tool_finished", data, now);
             }
+            case LoopEvent.ProgramEnded program -> {
+                data.add("call", program.program().toOpenAIJson());
+                data.add("ending", JSON.toJsonTree(program.ending()));
+                data.addProperty("api_calls", program.calls());
+                run.event("program_ended", data, now);
+            }
+            case LoopEvent.ApiCalled called -> {
+                data.add("program", called.program().toOpenAIJson());
+                data.add("call", JSON.toJsonTree(called.called()));
+                run.event("api_called", data, now);
+            }
             case LoopEvent.TurnFailed ignored -> {
                 // A refusal at the execution budget is finalized with the next authoritative observation.
-                if (run.beforeTool(now)) run.finish("infra_error", "Model request failed after runtime retries", now);
+                if (run.beforeTool(now)) run.finish("infra_error", "Model request failed under runtime error policy", now);
             }
             case LoopEvent.Halted halted -> {
                 data.addProperty("reason", halted.reason().name());

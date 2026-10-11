@@ -31,12 +31,17 @@ public final class PermissionStore extends SavedData {
 
     private static final Codec<List<Rule>> TABLE = Rule.CODEC.listOf();
 
+    /** 审计日志留多少行:只留最近这些,更早的丢。日志是给排障看的,不是账本。 */
+    private static final int AUDIT_CAP = 256;
+
     private static final Codec<PermissionStore> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.unboundedMap(UUIDUtil.STRING_CODEC, Codec.STRING)
                     .fieldOf("modes").forGetter(PermissionStore::modeNames),
             TABLE.optionalFieldOf("deny", List.of()).forGetter(s -> s.rules.deny()),
             TABLE.optionalFieldOf("ask", List.of()).forGetter(s -> s.rules.ask()),
-            TABLE.optionalFieldOf("allow", List.of()).forGetter(s -> s.rules.allow())
+            TABLE.optionalFieldOf("allow", List.of()).forGetter(s -> s.rules.allow()),
+            Trusted.CODEC.listOf().optionalFieldOf("trusted", List.of()).forGetter(PermissionStore::trusted),
+            Codec.STRING.listOf().optionalFieldOf("trusted_audit", List.of()).forGetter(PermissionStore::audit)
     ).apply(i, PermissionStore::new));
 
     private static final SavedData.Factory<PermissionStore> FACTORY = new SavedData.Factory<>(
@@ -44,13 +49,20 @@ public final class PermissionStore extends SavedData {
 
     private final Map<UUID, Mode> modes = new HashMap<>();
     private RuleSet rules = RuleSet.EMPTY;
+    /** 跨会话的信任规则,连同谁在什么时候为准许的;不可变,改动换一份新的。 */
+    private List<Trusted> trusted = List.of();
+    /** 信任的加与撤,只追加、封顶,给人排障看。 */
+    private final List<String> audit = new ArrayList<>();
 
     PermissionStore() {
     }
 
-    private PermissionStore(Map<UUID, String> modeNames, List<Rule> deny, List<Rule> ask, List<Rule> allow) {
+    private PermissionStore(Map<UUID, String> modeNames, List<Rule> deny, List<Rule> ask, List<Rule> allow,
+                            List<Trusted> trusted, List<String> audit) {
         modeNames.forEach((uuid, name) -> modes.put(uuid, Mode.byName(name)));
         rules = new RuleSet(deny, ask, allow);
+        this.trusted = List.copyOf(trusted);
+        this.audit.addAll(audit);
     }
 
     public static PermissionStore of(MinecraftServer server, UUID owner) {
@@ -125,6 +137,82 @@ public final class PermissionStore extends SavedData {
     public void remember(List<Rule> allow) {
         for (Rule rule : allow) {
             add(Verdict.Kind.ALLOW, rule);
+        }
+    }
+
+    /** 跨会话的信任规则(不可变快照):{@link Gate} 在两层 allow 之后、出厂 ask 之前查它。 */
+    public List<Trusted> trusted() {
+        return trusted;
+    }
+
+    /** 信任的加与撤的流水,最近 {@value #AUDIT_CAP} 行。 */
+    public List<String> audit() {
+        return List.copyOf(audit);
+    }
+
+    /**
+     * 记一条跨会话信任:主人这一次点了"允许并记住"。同一条规则已在册就不重复记。
+     *
+     * @param rule       要记的那一行(推法见 {@link ConsentItem#remembered})
+     * @param grantedBy  谁允许的(主人 UUID)
+     * @param companion  哪只同伴问的,给人看的
+     * @return 记上了;同一条规则已经在册返回 false
+     */
+    public boolean rememberTrusted(Rule rule, UUID grantedBy, String companion) {
+        for (Trusted entry : trusted) {
+            if (entry.rule().equals(rule)) {
+                return false;
+            }
+        }
+        Trusted entry = new Trusted(rule, grantedBy, companion == null ? "" : companion, System.currentTimeMillis());
+        List<Trusted> next = new ArrayList<>(trusted);
+        next.add(entry);
+        trusted = List.copyOf(next);
+        note("trusted " + rule + " by " + grantedBy + " for " + entry.companionName());
+        setDirty();
+        return true;
+    }
+
+    /**
+     * 撤销一条信任。主人收回"允许并记住"或者规则不再可靠时用。
+     *
+     * @return 撤掉了;这一行本来不在册返回 false
+     */
+    public boolean revokeTrusted(Rule rule) {
+        List<Trusted> next = new ArrayList<>(trusted);
+        boolean removed = next.removeIf(entry -> entry.rule().equals(rule));
+        if (!removed) {
+            return false;
+        }
+        trusted = List.copyOf(next);
+        note("revoked " + rule);
+        setDirty();
+        return true;
+    }
+
+    /** 记一行审计:留在表里,也进日志。 */
+    private void note(String line) {
+        Constants.LOG.info("[numen-trust] {}", line);
+        audit.add(line);
+        while (audit.size() > AUDIT_CAP) {
+            audit.remove(0);
+        }
+    }
+
+    /**
+     * 一条跨会话的信任规则:哪一行、谁在哪时为准许的、哪只同伴问的。{@link Rule} 自己就是它的存档原文。
+     */
+    public record Trusted(Rule rule, UUID grantedBy, String companionName, long grantedAtMillis) {
+
+        public static final Codec<Trusted> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Rule.CODEC.fieldOf("rule").forGetter(Trusted::rule),
+                UUIDUtil.STRING_CODEC.optionalFieldOf("granted_by", new UUID(0L, 0L)).forGetter(Trusted::grantedBy),
+                Codec.STRING.optionalFieldOf("companion", "").forGetter(Trusted::companionName),
+                Codec.LONG.optionalFieldOf("granted_at", 0L).forGetter(Trusted::grantedAtMillis)
+        ).apply(i, Trusted::new));
+
+        public Trusted {
+            companionName = companionName == null ? "" : companionName;
         }
     }
 

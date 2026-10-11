@@ -59,7 +59,7 @@ public class FreeSurvivalEvalGameTests {
         body.getFoodData().setFoodLevel(10);
         body.getFoodData().setFoodLevel(20);
 
-        helper.startSequence().thenIdle(20).thenExecute(() -> {
+        steps(helper).thenIdle(20).thenExecute(() -> {
             JsonObject facts = WorldEvalObservers.observe(body);
             helper.assertTrue(facts.get("safe_meals").getAsInt() == 0
                             && facts.get("restored_food").getAsInt() == 0
@@ -70,16 +70,16 @@ public class FreeSurvivalEvalGameTests {
         }).thenSucceed();
     }
 
-    /** 经真实 eat 工具吃掉一块面包,补饥饿并留下四块面包作为二十点储备。 */
+    /** 经真实 numen.inv.eat API 吃掉一块面包,补饥饿并留下四块面包作为二十点储备。 */
     @GameTest(template = "floor16", timeoutTicks = 400, batch = BATCH)
     public static void native_bread_meal_restores_food_and_leaves_a_reserve(GameTestHelper helper) {
         NumenPlayer body = observedBody(helper, "gametest_eval_bread");
         body.getFoodData().setFoodLevel(10);
         body.getFoodData().setSaturation(0);
         body.getInventory().add(new ItemStack(Items.BREAD, 5));
-        ToolRun eat = call(body, "eat", args("item_id", "minecraft:bread"));
+        ToolRun eat = lua(body, "numen.inv.eat(\"minecraft:bread\")");
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(eat.done() && eat.succeeded(), "native bread eating has not succeeded: " + eat.outcome());
             JsonObject facts = WorldEvalObservers.observe(body);
             helper.assertTrue(body.getInventory().countItem(Items.BREAD) == 4
@@ -100,9 +100,9 @@ public class FreeSurvivalEvalGameTests {
         NumenPlayer body = observedBody(helper, "gametest_eval_stopped_meal");
         body.getFoodData().setFoodLevel(20);
         body.getInventory().add(new ItemStack(Items.BREAD, 2));
-        AtomicReference<ToolRun> eat = new AtomicReference<>(call(body, "eat", args("item_id", "minecraft:bread")));
+        AtomicReference<ToolRun> eat = new AtomicReference<>(lua(body, "numen.inv.eat(\"minecraft:bread\")"));
 
-        helper.startSequence().thenWaitUntil(() -> {
+        steps(helper).thenWaitUntil(() -> {
             helper.assertTrue(eat.get().done() && !eat.get().succeeded(),
                     "a full stomach must refuse ordinary bread: " + eat.get().outcome());
             helper.assertTrue(WorldEvalObservers.observe(body).get("safe_meals").getAsInt() == 0,
@@ -110,7 +110,7 @@ public class FreeSurvivalEvalGameTests {
         }).thenExecute(() -> {
             body.getFoodData().setFoodLevel(10);
             body.getFoodData().setSaturation(0);
-            eat.set(call(body, "eat", args("item_id", "minecraft:bread")));
+            eat.set(lua(body, "numen.inv.eat(\"minecraft:bread\")"));
         }).thenIdle(10).thenExecute(() -> {
             helper.assertTrue(body.isUsingItem(), "the meal must be interrupted while native eating is in progress");
             CompanionTickDispatcher.cancelFor(body);
@@ -134,9 +134,9 @@ public class FreeSurvivalEvalGameTests {
         body.getFoodData().setFoodLevel(10);
         body.getFoodData().setSaturation(0);
         body.getInventory().add(new ItemStack(Items.MUSHROOM_STEW));
-        ToolRun eat = call(body, "eat", args("item_id", "minecraft:mushroom_stew"));
+        ToolRun eat = lua(body, "numen.inv.eat(\"minecraft:mushroom_stew\")");
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(eat.done() && eat.succeeded(), "native stew eating has not succeeded: " + eat.outcome());
             JsonObject facts = WorldEvalObservers.observe(body);
             helper.assertTrue(body.getInventory().countItem(Items.MUSHROOM_STEW) == 0
@@ -162,9 +162,9 @@ public class FreeSurvivalEvalGameTests {
         body.getInventory().add(stew);
         helper.assertTrue(WorldEvalObservers.observe(body).get("food_nutrition").getAsInt() == 0,
                 "poisoned stew must not contribute to safe reserves");
-        ToolRun eat = call(body, "eat", args("item_id", "minecraft:suspicious_stew"));
+        ToolRun eat = lua(body, "numen.inv.eat(\"minecraft:suspicious_stew\")");
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(eat.done() && eat.succeeded(), "the poisoned stew must be eaten natively: " + eat.outcome());
             JsonObject facts = WorldEvalObservers.observe(body);
             helper.assertTrue(body.getInventory().countItem(Items.SUSPICIOUS_STEW) == 0

@@ -40,8 +40,10 @@ public final class GoalSteward {
     private final Supplier<String> runtimeState;
     private final BooleanSupplier bodyOnFiniteTask;
     private final Consumer<GoalState> persist;
-    /** 判官:默认另开一次模型调用({@link LlmGoalJudge}),可换成 JEV。 */
+    /** 判官:默认另开一次模型调用({@link LlmGoalJudge})。 */
     private final GoalJudge judge;
+    /** 判官说达成、又给了机检宣称时,拿宣称去量真实世界;没给验证者则未核对。 */
+    private final GoalVerifier verifier;
 
     /** 当前的长期目标;{@code null} = 没有。 */
     private GoalState goal;
@@ -50,7 +52,7 @@ public final class GoalSteward {
 
     /**
      * @param name             日志里认这只同伴用的名字
-     * @param inbox            只读:队里还排着东西就先不判——那些本来就会开起一次 run
+     * @param inbox            只读:队里还排着会叫醒她的条目就先不判——那些本来就会开起一次 run
      * @param runtimeState     这一刻的运行期状态({@code <runtime_state>}),评估器对着它判身体事实
      * @param bodyOnFiniteTask 身体手上有一件会结束的活(常驻的跟随不算)——那时不催
      * @param persist          目标落盘(跨重进游戏活着)
@@ -63,10 +65,19 @@ public final class GoalSteward {
                 new LlmGoalJudge(loop));
     }
 
-    /** 换一个判官(比如 JEV);其余不变。 */
+    /** 换一个判官;未接验证者时机检宣称仍算未核对。 */
     public GoalSteward(String name, AgentLoop loop, ConvoState convo, EventQueue inbox,
                        Supplier<String> runtimeState, BooleanSupplier bodyOnFiniteTask,
                        Consumer<GoalState> persist, GoalState restored, GoalJudge judge) {
+        this(name, loop, convo, inbox, runtimeState, bodyOnFiniteTask, persist, restored, judge,
+                GoalVerifier.PASS_THROUGH);
+    }
+
+    /** 换一个判官,再接一个确定性核对的关卡(判官说达成且给了宣称时先量真实世界)。 */
+    public GoalSteward(String name, AgentLoop loop, ConvoState convo, EventQueue inbox,
+                       Supplier<String> runtimeState, BooleanSupplier bodyOnFiniteTask,
+                       Consumer<GoalState> persist, GoalState restored, GoalJudge judge,
+                       GoalVerifier verifier) {
         this.name = name;
         this.loop = loop;
         this.convo = convo;
@@ -76,6 +87,7 @@ public final class GoalSteward {
         this.persist = persist;
         this.goal = restored;
         this.judge = judge == null ? new LlmGoalJudge(loop) : judge;
+        this.verifier = verifier == null ? GoalVerifier.PASS_THROUGH : verifier;
     }
 
     /** 当前的长期目标;{@code null} = 没有。 */
@@ -156,10 +168,11 @@ public final class GoalSteward {
      * <p>判定<b>不由她自己做</b>——另开一次干净的调用(不带对话历史、不带人设、不带工具),
      * 只看条件、身体事实和最近几句。执行的人和判定的人分开,她才骗不了自己。
      *
-     * <p>队列里还有别的排着就先不判——那些本来就会开起一次 run,那次做完时再说。
+     * <p>队列里还排着会叫醒她的条目就先不判——那些本来就会开起一次 run,那次做完时再说。旁听的话不算:
+     * 它们开不起 run,等它们就是等别的事,目标就停在这儿了;控制命令同样不算,它们执行完不会开 run。
      */
     private void steer() {
-        if (goal == null || loop.hold() != null || !inbox.isEmpty() || judging != null) {
+        if (goal == null || loop.hold() != null || inbox.hasWaking() || judging != null) {
             return;
         }
         // 身体还在干活就别催。
@@ -207,7 +220,9 @@ public final class GoalSteward {
             return;
         }
         if (!outcome.ok()) {
-            // 判不出来不等于做完了。歇一轮,下次做完再判。
+            // 判不出来不等于做完了。原因沿用目标展示与落盘路径,等下一次正常 run 做完再判。
+            judged.setLastReason("目标评估失败,未确认达成:" + outcome.failure());
+            persist.accept(judged);
             AiLog.LOG.warn("[numen-entity#{}] 目标评估失败,这一轮先不续:{}", name, outcome.failure());
             return;
         }
@@ -219,7 +234,12 @@ public final class GoalSteward {
                 verdict.met() ? "达成" : verdict.stuck() ? "打转 x" + goal.stuckStreak() : "还差",
                 verdict.reason());
         if (verdict.met()) {
-            clear("目标达成:" + verdict.reason());
+            if (verdict.verify() == null) {
+                clear("目标语义判断达成(未经确定性核对):" + verdict.reason());
+                return;
+            }
+            // 判官说达成,但它还给了可机检的宣称:先拿宣称去量真实世界,量过了才收工。
+            confirm(judged, verdict, verdict.verify());
             return;
         }
         if (giveUp) {
@@ -241,6 +261,44 @@ public final class GoalSteward {
         // goal 在类型表里恒为急件、投递方式是接续,发送方不另标。
         loop.push(List.of(new EventQueue.Entry(EventTypes.GOAL,
                 GoalPrompts.progress(verdict.reason(), goal, now), now, false)));
+    }
+
+    /**
+     * 判官说达成、还给了可机检的宣称:拿宣称去量真实世界,量过了才收工。
+     *
+     * <p>世界不认时<b>不能</b>收工——这正是"执行与判定分开"要堵的最后一个口子:判的人也是句话。
+     * 把 {@code verify} 量出的差异(expected vs actual)当作"还差什么"写回 lastReason 并推一轮续跑,
+     * 下一轮判官(它读 lastReason)和她就都知道了。轮次与额度照旧,连着量不过也会到顶收工。
+     *
+     * <p>回调整可能在别的线程上;这里只在 {@code goal} 还是被量的那个时才动它。
+     */
+    private void confirm(GoalState judged, GoalPrompts.Verdict verdict, String claim) {
+        AiLog.LOG.info("[numen-entity#{}] 目标判定达成,拿宣称去核对:{}", name, claim);
+        verifier.verify(judged, claim, result -> {
+            // 核对期间目标可能换了、被主人清了 —— 这次结果作废。
+            if (goal == null || goal != judged) {
+                return;
+            }
+            if (result.verified()) {
+                clear("目标达成(已核对 " + claim + "):" + verdict.reason());
+                return;
+            }
+            String why = result.measured()
+                    ? "judge said met, but the world does not confirm (" + result.detail() + ")"
+                    : "judge said met, but the claim could not be checked (" + result.detail() + ")";
+            judged.setLastReason(why);
+            AiLog.LOG.warn("[numen-entity#{}] 目标宣称没被世界认下,这轮先不收工:{}", name, why);
+            if (!judged.hasTurnsLeft()) {
+                clear("跑够 " + GoalState.MAX_GOAL_TURNS
+                        + " 轮还没完,先收工了(还差:" + why + ")—— 想接着做再说一次 /goal");
+                return;
+            }
+            judged.countTurn();
+            persist.accept(judged);
+            long now = System.currentTimeMillis();
+            loop.push(List.of(new EventQueue.Entry(EventTypes.GOAL,
+                    GoalPrompts.progress(why, judged, now), now, false)));
+        });
     }
 
     /**

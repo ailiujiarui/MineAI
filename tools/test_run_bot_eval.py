@@ -131,7 +131,7 @@ class SourceSnapshotTest(unittest.TestCase):
             evaluator.write_text("# evaluator", encoding="utf-8")
             tracked_name = original.relative_to(root).as_posix()
             added_name = added.relative_to(root).as_posix()
-            with patch.object(runner, "ROOT", root), patch.object(runner.subprocess, "check_output") as listing:
+            with patch("eval_common.ROOT", root), patch.object(runner.subprocess, "check_output") as listing:
                 listing.return_value = (tracked_name + "\0").encode()
                 before = runner.source_files_for([evaluator])
                 before_hash = runner.digest_files(before)

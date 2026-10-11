@@ -48,8 +48,25 @@ public final class NoteBook {
     /** 索引上摆给她看的余量分母。到顶不拒写,只提醒——删哪条是她的事,不是我们的。 */
     public static final int SOFT_MAX = 50;
 
-    /** 一条记忆。{@code description} 是索引里那一行,{@code content} 要 recall 才读得到。 */
-    public record Note(String name, String description, String type, int day, String content) {}
+    /**
+     * 一条记忆。{@code description} 是索引里那一行,{@code content} 要 recall 才读得到。
+     * {@code anchor} 是写下时那一格的印章(见 {@link WorldAnchor}),没有 = 这条不指地方,永远不过期。
+     */
+    public record Note(String name, String description, String type, int day, String content,
+                       WorldAnchor anchor) {}
+
+    /**
+     * 世界那一侧的两件事,由客户端注入(见 {@link #init}):写下时盖一枚印章、读的时候核一下现在是什么。
+     * 纯 JVM 的札记本靠它不碰 Minecraft 就能做"过期"判断。
+     */
+    public interface BlockLookup {
+
+        /** 此刻 (x,y,z) 那一格的印章;读不到(区块没载、她不在)返回 {@code null}。 */
+        WorldAnchor stamp(UUID owner, int x, int y, int z);
+
+        /** 印章那一格现在是什么方块;读不到返回 {@code null}(= 没法核,不算过期)。 */
+        String blockAt(UUID owner, WorldAnchor anchor);
+    }
 
     /** 每只同伴的记忆目录;由客户端注入,见 {@link #init}。 */
     private static Function<UUID, Path> homes;
@@ -57,18 +74,23 @@ public final class NoteBook {
     /** 现在是游戏第几天;由客户端注入,见 {@link #init}。 */
     private static IntSupplier today;
 
+    /** 世界那一侧;没注入就是"从不核验",札记照旧可用。 */
+    private static BlockLookup worlds;
+
     /**
      * 一只同伴一本,认 UUID。<b>必须是同一本</b>:{@code remember} 工具和注入那侧各拿各的实例的话,
      * 工具写完只把自己那份的 {@link #revision} 加一,注入那侧永远看不见变化,索引就再也不重贴了。
      */
     private static final java.util.Map<UUID, NoteBook> OPEN = new java.util.concurrent.ConcurrentHashMap<>();
 
+    private final UUID owner;
     private final Path dir;
 
     /** 写一次加一;注入那侧靠它判断"变过没有",不必比对正文。 */
     private int revision;
 
-    private NoteBook(Path dir) {
+    private NoteBook(UUID owner, Path dir) {
+        this.owner = owner;
         this.dir = dir;
     }
 
@@ -77,8 +99,17 @@ public final class NoteBook {
      * 不自己拼 {@code companions/<uuid>/}:布局写在两处,改一处就开始对不上。
      */
     public static void init(Function<UUID, Path> companionMemoryDirs, IntSupplier gameDay) {
+        init(companionMemoryDirs, gameDay, null);
+    }
+
+    /**
+     * 同 {@link #init(Function, IntSupplier)},另接世界那一侧:盖章与核验。不接就是从不核验。
+     * {@code null} 会重置——每次 {@code init} 都是一次重新布线,上一局的世界不该漏进这一局。
+     */
+    public static void init(Function<UUID, Path> companionMemoryDirs, IntSupplier gameDay, BlockLookup lookup) {
         homes = companionMemoryDirs;
         today = gameDay;
+        worlds = lookup;
         OPEN.clear();   // 换了落点,开着的那些本子指向的是上一处
     }
 
@@ -88,7 +119,7 @@ public final class NoteBook {
             throw new IllegalStateException(
                     "NoteBook.init(...) 还没被调用——loader 的客户端入口该在启动时注入落点与天数");
         }
-        return OPEN.computeIfAbsent(entityUuid, uuid -> new NoteBook(homes.apply(uuid)));
+        return OPEN.computeIfAbsent(entityUuid, uuid -> new NoteBook(uuid, homes.apply(uuid)));
     }
 
     // ---- 读 ----
@@ -127,8 +158,40 @@ public final class NoteBook {
     }
 
     /**
+     * 这条札记的印章还对不对得上现在那一格。没有印章、没有世界那侧、或者那一格读不出来时都返回
+     * {@code false}(没法核 ≠ 核不过——放行,让原来那条"走一趟看回执"的路去兜底)。只有读到另一个具体
+     * 方块才算过期。
+     */
+    public boolean isStale(Note n) {
+        if (n == null || n.anchor() == null || worlds == null) {
+            return false;
+        }
+        String actual = worlds.blockAt(owner, n.anchor());
+        return actual != null && !n.anchor().holds(actual);
+    }
+
+    /** 还值得信的札记:印章对得上的那些。注入索引时用,过期的只标注、不当作事实交出去。 */
+    public List<Note> liveIndex() {
+        List<Note> out = new ArrayList<>();
+        for (Note n : index()) {
+            if (!isStale(n)) {
+                out.add(n);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 给 (x,y,z) 盖一枚当下的印章;世界那侧没接、或那一格读不出来时返回 {@code null}(那就记一条不指地方的札记)。
+     */
+    public WorldAnchor fingerprint(int x, int y, int z) {
+        return worlds == null ? null : worlds.stamp(owner, x, y, z);
+    }
+
+    /**
      * 索引块:进模型的就这些,不含正文。空着就不发——她有没有记忆这件事由系统提示词讲,
-     * 不靠一个空块去说。
+     * 不靠一个空块去说。印章过期的条目照样列出、但标出来:让她知道那条地方已经不对了,
+     * 而不是把整条记忆悄悄藏掉(她自己决定是改还是忘)。
      */
     public String formatXml() {
         List<Note> notes = index();
@@ -139,7 +202,12 @@ public final class NoteBook {
         sb.append("<memory count=\"").append(notes.size()).append('/').append(SOFT_MAX).append("\">\n");
         for (Note n : notes) {
             sb.append(n.name()).append(" | D").append(n.day()).append(' ').append(n.type())
-                    .append(" | ").append(n.description()).append('\n');
+                    .append(" | ").append(n.description());
+            if (isStale(n)) {
+                sb.append(" [stale — the block there is no longer ").append(n.anchor().block())
+                        .append("; look before you trust it]");
+            }
+            sb.append('\n');
         }
         sb.append("</memory>");
         return sb.toString();
@@ -159,6 +227,16 @@ public final class NoteBook {
      * @return 落盘后的这一条
      */
     public Note write(String name, String description, String type, String content) {
+        return write(name, description, type, content, null);
+    }
+
+    /**
+     * 同 {@link #write(String, String, String, String)},另带一枚印章:这条札记指的是哪个地方、
+     * 写下时那一格是什么方块。{@code anchor} 为 {@code null} = 不指地方。
+     *
+     * @return 落盘后的这一条
+     */
+    public Note write(String name, String description, String type, String content, WorldAnchor anchor) {
         String slug = slug(name);
         if (slug.isEmpty()) {
             throw new IllegalArgumentException("name must contain letters or digits");
@@ -169,7 +247,7 @@ public final class NoteBook {
         // 索引行按定义就是一行:她写成多行的话,换行会把 frontmatter 截断,整条记忆就读不回来了。
         String line = description.strip().replaceAll("\\s*\\R\\s*", " ");
         Note note = new Note(slug, line, type, today.getAsInt(),
-                content == null ? "" : content.strip());
+                content == null ? "" : content.strip(), anchor);
         try {
             Files.createDirectories(dir);
             Files.writeString(dir.resolve(slug + ".md"), render(note), StandardCharsets.UTF_8);
@@ -200,11 +278,14 @@ public final class NoteBook {
     // ---- 文件 ----
 
     private static String render(Note n) {
+        // 印章只写不指的札记不占一行:老文件里没有 anchor: 也照旧读得回来。
+        String anchor = n.anchor() == null ? "" : "anchor: " + n.anchor().encode() + "\n";
         return "---\n"
                 + "name: " + n.name() + "\n"
                 + "description: " + n.description() + "\n"
                 + "type: " + n.type() + "\n"
                 + "day: " + n.day() + "\n"
+                + anchor
                 + "---\n\n"
                 + n.content() + "\n";
     }
@@ -228,7 +309,8 @@ public final class NoteBook {
             } catch (NumberFormatException notANumber) {
                 // 手改过的文件:天数读不出就当第 0 天,排到最后,不影响她读到内容
             }
-            return new Note(stem, description.strip(), type, day, parsed.content().strip());
+            WorldAnchor anchor = WorldAnchor.decode(parsed.frontmatter().get("anchor"));
+            return new Note(stem, description.strip(), type, day, parsed.content().strip(), anchor);
         } catch (IOException e) {
             Constants.LOG.warn("[numen-memory] 读不了 {}: {}", p, e.toString());
             return null;

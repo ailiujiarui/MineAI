@@ -7,7 +7,7 @@ import threading
 import uuid
 
 import run_live_eval
-from run_bot_eval import write_json
+from eval_common import write_json
 
 
 class Fixture(BaseHTTPRequestHandler):
@@ -27,8 +27,8 @@ class Fixture(BaseHTTPRequestHandler):
             finish = "stop"
         else:
             delta = {"tool_calls": [{"index": 0, "id": "fixture-craft", "type": "function",
-                                     "function": {"name": "craft", "arguments": json.dumps({
-                                         "item_id": "minecraft:oak_planks", "count": 8})}}]}
+                                     "function": {"name": "lua", "arguments": json.dumps({
+                                         "code": 'return numen.inv.make("minecraft:oak_planks", 8)'})}}]}
             finish = "tool_calls"
         chunks = [
             {"choices": [{"index": 0, "delta": delta, "finish_reason": None}]},

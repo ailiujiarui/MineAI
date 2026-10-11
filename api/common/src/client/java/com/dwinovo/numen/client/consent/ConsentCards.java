@@ -9,7 +9,7 @@ import com.dwinovo.numen.network.payload.ConsentReplyPayload;
 import com.dwinovo.numen.network.payload.ConsentRequestPayload;
 import com.dwinovo.numen.permission.ConsentAnswer;
 import com.dwinovo.numen.permission.ConsentDesk;
-import com.dwinovo.numen.platform.Services;
+import com.dwinovo.numen.network.NumenNetwork;
 
 import net.minecraft.client.resources.language.I18n;
 
@@ -121,6 +121,8 @@ public final class ConsentCards {
                 case ALLOW_ONCE -> ModLanguageData.Keys.CONSENT_ALLOW;
                 case ALLOW_REMEMBER -> ModLanguageData.Keys.CONSENT_ALLOW_REMEMBER;
                 case DENY -> ModLanguageData.Keys.CONSENT_DENY;
+                // 悬而未决没有按钮(主人不在,没人按);留着只为穷尽
+                case PENDING -> ModLanguageData.Keys.CONSENT_DENY;
             });
         }
 
@@ -218,7 +220,7 @@ public final class ConsentCards {
             said = said.substring(0, ConsentReplyPayload.MAX_NOTE_LENGTH);
         }
         ConsentAnswer.Decision decision = key == NOTE ? ConsentAnswer.Decision.DENY : DECISIONS[key];
-        Services.NETWORK.sendToServer(new ConsentReplyPayload(card.companion(), card.request.id(), decision, said));
+        NumenNetwork.sendToServer(new ConsentReplyPayload(card.companion(), card.request.id(), decision, said));
         card.chosen = key;
         card.note = said;
         card.settle();

@@ -10,37 +10,8 @@ import subprocess
 import time
 from datetime import datetime, timezone
 
-ROOT = Path(__file__).resolve().parents[1]
+from eval_common import ROOT, candidate_patch, digest_files, git, source_files_for, write_json
 SPEC = ROOT / "evals/bot-v1/cases.json"
-
-
-def write_json(path, value):
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-
-def digest_files(paths):
-    digest = hashlib.sha256()
-    for path in sorted(paths):
-        digest.update(path.relative_to(ROOT).as_posix().encode())
-        digest.update(b"\0")
-        digest.update(path.read_bytes())
-    return digest.hexdigest()
-
-
-def git(*args):
-    return subprocess.check_output(["git", *args], cwd=ROOT, text=True, encoding="utf-8").strip()
-
-
-def source_files_for(evaluation_files):
-    """Include untracked source additions because Gradle compiles them too."""
-    names = subprocess.check_output(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-        cwd=ROOT).decode("utf-8").split("\0")
-    source_files = {ROOT / name for name in names if name and
-                    (("/src/" in name and not name.startswith("docs/")) or
-                     name.endswith((".gradle", ".properties", ".snbt"))) and (ROOT / name).is_file()}
-    source_files.update(evaluation_files)
-    return sorted(source_files)
 
 
 def collect(cases, raw, selected, evaluation_version="bot-v1"):
@@ -160,7 +131,8 @@ def main():
     (output / "raw").mkdir()
     selected = ({"planning", "response"} if args.layer == "jvm" else {"body"}
                 if args.layer == "body" else {"planning", "response", "body"})
-    evaluation_files = [SPEC, Path(__file__), ROOT / "agent/build.gradle", ROOT / "core/neoforge/build.gradle",
+    evaluation_files = [SPEC, Path(__file__), ROOT / "tools/eval_common.py",
+                        ROOT / "agent/build.gradle", ROOT / "core/neoforge/build.gradle",
                         *ROOT.glob("agent/src/test/java/**/*Benchmark.java"),
                         ROOT / "agent/src/test/java/com/dwinovo/numen/agent/loop/LoopHarness.java",
                         ROOT / "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/BenchmarkGameTests.java",
@@ -188,8 +160,7 @@ def main():
     write_json(output / "manifest.json", spec)
     source_names = {p.relative_to(ROOT).as_posix() for p in source_files}
     changed = [name for name in git("diff", "--name-only", "HEAD").splitlines() if name in source_names]
-    (output / "candidate.patch").write_bytes(subprocess.check_output(
-        ["git", "diff", "--binary", "HEAD", "--", *changed], cwd=ROOT) if changed else b"")
+    (output / "candidate.patch").write_bytes(candidate_patch(changed))
     write_json(output / "source-hashes.json", {
         p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(source_files)})
     for task, timeout in [(":agent:benchmark", 600), (":core:neoforge:runGameTestServer", 1800)]:

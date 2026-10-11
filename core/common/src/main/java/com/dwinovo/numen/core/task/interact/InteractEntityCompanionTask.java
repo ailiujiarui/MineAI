@@ -2,50 +2,35 @@ package com.dwinovo.numen.core.task.interact;
 import com.dwinovo.numen.core.task.MouseButton;
 import com.dwinovo.numen.core.PlayerInv;
 
+import com.dwinovo.numen.pathing.body.Hotbar;
 import com.dwinovo.numen.task.TaskState;
 import com.dwinovo.numen.entity.InputDriver;
 
 import com.dwinovo.numen.entity.NumenPlayer;
-import com.dwinovo.numen.core.pathing.calc.NavGoal;
 import com.dwinovo.numen.core.FailureType;
 import com.dwinovo.numen.core.act.Interaction;
-import com.dwinovo.numen.core.pathing.execute.PlayerNav;
-import com.dwinovo.numen.core.task.base.GoToThenDoTask;
+import com.dwinovo.numen.core.task.base.InReachTask;
 import com.dwinovo.numen.core.task.base.Precondition;
+import com.dwinovo.numen.pathing.body.Crosshair;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * {@code interact_entity} on the player body: the entity-aimed native interaction.
- * It auto-paths and follows the live entity, then aims at it and presses the
- * requested mouse button only when the native raytrace reaches that entity.
- * A wall in between blocks it, and the task repositions instead of acting on
- * whatever the ray returns. LEFT+hold repeats the native attack until the hold
- * ends, the target dies, or the task times out.
+ * {@code numen.use.entity} on the player body: the entity-aimed native interaction. It does not travel: the entity must be within
+ * reach and in sight of where she stands; then she aims at it and presses the requested mouse button only when the native
+ * raytrace reaches that entity. Out of reach or behind a wall, the call fails with where it is and the
+ * {@code numen.move.to} to copy. LEFT+hold repeats the native attack until the hold ends, the target dies, or the task
+ * times out.
  */
-public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEntityTaskRecord> {
-
-    private static final double WALK_SPEED = 1.0;
-    /** Reposition-rung stance radius: any feet cell this close to the entity's cell (inside the vanilla
-     *  entity interaction range, 3 by default, so an accepted stance is still within interact reach). */
-    private static final double REPOSITION_RADIUS = 2.5;
-    /** The reposition rung runs at most once. */
-    private static final int MAX_REPOSITIONS = 1;
+public final class InteractEntityCompanionTask extends InReachTask<InteractEntityTaskRecord> {
 
     private Entity entity;
-    // ---- bounded recovery state (fields, so a Suspendable mid-rung suspend/resume
-    //      picks straight back up: the counter and the rebuilt nav both survive) ----
-    /** Executions of the reposition rung so far (capped at {@link #MAX_REPOSITIONS}). */
-    private int repositionAttempts;
-    /** The FIRST nav failure's reason, preserved so the final give-up keeps the original wording. */
-    private String firstNavFailReason;
     private Interaction interaction;
     /** 按键前的世界快照,收尾时对账出"真发生了什么"。 */
     private com.dwinovo.numen.core.act.PressReceipt receipt;
@@ -76,17 +61,14 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
                                 FailureType.NO_MATERIAL));
     }
 
+    /** 够不着时点名的那一格:它此刻所在的那一格。 */
     @Override
-    protected PlayerNav buildNav() {
-        // Arrival = within reach AND a clear line of sight: nav keeps walking (toward the entity)
-        // until BOTH hold, so a wall between us and the target is cleared by re-positioning rather
-        // than stood in front of forever.
-        return new PlayerNav(player, () -> entity.blockPosition(), WALK_SPEED, this::inReachAndLos)
-                .withTerrainProbe();
+    protected BlockPos target() {
+        return entity.blockPosition();
     }
 
     /** Act this tick when the target is gone (report the outcome), a fixed hold has elapsed, or we're
-     *  in reach with a clear line of sight; otherwise the base drives the nav to follow the entity. */
+     *  in reach with a clear line of sight; otherwise the call fails without travelling. */
     @Override
     protected boolean reached() {
         return entity == null || !entity.isAlive()
@@ -114,7 +96,7 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
         if (entity == player.getVehicle()) {
             if (r.button == MouseButton.LEFT) {
                 fail("you are riding the " + targetName()
-                        + " — can't hit your own vehicle; a goto somewhere else steps off first",
+                        + " — can't hit your own vehicle; numen.move.dismount() steps off first",
                         FailureType.UNKNOWN);
                 return TaskState.FAILED;
             }
@@ -132,7 +114,7 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
         // In reach + LOS: aim at the entity and confirm the crosshair actually resolves to IT
         // (e.g. not another entity wandered into the exact line) before pressing.
         InputDriver.lookAt(player, entity.getEyePosition());
-        HitResult hit = Interaction.nativeRaytrace(player, player.entityInteractionRange());
+        HitResult hit = Crosshair.pick(player);
         boolean onTarget = hit.getType() == HitResult.Type.ENTITY
                 && ((EntityHitResult) hit).getEntity() == entity;
         if (!onTarget) {
@@ -146,7 +128,7 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
             Permit permit = permit(left ? com.dwinovo.numen.permission.Action.attack(entity)
                     : com.dwinovo.numen.permission.Action.useEntity(entity));
             if (permit.state() == PermitState.WAITING) {
-                InputDriver.halt(player);
+                player.controls().stop();
                 return TaskState.RUNNING;
             }
             if (permit.state() == PermitState.REFUSED) {
@@ -154,18 +136,24 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
                         FailureType.REFUSED);
                 return TaskState.FAILED;
             }
+            if (permit.state() == PermitState.PENDING) {
+                // 一次按键:没问到主人就别按下去,如实说不做(不是拒绝)
+                fail("cannot " + (left ? "attack " : "use ") + targetName() + ": " + permit.refusal(),
+                        FailureType.PENDING);
+                return TaskState.FAILED;
+            }
         }
         if (interaction == null) {
             if (r.item != null) {
-                player.holdInHand(PlayerInv.findSlot(player.getInventory(), r.item));
+                Hotbar.grip(player, r.item);
             }
-            // 兜底开关与 interact_at 同一条身体约束(政策的唯一出处在那份记录上):
+            // 兜底开关与 use block 同一条身体约束(政策的唯一出处在那份记录上):
             // 实体没吃掉点击才轮到物品自用,手里是食物/珍珠时宁可不兜。
             boolean fallthroughOk =
                     InteractAtTaskRecord.bodyBoundReason(player.getMainHandItem().getItem()) == null
                     && InteractAtTaskRecord.bodyBoundReason(player.getOffhandItem().getItem()) == null;
             receipt = com.dwinovo.numen.core.act.PressReceipt.before(player, null);
-            interaction = Interaction.forHit(player, hit, button(), r.holdTicks, fallthroughOk);
+            interaction = Interaction.forHit(player, hit, button(), r.holdTicks, fallthroughOk, r.sneak);
             if (r.holdTicks > 0) {
                 holdUntil = player.level().getGameTime() + r.holdTicks;
             }
@@ -183,49 +171,6 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
             }
             case RUNNING -> TaskState.RUNNING;
         };
-    }
-
-    /**
-     * Bounded recovery — ONE reposition rung, as an inline attempt counter (a single
-     * rung doesn't warrant {@code RecoveryLadder}'s child-task plumbing). On an
-     * in-ladder nav cause ({@code NO_PATH} / {@code BOXED_IN} / {@code OUT_OF_REACH})
-     * retry the SAME bounded goal once with a looser stance goal — {@link NavGoal#near}
-     * within {@link #REPOSITION_RADIUS} (inside the entity interaction range) of the entity's LIVE cell,
-     * so "can't stand exactly next to it" becomes "stand anywhere within interact reach".
-     * The goal supplier re-reads the entity each tick, so a target that merely MOVED
-     * while we repositioned is tracked (the nav replans), not failed; a genuinely gone
-     * entity never reaches this seam — {@link #reached()} routes it to {@link #act()},
-     * which reports {@code TARGET_LOST} immediately (no ladder). Never widens the
-     * search, never acquires anything. Exhausted (or a cause no rung handles), give up
-     * preserving the original "can't reach {name}: {reason}" wording plus a note of
-     * what was tried, carrying the nav's failType.
-     */
-    @Override
-    protected TaskState handleNavFailure(FailureType type, String reason) {
-        if (repositionable(type) && repositionAttempts < MAX_REPOSITIONS) {
-            repositionAttempts++;
-            firstNavFailReason = reason;
-            stopNav();
-            nav = PlayerNav.toGoal(player,
-                    () -> (entity == null || !entity.isAlive()) ? null
-                            : NavGoal.near(entity.blockPosition(), REPOSITION_RADIUS),
-                    WALK_SPEED, this::inReachAndLos).withTerrainProbe();
-            return TaskState.RUNNING;
-        }
-        String original = firstNavFailReason != null ? firstNavFailReason : reason;
-        String tried = repositionAttempts > 0
-                ? " (also tried a looser stance anywhere within " + REPOSITION_RADIUS
-                        + " blocks of it: " + reason + ")"
-                : "";
-        fail("can't reach " + targetName() + ": " + original + tried, type);
-        return TaskState.FAILED;
-    }
-
-    /** In-ladder nav causes the reposition rung handles; anything else kicks straight back to the LLM. */
-    private static boolean repositionable(FailureType type) {
-        return type == FailureType.NO_PATH || type == FailureType.TERRAIN_BLOCKED
-                || type == FailureType.BOXED_IN
-                || type == FailureType.OUT_OF_REACH || type == FailureType.STANCE_DUD;
     }
 
     private Interaction.Button button() {
@@ -250,10 +195,10 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
 
     private String describeDone() {
         String verb = r.button == MouseButton.LEFT ? "attacked" : "interacted with";
-        return verb + " " + targetName();
+        return verb + " " + targetName() + (r.sneak ? " while sneaking" : "");
     }
 
-    /** 收尾对账,与 interact_at 同款:只报事实,判断留给读回执的人。 */
+    /** 收尾对账,与 use block 同款:只报事实,判断留给读回执的人。 */
     private String settle() {
         changes = receipt == null ? List.of() : receipt.diff(player);
         if (changes.isEmpty()) {
@@ -270,14 +215,10 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
     }
 
     @Override
-    protected Map<String, Object> resultData() {
-        Map<String, Object> data = new HashMap<>();
-        data.put("button", r.button == MouseButton.LEFT ? "left" : "right");
-        data.put("entity_id", r.entityId);
-        if (!changes.isEmpty()) {
-            data.put("changes", changes);
-        }
-        return data;
+    protected com.dwinovo.numen.core.tools.Clicks.EntityClicked value() {
+        return new com.dwinovo.numen.core.tools.Clicks.EntityClicked(r.button == MouseButton.LEFT
+                ? com.dwinovo.numen.core.tools.Clicks.Button.LEFT : com.dwinovo.numen.core.tools.Clicks.Button.RIGHT,
+                r.entityId, java.util.List.copyOf(changes));
     }
 
     @Override
@@ -292,6 +233,6 @@ public final class InteractEntityCompanionTask extends GoToThenDoTask<InteractEn
 
     @Override
     protected String cancelledMessage() {
-        return "interact_entity interrupted";
+        return r.getToolName() + " interrupted";
     }
 }

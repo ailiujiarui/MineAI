@@ -1,6 +1,11 @@
 package com.dwinovo.numen.client.screen.chat;
 
 import com.dwinovo.numen.agent.provider.LlmToolCall;
+import com.dwinovo.numen.agent.tool.TodoTool;
+import com.dwinovo.numen.agent.tool.TodoTool.Item;
+import com.dwinovo.numen.agent.tool.TodoTool.Status;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -12,58 +17,67 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlanChecklistTest {
 
-    private static LlmToolCall call(String name, String args) {
-        return new LlmToolCall("c1", name, args);
-    }
+    private static final List<String> PLAN = List.of("[x] 砍树", "[>] 做工作台", "[ ] 做木镐", "[-] 找铁");
+    private static final String TAKEN = "{\"success\":true,\"message\":\"plan written: 1/4 done; doing now: 做工作台\"}";
 
-    private static final String PLAN = """
-            {"todos":[
-              {"content":"砍树","status":"completed","priority":"high"},
-              {"content":"做工作台","status":"in_progress","priority":"medium"},
-              {"content":"做木镐","status":"pending","priority":"low"},
-              {"content":"找铁","status":"cancelled","priority":"low"}]}""";
+    /** 一次工具调用:工具名与参数里的 {@code items}。 */
+    private static LlmToolCall call(String tool, List<String> items) {
+        JsonArray list = new JsonArray();
+        items.forEach(list::add);
+        JsonObject args = new JsonObject();
+        args.add("items", list);
+        return new LlmToolCall("c1", tool, args.toString());
+    }
 
     @Test
     void readsItemsInOrderWithTheirStates() {
-        List<PlanChecklist.Item> items = PlanChecklist.of(call("todowrite", PLAN));
+        List<Item> items = PlanChecklist.of(call(TodoTool.NAME, PLAN), TAKEN);
         assertEquals(List.of(
-                new PlanChecklist.Item("砍树", PlanChecklist.State.COMPLETED),
-                new PlanChecklist.Item("做工作台", PlanChecklist.State.IN_PROGRESS),
-                new PlanChecklist.Item("做木镐", PlanChecklist.State.PENDING),
-                new PlanChecklist.Item("找铁", PlanChecklist.State.CANCELLED)), items);
+                new Item("砍树", Status.COMPLETED),
+                new Item("做工作台", Status.IN_PROGRESS),
+                new Item("做木镐", Status.PENDING),
+                new Item("找铁", Status.CANCELLED)), items);
         assertEquals(1, PlanChecklist.done(items));
     }
 
     @Test
-    void otherToolsAreNotChecklists() {
-        assertNull(PlanChecklist.of(call("mine", PLAN)));
+    void otherToolsAndRefusedOrUnansweredCallsAreNotChecklists() {
+        assertNull(PlanChecklist.of(call("lua", PLAN), TAKEN));
+        assertNull(PlanChecklist.of(call(TodoTool.NAME, PLAN), null));
+        assertNull(PlanChecklist.of(call(TodoTool.NAME, PLAN),
+                "{\"success\":false,\"message\":\"while work remains exactly one step is [>]\"}"));
     }
 
     @Test
-    void unreadableArgumentsAreNotChecklists() {
-        assertNull(PlanChecklist.of(call("todowrite", "not json")));
-        assertNull(PlanChecklist.of(call("todowrite", "[]")));
-        assertNull(PlanChecklist.of(call("todowrite", "{}")));
-        assertNull(PlanChecklist.of(call("todowrite", "{\"todos\":[]}")));
-        assertNull(PlanChecklist.of(call("todowrite", "{\"todos\":[{\"content\":\" \",\"status\":\"pending\"}]}")));
-        assertNull(PlanChecklist.of(call("todowrite", "{\"todos\":[{\"content\":\"a\",\"status\":\"done\"}]}")));
-        assertNull(PlanChecklist.of(call("todowrite", "{\"todos\":[\"a\"]}")));
+    void unreadablePlansAreNotChecklists() {
+        assertNull(PlanChecklist.of(new LlmToolCall("c1", TodoTool.NAME, "not json"), TAKEN));
+        assertNull(PlanChecklist.of(new LlmToolCall("c1", TodoTool.NAME, "{}"), TAKEN));
+        assertNull(PlanChecklist.of(call(TodoTool.NAME, List.of()), TAKEN));
+        assertNull(PlanChecklist.of(call(TodoTool.NAME, List.of("[ ]  ")), TAKEN));
+        assertNull(PlanChecklist.of(call(TodoTool.NAME, List.of("[done] a")), TAKEN));
+        assertNull(PlanChecklist.of(call(TodoTool.NAME, List.of("a")), TAKEN));
     }
 
     @Test
     void samePlanIsSameContentsRegardlessOfState() {
-        List<PlanChecklist.Item> before = PlanChecklist.of(call("todowrite", PLAN));
-        List<PlanChecklist.Item> after = PlanChecklist.of(call("todowrite", PLAN
-                .replace("\"in_progress\"", "\"completed\"").replace("\"pending\"", "\"in_progress\"")));
+        List<Item> before = PlanChecklist.of(call(TodoTool.NAME, PLAN), TAKEN);
+        List<Item> after = PlanChecklist.of(call(TodoTool.NAME,
+                List.of("[x] 砍树", "[x] 做工作台", "[>] 做木镐", "[-] 找铁")), TAKEN);
         assertTrue(PlanChecklist.sameItems(before, after));
         assertEquals(2, PlanChecklist.done(after));
     }
 
     @Test
     void changedOrAddedItemsMakeANewPlan() {
-        List<PlanChecklist.Item> before = PlanChecklist.of(call("todowrite", PLAN));
-        assertFalse(PlanChecklist.sameItems(before,
-                PlanChecklist.of(call("todowrite", PLAN.replace("做木镐", "做石镐")))));
+        List<Item> before = PlanChecklist.of(call(TodoTool.NAME, PLAN), TAKEN);
+        assertFalse(PlanChecklist.sameItems(before, PlanChecklist.of(call(TodoTool.NAME,
+                List.of("[x] 砍树", "[>] 做工作台", "[ ] 做石镐", "[-] 找铁")), TAKEN)));
         assertFalse(PlanChecklist.sameItems(before, before.subList(0, 3)));
+    }
+
+    @Test
+    void anItemIsReadWithItsMark() {
+        assertEquals(new Item("dig the iron", Status.IN_PROGRESS), Item.parse("[>] dig the iron"));
+        assertEquals(new Item("smelt it", Status.COMPLETED), Item.parse(" [X] smelt it "));
     }
 }

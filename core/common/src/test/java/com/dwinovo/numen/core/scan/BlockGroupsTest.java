@@ -1,7 +1,5 @@
 package com.dwinovo.numen.core.scan;
 
-import com.dwinovo.numen.permission.Rule;
-import com.dwinovo.numen.permission.Verdict;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
@@ -22,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * 分团的钉桩:相连(对角也算)成团;挖掉它权限层说法不同的相邻格分成两团;超过阈值的团按 section 切块、
+ * 分团的钉桩:相连(对角也算)成团,谁放的都一样;超过阈值的团按 section 切块、
  * 跨区块边界的小团不切;按离中心最近排、只整理最近的若干团;格数、包围盒、流体源头的记账。
- * 需要 MC 注册表(方块与规则的信号),无头引导失败时跳过。
+ * 需要 MC 注册表(方块),无头引导失败时跳过。
  */
 @Tag("mc")
 class BlockGroupsTest {
@@ -56,57 +54,42 @@ class BlockGroupsTest {
     @Test
     void touchingCellsIncludingDiagonalsAreOneGroupAndApartCellsAnother() {
         BlockGroups groups = new BlockGroups();
-        groups.add(new BlockPos(1, 64, 1), log(), Verdict.allow());
-        groups.add(new BlockPos(2, 65, 2), log(), Verdict.allow());   // 只隔一条对角
-        groups.add(new BlockPos(3, 66, 2), log(), Verdict.allow());
-        groups.add(new BlockPos(8, 64, 1), log(), Verdict.allow());   // 隔开了
+        groups.add(new BlockPos(1, 64, 1), log());
+        groups.add(new BlockPos(2, 65, 2), log());   // 只隔一条对角
+        groups.add(new BlockPos(3, 66, 2), log());
+        groups.add(new BlockPos(8, 64, 1), log());   // 隔开了
 
-        BlockGroups.Grouped grouped = groups.grouped(CENTER, 16);
-        assertEquals(2, grouped.total());
-        assertEquals(3, grouped.nearest().get(0).cells().size());
-        assertEquals(1, grouped.nearest().get(1).cells().size());
+        List<BlockGroups.Group> grouped = groups.grouped(CENTER);
+        assertEquals(2, grouped.size());
+        assertEquals(3, grouped.get(0).cells().size());
+        assertEquals(1, grouped.get(1).cells().size());
     }
 
+    /** 团只由相连定:玩家放的原木柱贴着一棵野树,是一团——挖不挖得成由挖的那一下问权限层,看的时候不分。 */
     @Test
-    void aDifferentAnswerForBreakingSplitsTouchingCells() {
-        Verdict placed = Verdict.ask(Rule.parse("break(placed)"));
+    void touchingCellsAreOneGroupWhoeverPlacedThem() {
         BlockGroups groups = new BlockGroups();
         for (int y = 64; y < 67; y++) {
-            groups.add(new BlockPos(2, y, 0), log(), placed);        // 玩家放的原木柱
-            groups.add(new BlockPos(3, y, 0), log(), Verdict.allow()); // 贴着它的野树
+            groups.add(new BlockPos(2, y, 0), log());
+            groups.add(new BlockPos(3, y, 0), log());
         }
-        groups.add(new BlockPos(3, 67, 0), log(), Verdict.allow());
+        groups.add(new BlockPos(3, 67, 0), log());
 
-        BlockGroups.Grouped grouped = groups.grouped(CENTER, 16);
-        assertEquals(2, grouped.total());
-        BlockGroups.Group pillar = grouped.nearest().get(0);
-        BlockGroups.Group tree = grouped.nearest().get(1);
-        assertEquals(placed, pillar.verdict());
-        assertEquals(3, pillar.cells().size());
-        assertTrue(pillar.cells().keySet().stream().allMatch(p -> p.getX() == 2));
-        assertEquals(Verdict.allow(), tree.verdict());
-        assertEquals(4, tree.cells().size());
-    }
-
-    @Test
-    void askAnswersFromDifferentRulesAreDifferentGroups() {
-        BlockGroups groups = new BlockGroups();
-        groups.add(new BlockPos(1, 64, 0), log(), Verdict.ask(Rule.parse("break(placed)")));
-        groups.add(new BlockPos(2, 64, 0), log(), Verdict.ask(Rule.parse("break(block_entity)")));
-        groups.add(new BlockPos(3, 64, 0), log(), Verdict.deny("observe mode: break would change the world"));
-        assertEquals(3, groups.grouped(CENTER, 16).total());
+        List<BlockGroups.Group> grouped = groups.grouped(CENTER);
+        assertEquals(1, grouped.size());
+        assertEquals(7, grouped.get(0).cells().size());
     }
 
     @Test
     void aSmallGroupAcrossAChunkBorderStaysWhole() {
         BlockGroups groups = new BlockGroups();
         for (int x = 13; x <= 18; x++) {
-            groups.add(new BlockPos(x, 64, 15), log(), Verdict.allow());
-            groups.add(new BlockPos(x, 64, 16), log(), Verdict.allow());
+            groups.add(new BlockPos(x, 64, 15), log());
+            groups.add(new BlockPos(x, 64, 16), log());
         }
-        BlockGroups.Grouped grouped = groups.grouped(CENTER, 16);
-        assertEquals(1, grouped.total());
-        assertEquals(12, grouped.nearest().get(0).cells().size());
+        List<BlockGroups.Group> grouped = groups.grouped(CENTER);
+        assertEquals(1, grouped.size());
+        assertEquals(12, grouped.get(0).cells().size());
     }
 
     @Test
@@ -115,15 +98,15 @@ class BlockGroupsTest {
         // 20×20 一层 = 400 格,跨 x=16 与 z=16 两条区块线
         for (int x = 8; x < 28; x++) {
             for (int z = 8; z < 28; z++) {
-                groups.add(new BlockPos(x, 64, z), Blocks.STONE.defaultBlockState(), Verdict.allow());
+                groups.add(new BlockPos(x, 64, z), Blocks.STONE.defaultBlockState());
             }
         }
         assertTrue(groups.size() > BlockGroups.SPLIT_ABOVE);
-        BlockGroups.Grouped grouped = groups.grouped(CENTER, 16);
-        assertEquals(4, grouped.total());
+        List<BlockGroups.Group> grouped = groups.grouped(CENTER);
+        assertEquals(4, grouped.size());
         int cells = 0;
         Set<Long> sections = new HashSet<>();
-        for (BlockGroups.Group piece : grouped.nearest()) {
+        for (BlockGroups.Group piece : grouped) {
             cells += piece.cells().size();
             Set<Long> own = new HashSet<>();
             for (BlockPos p : piece.cells().keySet()) {
@@ -136,35 +119,32 @@ class BlockGroupsTest {
     }
 
     @Test
-    void groupsComeNearestFirstAndOnlyTheNearestAreListed() {
+    void groupsComeNearestFirst() {
         BlockGroups groups = new BlockGroups();
         for (int i = 0; i < 5; i++) {
-            groups.add(new BlockPos(40 - 8 * i, 64, 0), log(), Verdict.allow());
+            groups.add(new BlockPos(40 - 8 * i, 64, 0), log());
         }
-        BlockGroups.Grouped grouped = groups.grouped(CENTER, 2);
-        assertEquals(5, grouped.total());
-        assertEquals(2, grouped.nearest().size());
-        assertEquals(new BlockPos(8, 64, 0), grouped.nearest().get(0).nearest());
-        assertEquals(8.0, grouped.nearest().get(0).distance());
-        assertEquals(new BlockPos(16, 64, 0), grouped.nearest().get(1).nearest());
+        List<BlockGroups.Group> grouped = groups.grouped(CENTER);
+        assertEquals(5, grouped.size());
+        for (int i = 0; i < 5; i++) {
+            assertEquals(new BlockPos(8 + 8 * i, 64, 0), grouped.get(i).nearest(), "由近及远排");
+            assertEquals(8.0 + 8 * i, grouped.get(i).distance());
+        }
     }
 
+    /** 一团带着每一格看到的方块状态(连同流体的源头与流动)。 */
     @Test
-    void aGroupCountsItsBlocksBoxAndFluidSources() {
+    void aGroupKeepsTheStateSeenInEachCell() {
         BlockState source = Blocks.WATER.defaultBlockState();
         BlockState flowing = Blocks.WATER.defaultBlockState().setValue(LiquidBlock.LEVEL, 3);
         BlockGroups groups = new BlockGroups();
-        groups.add(new BlockPos(5, 60, 5), source, Verdict.allow());
-        groups.add(new BlockPos(6, 60, 5), source, Verdict.allow());
-        groups.add(new BlockPos(7, 61, 6), flowing, Verdict.allow());
+        groups.add(new BlockPos(5, 60, 5), source);
+        groups.add(new BlockPos(6, 60, 5), source);
+        groups.add(new BlockPos(7, 61, 6), flowing);
 
-        BlockGroups.Group water = groups.grouped(CENTER, 16).nearest().get(0);
+        BlockGroups.Group water = groups.grouped(CENTER).get(0);
         assertEquals(List.of(new BlockPos(5, 60, 5), new BlockPos(6, 60, 5), new BlockPos(7, 61, 6)),
                 List.copyOf(water.cells().keySet()));
-        assertEquals(3, water.counts().get(Blocks.WATER));
-        assertEquals(new BlockPos(5, 60, 5), water.min());
-        assertEquals(new BlockPos(7, 61, 6), water.max());
-        assertEquals(3, water.fluidCells());
-        assertEquals(2, water.sources());
+        assertEquals(List.of(source, source, flowing), List.copyOf(water.cells().values()));
     }
 }

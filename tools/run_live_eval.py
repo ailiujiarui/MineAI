@@ -15,10 +15,9 @@ import threading
 import time
 import uuid
 
-from run_bot_eval import digest_files, git, source_files_for, write_json
+from eval_common import ROOT, candidate_patch, digest_files, git, source_files_for, write_json
 
 
-ROOT = Path(__file__).resolve().parents[1]
 VERSION = "live-v1"
 SUPPORTED_VERSIONS = {VERSION, "survival-v1", "survival-v2", "expedition-v1", "end-resources-v1", "end-entry-v1",
                       "dragon-combat-v1"}
@@ -1022,7 +1021,7 @@ def main(argv=None):
             metadata["provider"] = {key: entry.get(key) for key in ("id", "provider", "model", "reasoning_effort", "ctx")}
         command = command_for(output, args.offline, args.neoforge_version)
         evaluation_files = [args.scenario.resolve(), Path(__file__).resolve(),
-                            ROOT / "tools/run_bot_eval.py",
+                            ROOT / "tools/eval_common.py",
                             ROOT / "tools/calibrate_live_eval.py",
                             *ROOT.glob("api/common/src/client/java/**/LiveEval*.java"),
                             ROOT / "core/neoforge/build.gradle"]
@@ -1037,6 +1036,9 @@ def main(argv=None):
                         startup_seconds=args.startup_seconds, planned_command=command)
         write_json(output / "source-hashes.json", {
             p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in source_files})
+        source_names = {p.relative_to(ROOT).as_posix() for p in source_files}
+        changed = [name for name in git("diff", "--name-only", "HEAD").splitlines() if name in source_names]
+        (output / "candidate.patch").write_bytes(candidate_patch(changed))
         scenario["budget"] = budget
         request = {"scenario": scenario, "provider_id": args.provider_id,
                    "output_dir": str(output / "results"), "world_name": "numen-eval-" + uuid.uuid4().hex}

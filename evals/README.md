@@ -2,39 +2,45 @@
 
 `evals/` 保存 Numen 游戏 Agent 的 benchmark 定义、评分规则、基线结果和验证证据，用于回答：bot 能完成哪些游戏任务、玩家指令能否正确影响行动，以及改动后能力是否有所变化。
 
+## 当前源码与历史档案
+
+运行代码已按最新 `main` 的 SDK／Lua 接口适配：模型通过 `lua` 工具提交程序，世界动作经现有 `CompanionToolPort` 和服务端 SDK 执行，继续使用产品的权限层、目标入口及模型错误策略。评测只接入预算、事件记录和独立世界判分，不添加游戏策略。当前接口示例见 [live-v1 说明](live-v1/README.md#当前源码与历史档案)。
+
+下文分数、测试数量和 `verification*.json` 均是 **2026-10-03 至 2026-10-05 的历史档案**，保留当时提交、源码哈希、旧工具协议和验证结果。它们没有因本次接口适配而重跑，不能作为最新源码的模型成绩或当前测试通过证明；档案中的 API 编译阻塞也只描述当时的验证。当前版本的真实模型跑分留待后续单独执行。
+
 ## 长程 benchmark 与当前专项
 
 正式通关是一场同世界连续任务：基本生存 → 远征准备 → 末地资源 → 找到并进入末地 → 击杀末影龙。固定起点的阶段专项只用于开发，不能把独立成绩拼成从零通关。
 
 | 专项场景 | 起点与判分 | 实现状态 |
 | --- | --- | --- |
-| [自由前期生存](live-v1/scenarios/free-survival.json) | 新世界空背包，检查实际补给、储备与存活 | `survival-v2` 已有真实模型 dev 成绩，仅覆盖第一阶段部分条件 |
-| [远征准备](live-v1/scenarios/expedition-preparation.json) | 新世界固定石工具和少量补给，铁甲及远征物资，逐件耐久 ≥80% | `expedition-v1` 已校准；真实模型尚未运行 |
+| [自由前期生存](live-v1/scenarios/free-survival.json) | 新世界空背包，检查实际补给、储备与存活 | `survival-v2` 保留历史真实模型 dev 成绩，仅覆盖第一阶段部分条件；当前接口尚无真实模型成绩 |
+| [远征准备](live-v1/scenarios/expedition-preparation.json) | 新世界固定石工具和少量补给，铁甲及远征物资，逐件耐久 ≥80% | `expedition-v1` 已接入，保留历史校准；真实模型尚未运行 |
 | [第三阶段：末地资源](live-v1/scenarios/end-resources.json) | 新世界人工远征起点，当前末影之眼成品与原料可制作量 ≥16，保留补给和逐件耐久 ≥50%的装备 | `end-resources-v1` 已接入；[规则与能力边界](live-v1/README.md#end-resources-v1)、[验证记录](live-v1/end-resources-verification.json)；真实模型尚未运行 |
 | [第四阶段：找到并进入末地](live-v1/scenarios/end-entry.json) | 新世界公开8眼、8珍珠、4棒和远征装备；同一主体到达、补齐同一原生要塞门并经原生入口入末地，连续存活20 tick，最终生命与饱食≥16 | `end-entry-v1`；[规则与能力边界](live-v1/README.md#end-entry-v1)、[验证记录](live-v1/end-entry-verification.json)；真实模型尚未运行 |
 | [第五阶段：击杀末影龙](live-v1/scenarios/dragon-combat.json) | 新世界公开人工末地入口和战斗补给，绑定原生目标龙、同伴与龙战的伤害／死亡／归属／统计／战斗结束链，结束后连续存活200 tick | `dragon-combat-v1`；[规则与能力边界](live-v1/README.md#dragon-combat-v1)、[验证记录](live-v1/dragon-combat-verification.json)；真实模型尚未运行 |
 | [完整击杀末影龙](live-v1/scenarios/defeat-dragon.json) | 从零开始的五阶段连续任务 | 保留旧脚手架；完整阶段判分与真实通关尚未验证 |
 
-第四阶段设施验证已通过双加载器构建、863项可执行JVM校验、72项Python测试及301项必需GameTest（新增12项）。API测试仍保留原有编译阻塞；原生入口正例是人工夹具校准，不计自主寻找成绩。具体命令、原始证据和localhost校准结果见[第四阶段记录](live-v1/end-entry-verification.json)。
+第四阶段的历史设施验证通过双加载器构建、863项可执行JVM校验、72项Python测试及301项必需GameTest（新增12项）。当时API测试有编译阻塞；原生入口正例是人工夹具校准，不计自主寻找成绩。具体命令、原始证据和localhost校准结果见[第四阶段记录](live-v1/end-entry-verification.json)，不代表本次SDK／Lua适配已重新完成这些验证。
 
-第五阶段设施验证已通过双加载器构建、874项可执行JVM校验（部分为匹配源码的Gradle缓存）、94项Python测试和320项必需GameTest（新增19项）。prepare-only与localhost起点负例通过；原生伤害正例是公开人工夹具，不能算自主打龙。API测试仍保留原有编译阻塞，真实模型**尚未运行**。初末快照、事件、首次失败和最终日志见[第五阶段记录](live-v1/dragon-combat-verification.json)。
+第五阶段的历史设施验证通过双加载器构建、874项可执行JVM校验（部分为匹配源码的Gradle缓存）、94项Python测试和320项必需GameTest（新增19项）。当时prepare-only与localhost起点负例通过；原生伤害正例是公开人工夹具，不能算自主打龙。该档案保留当时API编译阻塞，真实模型**尚未运行**。初末快照、事件、首次失败和最终日志见[第五阶段记录](live-v1/dragon-combat-verification.json)。
 
-## 当前评测与已记录成绩
+## 已归档历史成绩
 
 以下汇总截至 **2026-10-05** 的已归档基线。先看“已记录成绩”，点击“结果记录”可查看原始评分与证据；这是各次运行留下的成绩，不表示后续代码改动已重新测过。
 
-### 已经运行
+### 历史上已经运行
 
 | 评测 | 测什么、怎么测 | 已记录成绩 | 主要发现 | 结果记录 |
 | --- | --- | --- | --- | --- |
-| **规划组件：6 例** | 依赖顺序、已有库存、共享材料、合成余料、无法完成时的返回；真实 JVM 模块配合有限资源夹具 | **4/6 通过，2 例失败** | 共享库存重复分配；合成批次余料未复用 | [评分汇总](bot-v1/baselines/cached-233/summary.json)、[逐例证据](bot-v1/baselines/cached-233/results.jsonl) |
+| **历史 Java 规划组件：6 例** | 依赖顺序、已有库存、共享材料、合成余料、无法完成时的返回；当时独立 Java 规划模块配合有限资源夹具 | **历史4/6通过，2例失败**；不是当前Lua模块成绩 | 共享库存重复分配；合成批次余料未复用 | [评分汇总](bot-v1/baselines/cached-233/summary.json)、[逐例证据](bot-v1/baselines/cached-233/results.jsonl) |
 | **循环响应：6 例** | 空闲跟随、推理中改口、工具执行中补充输入、两类按钮停止、自然语言停止；真实 AgentLoop 配合脚本模型／工具 | **4/6 通过，2 例失败** | 改口后仍派发旧指令；自然语言“停下”没有即时取消 | [评分汇总](bot-v1/baselines/cached-233/summary.json)、[逐例证据](bot-v1/baselines/cached-233/results.jsonl) |
 | **实际身体：6 例** | 跟随、停止、停止后保留自保且不恢复旧任务、任务替换返回、定时器并行、自卫抢占；真实 Minecraft GameTest | **6/6 通过** | 固定场地符合全部六项判据；尚不代表复杂地形或真实玩家整链表现 | [评分汇总](bot-v1/baselines/cached-233/summary.json)、[逐例证据](bot-v1/baselines/cached-233/results.jsonl) |
 | **真实模型：合成木板** | 背包 2 个橡木原木变为至少 8 个木板；真实模型驱动游戏 | **任务成功，约 5.08 秒** | 当时开发环境可能含测试工具，保留物理成功证据，不作为干净环境的可比基线 | [运行结果](live-v1/baselines/deepseek-v4.1-flash-smoke/results/result.json)、[成绩边界](live-v1/README.md) |
 | **真实模型：指定农业据点（旧场景）** | 空背包建立工具、工作站、指定小麦循环、食物储备和规定形状的据点；服务端独立观察 | **三次正式 dev 运行均未完成，各达成 1/6 个里程碑**；最新修复后运行在 10 分 41 秒耗尽 token 预算 | 最新 45 次请求均返回用量，无 SSE 超时；工具在 7 分 41 秒达标，熔炉仍未放置，农业、食物和庇护所未达标。这些是指定任务成绩，不代表自由生存能力 | [修复后最新结果](live-v1/baselines/deepseek-v4.1-flash-survival-postfix-20261004/summary.json)、[修复前复跑](live-v1/baselines/deepseek-v4.1-flash-survival-20261004/summary.json)、[首次结果](live-v1/baselines/deepseek-v4.1-flash-survival/results/result.json) |
 | **真实模型：自由前期生存与补给** | 空背包、公开初始饱食 14／20，自选食物和避险路线；检查真实有效进食、食物储备及持续存活 | **扩大预算的对照运行成功，4/4，约 21 分钟**；原预算运行 2/4，因 token 耗尽未完成 | 同源码、模型、提示与评分；新预算 400 请求／1700 秒／3000 万 token。最终 HP20、food14、储备24，实际存活25206 tick，连续保持1202 tick。186 次请求，已报告约1349万 token，用量不完整 | [扩大预算结果](live-v1/baselines/deepseek-v4.1-flash-free-survival-v2-budget-20261004/summary.json)、[原预算结果](live-v1/baselines/deepseek-v4.1-flash-free-survival-v2-20261004/summary.json)、[场景定义](live-v1/scenarios/free-survival.json) |
 
-前三行来自 `bot-v1.2` 分层基线，**不调用真实模型**；身体基线使用 NeoForge `21.1.233`。其余三行使用 B.AI 的 `deepseek-v4.1-flash`。木板有一次已归档结果，农业专项有三次 `survival-v1` 正式 dev 结果，自由生存有两次 `survival-v2` 正式 dev 结果。前两次农业运行的源码、场景及预算相同；第三次修复传输解析和自身背包查询，并启用聊天自动导出，保持模型、提示、场景、判分及预算不变。自由生存改了目标、初始饥饿及评分，旧农业分数不能与之直接比较；自由生存第二轮仅扩大请求数和 token 上限，时间仍为1700秒。种子均为73002，农业首次出生高度为66，后两次为78，自由生存两轮均为66；独立生成的世界和模型行为仍有随机性，单次成功不能代表稳定成功率。运行预算、模型用量、环境和源码摘要见各结果文件。
+前三行来自历史 `bot-v1.2` 分层基线，**不调用真实模型**；身体基线使用 NeoForge `21.1.233`。当前规划评测已改为真实脚本引擎执行产品的 `numen.inv.make` 模块；该模块不提供旧Java规划器的递归采集和依赖分配，旧4/6不能沿用。当前入口与边界见 [bot-v1说明](bot-v1/README.md#当前入口与历史边界)。其余三行使用 B.AI 的 `deepseek-v4.1-flash`。木板有一次已归档结果，农业专项有三次 `survival-v1` 正式 dev 结果，自由生存有两次 `survival-v2` 正式 dev 结果。前两次农业运行的源码、场景及预算相同；第三次修复传输解析和自身背包查询，并启用聊天自动导出，保持模型、提示、场景、判分及预算不变。自由生存改了目标、初始饥饿及评分，旧农业分数不能与之直接比较；自由生存第二轮仅扩大请求数和 token 上限，时间仍为1700秒。种子均为73002，农业首次出生高度为66，后两次为78，自由生存两轮均为66；独立生成的世界和模型行为仍有随机性，单次成功不能代表稳定成功率。运行预算、模型用量、环境和源码摘要见各结果文件。
 
 **成绩口径：** 分层评测的 `4/6` 表示六个样例中四个符合判据，规划通过项包含“正确报告无法完成”；农业的 `1/6` 和自由生存的 `2/4` 表示各自未完成任务中首次达到的里程碑。自由生存扩大预算后为`4/4`，并满足全部最终条件的连续保持要求，因此整场成功。上述已运行生存场景的里程碑均已接入独立观察与判分，比例不是开发进度。各层成绩不合并成“总智能分”，单次开发样例也不能当作总体成功率；真实玩家“第一条正确回应／指令影响身体”的完整延迟仍未评分。
 
@@ -57,9 +63,9 @@
 
 [本地脚本校准](live-v1/baselines/survival-clean-calibration/results/result.json) 已成功，用固定 localhost 回复证明运行器能驱动真实游戏，不计模型能力分。生存的[首段受污染试跑](live-v1/baselines/survival-interrupted-fixtures/run.json) 因测试工具进入模型环境而中止，不计能力成绩；上表生存结果来自排除测试夹具后的正式运行。历史记录保留，不能与正式成绩混合统计。
 
-远征准备专项的[客户端负例校准](live-v1/verification/expedition-v1/client/calibration.json)已通过：初始物资未被误判成功，记录 **0/5、`budget_exhausted`**；这是脚本不执行任务时的预期结果，**不计模型能力分**。本轮双加载器构建、848 项可执行 JVM 测试、278 项 GameTest（含 5 项新增校准）和 48 项 Python 测试通过；API 测试编译仍被已有的 `AdapterHandlersTest.java:72` 返回类型错误阻塞，见[完整验证记录](live-v1/expedition-verification.json)。
+远征准备专项的历史[客户端负例校准](live-v1/verification/expedition-v1/client/calibration.json)通过：初始物资未被误判成功，记录 **0/5、`budget_exhausted`**；这是脚本不执行任务时的预期结果，**不计模型能力分**。当时双加载器构建、848 项可执行 JVM 测试、278 项 GameTest（含 5 项新增校准）和 48 项 Python 测试通过；API 测试编译被当时的 `AdapterHandlersTest.java:72` 返回类型错误阻塞，见[历史验证记录](live-v1/expedition-verification.json)。
 
-第三阶段末地资源专项的[客户端负例校准](live-v1/verification/end-resources-v1/client/calibration.json)已通过：人工远征起点确实穿甲、盾在副手，初始与终止资源可制作量均为0；4次 localhost 脚本请求后为 **0/5、`budget_exhausted(max_model_calls)`**。双加载器构建、851项可执行 JVM 校验（ai为匹配源码的Gradle缓存）、289项必需 GameTest（新增11项）和59项 Python 测试通过。首次受伤校准因出生保护失败，修正测试时机后完整重跑通过，失败证据仍保留；API测试仍被原有编译错误阻塞。详见[本轮验证记录](live-v1/end-resources-verification.json)，**真实模型尚未运行**。
+第三阶段末地资源专项的历史[客户端负例校准](live-v1/verification/end-resources-v1/client/calibration.json)通过：人工远征起点确实穿甲、盾在副手，初始与终止资源可制作量均为0；4次 localhost 脚本请求后为 **0/5、`budget_exhausted(max_model_calls)`**。当时双加载器构建、851项可执行 JVM 校验（ai为匹配源码的Gradle缓存）、289项必需 GameTest（新增11项）和59项 Python 测试通过。首次受伤校准因出生保护失败，修正测试时机后完整重跑通过，失败证据仍保留；当时API测试有编译阻塞。详见[历史验证记录](live-v1/end-resources-verification.json)，**真实模型尚未运行**。
 
 ## 目录里有什么
 
@@ -81,9 +87,9 @@
 
 ## 两条评测链路
 
-**分层评测（bot-v1）**：Python 启动器调用 JVM 测试和 Minecraft GameTest。规划与响应使用真实模块配合脚本夹具；身体层执行真实游戏工具并观察位置、任务和生命等状态。这条链路不调用付费模型，其分数不能解释为真实 LLM 的任务成功率或玩家等待时间。
+**分层评测（bot-v1）**：Python 启动器调用 JVM 测试和 Minecraft GameTest。当前规划层使用真实脚本引擎执行产品发布的 `numen.inv.make` 模块，配方、库存和工作站为有限夹具；响应层使用真实 AgentLoop 和脚本模型，身体层执行真实游戏入口并观察位置、任务和生命等状态。这条链路不调用付费模型，其分数不能解释为真实 LLM 的任务成功率或玩家等待时间。
 
-**真实模型评测（live-v1）**：Python 启动器创建独立运行目录，启动 NeoForge 客户端和新世界；客户端通过产品现有目标入口驱动同伴，使用指定模型配置；服务端独立读取世界事实，判定里程碑、最终成功条件和预算终止。模型自己决定行动方案，不能靠声称“完成”通过。
+**真实模型评测（live-v1）**：Python 启动器创建独立运行目录，启动 NeoForge 客户端和新世界；客户端通过产品现有目标入口驱动同伴，使用指定模型配置；模型通过 `lua` 程序调用服务端SDK，服务端独立读取世界事实，判定里程碑、最终成功条件和预算终止。模型自己决定行动方案，不能靠声称“完成”通过。
 
 完整场景规则与结果解释见 [真实客户端评测说明](live-v1/README.md)。
 
@@ -96,6 +102,7 @@
 | 分层评测启动器 | [tools/run_bot_eval.py](../tools/run_bot_eval.py) | 运行规划、响应和身体评测，校验逐例记录并汇总成绩 |
 | 真实模型启动器 | [tools/run_live_eval.py](../tools/run_live_eval.py) | 校验场景与预算、准备独立配置和目录、启动客户端、检查最终结果及冻结源码 |
 | 链路校准 | [tools/calibrate_live_eval.py](../tools/calibrate_live_eval.py) | 用本机固定模型协议回复验证真实合成及第二至第五阶段起点负例；输出合成用量，不作为模型能力成绩 |
+| 当前规划评测入口 | [ScriptEngine.java](../agent/src/main/java/com/dwinovo/numen/agent/script/ScriptEngine.java)、[inv.lua](../core/common/src/main/resources/modules/inv.lua) | 用产品实际脚本引擎和Lua合成模块观察原六个目标，不恢复旧Java规划器；缺少递归采集或依赖分配时照实判未达成 |
 | 通用判分与预算 | [agent/.../acceptance/LiveEvalRun.java](../agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java) | 纯 JVM 逻辑：检查快照条件、记录里程碑、累计持续达标时间、调用数与用量，并生成报告和轨迹 |
 | 客户端运行编排 | [api/.../client/eval/LiveEvalClient.java](../api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalClient.java) | 创建评测会话、连接真实大脑、收集事件和世界快照、安装预算限制、持久化结果并结束运行 |
 | 世界准备与快照 | [api/.../client/eval/LiveEvalWorld.java](../api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java) | 创建隔离世界、初始化主人和同伴，并在服务端线程读取实际状态、清理本次观察器 |
@@ -106,9 +113,9 @@
 | 末地资源观察 | [EndResourcesWorldObserver.java](../core/common/src/main/java/com/dwinovo/numen/core/eval/EndResourcesWorldObserver.java) | 当前库存算可制作量，复用装备与补给；记录真实换维、受伤及采样探索、危险、库存变化，区分历史证据与当前条件 |
 | 末地入口观察 | [EndEntryWorldObserver.java](../core/common/src/main/java/com/dwinovo/numen/core/eval/EndEntryWorldObserver.java) | 按UUID与门身份关联到达、原生插眼、真实门状态和原生穿门来源块，持续追踪末地存活；资源与装备只留事实 |
 | 末影龙战观察 | [DragonCombatWorldObserver.java](../core/common/src/main/java/com/dwinovo/numen/core/eval/DragonCombatWorldObserver.java) | 绑定目标龙及原生龙战，读取实际扣血、原生死亡／归属／统计／战斗结束，锁存死亡并验证结束后200 tick存活 |
-| 场景注册及收割证据 | [NumenCore.java](../core/common/src/main/java/com/dwinovo/numen/core/NumenCore.java)、[BlockDigger.java](../core/common/src/main/java/com/dwinovo/numen/core/act/BlockDigger.java) | 注册生存观察器；方块实际破坏后报告事件，支持成熟小麦收割归因 |
+| 场景注册及收割证据 | [NumenCore.java](../core/common/src/main/java/com/dwinovo/numen/core/NumenCore.java)、[CompanionHands.java](../core/common/src/main/java/com/dwinovo/numen/core/nav/CompanionHands.java) | 注册各专项观察器；实际破坏方块后报告事件，支持成熟小麦收割归因 |
 | 客户端评测入口 | [AgentLoopRegistry.java](../api/common/src/client/java/com/dwinovo/numen/client/agent/AgentLoopRegistry.java) | 在客户端 tick 中调用可选的评测入口 |
-| 大脑事件与执行接入 | [AgentLoop.java](../agent/src/main/java/com/dwinovo/numen/agent/loop/AgentLoop.java)、[EntityAgentLoop.java](../api/common/src/client/java/com/dwinovo/numen/client/agent/EntityAgentLoop.java)、[ToolDispatcher.java](../api/common/src/client/java/com/dwinovo/numen/client/agent/ToolDispatcher.java) | 提供事件订阅、模型请求和工具派发前的可选预算检查，复用真实产品执行链 |
+| 大脑事件与执行接入 | [AgentLoop.java](../agent/src/main/java/com/dwinovo/numen/agent/loop/AgentLoop.java)、[EntityAgentLoop.java](../api/common/src/client/java/com/dwinovo/numen/client/agent/EntityAgentLoop.java)、[CompanionToolPort.java](../api/common/src/main/java/com/dwinovo/numen/agent/tool/CompanionToolPort.java) | 提供事件订阅、模型请求和工具／Lua程序派发前的可选预算检查，记录程序结局与API调用，复用真实产品执行链 |
 | 模型传输预算接入 | [CancelToken.java](../ai/src/main/java/com/dwinovo/numen/agent/http/CancelToken.java)、[HttpLlmTransport.java](../ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java) | 每次实际流式 HTTP 请求尝试前检查额度，包含传输重试 |
 | NeoForge 启动配置 | [core/neoforge/build.gradle](../core/neoforge/build.gradle) | 接收 `numenLiveEval` 与隔离游戏目录参数；评测构建排除 GameTest 类，避免测试工具进入模型环境 |
 

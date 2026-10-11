@@ -26,6 +26,7 @@ import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.GameTestListener;
 import net.minecraft.gametest.framework.GameTestRunner;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -37,7 +38,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import static com.dwinovo.numen.core.gametest.GameTestKit.*;
 
 /**
- * 身体层评测:固定工具调用驱动真实世界,只测工具入口之后的响应,不含模型、网络或自然语言理解。
+ * 身体层评测:固定 Lua 程序驱动真实世界,只测程序入口之后的响应,不含模型、网络或自然语言理解。
  * 游戏刻与单调时钟各自记账;GameTestServer 不按实时节拍运行,墙钟只作进程诊断,不代表玩家等待时间。
  * 只有设置 numen.eval.output 时才向该目录追加 body.jsonl。
  */
@@ -50,12 +51,12 @@ public class BenchmarkGameTests {
         settleWorld(level, Difficulty.NORMAL, MIDNIGHT);
     }
 
-    /** 空闲身体接到 follow:先真正移步,再跟到主人身边,任务仍驻留。 */
+    /** 空闲身体接到 numen.move.follow:先真正移步,再跟到主人身边,任务仍驻留。 */
     @GameTest(template = "floor16", timeoutTicks = 1200, batch = "numen_benchmark")
     public static void follow_from_idle(GameTestHelper helper) {
         Observation result = new Observation(helper, "body-follow-idle");
         NumenPlayer body = result.body(spawnAt(helper, "eval_follower", new BlockPos(2, 2, 2), false));
-        NumenPlayer owner = result.body(presentOwner(helper, body, "eval_owner"));
+        ServerPlayer owner = result.body(presentOwner(helper, body, "eval_owner"));
         BlockPos ownerAt = helper.absolutePos(new BlockPos(13, 2, 13));
         Vec3 ownerTarget = new Vec3(ownerAt.getX() + 0.5, ownerAt.getY(), ownerAt.getZ() + 0.5);
         Vec3 start = body.position();
@@ -67,7 +68,7 @@ public class BenchmarkGameTests {
                 if (horizontalSquared(body.position(), start) >= 0.25 * 0.25) result.mark("body_change");
             }
         });
-        helper.startSequence()
+        steps(helper)
                 // 等登录定位完成,用服务器传送同时更新身体与假客户端的待确认位置。
                 .thenExecuteAfter(20, () -> owner.teleportTo(ownerTarget.x, ownerTarget.y, ownerTarget.z))
                 .thenExecuteAfter(5, () -> {
@@ -77,7 +78,7 @@ public class BenchmarkGameTests {
                             "owner fixture is too close to exercise follow movement");
                     result.metric("initial_owner_distance_blocks", body.distanceTo(owner));
                     result.trigger();
-                    follow[0] = call(body, "follow", args());
+                    follow[0] = lua(body, "numen.move.follow()");
                 })
                 .thenWaitUntil(() -> {
                     helper.assertTrue(follow[0].task() != null, "follow was not accepted: " + follow[0].reply());
@@ -89,7 +90,7 @@ public class BenchmarkGameTests {
                 .thenSucceed();
     }
 
-    /** task_stop 叫停已经移动的 goto,停稳后四十刻内不得重新移动或恢复旧任务。 */
+    /** numen.task.stop 叫停已经移动的 numen.move.to,停稳后四十刻内不得重新移动或恢复旧任务。 */
     @GameTest(template = "floor16", timeoutTicks = 1200, batch = "numen_benchmark")
     public static void task_stop_stops_movement(GameTestHelper helper) {
         Observation result = new Observation(helper, "body-task-stop");
@@ -98,12 +99,12 @@ public class BenchmarkGameTests {
         ToolRun walk = go(helper, body, new BlockPos(14, 2, 14));
         QuietBody quiet = new QuietBody(helper, body, result);
         helper.onEachTick(quiet::sample);
-        helper.startSequence()
+        steps(helper)
                 .thenWaitUntil(() -> moving(helper, body, start, walk))
                 .thenExecute(() -> {
                     result.trigger();
-                    ToolRun stop = call(body, "task_stop", args());
-                    helper.assertTrue(stop.succeeded(), "task_stop failed: " + stop.reply());
+                    ToolRun stop = lua(body, "numen.task.stop()");
+                    helper.assertTrue(stop.succeeded(), "numen.task.stop failed: " + stop.reply());
                     quiet.begin();
                 })
                 .thenWaitUntil(() -> {
@@ -114,7 +115,7 @@ public class BenchmarkGameTests {
                 .thenSucceed();
     }
 
-    /** 新 goto 取代已经走起来的旧目标:旧活按 REPLACED 结算,身体实际回到起点。 */
+    /** 新移动程序取代已经走起来的旧目标:旧活按 REPLACED 结算,身体实际回到起点。 */
     @GameTest(template = "floor16", timeoutTicks = 1200, batch = "numen_benchmark")
     public static void replacement_returns_to_start(GameTestHelper helper) {
         Observation result = new Observation(helper, "body-replace-return");
@@ -128,7 +129,7 @@ public class BenchmarkGameTests {
                 result.mark("body_change");
             }
         });
-        helper.startSequence()
+        steps(helper)
                 .thenWaitUntil(() -> {
                     moving(helper, body, home, walk);
                     helper.assertTrue(horizontalSquared(body.position(), home) >= 16, "body has not walked four blocks");
@@ -168,10 +169,10 @@ public class BenchmarkGameTests {
                 result.mark("timer_event");
             }
         });
-        helper.startSequence()
+        steps(helper)
                 .thenExecuteAfter(5, () -> {
                     result.trigger();
-                    ToolRun timer = call(body, "set_timer", args("after_s", 1, "reason", "eval furnace ready"));
+                    ToolRun timer = lua(body, "numen.task.timer(\"eval furnace ready\", {after = 1})");
                     helper.assertTrue(timer.succeeded(), "timer rejected: " + timer.reply());
                     walk[0] = go(helper, body, new BlockPos(14, 2, 14));
                 })
@@ -198,7 +199,7 @@ public class BenchmarkGameTests {
         Vec3 start = body.position();
         ToolRun[] walk = new ToolRun[1];
         Zombie[] threat = new Zombie[1];
-        helper.startSequence()
+        steps(helper)
                 // 原版出生保护结束后才投递伤害,否则观察到的是无敌期而非本能响应。
                 .thenExecuteAfter(70, () -> walk[0] = go(helper, body, new BlockPos(14, 2, 14)))
                 .thenWaitUntil(() -> moving(helper, body, start, walk[0]))
@@ -232,7 +233,7 @@ public class BenchmarkGameTests {
             quiet.sample();
             if (stoppedConfirmed[0]) cancelled(helper, body, walk[0], TaskRecord.StopCause.OWNER);
         });
-        helper.startSequence()
+        steps(helper)
                 .thenExecuteAfter(70, () -> walk[0] = go(helper, body, new BlockPos(14, 2, 14)))
                 .thenWaitUntil(() -> moving(helper, body, start, walk[0]))
                 .thenExecute(() -> {
@@ -265,14 +266,14 @@ public class BenchmarkGameTests {
 
     private static ToolRun go(GameTestHelper helper, NumenPlayer body, BlockPos rel) {
         BlockPos target = helper.absolutePos(rel);
-        return call(body, "goto", args("x", target.getX(), "y", target.getY(), "z", target.getZ()));
+        return lua(body, "numen.move.to(" + xyz(target) + ")");
     }
 
     private static void moving(GameTestHelper helper, NumenPlayer body, Vec3 start, ToolRun walk) {
-        helper.assertTrue(walk != null && walk.task() != null, "goto was not accepted");
+        helper.assertTrue(walk != null && walk.task() != null, "numen.move.to was not accepted");
         helper.assertTrue(walk.task().getState() == TaskState.RUNNING
                         && horizontalSquared(body.position(), start) >= 4,
-                "goto has not physically moved two blocks while running");
+                "numen.move.to has not physically moved two blocks while running");
     }
 
     private static void cancelled(GameTestHelper helper, NumenPlayer body, ToolRun walk, TaskRecord.StopCause cause) {
@@ -374,7 +375,7 @@ public class BenchmarkGameTests {
         private final long startedNs = System.nanoTime();
         private final JsonObject metrics = new JsonObject();
         private final JsonArray initialBodies = new JsonArray();
-        private final List<NumenPlayer> bodies = new ArrayList<>();
+        private final List<ServerPlayer> bodies = new ArrayList<>();
         private final List<Entity> entities = new ArrayList<>();
         private long triggerTick;
         private long triggerNs;
@@ -387,7 +388,7 @@ public class BenchmarkGameTests {
             helper.testInfo.addListener(this);
         }
 
-        NumenPlayer body(NumenPlayer body) {
+        <T extends ServerPlayer> T body(T body) {
             bodies.add(body);
             initialBodies.add(snapshot(body));
             return body;
@@ -446,9 +447,13 @@ public class BenchmarkGameTests {
             evidence.add("final_bodies", finalBodies);
             row.add("evidence", evidence);
             entities.forEach(Entity::discard);
-            for (NumenPlayer body : bodies) {
-                CompanionFactory.despawn(helper.getLevel().getServer(), body);
-                EventOutbox.get(helper.getLevel().getServer()).forget(body.getUUID());
+            for (ServerPlayer body : bodies) {
+                if (body instanceof NumenPlayer companion) {
+                    CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+                    EventOutbox.get(helper.getLevel().getServer()).forget(body.getUUID());
+                } else {
+                    leave(body);
+                }
             }
             String output = System.getProperty("numen.eval.output");
             if (output == null || output.isBlank()) return;
@@ -462,7 +467,7 @@ public class BenchmarkGameTests {
             }
         }
 
-        private static JsonObject snapshot(NumenPlayer body) {
+        private static JsonObject snapshot(ServerPlayer body) {
             JsonObject state = new JsonObject();
             state.addProperty("uuid", body.getUUID().toString());
             JsonObject position = new JsonObject();

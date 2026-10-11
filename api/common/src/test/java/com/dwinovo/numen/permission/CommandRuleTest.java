@@ -8,6 +8,7 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.tree.RootCommandNode;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -150,7 +151,7 @@ class CommandRuleTest {
     void theFactoryRowsAreCommandRulesLikeAnyOther() {
         List<Rule> commands = RuleSet.factory().allow().stream()
                 .filter(r -> r.kind() == Action.Kind.COMMAND).toList();
-        assertEquals(List.of("command(numen)", "command(help)", "command(list)", "command(me)", "command(msg)",
+        assertEquals(List.of("command(help)", "command(list)", "command(me)", "command(msg)",
                 "command(teammsg)", "command(seed)", "command(random)"),
                 commands.stream().map(Rule::toString).toList(), "出厂指令行与别的规则同一种写法、同一个解析");
         assertTrue(RuleSet.factory().ask().stream().noneMatch(r -> r.kind() == Action.Kind.COMMAND),
@@ -158,14 +159,15 @@ class CommandRuleTest {
     }
 
     @Test
-    void theFactoryLetsHerOwnAndReadOnlyCommandsRun() {
+    void theFactoryLetsReadOnlyCommandsRun() {
         Gate bare = gate(Mode.ASK, List.of(), List.of(), List.of());
-        for (String line : List.of("numen goto 10 64 10", "help", "help give", "list", "me waves",
+        for (String line : List.of("help", "help give", "list", "me waves",
                 "msg Steve hi", "tell Steve hi", "w Steve hi", "teammsg regroup", "tm regroup", "seed",
                 "random value 1..6")) {
             assertTrue(bare.judge(run(line), null).allowed(), "出厂放行 /" + line);
         }
-        for (String line : List.of("setblock 0 64 0 stone", "give @s diamond", "tp 0 64 0")) {
+        for (String line : List.of("setblock 0 64 0 stone", "give @s diamond", "tp 0 64 0",
+                "numen player summon Aria")) {
             Verdict verdict = bare.judge(run(line), null);
             assertTrue(verdict.asks(), "没有规则说到的照旧问 /" + line);
             assertNull(verdict.rule(), "问它的不是哪一行出厂规则 /" + line);
@@ -195,7 +197,8 @@ class CommandRuleTest {
         assertEquals(List.of(Rule.parse("command(setblock)")), store.rules().allow(), "以后都允许写进主人层");
         assertEquals(RuleSet.FACTORY_ALLOW, RuleSet.factory().allow().stream().map(Rule::toString).toList(),
                 "出厂层不跟着变");
-        Gate after = new Gate(null, Mode.ASK, store.rules(), RuleSet.factory(), new PlacedBlocks(), List.of());
+        Gate after = new Gate(null, Mode.ASK, store.rules(), RuleSet.factory(),
+                new PlacedBlocks(), List.of());
         assertTrue(after.judge(run("setblock 1 64 1 dirt"), null).allowed(), "记住以后 setblock 不再问");
         assertTrue(after.judge(run("help"), null).allowed(), "出厂行照旧放行");
         assertTrue(after.judge(run("give @s diamond"), null).asks(), "别的照旧问");
@@ -232,8 +235,8 @@ class CommandRuleTest {
         Gate ungranted = gate(Mode.ASK, List.of(), List.of(), List.of());
         Action first = run("setblock 0 64 0 stone");
         ConsentItem grant = ungranted.consentItem(first, ungranted.judge(first, null), null);
-        Gate granted = new Gate(null, Mode.ASK, RuleSet.EMPTY, RuleSet.factory(), new PlacedBlocks(),
-                List.of(grant));
+        Gate granted = new Gate(null, Mode.ASK, RuleSet.EMPTY, RuleSet.factory(),
+                new PlacedBlocks(), List.of(grant));
         assertTrue(granted.judge(first, null).allowed());
         assertTrue(granted.judge(run("setblock 0 65 0 stone"), null).asks(), "答应的是这一整行,换一行另问");
     }

@@ -1,8 +1,10 @@
 package com.dwinovo.numen.mixin;
 
 import com.dwinovo.numen.client.hud.SpeechBubbleRenderer;
+import com.dwinovo.numen.client.spectator.SpectatorClient;
 import com.mojang.blaze3d.vertex.PoseStack;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
@@ -31,10 +33,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinPlayerRenderer {
 
     @Inject(method = "render(Lnet/minecraft/client/player/AbstractClientPlayer;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
-            at = @At("HEAD"))
+            at = @At("HEAD"), cancellable = true)
     private void numen$speechBubble(AbstractClientPlayer entity, float entityYaw, float partialTicks,
                                     PoseStack poseStack, MultiBufferSource buffers, int packedLight,
                                     CallbackInfo ci) {
+        // 主人的真实身体继续承担区块流与追踪,观看画面只显示目标身体。
+        if (SpectatorClient.active() && entity == Minecraft.getInstance().player) {
+            ci.cancel();
+            return;
+        }
         SpeechBubbleRenderer.render(entity, poseStack, buffers);
     }
 }

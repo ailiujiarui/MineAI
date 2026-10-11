@@ -5,8 +5,8 @@ import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.permission.ConsentAnswer;
 import com.dwinovo.numen.permission.ConsentDesk;
 
+import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -19,7 +19,7 @@ import java.util.UUID;
  * Client → Server:主人在答复框上选的那一项;拒绝可以带一句附言。
  *
  * <h2>信任模型</h2>
- * 与 {@link ExecuteToolPayload} 同一条:目标必须是同伴(跨维度查找),发送者必须是它的主人。
+ * 与 {@link RunProgramPayload} 同一条:目标必须是同伴(跨维度查找),发送者必须是它的主人。
  * 认主人、对请求号都在 {@link ConsentDesk#reply}(与 {@code /numen consent} 命令同一个入口),这里只转交。
  *
  * @param companion 哪只同伴
@@ -35,7 +35,7 @@ public record ConsentReplyPayload(UUID companion, long id, ConsentAnswer.Decisio
     public static final Type<ConsentReplyPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "consent_reply"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, ConsentReplyPayload> STREAM_CODEC =
+    public static final StreamCodec<ByteBuf, ConsentReplyPayload> STREAM_CODEC =
             StreamCodec.composite(
                     UUIDUtil.STREAM_CODEC, ConsentReplyPayload::companion,
                     ByteBufCodecs.VAR_LONG, ConsentReplyPayload::id,

@@ -8,6 +8,7 @@ import com.dwinovo.numen.task.TaskDispatch;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
@@ -24,7 +25,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import static com.dwinovo.numen.core.gametest.GameTestKit.*;
 
-/** 建造与蓝图:{@code build} 的形状与材料账、蓝图读写与方块实体、屋顶技法、整栋房子。 */
+/** 建造与蓝图:{@code numen.build.place} 与 {@code numen.build.diff}、{@code numen.shape} 画的格、蓝图文件与方块实体、材料账、整栋房子。 */
 @GameTestHolder(Constants.MOD_ID)
 @PrefixGameTestTemplate(false)
 public class BuildGameTests {
@@ -42,15 +43,19 @@ public class BuildGameTests {
     }
 
     /**
-     * 建造用例的公共骨架:floor20 平地、rel(2,2,2) 出生、按需发圆石,派 build
-     * 任务(不传分层——走生产默认的自动分层),判据两条:每格就位 + 同伴回到
-     * 地面(建完人还挂在结构上不算交付)。
+     * 建造用例的公共骨架,和模型的写法一样从脚本入口:floor20 平地、rel(2,2,2) 出生、按需发圆石(也是赶路的垫路料),一段 Lua 写出要盖的
+     * 那一串格,交给库里的 {@code numen.build.raise} 走着盖完(路线许改天然地形,高处垫块上去)。判据:程序跑到了最后,每格就位。
+     *
+     * @param cells 要盖的那一串格的 Lua 写法,收落点那一格(世界坐标)
      */
-    private static void runBuildCase(GameTestHelper helper, String name,
-                                     List<BlockPos> relCells, int cobbleStacks) {
+    private static void raiseCase(GameTestHelper helper, String name, BlockPos anchorRel,
+                                  java.util.function.Function<BlockPos, String> cells, List<BlockPos> relCells,
+                                  int cobbleStacks) {
         ServerLevel level = helper.getLevel();
-        Dispatched build = dispatchBuild(helper, name, new BlockPos(2, 2, 2), relCells, cobbleStacks);
-        helper.succeedWhen(() -> {
+        Raised build = raise(helper, name, new BlockPos(2, 2, 2), anchorRel, cells, relCells, cobbleStacks);
+        succeedWhen(helper, () -> {
+            helper.assertTrue(build.run().receipt() != null, "numen.build.raise has not finished");
+            helper.assertTrue(build.run().ranToTheEnd(), "numen.build.raise failed: " + build.run().receipt());
             for (BlockPos cell : build.cells()) {
                 helper.assertTrue(level.getBlockState(cell).is(Blocks.COBBLESTONE),
                         "structure incomplete at " + cell.toShortString());
@@ -59,43 +64,90 @@ public class BuildGameTests {
         });
     }
 
-    /** 一份派出去的圆石建造:她、任务记录、目标格。判据由用例自己定。 */
-    private record Dispatched(NumenPlayer companion, BuildTaskRecord record, List<BlockPos> cells) {}
+    /**
+     * 一栋大房子一段程序盖不完:一次运行至多 {@link com.dwinovo.numen.agent.script.ScriptLimits#COMMANDS} 次调用,到了就停在
+     * 那里。和模型会做的一样,停在上限就把同一段再交一次——{@code numen.build.raise} 每一轮从 {@code numen.build.diff} 现问,接着上次停下的
+     * 地方盖——直到跑完,或停在别的原因上。每刻由 {@link #tick} 推一步。
+     */
+    private static final class Raising {
 
-    /** 派一份圆石建造:rel 出生、按需发圆石,不传分层——走生产默认的自动分层。 */
-    private static Dispatched dispatchBuild(GameTestHelper helper, String name, BlockPos spawnRel,
-                                            List<BlockPos> relCells, int cobbleStacks) {
-        ServerLevel level = helper.getLevel();
-        BlockPos spawn = helper.absolutePos(spawnRel);
-        NumenPlayer companion = CompanionFactory.spawn(level.getServer(), UUID.randomUUID(),
-                name, UUID.randomUUID(), level,
-                new Vec3(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5));
+        private static final String AT_THE_LIMIT = "it reached the limit of "
+                + com.dwinovo.numen.agent.script.ScriptLimits.COMMANDS + " calls per run";
+
+        private final NumenPlayer body;
+        private final String code;
+        private final List<ToolRun> runs = new ArrayList<>();
+
+        Raising(GameTestHelper helper, NumenPlayer body, String code) {
+            this.body = body;
+            this.code = code;
+            runs.add(lua(body, code));
+            helper.onEachTick(this::tick);
+        }
+
+        private void tick() {
+            ToolRun last = last();
+            if (last.receipt() != null && !last.ranToTheEnd() && last.receipt().contains(AT_THE_LIMIT)) {
+                runs.add(lua(body, code));
+            }
+        }
+
+        /** 最近交出去的那一段。 */
+        ToolRun last() {
+            return runs.get(runs.size() - 1);
+        }
+
+        /** 收场了:最近那一段跑完了,或停在调用上限以外的原因上。 */
+        boolean done() {
+            ToolRun last = last();
+            return last.receipt() != null && (last.ranToTheEnd() || !last.receipt().contains(AT_THE_LIMIT));
+        }
+
+        /** 各段里调 {@code function} 派下的活,按先后。 */
+        List<com.dwinovo.numen.task.TaskRecord> tasks(String function) {
+            List<com.dwinovo.numen.task.TaskRecord> out = new ArrayList<>();
+            runs.forEach(run -> out.addAll(run.tasks(function)));
+            return out;
+        }
+    }
+
+    /** 一串交给 {@code numen.build.raise} 的圆石格:她、那段程序、目标格。判据由用例自己定。 */
+    private record Raised(NumenPlayer companion, ToolRun run, List<BlockPos> cells) {}
+
+    /** 把 {@code cells} 在 {@code anchorRel} 交给 {@code numen.build.raise}:rel 出生、按需发圆石,圆石也设成垫路料。 */
+    private static Raised raise(GameTestHelper helper, String name, BlockPos spawnRel, BlockPos anchorRel,
+                                java.util.function.Function<BlockPos, String> cells, List<BlockPos> relCells,
+                                int cobbleStacks) {
+        NumenPlayer companion = spawnAt(helper, name, spawnRel, false);
         for (int i = 0; i < cobbleStacks; i++) {
             companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
         }
-        List<BuildTaskRecord.Target> targets = new ArrayList<>(relCells.size());
-        for (BlockPos rel : relCells) {
-            targets.add(new BuildTaskRecord.Target(Blocks.COBBLESTONE, Items.COBBLESTONE,
-                    helper.absolutePos(rel), "cobblestone"));
-        }
-        var ctx = TaskDispatch.ctx("gametest-build", companion);
-        long deadline = ctx.deadline(Math.max(1200L, targets.size() * 400L));
-        BuildTaskRecord record = new BuildTaskRecord(ctx.toolCallId(), deadline, targets,
-                com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY);
-        TaskDispatch.setTask(companion, record, null, reply -> {});
-        return new Dispatched(companion, record,
-                targets.stream().map(BuildTaskRecord.Target::pos).toList());
+        ToolRun run = lua(companion, "numen.build.raise(" + cells.apply(helper.absolutePos(anchorRel)) + ", {costs = {dig = true, place = true, consent = false}})");
+        return new Raised(companion, run, relCells.stream().map(helper::absolutePos).toList());
     }
 
-    /** 形状 DSL:空心圆柱(半径 3、高 4 的塔筒)。几何由 build_shape 的展开器
-     *  生成,走常规建造任务(消耗材料),验"搭积木"路线的地基。 */
+    /** 一个圆石的长方体:{@code sx} 列、{@code sy} 层、{@code sz} 行,最低西北角在落点。 */
+    private static java.util.function.Function<BlockPos, String> cobbleBox(int sx, int sy, int sz) {
+        return o -> "numen.shape.box(" + xyz(o) + ", " + xyz(o.offset(sx - 1, sy - 1, sz - 1)) + ", \"cobblestone\")";
+    }
+
+    /** 形状:{@code numen.shape.cylinder} 画的空心圆柱(半径 3、高 4 的塔筒),圆心在 rel 10,2,10;判据按同一个圆的定义算出的格。 */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_build")
     public static void build_shape_cylinder(GameTestHelper helper) {
         BlockPos center = new BlockPos(10, 2, 10);
-        List<BlockPos> rel = com.dwinovo.numen.core.build.BuildShapes.shapeCells(
-                "cylinder", true, center.getX(), center.getY(), center.getZ(),
-                null, null, null, 3, 4);
-        runBuildCase(helper, "gametest_mason2", rel, 2);
+        List<BlockPos> rel = new ArrayList<>();
+        for (int y = 0; y < 4; y++) {
+            for (int dx = -3; dx <= 3; dx++) {
+                for (int dz = -3; dz <= 3; dz++) {
+                    double d = dx * dx + dz * dz;
+                    if (d <= 3.5 * 3.5 && d >= 2.5 * 2.5) {
+                        rel.add(center.offset(dx, y, dz));
+                    }
+                }
+            }
+        }
+        raiseCase(helper, "gametest_mason2", center,
+                c -> "numen.shape.cylinder(" + xyz(c) + ", 3, 4, \"cobblestone\", true)", rel, 2);
     }
 
     /**
@@ -121,14 +173,13 @@ public class BuildGameTests {
         level.setBlock(lower.above(), Blocks.TALL_GRASS.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.DOUBLE_BLOCK_HALF,
                         net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER), 3);
-        NumenPlayer companion = spawnAt(helper, "gametest_mower", new BlockPos(2, 2, 2), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_mower", new BlockPos(4, 2, 6), false);
         companion.getInventory().add(new ItemStack(Items.CRAFTING_TABLE, 1));
         var ctx = TaskDispatch.ctx("gametest-tallgrass", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(), ctx.deadline(4000L),
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(), ctx.deadline(4000L),
                 List.of(new BuildTaskRecord.Target(Blocks.CRAFTING_TABLE, Items.CRAFTING_TABLE,
-                        lower, "crafting_table")), com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true, true),
-                null, reply -> {});
-        helper.succeedWhen(() -> {
+                        lower, "crafting_table")), true, true));
+        succeedWhen(helper, () -> {
             helper.assertTrue(level.getBlockState(lower).is(Blocks.CRAFTING_TABLE), "工作台没放上");
             helper.assertTrue(!level.getBlockState(lower.above()).is(Blocks.TALL_GRASS),
                     "孤儿草还悬在工作台头顶: " + level.getBlockState(lower.above()));
@@ -156,7 +207,7 @@ public class BuildGameTests {
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
     public static void volume_fences_connect_after_build(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_fencer", new BlockPos(2, 2, 2), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_fencer", new BlockPos(7, 2, 6), false);
         List<BuildTaskRecord.Target> targets = new ArrayList<>();
         for (int x = 6; x <= 8; x++) {
             targets.add(new BuildTaskRecord.Target(Blocks.OAK_FENCE, Items.OAK_FENCE,
@@ -164,12 +215,12 @@ public class BuildGameTests {
         }
         companion.getInventory().add(new ItemStack(Items.OAK_FENCE, 3));
         var ctx = TaskDispatch.ctx("gametest-fence-row", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(), ctx.deadline(4000L),
-                targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true, true), null, reply -> {});
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(), ctx.deadline(4000L),
+                targets, true, true));
         BlockPos mid = helper.absolutePos(new BlockPos(7, 2, 8));
         BlockPos west = helper.absolutePos(new BlockPos(6, 2, 8));
         BlockPos east = helper.absolutePos(new BlockPos(8, 2, 8));
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             BlockState m = level.getBlockState(mid);
             helper.assertTrue(m.is(Blocks.OAK_FENCE), "中间那格不是栅栏");
             for (BlockPos nb : new BlockPos[]{west, east}) {
@@ -187,7 +238,7 @@ public class BuildGameTests {
     public static void built_fence_grabs_existing_neighbour(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         helper.setBlock(new BlockPos(6, 2, 6), Blocks.OAK_FENCE);
-        NumenPlayer companion = spawnAt(helper, "gametest_edger", new BlockPos(2, 2, 2), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_edger", new BlockPos(7, 2, 4), false);
         BlockPos oldPos = helper.absolutePos(new BlockPos(6, 2, 6));
         BlockPos newPos = helper.absolutePos(new BlockPos(7, 2, 6));
         List<BuildTaskRecord.Target> targets = List.of(
@@ -195,9 +246,9 @@ public class BuildGameTests {
                         newPos, "oak_fence"));
         companion.getInventory().add(new ItemStack(Items.OAK_FENCE, 1));
         var ctx = TaskDispatch.ctx("gametest-fence-edge", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(), ctx.deadline(4000L),
-                targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true, true), null, reply -> {});
-        helper.succeedWhen(() -> {
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(), ctx.deadline(4000L),
+                targets, true, true));
+        succeedWhen(helper, () -> {
             BlockState built = level.getBlockState(newPos);
             BlockState old = level.getBlockState(oldPos);
             helper.assertTrue(built.is(Blocks.OAK_FENCE), "新栅栏没立起来");
@@ -220,7 +271,7 @@ public class BuildGameTests {
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
     public static void plain_cell_promoted_to_item_place(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_joiner", new BlockPos(2, 2, 2), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_joiner", new BlockPos(7, 2, 4), false);
         BlockPos tablePos = helper.absolutePos(new BlockPos(6, 2, 6));
         List<BuildTaskRecord.Target> targets = List.of(
                 new BuildTaskRecord.Target(Blocks.CRAFTING_TABLE, Items.CRAFTING_TABLE,
@@ -230,12 +281,11 @@ public class BuildGameTests {
         companion.getInventory().add(new ItemStack(Items.CRAFTING_TABLE, 1));
         companion.getInventory().add(new ItemStack(Items.OAK_FENCE, 1));
         var ctx = TaskDispatch.ctx("gametest-plain-cell", companion);
-        BuildTaskRecord record = new BuildTaskRecord(ctx.toolCallId(), ctx.deadline(4000L),
-                targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true, true);
+        BuildTaskRecord record = buildJob(ctx.toolCallId(), ctx.deadline(4000L), targets, true, true);
         helper.assertTrue(record.targets.get(0).itemPlace(), "素面格(工作台)没升格成原生放置");
         helper.assertFalse(record.targets.get(1).itemPlace(), "带属性格(栅栏)不该升格");
-        TaskDispatch.setTask(companion, record, null, reply -> {});
-        helper.succeedWhen(() -> {
+        TaskDispatch.setTask(companion, record);
+        succeedWhen(helper, () -> {
             helper.assertTrue(level.getBlockState(tablePos).is(Blocks.CRAFTING_TABLE),
                     "工作台没放出来");
             helper.assertTrue(companion.getInventory().countItem(Items.CRAFTING_TABLE) == 0,
@@ -247,28 +297,28 @@ public class BuildGameTests {
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
     public static void survival_build_resumes_after_restock(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_hauler", new BlockPos(2, 2, 2), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_hauler", new BlockPos(7, 2, 5), false);
 
         List<BuildTaskRecord.Target> targets = new ArrayList<>();
-        for (int x = 6; x <= 10; x++) {
-            for (int z = 6; z <= 10; z++) {
+        for (int x = 6; x <= 8; x++) {
+            for (int z = 6; z <= 8; z++) {
                 targets.add(new BuildTaskRecord.Target(Blocks.COBBLESTONE, Items.COBBLESTONE,
                         helper.absolutePos(new BlockPos(x, 2, z)), "cobblestone"));
             }
         }
-        final int total = targets.size();          // 25 格
-        companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 9));   // 只够一小半
+        final int total = targets.size();          // 9 格,都在她手够得着的地方
+        companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 4));   // 只够一小半
 
         java.util.function.Consumer<String> go = tag -> {
             var ctx = TaskDispatch.ctx(tag, companion);
-            TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(),
-                    ctx.deadline(4000L), targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true, true), null, reply -> {});
+            TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(),
+                    ctx.deadline(4000L), targets, true, true));
         };
         go.accept("gametest-resume-1");
 
         java.util.concurrent.atomic.AtomicBoolean restocked =
                 new java.util.concurrent.atomic.AtomicBoolean(false);
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             int built = 0;
             for (BuildTaskRecord.Target t : targets) {
                 if (t.matches(level.getBlockState(t.pos()))) built++;
@@ -279,7 +329,7 @@ public class BuildGameTests {
                                 .currentTaskFor(companion.getUUID()) == null,
                         "first run still going");
                 helper.assertTrue(built > 0 && built < total,
-                        "first run should stop part-way on 9 cobblestone, built " + built + "/" + total);
+                        "first run should stop part-way on 4 cobblestone, built " + built + "/" + total);
                 companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 32));
                 restocked.set(true);
                 go.accept("gametest-resume-2");
@@ -306,37 +356,29 @@ public class BuildGameTests {
     @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_build")
     public static void build_block_ids_and_material_counts(GameTestHelper helper) {
         for (String id : new String[]{"air", "minecraft:air", "dirt_path", "farmland", "tall_grass"}) {
-            com.dwinovo.numen.core.build.BuildPalette.parse(id);
+            com.dwinovo.numen.core.build.BuildStates.resolve(id);
         }
         for (String liquid : new String[]{"water", "minecraft:water", "lava"}) {
             String msg = "";
             try {
-                com.dwinovo.numen.core.build.BuildPalette.parse(liquid);
+                com.dwinovo.numen.core.build.BuildStates.resolve(liquid);
             } catch (IllegalArgumentException e) {
                 msg = String.valueOf(e.getMessage());
             }
             helper.assertTrue(msg.contains("liquid"),
                     liquid + " must be refused as a capability boundary, not as a bad name; got \"" + msg + "\"");
         }
-        // 方块状态跟在方块名后面,和 /setblock 同一套语法;调色板里的逗号分项,
-        // 而状态里的逗号属于状态——切分必须认方括号,否则混合料一带状态就被劈开
-        var stairs = com.dwinovo.numen.core.build.BuildPalette
-                .parse("spruce_stairs[facing=south,half=top]").first().state();
+        // 方块状态跟在方块名后面,和 /setblock 同一套语法
+        var stairs = com.dwinovo.numen.core.build.BuildStates.resolve("spruce_stairs[facing=south,half=top]").state();
         helper.assertTrue(stairs.is(Blocks.SPRUCE_STAIRS)
                         && stairs.getValue(net.minecraft.world.level.block.StairBlock.FACING)
                                 == net.minecraft.core.Direction.SOUTH
                         && stairs.getValue(net.minecraft.world.level.block.StairBlock.HALF)
                                 == net.minecraft.world.level.block.state.properties.Half.TOP,
                 "the block state must come through the block_id, got " + stairs);
-        var statefulMix = com.dwinovo.numen.core.build.BuildPalette
-                .parse("oak_slab[type=top]*3, stone_brick_slab[type=top]");
-        helper.assertTrue(!statefulMix.isSingle() && statefulMix.first().state()
-                        .getValue(net.minecraft.world.level.block.SlabBlock.TYPE)
-                                == net.minecraft.world.level.block.state.properties.SlabType.TOP,
-                "a weighted mix of stateful blocks must survive the split");
         String stateMsg = "";
         try {
-            com.dwinovo.numen.core.build.BuildPalette.parse("stone[facing=north]");
+            com.dwinovo.numen.core.build.BuildStates.resolve("stone[facing=north]");
         } catch (IllegalArgumentException e) {
             stateMsg = String.valueOf(e.getMessage());
         }
@@ -344,8 +386,7 @@ public class BuildGameTests {
                 "a property the block does not have must be refused by name; got \"" + stateMsg + "\"");
 
         // 没有自己物品的方块要拿替代料算账,否则文档里教的 dirt_path 根本放不下去
-        helper.assertTrue(com.dwinovo.numen.core.build.BuildPalette.parse("dirt_path")
-                        .pick(BlockPos.ZERO).item() == Items.DIRT,
+        helper.assertTrue(com.dwinovo.numen.core.build.BuildStates.resolve("dirt_path").item() == Items.DIRT,
                 "dirt_path has no item of its own; it must be billed as dirt");
 
         // 一格几件料:双层砖是两块半砖摞出来的,门/床的上半不重复计
@@ -458,7 +499,7 @@ public class BuildGameTests {
 
         // 再在世界里走一遍:旗帜的花纹要真的落到方块实体上
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_banner", new BlockPos(2, 2, 2), true);
+        NumenPlayer companion = spawnAt(helper, "gametest_banner", new BlockPos(5, 2, 5), true);
         BlockPos at = helper.absolutePos(new BlockPos(7, 2, 7));
         var patterns = new net.minecraft.nbt.ListTag();
         var one = new net.minecraft.nbt.CompoundTag();
@@ -472,12 +513,12 @@ public class BuildGameTests {
         var targets = List.of(new BuildTaskRecord.Target(Blocks.WHITE_BANNER, Items.WHITE_BANNER,
                 at, "banner"));
         var ctx = TaskDispatch.ctx("gametest-be", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(4000L), targets,
-                com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, false, false,
-                java.util.Map.of(at.asLong(), bannerData)), null, reply -> {});
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(), ctx.deadline(4000L),
+                new com.dwinovo.numen.core.build.Layout(targets, net.minecraft.core.Vec3i.ZERO,
+                        java.util.Map.of(at.asLong(), bannerData), List.of(), java.util.Map.of(), 0),
+                false, false));
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(level.getBlockState(at).is(Blocks.WHITE_BANNER),
                     "the banner itself is not placed yet");
             var be = level.getBlockEntity(at);
@@ -762,17 +803,14 @@ public class BuildGameTests {
         helper.assertTrue(carried.size() == 1 && carried.get(0).is(Items.DIAMOND),
                 "the frame's diamond must show up as a material requirement, got " + carried);
         // 免耗材同伴不付料,所以框里那颗钻石照放——收什么放什么,这一档收的是零
-        NumenPlayer companion = spawnAt(helper, "gametest_hanger", new BlockPos(1, 2, 1), true);
+        NumenPlayer companion = spawnAt(helper, "gametest_hanger", new BlockPos(3, 2, 5), true);
         var ctx = TaskDispatch.ctx("gametest-fixtures", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(1000L), loaded.targets(),
-                com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, false, true,
-                loaded.blockEntityData(), loaded.entities()), null, reply -> {});
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(), ctx.deadline(1000L), loaded, false, true));
 
         Vec3 want = new Vec3(anchor.getX() + 1.5, anchor.getY() + 0.5, anchor.getZ() + 2.5);
         net.minecraft.world.phys.AABB near = new net.minecraft.world.phys.AABB(
                 want.x - 2, want.y - 2, want.z - 2, want.x + 2, want.y + 2, want.z + 2);
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             var frames = level.getEntities(
                     net.minecraft.world.entity.EntityType.ITEM_FRAME, near, e -> true);
             helper.assertTrue(!frames.isEmpty(),
@@ -1132,7 +1170,7 @@ public class BuildGameTests {
                         + loaded.targets().size());
 
         // 生存同伴:每种料给"够一遍 + 恰好多一件"。第二遍动一下就会吃掉多的那件。
-        NumenPlayer companion = spawnAt(helper, "gametest_twice", new BlockPos(1, 2, 1), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_twice", new BlockPos(6, 2, 7), false);
         record Give(net.minecraft.world.item.Item item, int forOnePass) {}
         List<Give> supplies = List.of(
                 new Give(Items.STONE, 3),
@@ -1145,18 +1183,15 @@ public class BuildGameTests {
         }
 
         var ctx = TaskDispatch.ctx("gametest-twice-1", companion);
-        var first = new BuildTaskRecord(ctx.toolCallId(), ctx.deadline(3000L), loaded.targets(),
-                com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true, true,
-                loaded.blockEntityData(), loaded.entities());
-        first.cellNeeds(loaded.cellNeeds());
-        TaskDispatch.setTask(companion, first, null, reply -> {});
+        var first = buildJob(ctx.toolCallId(), ctx.deadline(3000L), loaded, true, true);
+        TaskDispatch.setTask(companion, first);
 
         var second = new BuildTaskRecord[1];
         net.minecraft.world.phys.AABB site = new net.minecraft.world.phys.AABB(
                 anchor.getX() - 2, anchor.getY() - 2, anchor.getZ() - 2,
                 anchor.getX() + 6, anchor.getY() + 4, anchor.getZ() + 6);
 
-        helper.startSequence()
+        steps(helper)
                 // 第一遍:逐格对上,两只摆设都在
                 .thenWaitUntil(() -> {
                     for (BuildTaskRecord.Target t : loaded.targets()) {
@@ -1185,11 +1220,8 @@ public class BuildGameTests {
                 // 派第二次:同一份目标集、同一份摆设
                 .thenExecute(() -> {
                     var ctx2 = TaskDispatch.ctx("gametest-twice-2", companion);
-                    second[0] = new BuildTaskRecord(ctx2.toolCallId(), ctx2.deadline(3000L),
-                            loaded.targets(), com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY,
-                            true, true, loaded.blockEntityData(), loaded.entities());
-                    second[0].cellNeeds(loaded.cellNeeds());
-                    TaskDispatch.setTask(companion, second[0], null, reply -> {});
+                    second[0] = buildJob(ctx2.toolCallId(), ctx2.deadline(3000L), loaded, true, true);
+                    TaskDispatch.setTask(companion, second[0]);
                 })
                 .thenIdle(60)
                 .thenExecute(() -> {
@@ -1257,29 +1289,26 @@ public class BuildGameTests {
         var loaded = com.dwinovo.numen.core.blueprint.BlueprintStore.load(
                 level, "fixture_partial", anchor, 0);
 
-        NumenPlayer companion = spawnAt(helper, "gametest_restock", new BlockPos(1, 2, 1), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_restock", new BlockPos(6, 2, 7), false);
         // 第一批只给两块石头——够砌墙的一部分,床与摆设一件料都没有
         companion.getInventory().add(new ItemStack(Items.STONE, 2));
 
         var ctx = TaskDispatch.ctx("gametest-restock-1", companion);
-        var first = new BuildTaskRecord(ctx.toolCallId(), ctx.deadline(6000L), loaded.targets(),
-                com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true, true,
-                loaded.blockEntityData(), loaded.entities());
-        first.cellNeeds(loaded.cellNeeds());
+        var first = buildJob(ctx.toolCallId(), ctx.deadline(6000L), loaded, true, true);
         // 注:dispatchAsync 的 reply 是<b>派发受理</b>回执("已受理,后台执行中"),不是
         // 最终结果——拿它当完工信号会立刻通过而什么都没等到。用进度本身当信号。
-        TaskDispatch.setTask(companion, first, null, reply -> {});
+        TaskDispatch.setTask(companion, first);
 
         var second = new BuildTaskRecord[1];
         net.minecraft.world.phys.AABB site = new net.minecraft.world.phys.AABB(
                 anchor.getX() - 2, anchor.getY() - 2, anchor.getZ() - 2,
                 anchor.getX() + 6, anchor.getY() + 4, anchor.getZ() + 6);
 
-        helper.startSequence()
+        steps(helper)
                 // 她把手上两块石头砌出去
                 .thenWaitUntil(() -> helper.assertTrue(first.placed() >= 2,
                         "she should lay the two stones she has, placed=" + first.placed()))
-                // 再等三个零进展遍走完(每遍之间有挪窝冷却),任务缺料失败退出
+                // 这一遍走完,任务缺料失败退出
                 .thenIdle(400)
                 .thenExecute(() -> {
                     // 停在半途:砌了东西,但没砌完——否则这条用例退化成上一条
@@ -1309,11 +1338,8 @@ public class BuildGameTests {
                     companion.getInventory().add(new ItemStack(Items.ARMOR_STAND, 1 + 1));
                     companion.getInventory().add(new ItemStack(Items.DIAMOND, 1 + 1));
                     var ctx2 = TaskDispatch.ctx("gametest-restock-2", companion);
-                    second[0] = new BuildTaskRecord(ctx2.toolCallId(), ctx2.deadline(6000L),
-                            loaded.targets(), com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY,
-                            true, true, loaded.blockEntityData(), loaded.entities());
-                    second[0].cellNeeds(loaded.cellNeeds());
-                    TaskDispatch.setTask(companion, second[0], null, reply -> {});
+                    second[0] = buildJob(ctx2.toolCallId(), ctx2.deadline(6000L), loaded, true, true);
+                    TaskDispatch.setTask(companion, second[0]);
                 })
                 // 第二遍把剩下的补齐
                 .thenWaitUntil(() -> {
@@ -1416,19 +1442,16 @@ public class BuildGameTests {
         var loaded = com.dwinovo.numen.core.blueprint.BlueprintStore.load(
                 level, "fixture_starve", anchor, 0);
 
-        NumenPlayer companion = spawnAt(helper, "gametest_starve", new BlockPos(1, 2, 1), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_starve", new BlockPos(6, 2, 7), false);
         // 两块石头:够砌两格,然后就彻底断了(床、展示框、盔甲架一件料都没有)
         companion.getInventory().add(new ItemStack(Items.STONE, 2));
 
         var ctx = TaskDispatch.ctx("gametest-starve", companion);
-        var rec = new BuildTaskRecord(ctx.toolCallId(), ctx.deadline(6000L), loaded.targets(),
-                com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true, true,
-                loaded.blockEntityData(), loaded.entities());
-        rec.cellNeeds(loaded.cellNeeds());
-        TaskDispatch.setTask(companion, rec, null, reply -> {});
+        var rec = buildJob(ctx.toolCallId(), ctx.deadline(6000L), loaded, true, true);
+        TaskDispatch.setTask(companion, rec);
 
         long[] startTick = {level.getGameTime()};
-        helper.startSequence()
+        steps(helper)
                 .thenWaitUntil(() -> helper.assertTrue(rec.placed() >= 2,
                         "she should lay the two stones she has, placed=" + rec.placed()))
                 .thenExecute(() -> startTick[0] = level.getGameTime())
@@ -1631,12 +1654,10 @@ public class BuildGameTests {
      */
     @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_build")
     public static void skill_docs_name_real_blocks(GameTestHelper helper) {
-        // 我们自己的词汇:工具、op、参数、状态键、形制名。它们和方块名共用反引号,
-        // 但不该去注册表里找。
+        // 我们自己的词汇:形状的参数名、状态键、技能名、形制名。它们和方块名共用反引号,
+        // 但不该去注册表里找。命令写得对不对归命令树判,这里只管方块名。
         java.util.Set<String> ours = java.util.Set.of(
-                "block_id", "legend", "rows", "mask", "carve", "overwrite", "solid", "keep",
-                "rotation", "mirror", "include_air", "hollow", "load_skill", "task_status",
-                "task_finished", "building_design", "blueprint_read",
+                "legend", "rows", "rotation", "hollow", "building_design",
                 "short_grass", "dirt_path", "coarse_dirt", "flower_pot", "decorated_pot",
                 "x1", "y1", "z1", "x2", "y2", "z2");
         java.util.List<String> bad = new java.util.ArrayList<>();
@@ -1801,7 +1822,7 @@ public class BuildGameTests {
             for (boolean survival : new boolean[]{true, false}) {
                 long need = com.dwinovo.numen.core.task.build.BuildOrder
                         .estimatedTicks(cells, survival);
-                long budget = com.dwinovo.numen.core.tools.work.BuildTool.timeoutTicksFor(cells, survival);
+                long budget = com.dwinovo.numen.core.task.build.BuildOrder.deadlineTicks(cells, survival);
                 helper.assertTrue(budget > need,
                         "deadline must exceed the build itself: " + cells + " cells, survival="
                                 + survival + ", needs " + need + " ticks but budget is " + budget);
@@ -1815,84 +1836,57 @@ public class BuildGameTests {
     }
 
     /**
-     * 一栋小屋,从工具入口按模型的样子下单:地基、墙、双坡屋顶、门窗细节全用通用原语
-     * 写成——一张字符网格是一层,楼梯屋顶是逐课的网格,细节是单格。
+     * 一栋小屋,照模型的样子用一段 Lua 画出来再开工:地基、墙、双坡屋顶、门窗细节全用 {@code numen.shape}——一张字符网格是一层,
+     * 楼梯屋顶是逐课的网格,细节是单格,几串格合起来后写的盖掉先写的。
      *
-     * <p>这条用例是新原语集的整活钉桩:网格带图例、网格按层重复、方块状态跟在方块名里
-     * ({@code oak_stairs[facing=south]})、同一次调用里后写覆盖先写,四件事缺一条都盖不出
-     * 这栋屋子。
+     * <p>这条用例是 {@code numen.shape} 的整活钉桩:网格带图例、网格按层重复、方块状态跟在方块名里({@code oak_stairs[facing=south]})、
+     * 合起来时后写覆盖先写(门洞挖开墙),四件事缺一条都盖不出这栋屋子。
      */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_build_cottage")
     public static void build_medieval_cottage(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos spawn = helper.absolutePos(new BlockPos(2, 2, 2));
-        NumenPlayer companion = CompanionFactory.spawn(level.getServer(), UUID.randomUUID(),
-                "gametest_carpenter", UUID.randomUUID(), level,
-                new Vec3(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5));
-        // 这条量的是原语能不能盖出一栋屋子,不是生存备料:免耗材档
-        companion.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
-        // 发脚手架:垫柱残料由交付前的清扫遍拆除,门洞可通行断言就是它的回归测试
+        // 这条量的是形状能不能盖出一栋屋子,不是生存备料:免耗材档
+        NumenPlayer companion = spawnAt(helper, "gametest_carpenter", new BlockPos(2, 2, 2), true);
+        // 发垫路料:上高处垫柱要料
         companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
         companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
 
         BlockPos o = helper.absolutePos(new BlockPos(4, 2, 5));   // 地基西北角
-        int x = o.getX();
-        int y = o.getY();
-        int z = o.getZ();
-        // 12 x 10 的占地:地基一层实心,墙圈三层,屋顶四课
-        List<String> solid = List.of(
-                "############", "############", "############", "############", "############",
-                "############", "############", "############", "############", "############");
-        List<String> ring = List.of(
-                "############", "#..........#", "#..........#", "#..........#", "#..........#",
-                "#..........#", "#..........#", "#..........#", "#..........#", "############");
-        ToolRun build = call(companion, "build", args("ops", List.of(
-                args("op", "layer", "x1", x, "y1", y, "z1", z,
-                        "rows", solid, "block_id", "minecraft:cobblestone"),
-                args("op", "layer", "x1", x, "y1", y + 1, "z1", z, "y2", y + 3,
-                        "rows", ring, "block_id", "minecraft:oak_planks"),
-                // 屋顶:每课一张网格,两侧楼梯对着爬,顶上一条半砖压脊
-                args("op", "layer", "x1", x, "y1", y + 4, "z1", z, "rows", List.of(
-                        "<<<<<<<<<<<<", "............", "............", "............",
-                        "............", "............", "............", "............",
-                        "............", ">>>>>>>>>>>>"),
-                        "legend", args("<", "minecraft:oak_stairs[facing=south]",
-                                ">", "minecraft:oak_stairs[facing=north]")),
-                args("op", "layer", "x1", x, "y1", y + 5, "z1", z, "rows", List.of(
-                        "............", "<<<<<<<<<<<<", "............", "............",
-                        "............", "............", "............", "............",
-                        ">>>>>>>>>>>>", "............"),
-                        "legend", args("<", "minecraft:oak_stairs[facing=south]",
-                                ">", "minecraft:oak_stairs[facing=north]")),
-                args("op", "layer", "x1", x, "y1", y + 6, "z1", z, "rows", List.of(
-                        "............", "............", "<<<<<<<<<<<<", "............",
-                        "............", "............", "............", ">>>>>>>>>>>>",
-                        "............", "............"),
-                        "legend", args("<", "minecraft:oak_stairs[facing=south]",
-                                ">", "minecraft:oak_stairs[facing=north]")),
-                args("op", "layer", "x1", x, "y1", y + 7, "z1", z, "rows", List.of(
-                        "............", "............", "............", "============",
-                        "============", "============", "============", "............",
-                        "............", "............"),
-                        "legend", args("=", "minecraft:oak_slab")),
-                // 细节:四角原木柱(状态跟在方块名里)、南面门洞、玻璃窗、屋内火把
-                args("op", "line", "x1", x, "y1", y + 1, "z1", z, "x2", x, "y2", y + 3, "z2", z,
-                        "block_id", "minecraft:oak_log[axis=y]"),
-                args("op", "line", "x1", x + 11, "y1", y + 1, "z1", z, "x2", x + 11, "y2", y + 3, "z2", z,
-                        "block_id", "minecraft:oak_log[axis=y]"),
-                args("op", "line", "x1", x, "y1", y + 1, "z1", z + 9, "x2", x, "y2", y + 3, "z2", z + 9,
-                        "block_id", "minecraft:oak_log[axis=y]"),
-                args("op", "line", "x1", x + 11, "y1", y + 1, "z1", z + 9,
-                        "x2", x + 11, "y2", y + 3, "z2", z + 9, "block_id", "minecraft:oak_log[axis=y]"),
-                args("op", "layer", "x1", x + 5, "y1", y + 1, "z1", z, "y2", y + 2,
-                        "rows", List.of("##"), "block_id", "minecraft:air"),
-                args("op", "set", "x", x + 2, "y", y + 2, "z", z, "block_id", "minecraft:glass_pane"),
-                args("op", "set", "x", x + 9, "y", y + 2, "z", z, "block_id", "minecraft:glass_pane"),
-                args("op", "set", "x", x + 5, "y", y + 1, "z", z + 4, "block_id", "minecraft:torch"))));
+        String solid = " ############".repeat(10);
+        String ring = " ############" + " #..........#".repeat(8) + " ############";
+        // 12 x 10 的占地:地基一层实心,墙圈三层,屋顶四课(两侧楼梯对着爬,顶上一条半砖压脊);细节:四角原木柱、南面门洞、
+        // 玻璃窗、屋内火把
+        String program = """
+                local S = numen.shape
+                local o = %s
+                local function at(x, y, z) return S.pos(o.x + x, o.y + y, o.z + z) end
+                local stairs = {["<"] = "oak_stairs[facing=south]", [">"] = "oak_stairs[facing=north]"}
+                local c = S.layer(o, %s, {["#"] = "cobblestone"})
+                for y = 1, 3 do
+                  c = c:union(S.layer(at(0, y, 0), %s, {["#"] = "oak_planks"}))
+                end
+                c = c:union(S.layer(at(0, 4, 0), %s, stairs))
+                c = c:union(S.layer(at(0, 5, 0), %s, stairs))
+                c = c:union(S.layer(at(0, 6, 0), %s, stairs))
+                c = c:union(S.layer(at(0, 7, 0), %s, {["="] = "oak_slab"}))
+                for _, xz in ipairs({{0, 0}, {11, 0}, {0, 9}, {11, 9}}) do
+                  c = c:union(S.line(at(xz[1], 1, xz[2]), at(xz[1], 3, xz[2]), "oak_log[axis=y]"))
+                end
+                c = c:union(S.box(at(5, 1, 0), at(6, 2, 0), "air"))
+                c = c:union({{name = "glass_pane", pos = at(2, 2, 0)}, {name = "glass_pane", pos = at(9, 2, 0)},
+                  {name = "torch", pos = at(5, 1, 4)}})
+                numen.build.raise(c, {costs = {dig = true, place = true, consent = false}})
+                """.formatted(xyz(o), rows(solid), rows(ring),
+                rows("<<<<<<<<<<<<" + " ............".repeat(8) + " >>>>>>>>>>>>"),
+                rows("............ <<<<<<<<<<<<" + " ............".repeat(6) + " >>>>>>>>>>>> ............"),
+                rows(" ............".repeat(2) + " <<<<<<<<<<<<" + " ............".repeat(4) + " >>>>>>>>>>>>"
+                        + " ............".repeat(2)),
+                rows(" ............".repeat(3) + " ============".repeat(4) + " ............".repeat(3)));
+        Raising build = new Raising(helper, companion, program);
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(build.done(), "build has not finished");
-            helper.assertTrue(build.succeeded(), "the cottage was not finished: " + build.outcome());
+        // 收场了就判一次:停在别的原因上是失败,不等到时限
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(build.done(), "numen.build.raise has not finished")).thenExecute(() -> {
+            helper.assertTrue(build.last().ranToTheEnd(), "the cottage was not finished: " + build.last().receipt());
             helper.assertTrue(level.getBlockState(o).is(Blocks.COBBLESTONE), "no foundation");
             helper.assertTrue(level.getBlockState(o.offset(0, 1, 0)).is(Blocks.OAK_LOG), "no corner post");
             helper.assertTrue(level.getBlockState(o.offset(3, 1, 0)).is(Blocks.OAK_PLANKS), "no wall");
@@ -1909,7 +1903,54 @@ public class BuildGameTests {
                         "doorway blocked at " + at.toShortString());
             }
             CompanionFactory.despawn(level.getServer(), companion);
-        });
+        }).thenSucceed();
+    }
+
+    /**
+     * 一份蓝图文件:每一格是什么(相对文件原点),写成 schematics 目录下的 {@code .nbt}。同名的旧文件被盖掉:测试服的蓝图库跨次复用,
+     * 这一次写的才算。
+     */
+    private static void writeBlueprint(ServerLevel level, String name, java.util.Map<BlockPos, BlockState> cells)
+            throws Exception {
+        int[] max = {0, 0, 0};
+        List<BlockState> states = new ArrayList<>();
+        var blocks = new net.minecraft.nbt.ListTag();
+        for (var cell : cells.entrySet()) {
+            BlockPos p = cell.getKey();
+            max[0] = Math.max(max[0], p.getX());
+            max[1] = Math.max(max[1], p.getY());
+            max[2] = Math.max(max[2], p.getZ());
+            if (!states.contains(cell.getValue())) {
+                states.add(cell.getValue());
+            }
+            blocks.add(cellTag(p.getX(), p.getY(), p.getZ(), states.indexOf(cell.getValue())));
+        }
+        var root = new net.minecraft.nbt.CompoundTag();
+        var size = new net.minecraft.nbt.ListTag();
+        for (int n : max) {
+            size.add(net.minecraft.nbt.IntTag.valueOf(n + 1));
+        }
+        root.put("size", size);
+        var palette = new net.minecraft.nbt.ListTag();
+        states.forEach(st -> palette.add(net.minecraft.nbt.NbtUtils.writeBlockState(st)));
+        root.put("palette", palette);
+        root.put("blocks", blocks);
+        root.put("entities", new net.minecraft.nbt.ListTag());
+        net.minecraft.nbt.NbtIo.writeCompressed(root,
+                com.dwinovo.numen.core.blueprint.BlueprintStore.dir(level.getServer()).resolve(name + ".nbt"));
+    }
+
+    /** 空格隔开的几行字符图写成脚本里的一串行:{@code " ### #.#"} 是 {@code {"###", "#.#"}}。 */
+    private static String rows(String spaced) {
+        return "{" + java.util.Arrays.stream(spaced.strip().split(" +")).map(r -> "\"" + r + "\"")
+                .collect(java.util.stream.Collectors.joining(", ")) + "}";
+    }
+
+    /** 当场回的那一行必须成功,否则把回执原样报出来。 */
+    private static void requireOk(ToolRun run) {
+        if (!run.succeeded()) {
+            throw new net.minecraft.gametest.framework.GameTestAssertException("not accepted: " + run.reply());
+        }
     }
 
     /** 蓝图批次前置:和平难度 + 正午。 */
@@ -1928,8 +1969,8 @@ public class BuildGameTests {
     /**
      * 经典蓝图:运行时从原版资源里取雪屋顶屋(igloo/top,7x5x8——雪墙、冰窗、
      * 木门、床、火把、熔炉、工作台俱全),写成 schematics 目录下的 .nbt,
-     * 再经 BlueprintStore 展开成建造任务。覆盖 .nbt 读取、精确状态落位(门/床双格、
-     * 火把贴附)、骨架先行贴附后置的阶段序,以及免材料模式。
+     * 再交给库里的 {@code numen.build.raise} 一轮轮走着盖。覆盖 .nbt 读取、精确状态落位(门/床双格、
+     * 火把贴附)、骨架先行贴附后置的阶段序,以及创造档不耗材料。
      */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_blueprint")
     public static void blueprint_igloo(GameTestHelper helper) {
@@ -1945,22 +1986,18 @@ public class BuildGameTests {
             throw new RuntimeException(e);
         }
 
-        BlockPos spawn = helper.absolutePos(new BlockPos(2, 2, 2));
-        NumenPlayer companion = CompanionFactory.spawn(level.getServer(), UUID.randomUUID(),
-                "gametest_architect", UUID.randomUUID(), level,
-                new Vec3(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5));
-        // 蓝图免材料只是不消耗;寻路的脚手架(垫柱上穹顶)是真实放置,得有料
+        // 量的是图纸能不能照原样盖出来,不是生存备料:创造档不耗材料;寻路垫柱上穹顶是真实放置,圆石设成垫路料
+        NumenPlayer companion = spawnAt(helper, "gametest_architect", new BlockPos(2, 2, 2), true);
         companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
         companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
 
         BlockPos anchorPos = helper.absolutePos(new BlockPos(7, 2, 7));
         var loaded = com.dwinovo.numen.core.blueprint.BlueprintStore.load(level, "igloo_top", anchorPos, 0);
-        var ctx = TaskDispatch.ctx("gametest-blueprint", companion);
-        long deadline = ctx.deadline(Math.max(2400L, loaded.targets().size() * 400L));
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(), deadline,
-                loaded.targets(), com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, false), null, reply -> {});
+        ToolRun raise = lua(companion, "numen.build.raise(numen.build.blueprint(\"igloo_top\", " + xyz(anchorPos) + "), {costs = {dig = true, place = true, consent = false}})");
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
+            helper.assertTrue(raise.receipt() != null, "numen.build.raise has not finished");
+            helper.assertTrue(raise.ranToTheEnd(), "numen.build.raise failed: " + raise.receipt());
             for (BuildTaskRecord.Target target : loaded.targets()) {
                 helper.assertTrue(target.matches(level.getBlockState(target.pos())),
                         "blueprint cell mismatch at " + target.pos().toShortString()
@@ -1974,93 +2011,52 @@ public class BuildGameTests {
      *  (站在旁边就该侧身放上,不接受任何"找不到角度")。 */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_build")
     public static void build_single_block(GameTestHelper helper) {
-        runBuildCase(helper, "gametest_handyman",
+        raiseCase(helper, "gametest_handyman", new BlockPos(6, 3, 6),
+                c -> "{{name = \"cobblestone\", pos = " + xyz(c) + "}}",
                 List.of(new BlockPos(6, 3, 6)), 1);
     }
 
-    /** 实心 5x5x5(125 格):逐层实心浇筑,身体要在自己刚铺的层面上走位。 */
+    /** 实心 5x5x5(125 格):逐层实心浇筑,高处的格要垫块上去够。 */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_build_heavy")
     public static void build_solid_cube(GameTestHelper helper) {
-        runBuildCase(helper, "gametest_mason",
+        raiseCase(helper, "gametest_mason", new BlockPos(7, 2, 7), cobbleBox(5, 5, 5),
                 boxCells(new BlockPos(7, 2, 7), 5, 5, 5, false), 4);
     }
 
     /** 一堵 10x4 的墙(40 格):长条高结构,沿线往返 + 够高处的格子。 */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_build")
     public static void build_wall(GameTestHelper helper) {
-        runBuildCase(helper, "gametest_waller",
+        raiseCase(helper, "gametest_waller", new BlockPos(5, 2, 10), cobbleBox(10, 4, 1),
                 boxCells(new BlockPos(5, 2, 10), 10, 4, 1, false), 2);
     }
 
-    /** 2x2x8 高塔(32 格):细高结构,自体脚手架式攀升,收尾要从塔顶回地面。 */
+    /** 2x2x8 高塔(32 格):细高结构,上面的格要垫块爬上去够。 */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_build")
     public static void build_pillar(GameTestHelper helper) {
-        runBuildCase(helper, "gametest_towerer",
+        raiseCase(helper, "gametest_towerer", new BlockPos(9, 2, 9), cobbleBox(2, 8, 2),
                 boxCells(new BlockPos(9, 2, 9), 2, 8, 2, false), 2);
     }
 
     /** 9x9 平台(81 格):纯水平铺面,不触发分层,考横向站位与边铺边退。 */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_build")
     public static void build_platform(GameTestHelper helper) {
-        runBuildCase(helper, "gametest_paver",
+        raiseCase(helper, "gametest_paver", new BlockPos(5, 2, 5), cobbleBox(9, 1, 9),
                 boxCells(new BlockPos(5, 2, 5), 9, 1, 9, false), 3);
     }
 
     /**
-     * 赴工地不从图纸里抄近路。她在一道还是空气的墙的东边,巡视起点在墙的西北角外——直线过去
-     * 必穿墙的格子,而那些格子是空气,寻路本来乐意穿。穿过去的后果是:一条腿走到一半被截断,
-     * 她就站在了自己要砌的那格里,收工时那格永远"有人站着"。日式小屋差的两格门口台阶就是这么来的。
-     *
-     * <p>判据:整场建造里她的脚和头从不落在任何一个图纸格里,而且墙照样砌完。
-     */
-    @GameTest(template = "floor20", timeoutTicks = 6000, batch = "numen_build")
-    public static void build_walks_around_the_blueprint_not_through_it(GameTestHelper helper) {
-        List<BlockPos> wall = new ArrayList<>();
-        for (int z = 4; z <= 16; z++) {
-            wall.add(new BlockPos(6, 2, z));
-        }
-        ServerLevel level = helper.getLevel();
-        Dispatched build = dispatchBuild(helper, "gametest_detour", new BlockPos(10, 2, 10), wall, 1);
-        java.util.Set<BlockPos> blueprint = new java.util.HashSet<>(build.cells());
-        BlockPos[] trespass = {null};
-        helper.onEachTick(() -> {
-            if (trespass[0] != null) {
-                return;
-            }
-            BlockPos feet = build.companion().blockPosition();
-            if (blueprint.contains(feet)) {
-                trespass[0] = feet;
-            } else if (blueprint.contains(feet.above())) {
-                trespass[0] = feet.above();
-            }
-        });
-        helper.succeedWhen(() -> {
-            var result = build.record().getResult();
-            helper.assertTrue(result != null, "build has not finished");
-            helper.assertTrue(result.success(), "build failed: " + result.message());
-            for (BlockPos cell : build.cells()) {
-                helper.assertTrue(level.getBlockState(cell).is(Blocks.COBBLESTONE),
-                        "structure incomplete at " + cell.toShortString());
-            }
-            helper.assertTrue(trespass[0] == null, "she stood in a blueprint cell at "
-                    + (trespass[0] == null ? "-" : trespass[0].toShortString()));
-            CompanionFactory.despawn(level.getServer(), build.companion());
-        });
-    }
-
-    /**
-     * 被外力挪进图纸里也得盖完。工地格对寻路是重价不是禁区,为的就是这一刻:她被推进、
-     * 挤进、掉进还没砌的格子里时,得能自己走出来再把脚下那格补上——禁区的话她在原地
-     * 一步也走不出去,三遍零进展后就报"有人站着"。
+     * 被外力挪进要盖的格里也得盖完:她被推进、挤进、掉进还没砌的格子里时,{@code numen.build.raise} 下一轮问 {@code numen.build.diff},
+     * 走到够得着那格的地方(到达方式 reach 不站进要放的格),再把它补上。
      */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_build")
     public static void build_finishes_the_cells_she_was_pushed_into(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        Dispatched build = dispatchBuild(helper, "gametest_shoved", new BlockPos(2, 2, 2),
-                boxCells(new BlockPos(8, 2, 8), 5, 1, 5, false), 1);
+        Raised build = raise(helper, "gametest_shoved", new BlockPos(2, 2, 2), new BlockPos(8, 2, 8),
+                cobbleBox(5, 1, 5), boxCells(new BlockPos(8, 2, 8), 5, 1, 5, false), 1);
         BlockPos[] shovedInto = {null};
         helper.onEachTick(() -> {
-            if (shovedInto[0] != null || build.record().completed() < 5) {
+            if (shovedInto[0] != null
+                    || build.cells().stream().filter(c -> level.getBlockState(c).is(Blocks.COBBLESTONE)).count() < 5) {
                 return;
             }
             // 挑离她最远、还是空气的那格,把她整个人挪进去——脚就踩在自己要放的那格里
@@ -2078,16 +2074,178 @@ public class BuildGameTests {
             build.companion().teleportTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5);
             shovedInto[0] = target;
         });
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(shovedInto[0] != null, "she was never pushed in - the case did not run");
-            var result = build.record().getResult();
-            helper.assertTrue(result != null, "build has not finished");
-            helper.assertTrue(result.success(), "build failed: " + result.message());
+            helper.assertTrue(build.run().receipt() != null, "numen.build.raise has not finished");
+            helper.assertTrue(build.run().ranToTheEnd(), "numen.build.raise failed: " + build.run().receipt());
             for (BlockPos cell : build.cells()) {
                 helper.assertTrue(level.getBlockState(cell).is(Blocks.COBBLESTONE),
                         "structure incomplete at " + cell.toShortString());
             }
             CompanionFactory.despawn(level.getServer(), build.companion());
+        });
+    }
+
+    // ---- 当场的一次放:小活不演、站着清与换、缺格清单 ----
+
+    /** 一格的 {@code numen.build.place} 是一个动作:几刻之内放完收工,她站在原地不绕圈,没有二十五秒的演出。 */
+    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_build")
+    public static void placing_one_cell_is_done_at_once_without_walking(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_one_cell", new BlockPos(6, 2, 6), true);
+        BlockPos at = helper.absolutePos(new BlockPos(8, 2, 8));
+        long[] sentAt = {0};
+        Vec3[] from = {null};
+        ToolRun[] set = {null};
+        steps(helper)
+                .thenExecute(() -> {
+                    sentAt[0] = helper.getTick();
+                    from[0] = companion.position();
+                    set[0] = lua(companion, "numen.build.place({{name = \"stone\", pos = " + xyz(at) + "}})");
+                })
+                .thenWaitUntil(() -> helper.assertTrue(set[0].done(), "the build place has not finished"))
+                .thenExecute(() -> {
+                    long took = helper.getTick() - sentAt[0];
+                    helper.assertTrue(set[0].succeeded(), "numen.build.place failed: " + set[0].outcome());
+                    helper.assertTrue(level.getBlockState(at).is(Blocks.STONE), "no stone at the cell");
+                    helper.assertTrue(took <= 20, "a one-cell build place took " + took + " ticks");
+                    double moved = Math.hypot(companion.getX() - from[0].x, companion.getZ() - from[0].z);
+                    helper.assertTrue(moved < 0.5, "she walked " + moved + " blocks for a one-cell build place");
+                    CompanionFactory.despawn(level.getServer(), companion);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * 生存模式下要放的格里立着别的方块:{@code numen.build.place} 只放不挖,一行三格的空气当场拒,说这三格要先挖开、
+     * 给出挖的那一行;照着用 {@code numen.work.dig} 挖掉——真挖(徒手挖一块泥土要十五刻),{@code numen.work.collect} 把掉下来的泥土捡回包里。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 4000, batch = "numen_build")
+    public static void survival_build_digs_out_what_must_go(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        List<BlockPos> dirt = List.of(helper.absolutePos(new BlockPos(8, 2, 8)), helper.absolutePos(new BlockPos(9, 2, 8)),
+                helper.absolutePos(new BlockPos(10, 2, 8)));
+        for (BlockPos pos : dirt) {
+            level.setBlockAndUpdate(pos, Blocks.DIRT.defaultBlockState());
+        }
+        NumenPlayer companion = spawnAt(helper, "gametest_clearer", new BlockPos(9, 2, 6), false);
+        long[] sentAt = {0};
+        ToolRun[] runs = {null, null};
+        steps(helper)
+                .thenExecute(() -> runs[0] = lua(companion, "numen.build.place(numen.shape.line(" + xyz(dirt.get(0)) + ", "
+                        + xyz(dirt.get(2)) + ", \"air\"))"))
+                .thenWaitUntil(() -> helper.assertTrue(runs[0].done(), "the build has not replied"))
+                .thenExecute(() -> {
+                    helper.assertTrue(runs[0].refused() && runs[0].outcome().contains("3 cell(s) hold another block that "
+                                    + "must be dug out first") && runs[0].outcome().contains("numen.work.dig("),
+                            "the build did not refuse and point at numen.work.dig: " + runs[0].outcome());
+                    helper.assertTrue(dirt.stream().allMatch(p -> level.getBlockState(p).is(Blocks.DIRT)),
+                            "a refused build touched the dirt");
+                    sentAt[0] = helper.getTick();
+                    runs[1] = lua(companion, "numen.work.dig(" + xyz(dirt.get(0)) + ", " + xyz(dirt.get(1)) + ", "
+                            + xyz(dirt.get(2)) + ")\nnumen.work.collect()");
+                })
+                .thenWaitUntil(() -> helper.assertTrue(runs[1].receipt() != null, "the dig has not finished"))
+                .thenExecute(() -> {
+                    long took = helper.getTick() - sentAt[0];
+                    helper.assertTrue(runs[1].ranToTheEnd(), "the dig did not clear the three cells: " + runs[1].receipt());
+                    for (BlockPos pos : dirt) {
+                        helper.assertTrue(level.getBlockState(pos).isAir(), "dirt still stands at " + pos.toShortString());
+                    }
+                    helper.assertTrue(companion.getInventory().countItem(Items.DIRT) == 3,
+                            "the dug dirt did not end up in her pack: " + companion.getInventory().countItem(Items.DIRT));
+                    helper.assertTrue(took >= 3 * 15, "three blocks of dirt went in " + took + " ticks — not dug by hand");
+                    CompanionFactory.despawn(level.getServer(), companion);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * 创造模式直接替换:原版创造一下就碎。一行三块泥土上放一行石头,另一行三块泥土上放一行空气({@code numen.shape.line})——
+     * 她站在两行中间,几刻之内一行成了石头、一行成了空气,地上没有掉落物;回执说换了三格、清了三格。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_build")
+    public static void creative_build_replaces_what_stands_there_at_once(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        List<BlockPos> toStone = new ArrayList<>();
+        List<BlockPos> toAir = new ArrayList<>();
+        for (int x = 8; x <= 10; x++) {
+            toStone.add(helper.absolutePos(new BlockPos(x, 2, 6)));
+            toAir.add(helper.absolutePos(new BlockPos(x, 2, 10)));
+        }
+        for (BlockPos pos : toStone) {
+            level.setBlockAndUpdate(pos, Blocks.DIRT.defaultBlockState());
+        }
+        for (BlockPos pos : toAir) {
+            level.setBlockAndUpdate(pos, Blocks.DIRT.defaultBlockState());
+        }
+        NumenPlayer companion = spawnAt(helper, "gametest_creator", new BlockPos(9, 2, 8), true);
+        ToolRun[] runs = {null, null};
+        steps(helper)
+                .thenExecute(() -> runs[0] = lua(companion, "numen.build.place(numen.shape.line(" + xyz(toStone.get(0)) + ", "
+                        + xyz(toStone.get(2)) + ", \"stone\"))"))
+                .thenWaitUntil(() -> helper.assertTrue(runs[0].done(), "the stone line has not finished"))
+                .thenExecute(() -> runs[1] = lua(companion, "numen.build.place(numen.shape.line(" + xyz(toAir.get(0)) + ", "
+                        + xyz(toAir.get(2)) + ", \"air\"))"))
+                .thenWaitUntil(() -> helper.assertTrue(runs[1].done(), "the air line has not finished"))
+                .thenExecute(() -> {
+                    helper.assertTrue(runs[0].succeeded() && runs[0].outcome().contains("3 replacing what stood there"),
+                            "the stone line did not replace the dirt: " + runs[0].outcome());
+                    helper.assertTrue(runs[1].succeeded() && runs[1].outcome().contains("cleared 3"),
+                            "the air line did not clear the dirt: " + runs[1].outcome());
+                    for (BlockPos pos : toStone) {
+                        helper.assertTrue(level.getBlockState(pos).is(Blocks.STONE), "no stone at " + pos.toShortString());
+                    }
+                    for (BlockPos pos : toAir) {
+                        helper.assertTrue(level.getBlockState(pos).isAir(), "dirt still stands at " + pos.toShortString());
+                    }
+                    long drops = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                            new net.minecraft.world.phys.AABB(helper.absolutePos(new BlockPos(9, 2, 8))).inflate(6)).size();
+                    helper.assertTrue(drops == 0, drops + " drop(s) lie around after a creative build");
+                    CompanionFactory.despawn(level.getServer(), companion);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * 要放的格里两朵虞美人落在石头上:原版不让它们立在那儿。第一次放下石头(虞美人等着它们下面的石头),回执说还有两格下一次放;
+     * 第二次放以"立不住"收场,不是"没有路";回执按病因归堆,点名虞美人和它们的每一格。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 2000, batch = "numen_build")
+    public static void cells_vanilla_will_not_hold_are_reported_one_by_one(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_unheld", new BlockPos(9, 2, 6), true);
+        BlockPos o = helper.absolutePos(new BlockPos(8, 2, 8));
+        BlockPos first = o.offset(0, 1, 0);
+        BlockPos second = o.offset(2, 1, 0);
+        String place = "numen.build.place(numen.shape.line(" + xyz(o) + ", " + xyz(o.offset(2, 0, 0))
+                + ", \"stone\"):union({{name = \"poppy\", pos = " + xyz(first) + "}, {name = \"poppy\", pos = "
+                + xyz(second) + "}}))";
+        ToolRun stones = lua(companion, place);
+        ToolRun[] flowers = new ToolRun[1];
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(stones.done(), "the first build has not finished");
+            helper.assertTrue(stones.succeeded() && stones.outcome().contains("2 cell(s) within reach go in on the next "
+                    + "numen.build.place"), "the first build does not say the flowers come next: " + stones.outcome());
+            if (flowers[0] == null) {
+                flowers[0] = lua(companion, place);
+            }
+            ToolRun build = flowers[0];
+            helper.assertTrue(build.done(), "the second build has not finished");
+            String outcome = build.outcome();
+            helper.assertTrue(!build.succeeded(), "two flowers on stone cannot be built: " + outcome);
+            helper.assertTrue(outcome.contains("vanilla physics will not hold"),
+                    "the failure is not put down to the flowers not holding: " + outcome);
+            helper.assertTrue(!outcome.contains("no route") && !outcome.contains("could not reach"),
+                    "the failure is reported as a path problem: " + outcome);
+            // 两朵按离她远近排:先列哪一朵随她站在哪
+            helper.assertTrue(outcome.contains("2 poppy (")
+                            && outcome.contains(first.getX() + "," + first.getY() + "," + first.getZ())
+                            && outcome.contains(second.getX() + "," + second.getY() + "," + second.getZ()),
+                    "the receipt does not list both flowers with where they are: " + outcome);
+            helper.assertTrue(level.getBlockState(o).is(Blocks.STONE), "the stone under them was not built");
+            CompanionFactory.despawn(level.getServer(), companion);
         });
     }
 
@@ -2098,11 +2256,11 @@ public class BuildGameTests {
     }
 
     /**
-     * 终极实战:创造同伴(免材料+自动脚手架)把 5859 格的日式小屋从图纸
+     * 终极实战:创造同伴(免材料,圆石作垫路料)用 {@code numen.build.raise} 把 5859 格的日式小屋从图纸
      * 盖到世界里,逐格对账(液体格已被管线跳过,不在目标集内)。
      *
      * <p>整栋房子的验收条件是逐格全中,不是"盖了大半"。它同时压着施工模型的
-     * 三个要害:低层先行的顺序、支撑还没长出来时的分遍推迟、以及她自己站过的
+     * 三个要害:低层先行的顺序、支撑还没长出来时留给下一次放、以及她自己站过的
      * 格子最终也得补上。
      */
     // 时限给得远远宽于实际用时。考的是"能不能盖完",不是"多快盖完"。
@@ -2114,17 +2272,15 @@ public class BuildGameTests {
         BlockPos anchor = helper.absolutePos(new BlockPos(6, 2, 4));
         var loaded = com.dwinovo.numen.core.blueprint.BlueprintStore.load(
                 level, "japanese_cottage", anchor, 0);
-        var ctx = TaskDispatch.ctx("gametest-jp-cottage", companion);
-        BuildTaskRecord record = new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(95000L), loaded.targets(),
-                com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, false);
-        TaskDispatch.setTask(companion, record, null, reply -> {});
-        helper.succeedWhen(() -> {
-            // 先看建造收没收工、成没成:一次真实的建造失败(比如最后两格被她自己站着)
-            // 不能被翻译成"格数对不上",那会把真正的原因藏起来,还让这条用例空转到超时。
-            var result = record.getResult();
-            helper.assertTrue(result != null, "build has not finished");
-            helper.assertTrue(result.success(), "build failed: " + result.message());
+        companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
+        Raising raise = new Raising(helper, companion, "numen.build.raise(numen.build.blueprint(\"japanese_cottage\", " + xyz(anchor) + "), {costs = {dig = true, place = true, consent = false}})");
+        // 先看建造收没收工、成没成:一次真实的建造失败(比如最后两格被她自己站着)
+        // 不能被翻译成"格数对不上",那会把真正的原因藏起来,还让这条用例空转到超时——收场了就判一次。
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(raise.done(), "numen.build.raise has not finished")).thenExecute(() -> {
+            helper.assertTrue(raise.last().ranToTheEnd(), "numen.build.raise failed: " + raise.last().receipt());
+            // 落定在最后那一次 numen.build.place 收尾时:它盖完了整栋,世界落定一次,回执说落掉几格
+            List<com.dwinovo.numen.task.TaskRecord> ats = raise.tasks("numen.build.place");
+            BuildTaskRecord record = (BuildTaskRecord) ats.get(ats.size() - 1);
             // 契约不是"一格不差",是"一格不差,或者说清楚差在哪":建完世界要落定一次
             // (站不住的掉、形状由邻居定的重算),对不上的格数必须<b>正好等于</b>回执报的那个数。
             List<BlockPos> off = new ArrayList<>();
@@ -2138,48 +2294,191 @@ public class BuildGameTests {
                             + record.settledAway() + " — first at "
                             + (off.isEmpty() ? "-" : off.get(0).toShortString()));
             CompanionFactory.despawn(level.getServer(), companion);
+        }).thenSucceed();
+    }
+
+    /**
+     * 托着它的还没盖好,它就不算够得着:她站在三格高的石柱顶上,要放的是地上一块石头、石头上铺一块地毯。从柱顶看,地毯够得着、
+     * 它下面那块石头够不着。{@code numen.build.diff} 说地毯还立不住({@code unheld})、手边能放的一格都没有、下一步去够那块石头;
+     * {@code numen.build.place} 不去放那块地毯,当场说够不着、给出走过去的那一行,地毯与石头一块都没放。日式小屋停在一块地毯上
+     * (原版立不住它)就是把立不住的格当成了够得着。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_build")
+    public static void a_cell_whose_support_is_out_of_reach_is_not_within_reach(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (int y = 2; y <= 4; y++) {
+            level.setBlockAndUpdate(helper.absolutePos(new BlockPos(1, y, 7)), Blocks.STONE.defaultBlockState());
+        }
+        NumenPlayer companion = spawnAt(helper, "gametest_carpeter", new BlockPos(1, 5, 7), true);
+        BlockPos support = helper.absolutePos(new BlockPos(5, 2, 7));
+        String cells = "{{name = \"stone\", pos = " + xyz(support) + "}, {name = \"red_carpet\", pos = "
+                + xyz(support.above()) + "}}";
+        AtomicReference<ToolRun> at = new AtomicReference<>();
+        AtomicReference<ToolRun> left = new AtomicReference<>();
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(companion.onGround(), "she has not landed on the pillar"))
+                .thenExecute(() -> left.set(lua(companion, "return numen.build.diff(" + cells + ")")))
+                .thenWaitUntil(() -> helper.assertTrue(left.get().receipt() != null, "numen.build.diff has not finished"))
+                .thenExecute(() -> {
+                    var got = left.get().data().getAsJsonObject("returned");
+                    helper.assertTrue(got.get("left").getAsInt() == 2 && got.get("reach").getAsInt() == 0
+                                    && got.get("unheld").getAsInt() == 1
+                                    && got.get("next").equals(posJson(support)),
+                            "numen.build.diff does not hold the carpet back until the stone under it is in: " + got);
+                    at.set(lua(companion, "numen.build.place(" + cells + ")"));
+                })
+                .thenWaitUntil(() -> helper.assertTrue(at.get().receipt() != null, "numen.build.place has not finished"))
+                .thenExecute(() -> {
+                    ToolRun build = at.get();
+                    helper.assertTrue(build.refused() && "out_of_reach".equals(build.kind())
+                                    && build.hint().contains("numen.move.to(" + xyz(support) + ", {arrive = \"place\"})"),
+                            "numen.build.place tried the carpet instead of saying where to go: " + build.reply());
+                    helper.assertTrue(level.getBlockState(support).isAir() && level.getBlockState(support.above()).isAir(),
+                            "a cell was placed by a refused build");
+                    CompanionFactory.despawn(level.getServer(), companion);
+                })
+                .thenSucceed();
+    }
+
+    // ---- 从脚本入口:numen.build.place、diff、raise、蓝图与建成的房子 ----
+
+    /** 放一格工作台:没有朝向的方块像右键那样放下,生存按格扣料;派下的活叫那个函数的名字。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
+    public static void build_place_puts_one_block_down_now(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_placer", new BlockPos(4, 2, 6), false);
+        companion.getInventory().add(new ItemStack(Items.CRAFTING_TABLE));
+        BlockPos at = helper.absolutePos(new BlockPos(6, 2, 6));
+        ToolRun place = lua(companion, "numen.build.place({{name = \"crafting_table\", pos = " + xyz(at) + "}})");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(place.task() != null && place.task().getToolName().equals("numen.build.place"),
+                    "the placement is not named after the command: " + place.reply());
+            helper.assertTrue(place.done() && place.succeeded(), "place failed: " + place.outcome());
+            helper.assertTrue(level.getBlockState(at).is(Blocks.CRAFTING_TABLE), "no crafting table at the cell");
+            helper.assertTrue(companion.getInventory().countItem(Items.CRAFTING_TABLE) == 0,
+                    "the crafting table was not taken from her inventory");
+            CompanionFactory.despawn(level.getServer(), companion);
         });
     }
 
-    // ---- 从工具入口:build 的指令流与 blueprint 的文件 ----
-
-    /** 空的指令流不是一件活:当参数错误回来,说清楚至少要一条,不派任何活。 */
+    /** 要盖的样子已经立在那儿就不是一件活:{@code numen.build.place} 不派活,当场交回一份全是零的账(要盖零格、还差零格)。 */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_build")
-    public static void build_tool_rejects_an_empty_op_list(GameTestHelper helper) {
+    public static void placing_what_already_stands_dispatches_nothing(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_idle_builder", new BlockPos(2, 2, 2), false);
-        ToolRun build = call(companion, "build", args("ops", List.of()));
+        BlockPos at = helper.absolutePos(new BlockPos(6, 2, 6));
+        helper.getLevel().setBlockAndUpdate(at, Blocks.STONE.defaultBlockState());
+        ToolRun build = lua(companion, "numen.build.place({{name = \"stone\", pos = " + xyz(at) + "}})");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(build.done() && build.task() == null, "an empty build was dispatched");
-            helper.assertTrue(!build.succeeded() && build.outcome().contains("invalid arguments")
-                            && build.outcome().contains("at least one"),
-                    "the reply does not reject the empty op list: " + build.outcome());
+        succeedWhen(helper, () -> {
+            helper.assertTrue(build.done() && build.task() == null, "a building that already stands was dispatched");
+            helper.assertTrue(build.succeeded() && Long.valueOf(0).equals(build.field("requested"))
+                            && Long.valueOf(0).equals(build.field("left")) && Long.valueOf(0).equals(build.field("placed")),
+                    "the reply does not say nothing is left to build: " + build.reply());
             CompanionFactory.despawn(helper.getLevel().getServer(), companion);
         });
     }
 
     /**
-     * 生存模式,按模型的写法下一串指令:一圈两格高的圆石墙,再在南墙正中装一扇门(后面的指令盖掉前面的格子)。
+     * 要盖的格离她太远、一格都够不着:{@code numen.build.diff} 如实说还差几格、够得着的零格、够不着的几格和最低最近的那一格;
+     * {@code numen.build.place} 当场拒绝、不派活、一块圆石都不花,说下一步怎么走过去。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_build")
+    public static void build_diff_and_place_from_too_far_place_nothing_and_say_where_to_go(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_far_builder", new BlockPos(1, 2, 1), false);
+        companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 9));
+        BlockPos o = helper.absolutePos(new BlockPos(11, 2, 11));
+        String cells = "numen.shape.box(" + xyz(o) + ", " + xyz(o.offset(2, 0, 2)) + ", \"cobblestone\")";
+        ToolRun left = lua(companion, "return numen.build.diff(" + cells + ")");
+        AtomicReference<ToolRun> at = new AtomicReference<>();
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(left.receipt() != null, "numen.build.diff has not finished"))
+                .thenExecute(() -> {
+                    helper.assertTrue(left.ranToTheEnd(), "numen.build.diff failed: " + left.receipt());
+                    String r = left.receipt();
+                    var got = left.data().getAsJsonObject("returned");
+                    helper.assertTrue(got.get("left").getAsInt() == 9 && got.get("reach").getAsInt() == 0
+                                    && got.get("far").getAsInt() == 9 && got.get("next").isJsonObject(),
+                            "numen.build.diff does not say nine left, none within reach, nine far and where next: " + r);
+                    at.set(lua(companion, "numen.build.place(" + cells + ")"));
+                })
+                .thenWaitUntil(() -> helper.assertTrue(at.get().receipt() != null, "numen.build.place has not finished"))
+                .thenExecute(() -> {
+                    ToolRun build = at.get();
+                    helper.assertTrue(build.refused(), "a build with nothing in reach was dispatched: " + build.reply());
+                    helper.assertTrue(build.outcome().contains("within reach") && build.outcome().contains("numen.move.to"),
+                            "the refusal does not say how to get within reach: " + build.outcome());
+                    helper.assertTrue(BlockPos.betweenClosedStream(o, o.offset(2, 0, 2))
+                                    .noneMatch(p -> level.getBlockState(p).is(Blocks.COBBLESTONE))
+                                    && companion.getInventory().countItem(Items.COBBLESTONE) == 9,
+                            "a cell was placed or cobblestone spent on a refused build");
+                    CompanionFactory.despawn(level.getServer(), companion);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * 库里的 {@code numen.build.raise}:一圈两格高的圆石墙落在她够不着的地方。它一轮轮问 {@code numen.build.diff}、走到够得着的地方
+     * ({@code numen.move.to} 到达方式 place)、放手够得着的({@code numen.build.place}),直到一格不差;墙一格不缺,圆石按格扣。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
+    public static void build_raise_walks_the_site_and_builds_all_of_it(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_raiser", new BlockPos(1, 2, 1), false);
+        companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
+        BlockPos min = helper.absolutePos(new BlockPos(7, 2, 7));
+        ToolRun raise = lua(companion, "numen.build.raise(numen.shape.box(" + xyz(min) + ", " + xyz(min.offset(4, 1, 4))
+                + ", \"cobblestone\"):minus(numen.shape.box(" + xyz(min.offset(1, 0, 1)) + ", " + xyz(min.offset(3, 1, 3))
+                + ")))");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(raise.receipt() != null, "numen.build.raise has not finished");
+            helper.assertTrue(raise.ranToTheEnd(), "numen.build.raise failed: " + raise.receipt());
+            int walls = 0;
+            for (int dx = 0; dx < 5; dx++) {
+                for (int dz = 0; dz < 5; dz++) {
+                    boolean ring = dx == 0 || dx == 4 || dz == 0 || dz == 4;
+                    for (int dy = 0; dy < 2; dy++) {
+                        BlockPos p = min.offset(dx, dy, dz);
+                        if (ring) {
+                            walls++;
+                            helper.assertTrue(level.getBlockState(p).is(Blocks.COBBLESTONE),
+                                    "the wall is missing at " + p.toShortString());
+                        }
+                    }
+                }
+            }
+            helper.assertTrue(companion.getInventory().countItem(Items.COBBLESTONE) == 64 - walls,
+                    "the cobblestone spent does not match the cells built");
+            helper.assertTrue(!raise.tasks("numen.build.place").isEmpty() && !raise.tasks("numen.move.go").isEmpty(),
+                    "numen.build.raise did not walk and build through the atomic calls: " + raise.receipt());
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
+     * 生存模式,照模型的写法画好再开工:一圈两格高的圆石墙,再在南墙正中装一扇门(合起来时门盖掉墙的那一格)。
      * 墙一格不缺,门的上下两半都在,圆石按格扣。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
-    public static void build_tool_walls_with_a_door(GameTestHelper helper) {
+    public static void walls_with_a_door_are_built_at_a_spot(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_waller", new BlockPos(2, 2, 2), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_waller", new BlockPos(6, 2, 9), false);
         companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 32));
         companion.getInventory().add(new ItemStack(Items.OAK_DOOR));
         BlockPos min = helper.absolutePos(new BlockPos(5, 2, 5));
         BlockPos max = helper.absolutePos(new BlockPos(7, 3, 7));
         BlockPos door = helper.absolutePos(new BlockPos(6, 2, 7));
-        ToolRun build = call(companion, "build", args("ops", List.of(
-                args("op", "layer", "block_id", "minecraft:cobblestone",
-                        "x1", min.getX(), "y1", min.getY(), "z1", min.getZ(), "y2", max.getY(),
-                        "rows", List.of("###", "#.#", "###")),
-                // 门只写下半格:另一半由原版的放置回调自己补,和图纸那条入口同一条纪律
-                args("op", "set", "block_id", "minecraft:oak_door[facing=south]",
-                        "x", door.getX(), "y", door.getY(), "z", door.getZ()))));
+        // 门只写下半格:另一半由原版的放置回调自己补,和图纸那条入口同一条纪律
+        ToolRun build = lua(companion, "local walls = numen.shape.layer(" + xyz(min) + ", {\"###\", \"#.#\", \"###\"}, "
+                + "{[\"#\"] = \"cobblestone\"})\n"
+                + "numen.build.place(walls:union(walls:shift(0, 1, 0)):union({{name = \"oak_door[facing=south]\", pos = "
+                + xyz(door) + "}}))");
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(build.done(), "build has not finished");
             helper.assertTrue(build.succeeded(), "build failed: " + build.outcome());
             for (int x = min.getX(); x <= max.getX(); x++) {
@@ -2207,21 +2506,242 @@ public class BuildGameTests {
         });
     }
 
-    /** 蓝图:list 里看得到放进 schematics/ 的那份文件,build 照文件把它建出来,每一格都对上。 */
+    /**
+     * 生存模式料不够:一串格开工前整份一次预检,缺料就一格都不放,回执如实说缺什么、多少;她手上的圆石一块没少。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_build")
+    public static void cells_short_of_materials_place_nothing_and_say_what(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_skint", new BlockPos(2, 2, 2), false);
+        companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 3));
+        BlockPos o = helper.absolutePos(new BlockPos(6, 2, 6));
+        ToolRun build = lua(companion, "numen.build.place(numen.shape.box(" + xyz(o) + ", " + xyz(o.offset(2, 0, 2))
+                + ", \"cobblestone\"))");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(build.done() && !build.succeeded(), "a build short of materials went ahead");
+            helper.assertTrue(build.outcome().contains("cobblestone") && build.outcome().contains("Nothing was placed"),
+                    "the refusal does not say what is missing: " + build.outcome());
+            helper.assertTrue(BlockPos.betweenClosedStream(o, o.offset(2, 0, 2))
+                            .noneMatch(p -> level.getBlockState(p).is(Blocks.COBBLESTONE)),
+                    "a cell was placed although the whole of it could not be paid for");
+            helper.assertTrue(companion.getInventory().countItem(Items.COBBLESTONE) == 3,
+                    "cobblestone was spent on a refused build");
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
+     * 改了蓝图文件、再在同一个落点放它:同一栋,按差异改——缺的补、不一样的换、文件里已经没有的只拆她自己放下且没被动过的。
+     * 她砌的格记在她自己名下,出厂的 {@code break(self_placed & !contents)} 放行拆与换,主人在场也一张卡都不弹。
+     * 旁人在文件外放的金块、把她的一格石头换成的钻石块(都记在旁人名下),一律不碰;再来一次什么都不差,就不派活。
+     */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
-    public static void blueprint_tool_lists_and_builds_a_file(GameTestHelper helper) throws Exception {
+    public static void changing_a_blueprint_and_placing_it_again_changes_only_what_differs(GameTestHelper helper)
+            throws Exception {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_renovator", new BlockPos(7, 2, 5), true);
+        net.minecraft.server.level.ServerPlayer owner = presentOwner(helper, companion, "gametest_landlady");
+        boolean[] asked = new boolean[1];
+        helper.onEachTick(() -> asked[0] |= com.dwinovo.numen.permission.ConsentDesk.of(companion).pending() != null);
+        BlockPos o = helper.absolutePos(new BlockPos(6, 2, 6));
+        java.util.Map<BlockPos, BlockState> first = new java.util.LinkedHashMap<>();
+        for (BlockPos p : BlockPos.betweenClosed(BlockPos.ZERO, new BlockPos(2, 0, 2))) {
+            first.put(p.immutable(), Blocks.STONE.defaultBlockState());
+        }
+        first.put(new BlockPos(1, 1, 1), Blocks.OAK_PLANKS.defaultBlockState());
+        writeBlueprint(level, "gt_shed", first);
+        String place = "numen.build.place(numen.build.blueprint(\"gt_shed\", " + xyz(o) + "))";
+        AtomicReference<ToolRun> run = new AtomicReference<>(lua(companion, place));
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(run.get().done() && run.get().succeeded(),
+                        "the first build did not finish: " + run.get().outcome()))
+                .thenExecute(() -> {
+                    // 旁人在文件外放了一块金块;又把她砌的一格石头换成了钻石块
+                    var neighbour = new com.dwinovo.numen.permission.PlacedBlocks.Placer(UUID.randomUUID(),
+                            "gametest_passerby");
+                    level.setBlockAndUpdate(o.offset(0, 1, 0), Blocks.GOLD_BLOCK.defaultBlockState());
+                    level.setBlockAndUpdate(o.offset(2, 0, 2), Blocks.DIAMOND_BLOCK.defaultBlockState());
+                    com.dwinovo.numen.permission.PlacedBlocks.of(level).record(o.offset(0, 1, 0), neighbour);
+                    com.dwinovo.numen.permission.PlacedBlocks.of(level).record(o.offset(2, 0, 2), neighbour);
+                    // 地板少掉南边一排,木板换成玻璃,再加一块木板
+                    java.util.Map<BlockPos, BlockState> second = new java.util.LinkedHashMap<>();
+                    for (BlockPos p : BlockPos.betweenClosed(BlockPos.ZERO, new BlockPos(2, 0, 1))) {
+                        second.put(p.immutable(), Blocks.STONE.defaultBlockState());
+                    }
+                    second.put(new BlockPos(1, 1, 1), Blocks.GLASS.defaultBlockState());
+                    second.put(new BlockPos(0, 1, 1), Blocks.OAK_PLANKS.defaultBlockState());
+                    try {
+                        writeBlueprint(level, "gt_shed", second);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    run.set(lua(companion, place));
+                })
+                .thenWaitUntil(() -> helper.assertTrue(run.get().done(), "the second build has not finished"))
+                .thenExecute(() -> {
+                    helper.assertTrue(run.get().succeeded(), "the second build failed: " + run.get().outcome());
+                    helper.assertTrue(level.getBlockState(o.offset(1, 1, 1)).is(Blocks.GLASS),
+                            "the planks were not replaced by glass");
+                    helper.assertTrue(level.getBlockState(o.offset(0, 1, 1)).is(Blocks.OAK_PLANKS),
+                            "the new cell was not built");
+                    helper.assertTrue(level.getBlockState(o.offset(0, 0, 2)).isAir()
+                                    && level.getBlockState(o.offset(1, 0, 2)).isAir(),
+                            "her stones the file no longer has were not taken away");
+                    helper.assertTrue(level.getBlockState(o.offset(2, 0, 2)).is(Blocks.DIAMOND_BLOCK),
+                            "the block someone else put in place of hers was removed");
+                    helper.assertTrue(level.getBlockState(o.offset(0, 1, 0)).is(Blocks.GOLD_BLOCK),
+                            "the gold block someone else placed was removed");
+                    var placed = run.get().result(com.dwinovo.numen.core.task.build.BuildCompanionTask.Placed.class);
+                    helper.assertTrue(placed.removed() == 2 && placed.replaced() == 1,
+                            "the receipt does not count 2 removed and 1 replaced: " + run.get().outcome());
+                    var building = com.dwinovo.numen.core.build.Built.of(level.getServer())
+                            .at(new com.dwinovo.numen.core.build.Built.Site("gt_shed", level.dimension().location(), o, 0));
+                    // 记录里:地板六格、玻璃、新木板,还有被换成钻石块的那一格——记录照实记着她当初放的是石头,
+                    // 世界里已经对不上,所以不拆
+                    helper.assertTrue(building != null && building.cells().size() == 9
+                                    && building.cells().get(o.offset(2, 0, 2).asLong()) == Blocks.STONE
+                                    && building.cells().get(o.offset(1, 1, 1).asLong()) == Blocks.GLASS
+                                    && !building.cells().containsKey(o.offset(0, 0, 2).asLong()),
+                            "the building's record does not hold what she placed now: "
+                                    + (building == null ? "none" : building.cells().size() + " cells"));
+                    run.set(lua(companion, place));
+                })
+                .thenWaitUntil(() -> helper.assertTrue(run.get().done(), "the third build has not answered"))
+                .thenExecute(() -> {
+                    helper.assertTrue(run.get().task() == null && run.get().succeeded()
+                                    && Long.valueOf(0).equals(run.get().field("requested")),
+                            "a spot that already matches the file was built again: " + run.get().reply());
+                    helper.assertTrue(!asked[0], "changing her own building asked the owner");
+                    CompanionFactory.despawn(level.getServer(), companion);
+                    leave(owner);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * 改了蓝图文件把她放的一格 A 换成 B:生存模式下 {@code numen.build.raise} 先 {@code numen.work.dig} 拆她自己的石头
+     * ({@code break(self_placed & !contents)})、再 {@code numen.build.place} 放玻璃({@code place(!hazard_item)}),主人在场,全程一张卡都不弹。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
+    public static void swapping_a_block_she_placed_asks_nobody(GameTestHelper helper) throws Exception {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_swapper", new BlockPos(5, 2, 7), false);
+        // 生存换一格是先把原来那块挖掉:石头要镐才挖得下
+        companion.getInventory().add(new ItemStack(Items.WOODEN_PICKAXE));
+        net.minecraft.server.level.ServerPlayer owner = presentOwner(helper, companion, "gametest_patron");
+        companion.getInventory().add(new ItemStack(Items.STONE));
+        companion.getInventory().add(new ItemStack(Items.GLASS));
+        boolean[] asked = new boolean[1];
+        helper.onEachTick(() -> asked[0] |= com.dwinovo.numen.permission.ConsentDesk.of(companion).pending() != null);
+        BlockPos o = helper.absolutePos(new BlockPos(7, 2, 7));
+        writeBlueprint(level, "gt_swap", java.util.Map.of(BlockPos.ZERO, Blocks.STONE.defaultBlockState()));
+        String handle = "numen.build.blueprint(\"gt_swap\", " + xyz(o) + ")";
+        AtomicReference<ToolRun> run = new AtomicReference<>(lua(companion, "numen.build.place(" + handle + ")"));
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(run.get().done() && run.get().succeeded(),
+                        "the first build did not finish: " + run.get().outcome()))
+                .thenExecute(() -> {
+                    var placer = com.dwinovo.numen.permission.PlacedBlocks.of(level).placerAt(o, level.getBlockState(o));
+                    helper.assertTrue(placer != null && placer.id().equals(companion.getUUID()),
+                            "the stone she built is not recorded as hers: " + placer);
+                    try {
+                        writeBlueprint(level, "gt_swap", java.util.Map.of(BlockPos.ZERO, Blocks.GLASS.defaultBlockState()));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    run.set(lua(companion, "numen.build.raise(" + handle + ")"));
+                })
+                .thenWaitUntil(() -> helper.assertTrue(run.get().done(), "the swap has not finished"))
+                .thenExecute(() -> {
+                    helper.assertTrue(run.get().ranToTheEnd() && level.getBlockState(o).is(Blocks.GLASS),
+                            "her stone was not swapped for glass: " + run.get().receipt());
+                    helper.assertTrue(!asked[0], "swapping a block she placed asked the owner");
+                    CompanionFactory.despawn(level.getServer(), companion);
+                    leave(owner);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * 对照:同一处换方块,但那一格的石头是主人后来亲手放的(她砌的被主人拆了重放)——{@code numen.build.raise} 里拆它的
+     * {@code numen.work.dig} 是 {@code break(placed)},照旧挂一条征询;主人拒绝就不换,回执说主人没答应。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
+    public static void swapping_a_block_the_owner_placed_still_asks(GameTestHelper helper) throws Exception {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_tactful", new BlockPos(5, 2, 7), false);
+        net.minecraft.server.level.ServerPlayer owner = presentOwner(helper, companion, "gametest_landowner");
+        // 生存换一格是先把原来那块挖掉:石头要镐才挖得下
+        companion.getInventory().add(new ItemStack(Items.WOODEN_PICKAXE));
+        companion.getInventory().add(new ItemStack(Items.STONE));
+        companion.getInventory().add(new ItemStack(Items.GLASS));
+        var desk = com.dwinovo.numen.permission.ConsentDesk.of(companion);
+        BlockPos o = helper.absolutePos(new BlockPos(7, 2, 7));
+        writeBlueprint(level, "gt_swap_owner", java.util.Map.of(BlockPos.ZERO, Blocks.STONE.defaultBlockState()));
+        String handle = "numen.build.blueprint(\"gt_swap_owner\", " + xyz(o) + ")";
+        AtomicReference<ToolRun> run = new AtomicReference<>(lua(companion, "numen.build.place(" + handle + ")"));
+        boolean[] answered = new boolean[1];
+
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(run.get().done() && run.get().succeeded(),
+                        "the first build did not finish: " + run.get().outcome()))
+                .thenExecute(() -> {
+                    // 主人拆了她那块石头,自己放回一块:这一格从此是主人的
+                    level.setBlockAndUpdate(o, Blocks.AIR.defaultBlockState());
+                    level.setBlockAndUpdate(o, Blocks.STONE.defaultBlockState());
+                    com.dwinovo.numen.permission.PlacedBlocks.placedBy(level, o, owner);
+                    try {
+                        writeBlueprint(level, "gt_swap_owner",
+                                java.util.Map.of(BlockPos.ZERO, Blocks.GLASS.defaultBlockState()));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    run.set(lua(companion, "numen.build.raise(" + handle + ")"));
+                })
+                .thenWaitUntil(() -> {
+                    var pending = desk.pending();
+                    helper.assertTrue(pending != null, "swapping the owner's stone did not ask");
+                    helper.assertTrue(level.getBlockState(o).is(Blocks.STONE), "the owner's stone went before he answered");
+                    answered[0] = desk.answer(pending.id(),
+                            com.dwinovo.numen.permission.ConsentAnswer.Decision.DENY, "");
+                })
+                .thenWaitUntil(() -> helper.assertTrue(run.get().done(), "the swap has not finished"))
+                .thenExecute(() -> {
+                    helper.assertTrue(answered[0], "the request was not answered");
+                    helper.assertTrue(level.getBlockState(o).is(Blocks.STONE),
+                            "the owner's stone was swapped although he said no");
+                    helper.assertTrue(!run.get().ranToTheEnd() && run.get().receipt().contains("refused by the owner"),
+                            "the receipt does not say the owner refused: " + run.get().receipt());
+                    CompanionFactory.despawn(level.getServer(), companion);
+                    leave(owner);
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * 蓝图文件经它的那张表放下去:{@code numen.build.blueprint} 交回文件名、原点与度数,{@code numen.build.place} 照文件把它建出来,
+     * 每一格都对上;派下的活叫那个函数的名字。写错文件名,{@code numen.build.blueprint} 以 not_found 说有哪些文件。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
+    public static void a_blueprint_handle_builds_the_file_where_it_says(GameTestHelper helper) throws Exception {
         ServerLevel level = helper.getLevel();
         writeSmallHouse(level, "fixture_tool");
-        NumenPlayer companion = spawnAt(helper, "gametest_architect", new BlockPos(2, 2, 2), true);
+        NumenPlayer companion = spawnAt(helper, "gametest_architect", new BlockPos(7, 2, 9), true);
         BlockPos anchor = helper.absolutePos(new BlockPos(6, 2, 6));
-        ToolRun list = call(companion, "blueprint", args("action", "list"));
-        ToolRun build = call(companion, "blueprint", args("action", "build", "file", "fixture_tool",
-                "x", anchor.getX(), "y", anchor.getY(), "z", anchor.getZ()));
+        ToolRun missing = lua(companion, "numen.build.blueprint(\"fixture_nope\", " + xyz(anchor) + ")");
+        ToolRun build = lua(companion, "numen.build.place(numen.build.blueprint(\"fixture_tool\", " + xyz(anchor) + "))");
         var targets = com.dwinovo.numen.core.blueprint.BlueprintStore.load(level, "fixture_tool", anchor, 0).targets();
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(list.succeeded() && list.reply().contains("fixture_tool"),
-                    "the blueprint is not listed: " + list.reply());
+        succeedWhen(helper, () -> {
+            helper.assertTrue(!missing.succeeded() && "not_found".equals(missing.kind())
+                            && missing.outcome().contains("there is no blueprint file named fixture_nope")
+                            && missing.outcome().contains("fixture_tool"),
+                    "a wrong file name does not say which files there are: " + missing.outcome());
+            helper.assertTrue(build.task() != null && build.task().getToolName().equals("numen.build.place"),
+                    "the build is not named after the command: " + build.reply());
             helper.assertTrue(build.done(), "blueprint build has not finished");
             helper.assertTrue(build.succeeded(), "blueprint build failed: " + build.outcome());
             for (BuildTaskRecord.Target t : targets) {
@@ -2233,24 +2753,128 @@ public class BuildGameTests {
     }
 
     /**
+     * 读图纸不动世界:{@code numen.build.blueprint} 交回的那张表报文件的尺寸、格数与用料,生存画像再报整份还差多少。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_build")
+    public static void a_blueprint_handle_prices_the_file(GameTestHelper helper) throws Exception {
+        ServerLevel level = helper.getLevel();
+        writeSmallHouse(level, "fixture_read");
+        NumenPlayer companion = spawnAt(helper, "gametest_estimator", new BlockPos(2, 2, 2), false);
+        int cells = com.dwinovo.numen.core.blueprint.BlueprintStore.load(level, "fixture_read", BlockPos.ZERO, 0)
+                .targets().size();
+        BlockPos at = helper.absolutePos(new BlockPos(6, 2, 6));
+        ToolRun file = lua(companion, "return numen.build.blueprint(\"fixture_read\", " + xyz(at) + ")");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(file.receipt() != null, "numen.build.blueprint has not answered");
+            var got = file.data().getAsJsonObject("returned");
+            helper.assertTrue(file.ranToTheEnd() && got.get("cells").getAsInt() == cells
+                            && got.get("blueprint").getAsString().equals("fixture_read")
+                            && got.get("origin").equals(posJson(at))
+                            && got.getAsJsonObject("materials").get("stone").getAsInt() == 3
+                            && got.getAsJsonObject("short_of").get("stone").getAsInt() == 3,
+                    "the blueprint handle does not price the file: " + file.receipt());
+            helper.assertTrue(level.getBlockState(at).isAir(), "reading the file built something");
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
+     * 技能里"方块朝哪"的说法在真世界里核一遍(形状在单测 {@code BlockFacingTest} 里核):楼梯高背在 {@code facing} 那一侧,
+     * 南坡朝北才从南边踩得上去;梯子挂在与 {@code facing} 相反那一侧的方块上;挂着的灯笼要上面有东西;床头落在
+     * {@code facing} 那一格。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100, batch = "numen_build")
+    public static void block_facing_in_the_skill_holds_in_the_world(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockState stone = Blocks.STONE.defaultBlockState();
+
+        BlockPos stair = helper.absolutePos(new BlockPos(2, 2, 2));
+        level.setBlockAndUpdate(stair, Blocks.OAK_STAIRS.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.StairBlock.FACING, net.minecraft.core.Direction.NORTH));
+        var shape = level.getBlockState(stair).getCollisionShape(level, stair).toAabbs();
+        helper.assertTrue(shape.stream().anyMatch(b -> b.contains(0.5, 0.75, 0.25))
+                        && shape.stream().noneMatch(b -> b.contains(0.5, 0.75, 0.75)),
+                "a north-facing stair does not have its tall back to the north: " + shape);
+
+        BlockPos ladder = helper.absolutePos(new BlockPos(6, 2, 6));
+        BlockState northLadder = Blocks.LADDER.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LadderBlock.FACING, net.minecraft.core.Direction.NORTH);
+        level.setBlockAndUpdate(ladder.south(), stone);
+        helper.assertTrue(northLadder.canSurvive(level, ladder), "ladder[facing=north] does not hang on the block south");
+        level.setBlockAndUpdate(ladder.south(), Blocks.AIR.defaultBlockState());
+        level.setBlockAndUpdate(ladder.north(), stone);
+        helper.assertFalse(northLadder.canSurvive(level, ladder), "ladder[facing=north] hangs on the block north");
+
+        BlockPos lantern = helper.absolutePos(new BlockPos(10, 2, 10));
+        BlockState hanging = Blocks.LANTERN.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true);
+        helper.assertFalse(hanging.canSurvive(level, lantern), "a hanging lantern holds with nothing above");
+        level.setBlockAndUpdate(lantern.above(), stone);
+        helper.assertTrue(hanging.canSurvive(level, lantern), "a hanging lantern does not hang from the block above");
+
+        BlockPos foot = helper.absolutePos(new BlockPos(2, 2, 10));
+        BlockState bed = Blocks.RED_BED.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.BedBlock.FACING, net.minecraft.core.Direction.EAST);
+        level.setBlockAndUpdate(foot, bed);
+        bed.getBlock().setPlacedBy(level, foot, bed, null, new ItemStack(Items.RED_BED));
+        helper.assertTrue(level.getBlockState(foot.east()).is(Blocks.RED_BED) && level.getBlockState(foot.east())
+                        .getValue(net.minecraft.world.level.block.BedBlock.PART)
+                        == net.minecraft.world.level.block.state.properties.BedPart.HEAD,
+                "the head of red_bed[facing=east] is not one cell east of its foot");
+        helper.succeed();
+    }
+
+    /**
+     * 服务器重启之后建成的房子还在:盖完的一份蓝图(火把等着下面的木板,两遍放完)记在世界存档里,存下的那份读回来还是同一栋、同样的格子。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
+    public static void buildings_outlive_a_restart(GameTestHelper helper) throws Exception {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer companion = spawnAt(helper, "gametest_keeper", new BlockPos(5, 2, 5), true);
+        BlockPos o = helper.absolutePos(new BlockPos(6, 2, 6));
+        java.util.Map<BlockPos, BlockState> kept = new java.util.LinkedHashMap<>();
+        for (BlockPos p : BlockPos.betweenClosed(BlockPos.ZERO, new BlockPos(1, 0, 1))) {
+            kept.put(p.immutable(), Blocks.OAK_PLANKS.defaultBlockState());
+        }
+        kept.put(new BlockPos(0, 1, 0), Blocks.TORCH.defaultBlockState());
+        writeBlueprint(level, "gt_kept", kept);
+        ToolRun build = lua(companion, "numen.build.raise(numen.build.blueprint(\"gt_kept\", " + xyz(o) + "))");
+
+        succeedWhen(helper, () -> {
+            helper.assertTrue(build.done() && build.succeeded(), "build failed: " + build.outcome());
+            var server = level.getServer();
+            var site = new com.dwinovo.numen.core.build.Built.Site("gt_kept", level.dimension().location(), o, 0);
+            var before = com.dwinovo.numen.core.build.Built.of(server).at(site);
+            var saved = com.dwinovo.numen.core.build.Built.of(server)
+                    .save(new net.minecraft.nbt.CompoundTag(), level.registryAccess());
+            var after = com.dwinovo.numen.core.build.Built.load(saved, level.registryAccess()).at(site);
+            helper.assertTrue(before != null && after != null && after.name().equals(before.name())
+                            && after.cells().equals(before.cells()) && after.cells().size() == 5
+                            && after.builder().equals("gametest_keeper"),
+                    "the building read back from the save is not the one built: " + after);
+            CompanionFactory.despawn(server, companion);
+        });
+    }
+
+    /**
      * 生存模式砌一块 5×5 的圆石平台,砌到第三格主人按停止:活按主人停止收场;停下之后不再多砌一格,
      * 背包里少掉的圆石正好是砌上去的格数。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
     public static void owner_stop_mid_build_keeps_what_is_built(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_paused_mason", new BlockPos(2, 2, 2), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_paused_mason", new BlockPos(8, 2, 5), false);
         companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
         BlockPos min = helper.absolutePos(new BlockPos(6, 2, 6));
         BlockPos max = helper.absolutePos(new BlockPos(10, 2, 10));
-        ToolRun build = call(companion, "build", args("ops", List.of(args("op", "layer",
-                "block_id", "minecraft:cobblestone", "x1", min.getX(), "y1", min.getY(), "z1", min.getZ(),
-                "rows", List.of("#####", "#####", "#####", "#####", "#####")))));
+        ToolRun build = lua(companion, "numen.build.place(numen.shape.box(" + xyz(min) + ", " + xyz(max)
+                + ", \"cobblestone\"))");
         java.util.function.IntSupplier placed = () -> (int) BlockPos.betweenClosedStream(min, max)
                 .filter(p -> level.getBlockState(p).is(Blocks.COBBLESTONE)).count();
         int[] atStop = new int[1];
 
-        helper.startSequence()
+        steps(helper)
                 .thenWaitUntil(() -> helper.assertTrue(placed.getAsInt() >= 3, "she has not laid three cells yet"))
                 .thenExecute(() -> com.dwinovo.numen.task.CompanionTickDispatcher.cancelFor(companion))
                 .thenWaitUntil(() -> helper.assertTrue(build.done() && build.outcome().startsWith("the owner pressed Stop"),
@@ -2267,27 +2891,29 @@ public class BuildGameTests {
                 .thenSucceed();
     }
 
-    // ---- 通用原语:网格、复制、掩码 ----
+    // ---- numen.shape 画的格:网格、转向 ----
 
     /**
-     * 一张网格盖出一圈三层高的墙:{@code '.'} 是"这一格不管",所以屋里一格没碰;
-     * 图例里每个字符自带方块状态,所以一条指令就能把朝向不同的楼梯铺在同一课上。
+     * 一张网格叠三层盖出一圈墙:{@code '.'} 是"这一格不管",所以屋里一格没碰;
+     * 图例里每个字符自带方块状态,所以一张网格就能把朝向不同的楼梯铺在同一课上。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
     public static void layer_repeats_a_grid_and_leaves_dots_alone(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_grid_mason", new BlockPos(2, 2, 2), true);
+        NumenPlayer companion = spawnAt(helper, "gametest_grid_mason", new BlockPos(7, 2, 5), true);
         BlockPos o = helper.absolutePos(new BlockPos(6, 2, 6));
         level.setBlockAndUpdate(o.offset(1, 0, 1), Blocks.GOLD_BLOCK.defaultBlockState());   // 屋里的记号
-        ToolRun build = call(companion, "build", args("ops", List.of(
-                args("op", "layer", "x1", o.getX(), "y1", o.getY(), "z1", o.getZ(), "y2", o.getY() + 2,
-                        "rows", List.of("###", "#.#", "###"), "block_id", "minecraft:stone_bricks"),
-                args("op", "layer", "x1", o.getX(), "y1", o.getY() + 3, "z1", o.getZ(),
-                        "rows", List.of("<<<", "...", ">>>"),
-                        "legend", args("<", "minecraft:stone_brick_stairs[facing=south]",
-                                ">", "minecraft:stone_brick_stairs[facing=north]")))));
+        ToolRun build = lua(companion, """
+                local S = numen.shape
+                local o = %s
+                local ring = S.layer(o, {"###", "#.#", "###"}, {["#"] = "stone_bricks"})
+                local c = ring:union(ring:shift(0, 1, 0)):union(ring:shift(0, 2, 0))
+                c = c:union(S.layer(S.pos(o.x, o.y + 3, o.z), {"<<<", "...", ">>>"},
+                  {["<"] = "stone_brick_stairs[facing=south]", [">"] = "stone_brick_stairs[facing=north]"}))
+                numen.build.place(c)
+                """.formatted(xyz(o)));
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(build.done() && build.succeeded(), "build failed: " + build.outcome());
             for (int y = 0; y <= 2; y++) {
                 helper.assertTrue(level.getBlockState(o.offset(0, y, 0)).is(Blocks.STONE_BRICKS),
@@ -2308,67 +2934,25 @@ public class BuildGameTests {
     }
 
     /**
-     * 复制一段带楼梯的墙,镜像过去:方块跟着镜像走,楼梯的朝向由原版翻,不是原样照抄。
-     * 源那一段一格不动——复制是"再盖一份",不是"搬走"。
+     * 画好的一段带楼梯的墙转半圈再放:方块跟着转,楼梯的朝向一起转过去,不是原样照抄。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
-    public static void copy_mirrors_a_wing_and_flips_its_stairs(GameTestHelper helper) {
+    public static void turned_cells_turn_their_stairs(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_copyist", new BlockPos(2, 2, 2), true);
-        BlockPos src = helper.absolutePos(new BlockPos(5, 2, 5));
-        BlockPos dst = helper.absolutePos(new BlockPos(10, 2, 5));
-        level.setBlockAndUpdate(src, Blocks.STONE_BRICKS.defaultBlockState());
-        level.setBlockAndUpdate(src.offset(1, 0, 0), Blocks.STONE_BRICK_STAIRS.defaultBlockState()
-                .setValue(net.minecraft.world.level.block.StairBlock.FACING,
-                        net.minecraft.core.Direction.EAST));
-        ToolRun build = call(companion, "build", args("ops", List.of(
-                args("op", "copy",
-                        "x1", src.getX(), "y1", src.getY(), "z1", src.getZ(),
-                        "x2", src.getX() + 1, "y2", src.getY(), "z2", src.getZ(),
-                        "x", dst.getX(), "y", dst.getY(), "z", dst.getZ(),
-                        "mirror", "front_back"))));
+        NumenPlayer companion = spawnAt(helper, "gametest_copyist", new BlockPos(10, 2, 7), true);
+        BlockPos at = helper.absolutePos(new BlockPos(9, 2, 5));
+        ToolRun build = lua(companion, "numen.build.place(numen.shape.cells({{name = \"stone_bricks\", pos = "
+                + xyz(at) + "}, {name = \"stone_brick_stairs[facing=east]\", pos = " + xyz(at.offset(1, 0, 0))
+                + "}}):rotate(2, " + xyz(at) + "))");
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(build.done() && build.succeeded(), "copy failed: " + build.outcome());
-            helper.assertTrue(level.getBlockState(src.offset(1, 0, 0))
-                            .is(Blocks.STONE_BRICK_STAIRS), "the source wing was moved instead of copied");
-            var copied = level.getBlockState(dst);
-            var other = level.getBlockState(dst.offset(1, 0, 0));
-            helper.assertTrue(copied.is(Blocks.STONE_BRICK_STAIRS) || other.is(Blocks.STONE_BRICK_STAIRS),
-                    "nothing was copied to the destination");
-            var stair = copied.is(Blocks.STONE_BRICK_STAIRS) ? copied : other;
-            helper.assertTrue(stair.getValue(net.minecraft.world.level.block.StairBlock.FACING)
-                            == net.minecraft.core.Direction.WEST,
-                    "mirroring must flip the stair, got " + stair);
-            CompanionFactory.despawn(level.getServer(), companion);
-        });
-    }
-
-    /**
-     * 掩码分档:{@code keep} 只往空地上补,既有的墙一格不碰;{@code carve} 的空气格是
-     * "把这里挖空"的指令。两档写在同一次调用的两条指令上,各管各的。
-     */
-    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
-    public static void mask_keep_adds_without_touching_what_stands(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_masker", new BlockPos(2, 2, 2), true);
-        BlockPos o = helper.absolutePos(new BlockPos(6, 2, 10));
-        level.setBlockAndUpdate(o, Blocks.GOLD_BLOCK.defaultBlockState());          // 已经立着的
-        level.setBlockAndUpdate(o.offset(2, 0, 0), Blocks.GOLD_BLOCK.defaultBlockState());   // 要挖掉的
-        ToolRun build = call(companion, "build", args("ops", List.of(
-                args("op", "layer", "x1", o.getX(), "y1", o.getY(), "z1", o.getZ(),
-                        "rows", List.of("##"), "block_id", "minecraft:stone_bricks", "mask", "keep"),
-                args("op", "set", "x", o.getX() + 2, "y", o.getY(), "z", o.getZ(),
-                        "block_id", "minecraft:air", "mask", "carve"))));
-
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             helper.assertTrue(build.done() && build.succeeded(), "build failed: " + build.outcome());
-            helper.assertTrue(level.getBlockState(o).is(Blocks.GOLD_BLOCK),
-                    "mask=keep must not overwrite what already stands");
-            helper.assertTrue(level.getBlockState(o.offset(1, 0, 0)).is(Blocks.STONE_BRICKS),
-                    "mask=keep must still fill the empty cell beside it");
-            helper.assertTrue(level.getBlockState(o.offset(2, 0, 0)).isAir(),
-                    "mask=carve with an air cell must dig that cell out");
+            helper.assertTrue(level.getBlockState(at).is(Blocks.STONE_BRICKS), "the cell turned about moved");
+            var stair = level.getBlockState(at.offset(-1, 0, 0));
+            helper.assertTrue(stair.is(Blocks.STONE_BRICK_STAIRS)
+                            && stair.getValue(net.minecraft.world.level.block.StairBlock.FACING)
+                            == net.minecraft.core.Direction.WEST,
+                    "turning half round must turn the stair to face west, got " + stair);
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
@@ -2377,24 +2961,20 @@ public class BuildGameTests {
      * 建完的红石要能用。施工期刻意不通知邻居(半成品世界会把贴附方块整批弹掉),
      * 代价曾经是红石线全是孤立的点、通不了电;收尾那趟"让世界自己反应一次"补的就是它。
      *
-     * <p><b>整条电路都走一条 {@code layer}</b>——也就是照图直写那条车道。单格 {@code set}
-     * 走的是原生车道(像真右键那样放),放置本身就会通知邻居,测不出这个毛病。
+     * <p><b>红石线带状态</b>,走照图直写那条车道;没有状态的方块走原生车道(像真右键那样放),放置本身就会通知邻居,
+     * 测不出这个毛病。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_build")
     public static void a_built_redstone_line_actually_powers_the_lamp(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_sparky", new BlockPos(2, 2, 2), true);
+        NumenPlayer companion = spawnAt(helper, "gametest_sparky", new BlockPos(7, 2, 10), true);
         BlockPos o = helper.absolutePos(new BlockPos(5, 2, 8));
-        ToolRun build = call(companion, "build", args("ops", List.of(
-                args("op", "layer", "x1", o.getX(), "y1", o.getY(), "z1", o.getZ(),
-                        "rows", List.of("B####L"),
-                        "legend", args("B", "minecraft:redstone_block",
-                                "#", "minecraft:redstone_wire",
-                                "L", "minecraft:redstone_lamp")))));
+        ToolRun build = lua(companion, "numen.build.place(numen.shape.layer(" + xyz(o) + ", {\"B####L\"}, "
+                + "{B = \"redstone_block\", [\"#\"] = \"redstone_wire\", L = \"redstone_lamp\"}))");
 
         // 只在"她报完工"那一刻判一次。用 succeedWhen 每刻重试的话,量到的是"最终有没有
         // 连上"——收尾补水、摆设生成、旁边的动静都可能事后把线碰连,断言迟早会过。
-        helper.startSequence()
+        steps(helper)
                 .thenWaitUntil(() -> helper.assertTrue(build.done(), "build has not finished"))
                 .thenExecute(() -> {
                     helper.assertTrue(build.succeeded(), "build failed: " + build.outcome());

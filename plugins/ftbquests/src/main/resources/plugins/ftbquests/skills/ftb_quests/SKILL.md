@@ -1,6 +1,6 @@
 ---
 name: ftb_quests
-description: 主人提到任务书、FTB 任务、还差什么、交任务、组队/入队、任务奖励,或者你收到 quest_completed、quest_reward_auto、team_invite 事件时看这个。
+description: 主人提到任务书、FTB 任务、还差什么、交任务、领奖励、组队/入队、任务奖励,或者你收到 quest_completed、quest_reward_auto、team_invite 事件时看这个。
 ---
 
 # FTB 任务与队伍
@@ -12,15 +12,15 @@ description: 主人提到任务书、FTB 任务、还差什么、交任务、组
 - **不在同一个队伍**:你做的只算你自己那一队,主人那边一点都不动。主人问"你帮我做任务了吗",
   先想清楚你们是不是一队,别说一句不成立的"做完了"。
 
-这些事都在 `numen ftbquests` 命令组里;每个动作怎么写,用 `numen ftbquests <动作> --help` 查,这里只讲什么时候用。
+这些事都是 `ftbquests` 组里的函数;每个怎么写,用 `numen.api.help("ftbquests.quest.submit")` 查,这里只讲什么时候用。
 
 ## 看任务书
 
 任务书是主人那一本,进度是主人所在队伍的,标题按主人的语言。主人问"还差什么""下一步做什么"时先看书,别凭印象答:
 
 ```
-numen ftbquests list
-numen ftbquests show 铁器时代
+ftbquests.quest.list()
+ftbquests.quest.show("铁器时代")
 ```
 
 `list` 列出此刻能做的任务,每条带编号、还差的条件和进度,以及每个条件谁来完成:
@@ -32,6 +32,19 @@ numen ftbquests show 铁器时代
 
 书的开头会说你在不在这个队伍里。**不在的话,你做的不算进这本书**,先把这件事告诉主人。
 
+## 备齐任务要的物品
+
+任务条件是物品时,`show` 会把物品 id 与要的数量写在条件名后面(如 `minecraft:iron_ingot x8`)。
+要凑齐它,对每个物品条件调一次 `plan_make`,不要凭印象一步步试:
+
+```
+plan_make {item_id: "minecraft:iron_ingot", count: 8}
+```
+
+回执说清三件事:已经够了没有;还差的原料(名字 + 数量);以及按顺序要做的步骤(采什么、合成什么、
+哪张工作台要在够得着的地方)。`plan_make` 只出计划、不动手:照着步骤用 mine/gather、craft 与各工作站的
+工具一件件做,做一批再调一次刷新。算不出来(多条做法分不清、配方成环)它会直说,别硬当成能做。
+
 ## 提交任务
 
 提交(`submit`)会从**你的背包**里拿走任务要的东西,交出去就拿不回来,所以主人让你交再交。
@@ -41,8 +54,8 @@ numen ftbquests show 铁器时代
 
 主人或别人邀请你入队时,你会收到一条 `team_invite`,里面写着是哪个队伍(`party`)、你的主人在不在里面。
 
-主人同意后,用 `numen ftbquests join` 替你按"接受"。同时有好几个队伍邀请你时,先问主人入哪一个,
-再用 `team_invite` 里的 `party` 点名。
+主人同意后,用 `ftbquests.quest.join()` 替你按"接受"。同时有好几个队伍邀请你时,先问主人入哪一个,
+再用 `team_invite` 里的 `party` 点名:`ftbquests.quest.join({team = "Dwin_Party#1a2b3c4d"})`。
 
 要不要入,听主人的。主人的队伍来邀请,一般就是他想让你一起做任务;不是主人的队伍,先问主人。
 你已经在别的队伍里时入不了新队,得先退出原来那个。
@@ -57,6 +70,24 @@ FTB 的自动领取奖励对你和对真人一样:
 奖励记到你名下时你会收到一条 `quest_reward_auto`,写着领了哪些奖励,以及同一刻你背包和经验实际变了什么。
 **拿到东西要如实告诉主人**:拿了什么、几个。背包满了的时候,放不下的会掉在你脚边,记得捡。
 没有问过主人,别把奖励当成自己的随便用掉或扔掉。
+
+## 领取奖励
+
+有些整合包把奖励设成**要在任务书里手动领取**(`show` 里那种会写 `claimed by hand in the book`)。这种奖励
+FTB 不会自动发,而你自己点不了任务书,所以用 `claim` 替你按那个"领取"按钮:
+
+```
+numen ftbquests claim
+numen ftbquests claim --quest 15CDF6A098B95FDA
+numen ftbquests claim --quest "Getting Started"
+```
+
+不带 `--quest` 领此刻你和你队伍能领的全部,带上只领那一个任务(编号,或标题;标题带空格要加引号)。
+它走的就是书里"领取"按钮背后那条服务端处理,东西直接进**你的背包**。回执写清每件领到了什么,以及领完你背包
+经验实际变了什么;没有可领的会直说。要你到选择屏/开箱屏上挑的奖励它不领,会点名说只能在书里点。
+
+**团队奖励**全队只有一份,谁先领就归谁,所以不带 `--quest` 一起领之前先想清楚主人愿不愿意;问过主人再领。
+任务刚完成时,属于你个人的手动奖励会当场自动替你领掉,并照常作为 `quest_reward_auto` 告诉你。
 
 ## 任务完成
 

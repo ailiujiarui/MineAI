@@ -1,9 +1,5 @@
 package com.dwinovo.numen.entity;
 
-import com.dwinovo.numen.api.NumenPlugins;
-import com.dwinovo.numen.cli.ArgType;
-import com.dwinovo.numen.cli.Param;
-import com.dwinovo.numen.task.TaskResult;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.context.CommandContextBuilder;
@@ -31,14 +27,11 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * {@code /numen} 这棵树的形状与观众:玩家的管理指令(权限、征询、drive……)每条都解析到有执行体的节点、参数取得到,
- * 写错的解析不通;她的命令组由声明长进同一个根下,只有她解析得通,玩家的管理指令她解析不通。执行与鉴权(只认主人)、
- * 真服务器发给玩家的指令树,在 GameTest 里钉。
+ * 写错的解析不通;整个根只给不是她的来源,她一条都解析不通。执行与鉴权(只认主人)、真服务器发给玩家的指令树,在 GameTest
+ * 里钉。
  */
 @Tag("mc")
 class NumenCommandsTest {
-
-    private static final Param<Integer> COUNT = Param.required("count", ArgType.integer(1, 64), "How many.");
-    private static final Param<String> FROM = Param.optional("from", ArgType.word(), "Where from.");
 
     private static boolean booted;
     private CommandDispatcher<CommandSourceStack> dispatcher;
@@ -55,14 +48,6 @@ class NumenCommandsTest {
             booted = true;
         } catch (Throwable t) {
             booted = false;
-        }
-        if (booted) {
-            NumenPlugins.register(numen -> numen.registerCommands("gt_tree", "A group grown into /numen.", g -> {
-                g.server("take", "Take some.", (src, args) -> src.reply(TaskResult.ok("took").toJson()), COUNT, FROM)
-                        .example("numen gt_tree take 3 --from chest");
-                g.client("jot", "Jot on the owner's client.", (src, args) -> src.reply(TaskResult.ok("jot").toJson()),
-                        COUNT).example("numen gt_tree jot 2");
-            }));
         }
     }
 
@@ -152,50 +137,30 @@ class NumenCommandsTest {
     }
 
     @Test
-    void driveTakesACompanionAndTheRestOfTheLine() {
-        assertEquals("give @s minecraft:diamond 2",
-                runs("numen drive Aria give @s minecraft:diamond 2").get("line").getResult());
-        assertTrue(fails("numen drive Aria"), "a line is required");
-        assertTrue(fails("numen drive Aria numen task status", source(null).withPermission(0)), "drive is for ops");
-    }
-
-    /** 她的命令组长在同一个根下,只有她解析得通:玩家收到的树、补全、help 都按这个过滤。 */
-    @Test
-    void herGroupsAreHersAlone() {
-        assertEquals(3, runs("numen gt_tree take 3 --from chest", her).get("count").getResult());
-        runs("numen help", her);
-        runs("numen --help", her);
-        runs("numen gt_tree --help", her);
-        assertTrue(fails("numen gt_tree take 3"), "a player cannot reach her group");
-        assertTrue(fails("numen help"), "nor her help");
-        assertTrue(dispatcher.getSmartUsage(dispatcher.getRoot(), console).values().stream()
-                .noneMatch(usage -> usage.contains("gt_tree")), "a player's usage lists none of her nodes");
+    void driveTakesACompanionAndTheRestOfTheLineAsAProgram() {
+        assertEquals("numen.mc.run(\"give @s minecraft:diamond 2\")",
+                runs("numen drive Aria numen.mc.run(\"give @s minecraft:diamond 2\")").get("program").getResult());
+        assertTrue(fails("numen drive Aria"), "a program is required");
+        assertTrue(fails("numen drive Aria numen.task.status()", source(null).withPermission(0)), "drive is for ops");
     }
 
     /** 管理同伴的指令只给玩家:她召唤不了同伴、改不了权限、答不了征询、drive 不了别人。 */
     @Test
     void thePlayersVerbsAreNotHers() {
         for (String line : new String[]{"numen player summon Aria", "numen permission rules list",
-                "numen consent allow 42", "numen settings", "numen drive Aria help"}) {
+                "numen consent allow 42", "numen settings", "numen drive Aria numen.task.status()"}) {
             runs(line, console);
             assertTrue(fails(line, her), "she can reach " + line);
         }
-        assertTrue(dispatcher.getSmartUsage(dispatcher.getRoot(), her).values().stream()
-                .noneMatch(usage -> usage.contains("permission") || usage.contains("summon")),
-                "her usage lists a player's verb");
-    }
-
-    /** 客户端动作在 MC 的树上只有名字与帮助:执行它的那一侧是主人客户端。 */
-    @Test
-    void aClientActionHasOnlyItsHelpOnTheServer() {
-        runs("numen gt_tree jot --help", her);
-        assertTrue(fails("numen gt_tree jot 2", her));
+        assertTrue(!dispatcher.getRoot().getChild(NumenCommands.ROOT).canUse(her), "she can use the /numen root");
+        assertTrue(!dispatcher.getSmartUsage(dispatcher.getRoot(), her).containsKey(
+                dispatcher.getRoot().getChild(NumenCommands.ROOT)), "her usage lists /numen");
     }
 
     /** 同名的一格挂两次:Brigadier 会悄悄并成一格,留下先来那一格的观众,所以当场抛出。 */
     @Test
     void aNameUnderNumenIsGraftedOnce() {
-        assertThrows(IllegalStateException.class, () -> NumenCommands.graft(dispatcher, NumenCommands.FOR_HER,
+        assertThrows(IllegalStateException.class, () -> NumenCommands.graft(dispatcher,
                 net.minecraft.commands.Commands.literal("permission")));
     }
 }

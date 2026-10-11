@@ -1,13 +1,11 @@
 package com.dwinovo.numen.client.agent;
 
+import com.dwinovo.numen.data.ModLanguageData.Keys;
 import com.dwinovo.numen.Constants;
-import com.dwinovo.numen.NumenPaths;
-import com.dwinovo.numen.agent.decision.DecisionConfig;
-import com.dwinovo.numen.agent.decision.JevDecisionProvider;
 import com.dwinovo.numen.agent.goal.GoalPrompts;
 import com.dwinovo.numen.agent.goal.GoalState;
 import com.dwinovo.numen.agent.goal.GoalSteward;
-import com.dwinovo.numen.agent.goal.JevGoalJudge;
+import com.dwinovo.numen.agent.goal.GoalVerifier;
 import com.dwinovo.numen.agent.http.CancelToken;
 import com.dwinovo.numen.agent.llm.NumenLlmClient;
 import com.dwinovo.numen.agent.llm.ConvoLog;
@@ -26,8 +24,10 @@ import com.dwinovo.numen.agent.loop.ModelPort;
 import com.dwinovo.numen.agent.loop.ModelRequest;
 import com.dwinovo.numen.agent.loop.Phase;
 import com.dwinovo.numen.agent.provider.Usage;
-import com.dwinovo.numen.agent.tool.NumenTool;
-import com.dwinovo.numen.agent.tool.ToolRegistry;
+import com.dwinovo.numen.agent.request.AgentRequestContext;
+import com.dwinovo.numen.agent.request.MemoryPreamble;
+import com.dwinovo.numen.agent.request.RuntimeState;
+import com.dwinovo.numen.agent.request.SystemPromptComposer;
 import com.dwinovo.numen.data.ModLanguageData;
 import com.dwinovo.numen.mcp.server.McpMode;
 import net.minecraft.client.Minecraft;
@@ -39,6 +39,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -71,15 +73,21 @@ import java.util.function.Consumer;
  */
 public final class EntityAgentLoop {
 
+    /**
+     * 目标核对程序的兜底时限(见 {@link #verifyGoalClaim})。核对是一次只读查询,本该秒回;到这个点还没回就当连接
+     * 出了问题,如实交回未核对,不能把超时当作世界确认。
+     */
+    private static final long VERIFY_TIMEOUT_MS = 30_000L;
 
-
+    /** 程序里"世界不认这条宣称"的标记:回执里读到它就取后面那段 expected/actual 当判词(见 {@link #verifyCall})。 */
+    private static final String VERIFY_DENIED_MARK = "numen-verify-denied";
 
     private final UUID entityUuid;
     /** JSONL persistence under {@code config/numen/conversations/<uuid>.jsonl}. */
     private final ConvoLog log;
     private final ConvoState convo;
-    /** 她自己写的札记;索引作为 {@code <memory>} 注入。 */
-    private final com.dwinovo.numen.agent.memory.NoteBook notes;
+    /** 她自己写的札记的索引,作为 {@code <memory>} 注入。 */
+    private final MemoryPreamble memory;
     /**
      * 她此刻在哪个会话里——最后一次是被哪个会话叫醒的。<b>null = 就他俩</b>(她的单成员会话)。
      *
@@ -89,10 +97,6 @@ public final class EntityAgentLoop {
      */
     private volatile String conversation;
 
-    /** 札记索引上次贴进历史时的版本。 */
-    private int memoryRevisionInHistory = -1;
-    /** 历史里那份还在不在:开一局时不在,压缩/清空把它吃掉之后也不在。 */
-    private boolean memoryInHistory;
     /**
      * 收件箱(宪法 §4):主人的话与世界事件的统一进箱口,内核按类型表的投递方式取件。
      * 条目、落盘、年龄标注、熟度规则全在 {@link EventQueue};这里直接用它的只有外接模型取件口
@@ -122,9 +126,9 @@ public final class EntityAgentLoop {
     private String providerEntryId;
 
     /**
-     * Runs a model reply's tool calls one at a time and reports each result back to the kernel — the
-     * kernel's {@link com.dwinovo.numen.agent.loop.ToolPort}. All the tool-execution plumbing (serial
-     * queue, ship-to-server, completion, timeout) lives in there, not here.
+     * Runs a model reply's tool calls in order and reports each result back to the kernel — the
+     * kernel's {@link com.dwinovo.numen.agent.loop.ToolPort}. All the tool-execution plumbing (the order and
+     * waiting for a body job, ship-to-server, completion, timeout) lives in there, not here.
      */
 
     private final ToolDispatcher dispatcher;
@@ -153,9 +157,8 @@ public final class EntityAgentLoop {
     private final AgentLoop loop;
     /** 上一个 tick 驾驶席在不在外接模型手里——只用来找"翻转成外接"的那一下。 */
     private boolean wasDriving;
-    /** JEV 判卷开着没有:开了就把主人每句话自动立成目标,收尾由 JEV 判卷(见 {@link #enqueueOwnerWords})。 */
-    private final boolean jevGoal;
     private java.util.function.BooleanSupplier requestPermit;
+    private java.util.function.BooleanSupplier toolPermit;
 
     /** Passive observation and optional bounded execution, installed before submitting a live eval. */
     public void observe(Consumer<? super com.dwinovo.numen.agent.loop.LoopEvent> observer) {
@@ -169,37 +172,42 @@ public final class EntityAgentLoop {
     public void executionBudget(java.util.function.BooleanSupplier requests,
                                 java.util.function.BooleanSupplier tools) {
         requestPermit = requests;
+        toolPermit = tools;
         dispatcher.executionPermit(tools);
     }
+    /**
+     * 断线复连时替她算一份"你不在的这段时间世界变了什么"的回执(见 {@link ResumeDiffWatcher})。
+     * 只有一枚离开时采的有界指纹在离开到回来之间醒着,算完即丢——不是第二份世界模型。
+     */
+    private final ResumeDiffWatcher resumeDiff = new ResumeDiffWatcher();
 
     EntityAgentLoop(UUID entityUuid) {
         this.entityUuid = entityUuid;
         this.log = ConvoLog.atFile(CompanionHome.chat(entityUuid));
         this.convo = new ConvoState(msg -> log.append(msg, conversation));
-        this.notes = com.dwinovo.numen.agent.memory.NoteBook.of(entityUuid);
-        this.runtime = new RuntimeState(entityUuid);
+        this.memory = new MemoryPreamble(com.dwinovo.numen.agent.memory.NoteBook.of(entityUuid));
+        this.runtime = new RuntimeState(entityUuid,
+                () -> com.dwinovo.numen.client.data.ClientNumenState.get(entityUuid).orElse(null));
         this.queue = new EventQueue(JsonlJournal.atFile(CompanionHome.inbox(entityUuid)));
         this.providerEntryId = CompanionHome.binding(entityUuid).providerId();
-        this.dispatcher = new ToolDispatcher(entityUuid, this::resolveEntity);
+        this.dispatcher = new ToolDispatcher(entityUuid, this::resolveEntity, this::receiptAfterCut);
         this.presenter = new TurnPresenter(entityUuid, this::status, this::personaName);
         this.tokens = new TokenLedger(entityUuid);
         this.model = new Model();
         this.compactor = new Compactor(entityUuid.toString(), convo, log, this::modelWindow);
         this.loop = new AgentLoop(entityUuid.toString(), model, dispatcher, convo, queue, compactor, new Host());
         // 目标跨重进游戏活着 —— 长期目标就该是长期的,重启不该把它弄丢。
-        // 判官:配了 JEV(config/numen/decision.json)就让它当"系统一",否则退回另开一次模型调用(LlmGoalJudge)。
-        DecisionConfig decision = DecisionConfig.fromFile(NumenPaths.config().resolve("decision.json"));
-        this.jevGoal = decision.usable();
+        // 判官说达成、又给了机检宣称时,经 verifyGoalClaim 拿宣称去量服务端的权威状态(见 GoalVerifier)。
         this.goals = new GoalSteward(entityUuid.toString(), loop, convo, queue, runtime::xml,
                 runtime::bodyOnFiniteTask, g -> CompanionHome.setGoal(entityUuid, g), CompanionHome.goal(entityUuid),
-                jevGoal ? new JevGoalJudge(new JevDecisionProvider(decision), decision.minConfidence()) : null);
+                null, this::verifyGoalClaim);
         this.wasDriving = McpMode.instance().driving();
         // 内核只发事件,各管一摊的各自订阅:界面、台账、整理、目标、札记的重贴、她手上那件活的镜像
         loop.subscribe(presenter::on);
         loop.subscribe(tokens::on);
         loop.subscribe(compactor::on);
         loop.subscribe(goals::on);
-        loop.subscribe(this::onTranscriptBoundary);
+        loop.subscribe(memory::on);
         loop.subscribe(runtime::on);
         restoreFromDisk();
     }
@@ -212,17 +220,6 @@ public final class EntityAgentLoop {
     /** 她此刻在哪个会话里;null = 就他俩。 */
     public String conversation() {
         return conversation;
-    }
-
-    /**
-     * 整理或清空之后,历史里那份札记索引没了(摘要把它嚼掉了),下一次注入得重贴一份完整的。
-     *
-     * <p>真源在磁盘上,历史里的只是复述——所以复述丢了不要紧,照着真源再念一遍就行。
-     */
-    private void onTranscriptBoundary(com.dwinovo.numen.agent.loop.LoopEvent event) {
-        if (event instanceof com.dwinovo.numen.agent.loop.LoopEvent.TranscriptBoundary) {
-            memoryInHistory = false;
-        }
     }
 
     /**
@@ -333,7 +330,7 @@ public final class EntityAgentLoop {
      *         所以 {@code Delivery} 在那种情况下单报 {@code TO_EXTERNAL_BRAIN}。
      */
     public boolean submitPrompt(String text) {
-        return enqueueOwnerWords("<query>" + text + "</query>", text);
+        return enqueueOwnerWords(EventQueue.query(text), text);
     }
 
     /**
@@ -352,7 +349,7 @@ public final class EntityAgentLoop {
      * @param expanded 客户端替他展开的内容(技能正文等);空则退化成一句普通的话
      */
     public boolean submitCommand(String echo, String expanded) {
-        String wire = "<query>" + echo + "</query>"
+        String wire = EventQueue.query(echo)
                 + (expanded == null || expanded.isBlank() ? "" : "\n" + expanded);
         return enqueueOwnerWords(wire, echo);
     }
@@ -369,19 +366,8 @@ public final class EntityAgentLoop {
         }
         // Wrap the owner's words in <query> so the model can always tell real user input apart from
         // anything else numen injects into the same user turn (events, and future world-state/reminders).
-        boolean held = deliver(new EventQueue.Entry(EventTypes.QUERY, wire + audienceLine(),
+        return deliver(new EventQueue.Entry(EventTypes.QUERY, wire + audienceLine(),
                 System.currentTimeMillis(), false));
-        // 自动目标:主人一开口、还没有目标、且 JEV 判卷开着,就把这句话立成目标。
-        // 之后每轮 run 收尾由 JEV 判"办完没有"——不用 /goal,也不再叫大模型当判官(快得多)。
-        if (jevGoal && goals.goal() == null && logged != null && !logged.isBlank()) {
-            GoalState auto = GoalState.of(logged, System.currentTimeMillis());
-            if (goals.set(auto)) {
-                // 只补"这是长期目标、不许自称完成"的规矩,不复述主人那句话(聊天里已经有气泡)
-                deliver(new EventQueue.Entry(EventTypes.QUERY, GoalPrompts.initialDirective(auto),
-                        System.currentTimeMillis(), false));
-            }
-        }
-        return held;
     }
 
     /**
@@ -436,6 +422,8 @@ public final class EntityAgentLoop {
      * 离线补发回来的 {@code task_finished} 也唤不醒她。
      */
     void quiesce() {
+        // 先记下离开那一刻她周围的有界指纹,复连后好算出"你不在时世界变了什么"。
+        resumeDiff.capture(entityUuid, resolveEntity());
         loop.halt(HaltReason.DISCONNECT);
     }
 
@@ -459,6 +447,13 @@ public final class EntityAgentLoop {
         }
         wasDriving = driving;
         loop.tick();
+        // 复连后的头几个 tick:身体一解析得到,就把"你不在时世界变了什么"算出来交给她;
+        // 没差异、或还在等身体解析,都不产生事件。算完指纹即丢。
+        String whileAway = resumeDiff.resumeReceipt(entityUuid, resolveEntity());
+        if (whileAway != null && !whileAway.isEmpty()) {
+            loop.push(List.of(com.dwinovo.numen.event.NumenEvents.entry(gameDayTime(), EventTypes.RESUME, null,
+                    whileAway, System.currentTimeMillis(), false)));
+        }
     }
 
 
@@ -487,6 +482,142 @@ public final class EntityAgentLoop {
     }
 
     /**
+     * 目标核对(见 {@link GoalVerifier}):判官说达成、又给了机检宣称时,把宣称翻成一段只调用 {@code numen.verify.*}
+     * 的小程序,经 {@link com.dwinovo.numen.program.ProgramUplink} 送去服务端,读回程序结局当判词。
+     *
+     * <p>{@code verify} 是一组服务端 API 函数;宣称翻译成程序里的一次调用。只认
+     * {@code have}/{@code block}/{@code near} 三种;翻译不出来的宣称如实交回未核对。
+     *
+     * <p>派发失败、超时、回执没有判词都交回未核对。程序明确抛出"世界不认"的判词
+     * (带 {@link #VERIFY_DENIED_MARK})时,把 expected/actual 交回;只有核对程序成功才算世界确认。
+     *
+     * <p>回调可能在别的线程上,统一切回主线程再交给目标管家。
+     */
+    private void verifyGoalClaim(GoalState goal, String claim, Consumer<GoalVerifier.Result> onDone) {
+        String code = verifyProgram(claim);
+        if (code == null) {
+            onDone.accept(GoalVerifier.Result.unmeasured("no verify form for claim: " + claim));
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) {
+            onDone.accept(GoalVerifier.Result.unmeasured("no client to run verify"));
+            return;
+        }
+        CompletableFuture<GoalVerifier.Result> verdict = new CompletableFuture<>();
+        verdict.orTimeout(VERIFY_TIMEOUT_MS, TimeUnit.MILLISECONDS).whenComplete((result, err) ->
+                mc.execute(() -> onDone.accept(err == null ? result
+                        : GoalVerifier.Result.unmeasured("verify timed out"))));
+        mc.execute(() -> {
+            try {
+                if (toolPermit != null && !toolPermit.getAsBoolean()) {
+                    verdict.complete(GoalVerifier.Result.unmeasured("evaluation execution budget exhausted"));
+                    return;
+                }
+                com.dwinovo.numen.program.ProgramUplink.CONNECTION.run(entityUuid,
+                        "goal-verify-" + UUID.randomUUID(), code, run -> verdict.complete(readVerifyRun(run)));
+            } catch (RuntimeException ex) {
+                Constants.LOG.warn("[numen-entity#{}] 目标核对派发失败,未核对:{} ({})", entityUuid, claim, ex.getMessage());
+                verdict.complete(GoalVerifier.Result.unmeasured("dispatch failed: " + ex.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * 一段核对程序的结局读成判词:跑完({@code OK})= 世界认;带 {@link #VERIFY_DENIED_MARK} 的报错 = 世界明确不认;
+     * 别的(没跑成、答非所问、被停下)= 跑了但没判词,交 {@link GoalVerifier.Result#unmeasured}。
+     */
+    static GoalVerifier.Result readVerifyRun(com.dwinovo.numen.program.RunResult run) {
+        if (!(run instanceof com.dwinovo.numen.program.RunResult.Ended ended)) {
+            return GoalVerifier.Result.unmeasured("verify did not run to a verdict");
+        }
+        var outcome = ended.outcome();
+        if (outcome.ending().status() == com.dwinovo.numen.agent.script.ScriptCall.Status.OK) {
+            return new GoalVerifier.Result(true, "confirmed");
+        }
+        String message = com.dwinovo.numen.program.RunResult.messageOf(outcome.receipt());
+        int at = message.indexOf(VERIFY_DENIED_MARK);
+        return at < 0 ? GoalVerifier.Result.unmeasured("verify gave no verdict: " + message)
+                : new GoalVerifier.Result(false, message.substring(at + VERIFY_DENIED_MARK.length()).strip());
+    }
+
+    /** 把一条机检宣称翻成一段只调用 {@code numen.verify.*} 的程序;认不出的宣称回 {@code null}(未核对)。 */
+    static String verifyProgram(String claim) {
+        if (claim == null) {
+            return null;
+        }
+        String[] words = claim.strip().split("\\s+");
+        if (words.length == 0) {
+            return null;
+        }
+        return switch (words[0].toLowerCase(java.util.Locale.ROOT)) {
+            case "have" -> haveProgram(words);
+            case "block" -> blockProgram(words);
+            case "near" -> nearProgram(words);
+            default -> null;
+        };
+    }
+
+    private static String haveProgram(String[] words) {
+        if (words.length < 2 || !isVerifyId(words[1])) {
+            return null;
+        }
+        if (words.length == 2) {
+            return verifyCall("numen.verify.have(" + luaString(words[1]) + ")");
+        }
+        Integer count = words.length == 3 ? integer(words[2]) : null;
+        return count == null ? null
+                : verifyCall("numen.verify.have(" + luaString(words[1]) + ", " + count + ")");
+    }
+
+    private static String blockProgram(String[] words) {
+        if (words.length != 5 || !isVerifyId(words[1])) {
+            return null;
+        }
+        Integer x = integer(words[2]);
+        Integer y = integer(words[3]);
+        Integer z = integer(words[4]);
+        return x == null || y == null || z == null ? null
+                : verifyCall("numen.verify.block(" + luaString(words[1]) + ", " + x + ", " + y + ", " + z + ")");
+    }
+
+    private static String nearProgram(String[] words) {
+        if (words.length < 2 || words.length > 3 || !isVerifyId(words[1])) {
+            return null;
+        }
+        if (words.length == 2) {
+            return verifyCall("numen.verify.near(" + luaString(words[1]) + ")");
+        }
+        Integer radius = integer(words[2]);
+        return radius == null ? null
+                : verifyCall("numen.verify.near(" + luaString(words[1]) + ", {radius = " + radius + "})");
+    }
+
+    /** 一段核对程序:调一次 verify;世界不认就把 expected/actual 抛成带标记的错误,回执那一侧据此认判词。 */
+    private static String verifyCall(String call) {
+        return "local c = " + call + "\n"
+                + "if not c.holds then error(\"" + VERIFY_DENIED_MARK + " \" .. tostring(c.expected) .. \" — \" "
+                + ".. tostring(c.actual)) end";
+    }
+
+    /** 物品/方块 id 直接拼进程序前先在这里挡住别的东西:命名空间可省,路径不许有 shell/Lua 的怪字符。 */
+    private static boolean isVerifyId(String s) {
+        return s.matches("[A-Za-z0-9_]+:[A-Za-z0-9_./-]+") || s.matches("[A-Za-z0-9_]+");
+    }
+
+    private static Integer integer(String s) {
+        try {
+            return Integer.valueOf(s.strip());
+        } catch (NumberFormatException notANumber) {
+            return null;
+        }
+    }
+
+    private static String luaString(String s) {
+        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
+    /**
      * 现在不能整理记忆的理由;{@code null} = 能。
      *
      * <p>判据只有这一份。{@code /compact} 的补全行要把理由写出来,而"能不能"和"为什么
@@ -494,11 +625,11 @@ public final class EntityAgentLoop {
      */
     public String compactProblem() {
         Hold hold = loop.hold();
-        if (hold == Hold.DEAD) return "她已经不在了";
+        if (hold == Hold.DEAD) return I18n.get(Keys.LOOP_GONE);
         // 整理是对内脑说的:驾驶席在外接模型手里时内脑不开工,排上了也只会一直躺着。
-        if (hold == Hold.EXTERNAL) return "外接模型正在驾驶她,整理记忆要等交还给内置大脑之后";
-        if (loop.status().phase() == Phase.COMPACT) return "已经在整理了";
-        if (queue.count(EventTypes.COMPACT) > 0) return "整理已经排上了";
+        if (hold == Hold.EXTERNAL) return I18n.get(Keys.LOOP_EXTERNAL_COMPACT);
+        if (loop.status().phase() == Phase.COMPACT) return I18n.get(Keys.LOOP_COMPACTING);
+        if (queue.count(EventTypes.COMPACT) > 0) return I18n.get(Keys.LOOP_COMPACT_QUEUED);
         // 不看忙不忙:整理进队列排着,闲下来自己执行。按了就一定会发生,主人不必盯着什么时候能按。
         // 也不看记录长短:整理多少、什么时候整理是主人的事。条数门槛只属于自动整理
         // ——那是替他省一次没意义的请求,不是替他做决定。
@@ -509,15 +640,15 @@ public final class EntityAgentLoop {
     /** {@code /clear} 现在按不按得下。同 {@link #compactProblem} 的形状,但不查端点:清空不发请求。 */
     public String clearProblem() {
         Hold hold = loop.hold();
-        if (hold == Hold.DEAD) return "她已经不在了";
+        if (hold == Hold.DEAD) return I18n.get(Keys.LOOP_GONE);
         // 同整理:清空的是内脑的上下文,外接模型驾驶时内脑不开工,排上了也执行不了。
-        if (hold == Hold.EXTERNAL) return "外接模型正在驾驶她,清空上下文要等交还给内置大脑之后";
-        if (queue.count(EventTypes.CLEAR) > 0) return "清空已经排上了";
+        if (hold == Hold.EXTERNAL) return I18n.get(Keys.LOOP_EXTERNAL_CLEAR);
+        if (queue.count(EventTypes.CLEAR) > 0) return I18n.get(Keys.LOOP_CLEAR_QUEUED);
         return null;
     }
 
     /**
-     * 主人要求清空上下文。与 {@link #requestCompact} 同一走法:急件进队列,闲时执行,
+     * 主人要求清空上下文。与 {@link #requestCompact} 同一走法:进队列,闲时执行,
      * 忙的时候也按得下。空闲时当场发生,调用返回时已经清完。
      *
      * @return 拒绝的理由;{@code null} = 已排上(空闲时当场清完)
@@ -528,8 +659,10 @@ public final class EntityAgentLoop {
             Constants.LOG.info("[numen-entity#{}] manual clear refused: {}", entityUuid, problem);
             return problem;
         }
-        // clear 在类型表里恒为急件,发送方不另标。
-        loop.push(List.of(new EventQueue.Entry(EventTypes.CLEAR, "清空上下文", System.currentTimeMillis(), false)));
+        // 清空是控制命令:不叫醒她、不走熟度,循环闲下来自己执行。
+        // 条目的字进聊天流给主人看(不进模型),按主人此刻的语言写下
+        loop.push(List.of(new EventQueue.Entry(EventTypes.CLEAR, I18n.get(Keys.LOOP_CLEAR), System.currentTimeMillis(),
+                false)));
         return null;
     }
 
@@ -557,11 +690,10 @@ public final class EntityAgentLoop {
      * @return 取走的事件拼段;这次没取到返回 null(继续等或如实说没有)
      */
     public String takeEventsForExternal(boolean urgentOnly) {
-        java.util.function.Predicate<EventQueue.Entry> text =
-                e -> EventTypes.get(e.type()).delivery() != EventTypes.Delivery.CONTROL;
-        if (urgentOnly && queue.entries().stream().noneMatch(e -> e.urgent() && text.test(e))) return null;
+        // 急件只可能是文本:控制命令在队列的急件规则里就不急
+        if (urgentOnly && !queue.hasUrgent()) return null;
         long now = System.currentTimeMillis();
-        List<EventQueue.Entry> taken = queue.takeIf(text, now);
+        List<EventQueue.Entry> taken = queue.takeText(now);
         if (taken.isEmpty()) return null;
         List<String> parts = EventQueue.render(taken, now);
         return parts.isEmpty() ? null : String.join("\n\n", parts);
@@ -574,6 +706,16 @@ public final class EntityAgentLoop {
 
     public void removeUrgentListener(Runnable listener) {
         queue.removeUrgentListener(listener);
+    }
+
+    /**
+     * 外接大脑跑一段程序:交给她自己的工具口,与内脑同一个派发器({@code AgentLoop#runAside}),不进会话历史。
+     *
+     * @return 收下了;内脑正在干活、或已有一段外接程序在跑时为 false
+     */
+    public boolean runExternal(com.dwinovo.numen.agent.provider.LlmToolCall program,
+                               java.util.function.Consumer<String> done) {
+        return loop.runAside(program, done);
     }
 
     /** 外接大脑替她说话(say 工具)——画法与内脑说话同一套表现层,见 {@link TurnPresenter#sayExternal}。 */
@@ -735,8 +877,10 @@ public final class EntityAgentLoop {
             Constants.LOG.info("[numen-entity#{}] manual compact refused: {}", entityUuid, problem);
             return problem;
         }
-        // compact 在类型表里恒为急件,发送方不另标。
-        loop.push(List.of(new EventQueue.Entry(EventTypes.COMPACT, "整理记忆", System.currentTimeMillis(), false)));
+        // 整理是控制命令:不叫醒她、不走熟度,循环闲下来自己执行。
+        // 条目的字进聊天流给主人看(不进模型),按主人此刻的语言写下
+        loop.push(List.of(new EventQueue.Entry(EventTypes.COMPACT, I18n.get(Keys.LOOP_COMPACT),
+                System.currentTimeMillis(), false)));
         return null;
     }
 
@@ -744,6 +888,13 @@ public final class EntityAgentLoop {
 
 
     /** 事件时间戳用的游戏内时刻;身体不在客户端视野里时记 0。 */
+    /** 切断后服务端交出的程序回执:这一批已经作废,她仍必须知道切断前做了什么,所以作为一条事件进收件箱。 */
+    private void receiptAfterCut(String program, String receipt) {
+        Minecraft.getInstance().execute(() -> loop.push(List.of(com.dwinovo.numen.event.NumenEvents.programStopped(
+                gameDayTime(), program, com.dwinovo.numen.program.RunResult.messageOf(receipt),
+                System.currentTimeMillis()))));
+    }
+
     private long gameDayTime() {
         AbstractClientPlayer body = resolveEntity();
         return body != null ? body.level().getDayTime() : 0L;
@@ -763,19 +914,11 @@ public final class EntityAgentLoop {
             return endpointProblem();
         }
 
-        /**
-         * <b>发给模型的就是这一份</b>——会话上下文加上这一轮临时挂载的运行期状态
-         * ({@code <runtime_state>}/{@code <current_task>})。源会话与落盘日志一个字不动。
-         * 可调工具集从同一份消息里算:展开闸按模型这一次看见了什么判。
-         */
+        /** 这一轮的请求:组装只在 {@link AgentRequestContext#turn} 一处,评测调的也是它。 */
         @Override
         public ModelRequest turnRequest() {
-            List<ConvoState.Msg> messages = AgentRequestContext.attach(convo.snapshot(), runtime.xml());
-            // 工具表是全份:装在模组里的、联动插件带的、接进来的 MCP,一并发出去。
-            // 分批披露那套已经退役——她得先搜一次才能用的工具,省下的那点前缀是缓存本来就
-            // 不收钱的部分,换来的却是每次压缩之后重搜一遍。
-            List<NumenTool> tools = ToolRegistry.all();
-            return new ModelRequest(messages, tools, SystemPromptComposer.compose(personaText()));
+            return AgentRequestContext.turn(convo.snapshot(), runtime.xml(), personaText(),
+                    com.dwinovo.numen.script.Modules.of(entityUuid));
         }
 
         /**
@@ -801,7 +944,7 @@ public final class EntityAgentLoop {
                     // 面向主人的是分类人话;技术细节进日志(传输层还有全量)。
                     String words = LlmErrorWords.classify(err);
                     Constants.LOG.warn("[numen-entity#{}] LLM call failed: {} ({})", entityUuid, words, unwrap(err));
-                    onDone.accept(new ModelOutcome.Failed(words));
+                    onDone.accept(new ModelOutcome.Failed(words, LlmErrorWords.retryable(err)));
                     return;
                 }
                 onDone.accept(new ModelOutcome.Answered(res.turn(), res.usage()));
@@ -849,22 +992,10 @@ public final class EntityAgentLoop {
             return McpMode.instance().driving();
         }
 
-        /**
-         * {@code <memory>} 索引随注入的 user 消息进历史,不放系统提示:她一 remember 它就变了,
-         * 放系统提示会打碎请求前缀的 prompt cache。
-         *
-         * <p>贴的是<b>全份</b>,但只在"历史里那份没了或者过时了"的时候贴:开一局、压缩/清空
-         * 之后、她刚写过。没变就不重贴——历史里已经躺着一份,再贴一份是白花的 token。
-         */
+        /** {@code <memory>} 索引,贴不贴见 {@link MemoryPreamble}。 */
         @Override
         public String injectionPreamble() {
-            int revision = notes.revision();
-            if (memoryInHistory && revision == memoryRevisionInHistory) {
-                return "";
-            }
-            memoryInHistory = true;
-            memoryRevisionInHistory = revision;
-            return notes.formatXml();
+            return memory.next();
         }
 
         @Override

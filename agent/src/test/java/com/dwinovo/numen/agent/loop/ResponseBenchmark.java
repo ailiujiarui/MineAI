@@ -47,8 +47,10 @@ class ResponseBenchmark extends LoopHarness {
             row.metrics.addProperty("fixture_prompt_to_model_request_ms", host.now - submitted);
 
             host.now += 800;
-            model.last().callTools(call("follow-1", "follow"));
-            assertEquals("follow", eventsOf(LoopEvent.ToolStarted.class).getFirst().call().name());
+            model.last().callTools(call("follow-1", "numen.move.follow()"));
+            assertEquals("lua", eventsOf(LoopEvent.ToolStarted.class).getFirst().call().name());
+            assertTrue(eventsOf(LoopEvent.ToolStarted.class).getFirst().call().arguments()
+                    .contains("numen.move.follow()"));
             row.metrics.addProperty("fixture_scripted_model_wait_ms", 800);
             row.metrics.addProperty("fixture_prompt_to_tool_dispatch_ms", host.now - submitted);
             row.evidence.addProperty("model_choice", "scripted follow; not scored as model understanding");
@@ -67,7 +69,7 @@ class ResponseBenchmark extends LoopHarness {
             boolean oldCancelledAtRevision = old.cancel().isCancelled();
 
             host.now += 1100;
-            old.callTools(call("stale-mine", "mine"));
+            old.callTools(call("stale-mine", "numen.work.dig({x=0,y=64,z=0})"));
             int staleDispatches = (int) eventsOf(LoopEvent.ToolStarted.class).stream()
                     .filter(e -> e.call().id().equals("stale-mine")).count();
             row.metrics.addProperty("stale_tool_dispatches", staleDispatches);
@@ -96,7 +98,7 @@ class ResponseBenchmark extends LoopHarness {
     void steerDuringTool() throws IOException {
         measure("response.steer_during_tool", "同步工具尚未结算时，主人补充‘先回来’", row -> {
             ownerSays("处理眼前的方块");
-            model.last().callTools(call("sync-1", "interact_at"));
+            model.last().callTools(call("sync-1", "numen.use.block({x=0,y=64,z=0})"));
             host.now += 100;
             long revised = host.now;
             ownerSays("先回来");
@@ -130,7 +132,7 @@ class ResponseBenchmark extends LoopHarness {
 
             host.now += 500;
             old.stream("继续挖矿");
-            old.callTools(call("late-mine", "mine"));
+            old.callTools(call("late-mine", "numen.work.dig({x=0,y=64,z=0})"));
             assertEquals(afterStop, events.size(), "停止后迟到的回复和工具必须作废");
             worldEvent("任务已停止", true);
             assertEquals(1, model.calls.size(), "世界急件不能自动恢复主人叫停的工作");
@@ -147,7 +149,7 @@ class ResponseBenchmark extends LoopHarness {
     void stopButtonDuringTool() throws IOException {
         measure("response.stop_button_during_tool", "工具调用尚未结算时点击停止", row -> {
             ownerSays("去挖矿");
-            model.last().callTools(call("running-mine", "mine"));
+            model.last().callTools(call("running-mine", "numen.work.dig({x=0,y=64,z=0})"));
             ToolPort.Sink old = tools.sink;
             host.now += 100;
             loop.halt(HaltReason.OWNER_STOP);
@@ -181,7 +183,7 @@ class ResponseBenchmark extends LoopHarness {
             if (!model.calls.isEmpty()) {
                 assertTrue(model.last().lastUser().contains("停下"), "停止请求不能丢失");
                 host.now += 600;
-                model.last().callTools(call("stop-1", "task_stop"));
+                model.last().callTools(call("stop-1", "numen.task.stop()"));
                 row.metrics.addProperty("fixture_scripted_model_wait_ms", 600);
                 row.metrics.addProperty("fixture_prompt_to_task_stop_dispatch_ms", 600);
                 row.evidence.addProperty("model_choice", "scripted task_stop; live understanding unmeasured");
@@ -192,8 +194,10 @@ class ResponseBenchmark extends LoopHarness {
         });
     }
 
-    private static LlmToolCall call(String id, String name) {
-        return new LlmToolCall(id, name, "{}");
+    private static LlmToolCall call(String id, String code) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("code", code);
+        return new LlmToolCall(id, "lua", arguments.toString());
     }
 
     private void measure(String id, String scenario, Scenario body) throws IOException {

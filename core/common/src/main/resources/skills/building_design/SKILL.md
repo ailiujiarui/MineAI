@@ -1,6 +1,6 @@
 ---
 name: building_design
-description: Building design doctrine for the build/blueprint tools - planning workflow, size reference, single-floor rule, door alignment, composition order with walls, quality checklist. Load BEFORE designing or building any non-trivial structure.
+description: Building design doctrine for the build API - buildings drawn as Cells with numen.shape and built with numen.build.raise, blueprint files, planning workflow, size reference, single-floor rule, door alignment, composition order with walls, quality checklist. Load BEFORE designing or building any non-trivial structure.
 ---
 
 # Skill: building_design
@@ -11,20 +11,33 @@ finished build looks wrong.
 ## Workflow
 
 1. PLAN first: purpose, footprint, height, one main material + one accent material.
-2. Inspect the site (goto / look around): flat enough? big enough? Note the GROUND
+2. Inspect the site (numen.move.to / numen.scan.map): flat enough? big enough? Note the GROUND
    level — every vertical decision below is anchored to it.
    **Uneven ground is YOUR problem to solve, not the builder's**: the builder puts
    blocks exactly where told, so on a slope one side of the footprint will hang in
    the air (or bury into the hill). Scan the footprint first; if the surface varies,
-   either move the site, or lay a foundation yourself BEFORE the blueprint — a
-   `fill` volume of the wall material from the lowest corner up to your chosen
-   ground level (costs materials in survival like any build). Stilt houses are a
-   valid choice too — just make it a choice, not an accident.
-3. Build big-to-small in ONE build call where possible: a single ordered `ops`
-   stream — `layer` grids first, single `set` details last; later ops overwrite
-   earlier cells.
-4. After task_finished, LOOK at the result, run the checklist below, patch gaps
-   with a small follow-up build call.
+   either move the site, or give the building a foundation — a `layer` of the
+   wall material repeated from the lowest ground up to your chosen floor level
+   (costs materials in survival like any build). Stilt houses are a valid choice
+   too — just make it a choice, not an accident.
+3. Draw the building as Cells, one level at a time from the ground up, in one
+   program: each level is a `numen.shape.layer` grid (or a box, a line, a
+   cylinder), and `union` stacks them — later Cells win where two overlap, so go
+   big to small within a level and put single details last. Draw around one
+   corner `o` (`numen.shape.pos(x, y, z)`) and offset from it (`o:offset(dx, dy, dz)`),
+   so you think in the building's own terms.
+4. Check before you build: `numen.build.diff` on the Cells says how many cells
+   are left, which must be dug out first and how many are out of reach; print a
+   few cells of a level if you are unsure what you drew. Nothing is built yet.
+5. `numen.build.raise` the Cells: each round it asks `numen.build.diff` what is
+   still to do from where you stand, places what your hand reaches
+   (`numen.build.place`, which in survival prices all of it first), digs out what is
+   in the way and walks on to the lowest cell left, until all of it stands.
+6. When it ends, LOOK at the result and run the checklist below. To fix
+   something, change the program that draws the Cells and `numen.build.raise` them
+   again — it only adds what is missing and changes what differs. Nothing is
+   kept between programs: the world is what you built, so draw the same Cells
+   again (keep the program in a module of your own if you will build it twice).
 
 ## Size reference (width x depth x height)
 
@@ -58,34 +71,79 @@ want for a room.
 - walk the doorway in your head: outside ground -> (step?) -> door lower cell
   -> interior floor. Any solid block in that line means the door is jammed.
 
-## The primitives
+## Drawing: numen.shape
 
-Six ops, all geometry, no style. What you build with them is yours.
+Everything is drawn as Cells — a list of Blocks, each the block for one cell —
+with the shapes of the built-in module `numen.shape`. All geometry, no style.
+What you build with them is yours. With a block each cell is that Block; without
+one, only the cells (for `numen.work.dig` or route flags).
 
-- `layer` — a character grid with a `legend`, stamped at one level, or repeated
-  from `y1` to `y2`. The first row sits at `z1` and runs +x, so the grid reads
-  like a map: north at the top, east to the right. `' '` and `'.'` leave a cell
-  alone. One grid is a floor, a wall ring, an L-shaped footprint, a course of
-  roof tiles, a window pattern, scattered flowers. **This is the op you will use
-  for almost everything.**
-- `set` — one cell, when a grid would be overkill.
-- `line` — two points, diagonals included: beams, posts, ridges, hip lines.
-- `cylinder` / `sphere` — round geometry, `hollow` for a shell. A dome is the
-  top half of a hollow sphere.
-- `copy` — take a region you already built and stamp it elsewhere, with
-  `rotation` and `mirror`. Build one wing, mirror it. Build one window bay,
-  repeat it down the wall. Cheaper than writing it twice, and the two halves
-  actually match.
+- `layer(at, rows, legend)` — a character grid stamped at one level: `at` is
+  where the first character goes. The first row sits at that z and runs +x, so
+  the grid reads like a map: north at the top, east to the right. `legend` says
+  which block each character is (`{["#"] = "cobblestone", ["<"] = "oak_stairs[facing=south]"}`);
+  `' '` and `'.'` leave a cell out. One grid is a floor, a wall ring, an
+  L-shaped footprint, a course of roof tiles, a window pattern, scattered
+  flowers. **This is the shape you will use for almost everything.** Repeat a
+  grid up a wall with `shift`: `ring:union(ring:shift(0, 1, 0))`.
+- `box(from, to, block, hollow)` — every cell between two corners, or only its
+  faces.
+- `line(from, to, block)` — two points, diagonals included: beams, posts,
+  ridges, hip lines.
+- `cylinder(base, radius, height, block, hollow)` / `sphere(center, radius,
+  block, hollow)` — round geometry; a dome is the top half of a hollow sphere.
+- Cells combine: `a:union(b)` (b wins where both have a cell), `a:minus(b)`
+  (takes b's cells out), `a:shift(dx, dy, dz)`, and `a:rotate(quarters, origin)`
+  turns them clockwise seen from above, the blocks' facing with them. Build one
+  wing, turn it for the other; draw one window bay and shift it down the wall.
 
-Block states ride along with the block name, exactly as in `/setblock`:
+A small house, drawn and built in one program:
+```lua
+local S = numen.shape
+local o = S.pos(120, 64, -35)
+local floor = S.layer(o, {"#######", "#######", "#######", "#######", "#######"}, {["#"] = "cobblestone"})
+local ring = S.layer(o:offset(0, 1, 0), {"#######", "#.....#", "#.....#", "#.....#", "#######"}, {["#"] = "oak_planks"})
+local house = floor:union(ring):union(ring:shift(0, 1, 0)):union(ring:shift(0, 2, 0))
+house = house:union(S.box(o:offset(3, 1, 4), o:offset(3, 2, 4), "air"))
+house = house:union({{name = "oak_door[facing=north]", pos = o:offset(3, 1, 4)}})
+print(numen.build.diff(house).left)
+numen.build.raise(house)
+```
+
+The doorway and the door are in the same cell of the south wall (z=4); the door
+comes after the doorway, so it wins that cell.
+
+Block states ride along with the block name, exactly as in `numen.mc.run("setblock")`:
 `oak_stairs[facing=north,half=top]`, `oak_slab[type=double]`, `oak_log[axis=x]`,
-`trapdoor[open=true,facing=north]`. A door, bed or tall flower is placed from its
-LOWER half alone — the other half appears with it.
+`oak_trapdoor[open=true,facing=north]`. A door or tall flower is written as its
+lower half alone and a bed as its foot — the other half appears with it.
 
-`mask` decides what happens where something already stands: `carve` (default)
-builds through anything and an `air` cell digs that cell out; `overwrite` leaves
-air cells alone; `solid` only overwrites with full blocks; `keep` only builds
-into air and grass. Adding to a building someone else made? `keep`.
+Which way a block faces (these are the game's own rules):
+
+- **stairs** — `facing` is the side the tall back is on, the way you walk UP
+  them. A roof slope rises toward the ridge, so its stairs face the ridge: on a
+  south slope (the side that drops away to the south) they face north, on a
+  north slope south. `half=top` turns them upside down.
+- **door** — the closed panel lies against the edge of its cell opposite
+  `facing`: in a south wall, `facing=north` sets it flush with the outside,
+  `facing=south` with the inside.
+- **trapdoor** — open, it stands as a full-height panel against the edge of its
+  cell opposite `facing` (`facing=south` stands on the north edge, against a
+  north wall); shut, `half=top` is a slab at the top of the cell and
+  `half=bottom` one at the bottom.
+- **ladder** — hangs on the block on the side opposite `facing`:
+  `ladder[facing=north]` needs a solid block just south of it.
+- **bed** — `facing` points from the foot to the head; the head goes one cell
+  that way.
+- **lantern** — `hanging=true` hangs from the block above it and needs one
+  there; `hanging=false` stands on the block below.
+- **log / pillar** — `axis` is the way it runs: `y` upright, `x` east–west,
+  `z` north–south.
+
+Where something already stands in a cell, the cell's block replaces it (in
+survival, dig it out first: `numen.build.raise` does), and an `air` cell digs that
+cell out. A cell you leave out of the Cells is left alone — adding to a building
+someone else made, draw only your additions.
 
 ## Composition order (matches the bottom-up layered builder)
 
@@ -94,10 +152,10 @@ into air and grass. Adding to a building someone else made? `keep`.
 3. roof — see the roof section below. For a dome use the top half of a hollow
    `sphere` instead.
 4. openings: a `layer` of `air` for the doorway (two cells tall) and windows
-   1-2 above the floor; the door itself is one `set` of its lower half
+   1-2 above the floor; the door itself is one cell, its lower half
 5. **interior fittings** — see the Interiors section. This is not a garnish: on
    an inhabited floor it is 35-50% of the cells, so plan the room purposes and
-   the wall lines before you start writing ops, not after.
+   the wall lines before you start drawing, not after.
 6. exterior details: stairs facing the right way, glass panes, lanterns, and a
    sparse `layer` of flowers and grass around the yard
 
@@ -105,11 +163,11 @@ into air and grass. Adding to a building someone else made? `keep`.
 time from the ground up, and then walks the building again to fit the things that
 need something to hold onto: torches, signs, ladders, carpets, flowers, rails,
 redstone, pressure plates, buttons and hanging lanterns. You do not have to order
-those specially — write them wherever they belong in the ops stream and they get
-deferred for you. It also means an upper-floor lantern is never placed into thin
+those specially — draw them wherever they belong and they get deferred for
+you. It also means an upper-floor lantern is never placed into thin
 air and dropped.
 
-**Liquids are not handled.** Leave `water` and `lava` out of the ops entirely. Dig
+**Liquids are not handled.** Leave `water` and `lava` out of the Cells entirely. Dig
 and line the basin, the moat, the canal or the fountain so it is ready to hold
 water, and let the player pour it — one bucket does the whole pond. Existing water
 on the site is never drained either, so pick a dry spot or plan the build around
@@ -117,7 +175,7 @@ it.
 
 ## Roofs (the part most builds get wrong)
 
-There is no roof op. You draw a roof course by course with `layer`, one grid per
+There is no roof shape. You draw a roof course by course with `layer`, one grid per
 level, and that is the point: any shape you can draw, you can build — including
 the L-shaped and cross-shaped roofs no generator would have given you.
 
@@ -138,9 +196,9 @@ ways to climb that always meet:
   slab as you go up. This is what a tiled roof is actually made of, it is the
   shallowest pitch, and it is what East Asian roofs need.
 - **Stairs, one block per cell**: one course of stairs per level, `facing` the
-  way the roof RISES (a south slope's stairs face south). Steeper, western, and
-  the cheapest roof to write. Under a deep overhang put the lowest course as
-  `[half=top]` stairs so the eave reads thin.
+  way the roof RISES, toward the ridge (a south slope's stairs face north).
+  Steeper, western, and the cheapest roof to write. Under a deep overhang put
+  the lowest course as `[half=top]` stairs so the eave reads thin.
 
 Never mix the two on one plane — the join is exactly where the gap appears.
 
@@ -215,7 +273,7 @@ and want 2-4. A deep eave buys more character than a taller wall.
 
 Lift the four eave corners 1-3 cells with the ridge material for an East Asian
 roof — the upturned corner is the most recognisable feature of the style, and
-one `set` per corner buys it. Leave it flat for western buildings.
+one cell per corner buys it. Leave it flat for western buildings.
 
 ### Under the eave
 
@@ -286,10 +344,10 @@ their shape. Measured frequencies from the same building, in order:
 
 - **Trapdoors — 397 of 941 furnishing cells, across seven different woods.** By a
   wide margin the most useful detail block in the game, because it is the only
-  thin one you can put in any orientation. All four states earn their keep:
-  - `open=true` → a **thin vertical panel** filling part of a cell: a screen, a
-    shutter, a cupboard front, railing infill, a partition that does not eat the
-    room.
+  thin one you can put in any orientation. All three shapes earn their keep:
+  - `open=true` → a **thin vertical panel** against one edge of the cell (the
+    edge opposite `facing`; `half` does not change it): a screen, a shutter, a
+    cupboard front, railing infill, a partition that does not eat the room.
   - `open=false, half=top` → a **shelf hanging under a beam**, or a ceiling panel.
   - `open=false, half=bottom` → a **low ledge at floor level**: a step, a hearth
     lip, the edge of a platform.
@@ -359,13 +417,14 @@ and let three or four props carry it:
 Two rooms with the same props are one room built twice. Vary the purpose before
 you vary the blocks.
 
-### Writing it in ops
+### Drawing it
 
-Interior detail is the **last** pass — later ops overwrite earlier cells, so the
+Interior detail is the **last** pass — Cells unioned on top win their cells, so the
 shell goes first and the fittings go on top. Almost all of it is one cell with a
 state, because the state is the whole point:
 
-- vertical panel: `oak_trapdoor[half=bottom,open=true,facing=north]`
+- vertical panel: `oak_trapdoor[half=bottom,open=true,facing=north]` (stands on
+  the cell's south edge)
 - hanging shelf: `oak_trapdoor[half=top,open=false]`
 - lit hearth: `campfire[signal_fire=false,lit=true]`
 - hanging lantern: `lantern[hanging=true]` under a beam
@@ -375,13 +434,23 @@ one `layer` grid — draw where each piece goes instead of sprinkling at random.
 
 ## Mix your materials
 
-Every block_id accepts a weighted mix — `"stone_bricks*8, mossy_stone_bricks*2,
-cracked_stone_bricks"` — and each cell picks one, the same way every time.
-
 A large surface in one flat colour is the single most reliable way to make a
-build look fake, so **put a mix on every wall, floor and roof that covers real
-area**. 10-20% of a weathered or contrasting variant is usually enough; the eye
-reads it as texture rather than as a pattern.
+build look fake, so **mix every wall, floor and roof that covers real area**:
+10-20% of a weathered or contrasting variant is usually enough; the eye reads it
+as texture rather than as a pattern. Choose the variant by the cell's position,
+never by `math.random` — each round of `numen.build.raise` draws the Cells again,
+and a random pick would change the wall it already built:
+
+```lua
+local function mixed(cells, variant, every)
+  for _, c in ipairs(cells) do
+    if (c.pos.x * 7 + c.pos.y * 13 + c.pos.z * 31) % every == 0 then
+      c.name = variant
+    end
+  end
+  return cells
+end
+```
 
 ## Quality checklist
 
@@ -397,14 +466,19 @@ reads it as texture rather than as a pattern.
 - lit well enough that nothing spawns, dim enough to still have shadows
 - one main material family + one accent beats a single-material box
 
-## Tool mapping
+## Command mapping
 
-- everything goes through `build`'s ordered `ops` stream: layer / set / line /
-  cylinder / sphere / copy; block states ride in the block name; `minecraft:air`
-  clears; `mask` decides what may be overwritten; later ops overwrite earlier
-  cells, so details go last
-- whole structure files: `blueprint` tool (action=list first, then action=build
-  at a flat anchor); liquids are always skipped
+- draw: `numen.shape.layer`, `numen.shape.box`, `numen.shape.line`,
+  `numen.shape.cylinder`, `numen.shape.sphere`; combine with `union`, `minus`,
+  `shift`, `rotate`; block states ride in the block name; `air` clears
+- `numen.build.diff` of the Cells says what is still to do and where, without building
+- `numen.build.place` of the Cells places what your hand reaches from where you stand,
+  each cell once; `numen.build.raise` of them walks the site until all of it stands
+- a single block: `numen.build.place({{name = "crafting_table", pos = {x = 120, y = 64, z = -35}}})`
+- whole structure files: `numen.build.blueprint("cottage", {x = 120, y = 64, z = -35})`
+  reads one placed at a spot (size, cells, materials, what you are short of) and
+  `numen.build.raise` of it builds it; placing the same file at the same spot again
+  changes that building to match the file; liquids are always skipped
 
 ## Style references — how to read them
 
@@ -434,7 +508,7 @@ and wide with lifted corners"; translating that into courses, materials, an
 overhang and a corner lift is yours to do, and doing it differently on two
 buildings of the same style is the point, not a mistake.
 
-Load one with `load_skill(building_design, file="references/<style>.md")`.
+Load one with the skill tool: skill `building_design`, file `references/baroque.md` (any style file name below).
 
 ### East Asia
 `japanese_minka` 和风民居 · `japanese_shrine` 神社 · `japanese_castle` 天守 ·

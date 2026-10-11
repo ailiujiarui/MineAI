@@ -3,7 +3,8 @@ package com.dwinovo.numen.permission;
 import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.network.payload.ConsentRequestPayload;
-import com.dwinovo.numen.platform.Services;
+import com.dwinovo.numen.network.NumenNetwork;
+import com.dwinovo.numen.task.TaskRecord;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,7 +23,8 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <h2>征询</h2>
  * 同一只同伴同时只挂一条;新的顶掉旧的,旧的按拒绝收尾({@link #SUPERSEDED})。发起那一刻主人
- * 不在线,或者挂着的时候主人下线、到了 {@link #TIMEOUT_TICKS},都按拒绝收尾({@link #OWNER_ABSENT})。
+ * 不在线,或者挂着的时候主人下线、到了 {@link #TIMEOUT_TICKS},都按悬而未决收尾({@link #OWNER_ABSENT},
+ * {@link ConsentAnswer.Decision#PENDING})——不是拒绝,发起的一方据此搁下这一格而不是硬顶收场。
  * 请求与撤回都推给主人的客户端({@link ConsentRequestPayload}),撤回带着为什么撤({@link Withdrawal});答复经
  * {@link #answer} 回来。发起者每刻读自己那张 {@link Ticket},模型不参与。
  *
@@ -36,12 +38,28 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <h2>记住</h2>
  * 主人选"允许并记住"时,除了记成本任务的授权,清单每一条的 {@link ConsentItem#remember} 写进主人的
- * allow 表({@link PermissionStore#remember}),往后同类的事由主人层直接放行,不再问。
+ * allow 表({@link PermissionStore#remember}),同时留一条带来历的跨会话信任({@link PermissionStore#rememberTrusted}),
+ * 往后同类的事由主人层直接放行,不再问。
  */
 public final class ConsentDesk {
 
-    /** 等主人答复多久(游戏刻)。 */
+    /** 等主人答复多久(游戏刻):短活的上限。 */
     public static final long TIMEOUT_TICKS = 2 * 60 * 20;
+
+    /**
+     * 长跑的、自主的活等主人答复的"上限"——事实上等不到:一个不会到的游戏刻。主人不在场或中途离线时,发起的一方
+     * 照旧按悬而未决搁下这一格继续做别的(不硬顶成拒绝),而主人只是迟答时,这一格一直留着等他。
+     */
+    public static final long UNBOUNDED_TICKS = Long.MAX_VALUE / 2;
+
+    /**
+     * 这次征询等主人多久,由发起它的一方是什么活定:{@link TaskRecord#consentTimeoutTicks()}。交互的、短活保持
+     * {@link #TIMEOUT_TICKS};mine/build/route 一类自主长跑的活等同无限。认不出发起方的(指令、脚本调用、测试里的
+     * 普通对象)按短活算。
+     */
+    public static long timeoutFor(Object scope) {
+        return scope instanceof TaskRecord record ? record.consentTimeoutTicks() : TIMEOUT_TICKS;
+    }
 
     /** 主人按了拒绝、没有附言时回执里的理由。 */
     public static final String OWNER_SAID_NO = "主人拒绝";
@@ -125,7 +143,7 @@ public final class ConsentDesk {
     }
 
     /**
-     * 发起一次征询。挂着的那条被顶替;主人此刻不在线则当场按拒绝收尾,不推给主人。
+     * 发起一次征询。挂着的那条被顶替;主人此刻不在线则当场按悬而未决收尾,不推给主人。
      *
      * @param scope 发起它的那一方(任务记录,或一次等着执行的指令)——授权记在它名下,它收尾时一并清掉
      * @param items 清单,不能为空
@@ -135,14 +153,14 @@ public final class ConsentDesk {
             throw new IllegalArgumentException("a consent request needs at least one item");
         }
         Ticket ticket = new Ticket(scope, new ConsentRequest(IDS.incrementAndGet(), companion, items,
-                line.gameTime() + TIMEOUT_TICKS));
+                line.gameTime() + timeoutFor(scope)));
         if (pending != null) {
             settle(pending, new ConsentAnswer(ConsentAnswer.Decision.DENY, SUPERSEDED));
         }
         if (!line.ownerPresent()) {
-            ticket.answer = new ConsentAnswer(ConsentAnswer.Decision.DENY, OWNER_ABSENT);
+            ticket.answer = new ConsentAnswer(ConsentAnswer.Decision.PENDING, OWNER_ABSENT);
             line.clear(Withdrawal.OWNER_ABSENT);
-            Constants.LOG.info("[numen-consent] {} ask #{} refused at once: owner offline", companion,
+            Constants.LOG.info("[numen-consent] {} ask #{} unresolved at once: owner offline", companion,
                     ticket.request.id());
             return ticket;
         }
@@ -196,15 +214,17 @@ public final class ConsentDesk {
         }
         Ticket ticket = pending;
         ConsentAnswer answer;
-        if (decision == ConsentAnswer.Decision.DENY) {
-            answer = new ConsentAnswer(decision, said.isEmpty() ? OWNER_SAID_NO : said);
-        } else {
+        if (decision == ConsentAnswer.Decision.ALLOW_ONCE || decision == ConsentAnswer.Decision.ALLOW_REMEMBER) {
             grants.computeIfAbsent(ticket.scope, k -> new ArrayList<>()).addAll(ticket.request.items());
             rebuildGranted();
             if (decision == ConsentAnswer.Decision.ALLOW_REMEMBER) {
                 line.remember(ConsentItem.remembered(ticket.request.items()));
             }
             answer = new ConsentAnswer(decision, "");
+        } else {
+            // 拒绝与悬而未决一样不记授权;说不出原因的悬而未决按 OWNER_ABSENT 说
+            String fallback = decision == ConsentAnswer.Decision.DENY ? OWNER_SAID_NO : OWNER_ABSENT;
+            answer = new ConsentAnswer(decision, said.isEmpty() ? fallback : said);
         }
         settle(ticket, answer);
         line.clear(null);
@@ -213,14 +233,14 @@ public final class ConsentDesk {
         return true;
     }
 
-    /** 每服务端 tick 一次:主人下线或到点,挂着的那条按拒绝收尾。 */
+    /** 每服务端 tick 一次:主人下线或到点,挂着的那条按悬而未决收尾(不是拒绝)。 */
     public void tick() {
         if (pending == null) {
             return;
         }
         if (!line.ownerPresent() || line.gameTime() >= pending.request.expiresAtGameTime()) {
             Constants.LOG.info("[numen-consent] {} #{} expired: {}", companion, pending.request.id(), OWNER_ABSENT);
-            settle(pending, new ConsentAnswer(ConsentAnswer.Decision.DENY, OWNER_ABSENT));
+            settle(pending, new ConsentAnswer(ConsentAnswer.Decision.PENDING, OWNER_ABSENT));
             line.clear(Withdrawal.OWNER_ABSENT);
         }
     }
@@ -255,6 +275,11 @@ public final class ConsentDesk {
     /** 全部在册的任务期授权(不可变快照)。 */
     public List<ConsentItem> granted() {
         return granted;
+    }
+
+    /** 一次调用或任务自己获准的清单;调用期凭据只认自己的作用域。 */
+    public List<ConsentItem> granted(Object scope) {
+        return List.copyOf(grants.getOrDefault(scope, List.of()));
     }
 
     /** 挂着的那条;没有是 null。 */
@@ -312,7 +337,7 @@ public final class ConsentDesk {
         public void show(ConsentRequest request) {
             ServerPlayer owner = body.resolveOwnerPlayer();
             if (owner != null) {
-                Services.NETWORK.sendToPlayer(owner, ConsentRequestPayload.of(request));
+                NumenNetwork.sendToPlayer(owner, ConsentRequestPayload.of(request));
             }
         }
 
@@ -320,13 +345,18 @@ public final class ConsentDesk {
         public void clear(Withdrawal why) {
             ServerPlayer owner = body.resolveOwnerPlayer();
             if (owner != null) {
-                Services.NETWORK.sendToPlayer(owner, ConsentRequestPayload.none(body.getUUID(), why));
+                NumenNetwork.sendToPlayer(owner, ConsentRequestPayload.none(body.getUUID(), why));
             }
         }
 
         @Override
         public void remember(List<Rule> allow) {
-            PermissionStore.of(body.getServer(), body.getOwnerUuid()).remember(allow);
+            PermissionStore store = PermissionStore.of(body.getServer(), body.getOwnerUuid());
+            store.remember(allow);
+            // "允许并记住"同时留一条跨会话的信任,连同谁在什么时候为准许的;往后 Gate 在出厂 ask 之前就放行。
+            for (Rule rule : allow) {
+                store.rememberTrusted(rule, body.getOwnerUuid(), body.getGameProfile().getName());
+            }
         }
 
     }

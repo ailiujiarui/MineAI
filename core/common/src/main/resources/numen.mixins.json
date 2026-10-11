@@ -17,7 +17,11 @@
     "DragonAnimationEvalAccessor",
     "NativePortalEvalMixin",
     "ServerLevelBlockChangeMixin",
-    "ServerPlayerGameModeAccessor"
+    "ServerPlayerGameModeAccessor",
+    "ServerPlayerGameModeDropsMixin",
+    "ServerLevelDropsMixin",
+    "ItemEntityDropsMixin",
+    "LivingEntityTakeMixin"
   ],
   "client": [],
   "server": [],

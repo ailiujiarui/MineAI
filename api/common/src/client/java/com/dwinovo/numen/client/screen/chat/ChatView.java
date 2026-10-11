@@ -10,7 +10,6 @@ import com.dwinovo.numen.agent.conversation.Transcript;
 import com.dwinovo.numen.client.agent.AgentLoopRegistry;
 import com.dwinovo.numen.agent.provider.AssistantTurn;
 import com.dwinovo.numen.agent.provider.LlmToolCall;
-import com.dwinovo.numen.client.agent.ClientNumenLookup;
 import com.dwinovo.numen.client.agent.Conversations;
 import com.dwinovo.numen.client.agent.EntityAgentLoop;
 import com.dwinovo.numen.client.agent.KnownSkins;
@@ -38,8 +37,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -261,7 +262,17 @@ public final class ChatView {
     }
 
     /** Forget scroll + fold state (companion or tab switch). */
+    /**
+     * 换了会话(或面板不再对着任何会话):上一个会话的一切连同它这一帧画出来的样子都忘掉——点击、滚轮、拖滑块按的是画出来的
+     * 几何,下一帧画了新会话才有新的;空面板不画对话,这里就什么也点不中。
+     */
     public void reset() {
+        gx = gy = gw = gh = 0;
+        hits.clear();
+        faces.clear();
+        lastMaxScroll = 0;
+        jumpShown = 0f;
+        barDragging = false;
         unreadSince = -1;
         scrollPos = 0;
         scrollTarget = 0;
@@ -650,7 +661,7 @@ public final class ChatView {
      * 下面一项一行(长的折行),前面一个方格。{@code items} 留着比"是不是同一份";{@code rows} 是按这一刻的宽度
      * 折好的行;{@code time}、{@code entry} 是第一次出现时的——同一份计划原地更新,不改它是哪一条。
      */
-    private record Checklist(UUID who, String label, List<PlanChecklist.Item> items, String header,
+    private record Checklist(UUID who, String label, List<com.dwinovo.numen.agent.tool.TodoTool.Item> items, String header,
                              List<CheckRow> rows, int maxLineW, String time, boolean timeInline, int entry,
                              boolean runEnd) implements Block {
         Checklist withRunEnd(boolean on) {
@@ -659,7 +670,7 @@ public final class ChatView {
     }
 
     /** 清单里的一项:状态(画方格用)和折好的行。 */
-    private record CheckRow(PlanChecklist.State state, List<FormattedCharSequence> lines) {}
+    private record CheckRow(com.dwinovo.numen.agent.tool.TodoTool.Status state, List<FormattedCharSequence> lines) {}
 
     /** 打勾的过渡:方格从中间往外填满,满了再出勾。 */
     private static final int TICK_MS = 220;
@@ -915,9 +926,11 @@ public final class ChatView {
         List<Transcript.Entry> source = transcript();
         Set<String> done = new HashSet<>();
         Set<String> failed = new HashSet<>();
+        Map<String, String> results = new HashMap<>();
         for (Transcript.Entry e : source) {
             if (e.msg() instanceof ConvoState.Msg.Tool t) {
                 done.add(t.toolCallId());
+                results.put(t.toolCallId(), t.content());
                 // 成败判据的单一真源(展示层不猜字符串)。
                 if (com.dwinovo.numen.agent.llm.ToolOutcome.failed(t.content())) {
                     failed.add(t.toolCallId());
@@ -1019,12 +1032,11 @@ public final class ChatView {
                         f.last = who;
                     }
                     for (LlmToolCall tc : turn.toolCalls()) {
-                        // 写下的计划是她的一条清单消息,不进过程那一行;没被工具收下的那次仍是一次失败的调用
-                        List<PlanChecklist.Item> plan = failed.contains(tc.id()) ? null : PlanChecklist.of(tc);
+                        addPiece(f, who, msgIndex, new Piece(null, false, tc));
+                        // 这次调用写下的计划是她的一条清单消息,画在这次调用之后
+                        List<com.dwinovo.numen.agent.tool.TodoTool.Item> plan = PlanChecklist.of(tc, results.get(tc.id()));
                         if (plan != null) {
                             checklist(f, who, msgIndex, entry.ts(), plan, innerW, done, failed, bubbleMaxW);
-                        } else {
-                            addPiece(f, who, msgIndex, new Piece(null, false, tc));
                         }
                     }
                 }
@@ -1099,7 +1111,7 @@ public final class ChatView {
             if (!(b instanceof Checklist c)) continue;
             for (int i = 0; i < c.items().size(); i++) {
                 String key = tickKey(c, i);
-                if (c.items().get(i).state() == PlanChecklist.State.COMPLETED) {
+                if (c.items().get(i).status() == com.dwinovo.numen.agent.tool.TodoTool.Status.COMPLETED) {
                     ticked.computeIfAbsent(key, k -> opening ? 0L : frameNow);
                 } else {
                     ticked.remove(key);
@@ -1162,7 +1174,7 @@ public final class ChatView {
      * 她写下一份计划:和她最近那条清单是同一份(内容一样、只是状态变了)就在那一条上原地更新,
      * 不往下挪;内容变了才是她新说的一条——先把攒着的过程收口,再接在后面。
      */
-    private void checklist(Feed f, UUID who, int entry, long ts, List<PlanChecklist.Item> items, int innerW,
+    private void checklist(Feed f, UUID who, int entry, long ts, List<com.dwinovo.numen.agent.tool.TodoTool.Item> items, int innerW,
                            Set<String> done, Set<String> failed, int bubbleMaxW) {
         Integer at = f.plans.get(who);
         if (at != null) {
@@ -1180,20 +1192,20 @@ public final class ChatView {
     }
 
     /** 折好一份清单:做完的和划掉的字退成气泡里的淡字、加删除线,还要做的照常。 */
-    private Checklist checklist(UUID who, String label, List<PlanChecklist.Item> items, int innerW,
+    private Checklist checklist(UUID who, String label, List<com.dwinovo.numen.agent.tool.TodoTool.Item> items, int innerW,
                                 String time, int entry) {
         String header = I18n.get("numen.chat.plan", PlanChecklist.done(items), items.size());
         int maxW = font.width(header);
         List<CheckRow> rows = new ArrayList<>(items.size());
         int textW = innerW - BOX_COL;
-        for (PlanChecklist.Item it : items) {
-            boolean off = it.state() == PlanChecklist.State.COMPLETED || it.state() == PlanChecklist.State.CANCELLED;
+        for (com.dwinovo.numen.agent.tool.TodoTool.Item it : items) {
+            boolean off = it.status() == com.dwinovo.numen.agent.tool.TodoTool.Status.COMPLETED || it.status() == com.dwinovo.numen.agent.tool.TodoTool.Status.CANCELLED;
             Component text = off
                     ? Nb.colored(it.content(), IN_META).copy().withStyle(net.minecraft.ChatFormatting.STRIKETHROUGH)
                     : Nb.colored(it.content(), TXT);
             List<FormattedCharSequence> lines = split(text, textW);
             for (FormattedCharSequence l : lines) maxW = Math.max(maxW, BOX_COL + font.width(l));
-            rows.add(new CheckRow(it.state(), lines));
+            rows.add(new CheckRow(it.status(), lines));
         }
         boolean inline = false;
         if (time != null) {
@@ -1316,12 +1328,13 @@ public final class ChatView {
             foldKey = "proc#" + f.processWho + "#" + f.processEntry;
             boolean open = expandedGroups.contains(foldKey);
             boolean running = liveThought || runningCall != null;
-            boolean anyFail = calls.stream().anyMatch(tc -> failed.contains(tc.id()));
+            // 收起时的颜色跟这段过程最后一步走:中途失败、后来改对了的一段不算失败;哪一步失败了,展开逐行各有 ✗ / ✔
+            boolean lastFail = !calls.isEmpty() && failed.contains(calls.get(calls.size() - 1).id());
             String head = running
                     ? (liveThought ? I18n.get("numen.chat.reasoning_now") : toolLine(runningCall))
                     : processSummary(thought, calls);
             rows.add(new ChipRow(running ? SPIN[(int) ((t / 120) % 4)] : (open ? "▾" : "▸"), running ? RUN : MUTED,
-                    Nb.colored(Nb.clip(font, head, textW), anyFail && !running ? FAIL : TOOL).getVisualOrderText()));
+                    Nb.colored(Nb.clip(font, head, textW), lastFail && !running ? FAIL : TOOL).getVisualOrderText()));
             if (open) {
                 for (Piece pc : ps) {
                     if (pc.call() != null) {
@@ -1553,7 +1566,7 @@ public final class ChatView {
      * 做完实心成功色、里面一枚白勾——刚勾上的({@code tickedAt} 非 0)先从中间往外填满,满了才出勾;
      * 划掉的空心,字已经划了线。
      */
-    private void checkBox(GuiGraphics g, PlanChecklist.State state, long tickedAt, int x, int y) {
+    private void checkBox(GuiGraphics g, com.dwinovo.numen.agent.tool.TodoTool.Status state, long tickedAt, int x, int y) {
         switch (state) {
             case COMPLETED -> {
                 float e = tickedAt == 0L ? 1f : Anim.easeOutCubic((frameNow - tickedAt) / (float) TICK_MS);

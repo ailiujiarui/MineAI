@@ -335,7 +335,10 @@ public final class LiveEvalWorld {
     public static void stop(MinecraftServer server, UUID companion) {
         requireSubject(server, companion);
         NumenPlayer body = NumenPlayer.findByUuid(server, companion);
-        if (body != null) CompanionTickDispatcher.cancelFor(body);
+        if (body != null) {
+            CompanionTickDispatcher.cancelFor(body);
+            com.dwinovo.numen.program.ServerPrograms.stop(body);
+        }
         WorldEvalObservers.stop(companion);
     }
 

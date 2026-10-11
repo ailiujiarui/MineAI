@@ -127,6 +127,26 @@ class AdapterRegistryTest {
     }
 
     @Test
+    void hostChecksEveryRouteTypeEvenWithoutExplicitRequires() throws IOException {
+        write("gear.json", "{\"id\":\"gear\",\"equipRoutes\":[{\"item\":\"x\",\"container\":\"shared\"}]}");
+        write("slot.json", "{\"id\":\"slot\",\"slotMaps\":[{\"name\":\"ring\",\"item\":\"x\",\"container\":\"shared\"}]}");
+        write("gui.json", "{\"id\":\"gui\",\"guis\":[{\"menu\":\"x\",\"source\":\"shared\"}]}");
+        write("container.json", "{\"id\":\"container\",\"containers\":[{\"block\":\"x\",\"access\":\"shared\"}]}");
+        write("use.json", "{\"id\":\"use\",\"useRoutes\":[{\"item\":\"x\",\"intent\":\"shared\"}]}");
+        AdapterRegistry registry = new AdapterRegistry();
+        var report = registry.reload(List.of(dir), mod -> true, name -> true,
+                (kind, name) -> kind == HandlerKind.CONTAINER && name.equals("shared"));
+        assertEquals(1, report.loaded());
+        assertEquals(List.of("container"), report.added());
+        assertTrue(skippedFor(report, "gear", "missing gear handler"));
+        assertTrue(skippedFor(report, "slot", "missing gear handler"));
+        assertTrue(skippedFor(report, "gui", "missing gui handler"));
+        assertTrue(skippedFor(report, "use", "missing use handler"));
+        assertEquals(5, registry.reload(List.of(dir), mod -> true, name -> true,
+                (kind, name) -> true).loaded());
+    }
+
+    @Test
     void priorityThenFileNameDecideAmongOverlappingRoutes() throws IOException {
         write("a.json", "{\"id\":\"a\",\"side\":\"server\",\"priority\":0,"
                 + "\"useRoutes\":[{\"item\":\"x\",\"intent\":\"a\"}]}");

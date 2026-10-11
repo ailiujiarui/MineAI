@@ -54,7 +54,7 @@ public class DragonCombatEvalGameTests {
         animate(f, 1);
         helper.assertTrue(!chain(f).get("calibration_native_chain_complete").getAsBoolean(),
                 "the fight-end tick must close before a success chain is committed");
-        helper.startSequence().thenIdle(1).thenExecute(() -> {
+        steps(helper).thenIdle(1).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             JsonObject facts = WorldEvalObservers.observe(f.body);
             helper.assertTrue(chain(f).get("calibration_native_chain_complete").getAsBoolean(),
@@ -78,7 +78,7 @@ public class DragonCombatEvalGameTests {
                         && chain(f).get("companion_actual_damage").getAsFloat() == 10,
                 "replayed observations must not duplicate a native damage event: " + chain(f));
         f.dragon.setHealth(200);
-        helper.startSequence().thenIdle(1).thenExecute(() -> {
+        steps(helper).thenIdle(1).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             helper.assertTrue(chain(f).get("minimum_health").getAsFloat() == 190
                             && chain(f).get("current_health").getAsFloat() == 200
@@ -102,7 +102,7 @@ public class DragonCombatEvalGameTests {
         f.dragon.getPhaseManager().getCurrentPhase().doServerTick();
         helper.assertTrue(f.dragon.getHealth() == 0, "the actual native death phase must enter animation at its target");
         animate(f, 200);
-        helper.startSequence().thenIdle(1).thenExecute(() -> {
+        steps(helper).thenIdle(1).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             helper.assertTrue(chain(f).get("calibration_native_chain_complete").getAsBoolean(),
                     "the airborne native sequence uses the same independently verified attribution chain");
@@ -132,7 +132,7 @@ public class DragonCombatEvalGameTests {
         cleanupBody(helper, other);
         strike(f, other, 200);
         animate(f, 200);
-        helper.startSequence().thenIdle(1).thenExecute(() -> {
+        steps(helper).thenIdle(1).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             helper.assertTrue(chain(f).getAsJsonObject("kill_credit").get("actor_uuid").getAsString().equals(other.getUUID().toString())
                             && !chain(f).get("calibration_native_chain_complete").getAsBoolean()
@@ -183,7 +183,7 @@ public class DragonCombatEvalGameTests {
     public static void removed_target_is_an_observation_gap_not_a_kill(GameTestHelper helper) {
         Fixture f = fixture(helper, "dragon_removed", 200);
         f.dragon.discard();
-        helper.startSequence().thenIdle(1).thenExecute(() -> {
+        steps(helper).thenIdle(1).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             JsonObject evidence = chain(f);
             helper.assertTrue(evidence.get("observation_gaps").getAsInt() > 0
@@ -202,7 +202,7 @@ public class DragonCombatEvalGameTests {
         helper.assertTrue(chain(f).get("last_verified_game_tick").getAsLong() == tick,
                 "read-only client snapshots do not represent completed server ticks");
         WorldEvalObservers.observationUnavailable(f.body.getUUID(), helper.getLevel().getGameTime());
-        helper.startSequence().thenIdle(1).thenExecute(() -> {
+        steps(helper).thenIdle(1).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             helper.assertTrue(!chain(f).get("calibration_native_chain_complete").getAsBoolean()
                             && !chain(f).get("critical_evidence_complete").getAsBoolean(),
@@ -276,7 +276,7 @@ public class DragonCombatEvalGameTests {
         Fixture f = fixture(helper, "dragon_truncated", 200);
         for (int i = 0; i < 270; i++) WorldEvalObservers.dimensionChanged(f.body);
         strike(f, f.body, 200); animate(f, 200);
-        helper.startSequence().thenIdle(1).thenExecute(() -> {
+        steps(helper).thenIdle(1).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             JsonObject facts = WorldEvalObservers.observe(f.body);
             helper.assertTrue(facts.getAsJsonObject("evidence").get("events_truncated").getAsBoolean()
@@ -290,7 +290,7 @@ public class DragonCombatEvalGameTests {
     public static void post_kill_survival_counts_exactly_two_hundred_actual_server_ticks(GameTestHelper helper) {
         Fixture f = fixture(helper, "dragon_hold_200", 200);
         strike(f, f.body, 200); animate(f, 200);
-        helper.startSequence().thenIdle(199).thenExecute(() -> {
+        steps(helper).thenIdle(199).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             helper.assertTrue(chain(f).get("post_kill_alive_ticks").getAsInt() == 199,
                     "199 ticks after native fight end have not met the user's independent 200-tick survival goal: " + chain(f));
@@ -312,7 +312,7 @@ public class DragonCombatEvalGameTests {
     public static void late_companion_death_permanently_revokes_post_kill_survival(GameTestHelper helper) {
         Fixture f = fixture(helper, "dragon_hold_death", 200);
         strike(f, f.body, 200); animate(f, 200);
-        helper.startSequence().thenIdle(199).thenExecute(() -> {
+        steps(helper).thenIdle(199).thenExecute(() -> {
             WorldEvalObservers.tick(f.body);
             helper.assertTrue(chain(f).get("post_kill_alive_ticks").getAsInt() == 199, "the actual pre-death hold must be 199 ticks");
             f.body.hurt(f.body.damageSources().genericKill(), Float.MAX_VALUE);

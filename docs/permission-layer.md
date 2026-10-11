@@ -1,6 +1,6 @@
 # 权限层:哪些动作要问主人,怎么问
 
-状态:设计稿(2026-09-14)。与 `route-and-permission.md` 的分工:那份讲规划器怎么出带价签的
+状态:设计稿(2026-09-14)。与 `pathing.md` 的分工:那份讲寻路怎么出带价签的
 路线,本文讲身体的任何动作在动手前怎么过权限。权限层不是路由的子功能,路由只是它的一个
 调用方;攻击、开容器、丢物品是另外几个。
 
@@ -62,26 +62,30 @@
 
 **动作(Action)。** 身体要对世界做的一件具体的事及其目标:`break(pos)`、`place(pos, block)`、
 `attack(entity)`、`use_block(pos)`、`use_entity(entity)`、`take(container, item)`、`drop(item)`、
-`command(整行)`(以她的身份执行一条游戏指令,见下文"指令")。不带工具名、不带 JSON。
+`command(整行)`(以她的身份执行一条游戏指令,见下文"指令")。
+不带工具名、不带 JSON。
 
 **信号(Signal)。** 给动作贴事实的函数,每个只回答一个通用问题:
 
 | 信号 | 问题 | 来源 |
 |---|---|---|
-| placed | 这格是不是别人放的 | `BlockItem.place` 返回处的 mixin,谁放的就连同放的人按区块记进每维度一份 SavedData(真玩家、同伴都记);查询时格子已是空气视为无记号;放的人就是要动手的同伴自己时不算——她垫的路、搭的桥是她的,别人家同伴搭的要问;build 完工把成果格改记到主人名下 |
+| placed | 这格是不是别人放的 | 放置记录(`PlacedBlocks`,每维度一份 SavedData,按区块记"格 → 放的人"):放的人只在 `PlacedBlocks.placedBy` 一处认,谁放的记谁,真玩家、同伴都记,双格方块连另一半;经物品落位的由 `BlockItem.place` 返回处的 mixin 调它,建造照图直写的格由执行器调它。查询时格子已是空气视为无记号。放的人不是要动手的这只同伴——主人、别的玩家、别人家同伴 |
+| self_placed | 这格是不是她自己放的 | 同一份放置记录,放的人就是要动手的这只同伴:她垫的柱子、搭的桥、照设计砌的墙。和 placed 互不相交 |
 | block_entity | 这格有没有方块实体 | 世界 |
 | contents | 容器里有没有东西 | 世界 |
-| owned | 这只实体有没有主人 | `OwnableEntity` |
+| owned | 这只实体有没有主人 | `OwnableEntity` 记的主人,只在 `Signals.ownerOf` 一处读(`scan entities` 标"是谁的"也问它);主人是谁都算,她自己也算 |
+| self_owned | 这只实体的主人是不是她自己 | 同一处读法,主人就是要动手的这只同伴:她驯服的狼、猫,和她结契的车万女仆(`EntityMaid` 继承原版 `TamableAnimal`)。是 owned 的一部分,不像 placed 与 self_placed 那样互斥 |
 | named | 有没有自定义名字 | 实体 |
 | villager | 是不是村民 | 实体类型 |
 | hostile | 是不是敌对 | 实体分类 |
 | hazard_item | 放的是不是岩浆、火、TNT、水 | 物品 |
-| near_placed | 放置点附近有没有别人放的方块 | placed 的邻域查询,同样不算她自己放的 |
+| near_placed | 放置点附近有没有别人放的方块 | placed 的邻域查询,"别人"与 placed 同一个,她自己放的不算 |
 权限层只做原版:领地模组与服务器保护不接进裁决,领地之后以联动插件做。
 
 原生通道照旧生效:挖掘照真客户端发 START/STOP,原版的出生点保护、冒险模式,以及取消左键或破坏事件的模组
-都在那里拦。`BlockDigger` 在 START 与收尾那一下之后读服务端的挖掘状态对账,被退回来的按 `REFUSED`
-收场,理由"服务器没让挖掉这一格",不空挥到超时,也不把没挖掉的报成挖掉了。这是身体如实汇报,不是权限。
+都在那里拦。她的手(寻路模块的 `PlayerHands`,外面由 `CompanionHands` 套着权限)在 START 与收尾那一下之后读服务端的
+挖掘状态对账,被退回来的如实交回被拒,任务按 `REFUSED` 收场,理由"服务器没让挖掉这一格",不空挥到超时,也不把
+没挖掉的报成挖掉了。这是身体如实汇报,不是权限。
 
 **规则(Rule)。** 两层,每层 deny、allow、ask 三张表:主人层是主人自己写的(命令、"允许并记住",
 存档见 §七),出厂层是下面这张默认表。查的顺序第一个命中即定:
@@ -95,8 +99,8 @@
   放的橡木仍问。于是出厂 allow 行也必须写得比出厂 ask 行窄。
 - 任务期授权(§六)只覆盖问出来的动作,解不开拒绝。
 
-裁决快照(`Gate`)由 `Permission.gateFor` 在主线程取:模式、主人层与出厂层、放置记录、任务期
-授权,不可变,任何线程可读。一条规则一行字符串 `动作(信号 & 信号 & !信号)`,与 Claude Code 的
+裁决快照(`Gate`)由 `Permission.gateFor` 在主线程取:模式、主人层与出厂层、所在维度与它的放置记录、
+任务期授权,不可变,任何线程可读。一条规则一行字符串 `动作(信号 & 信号 & !信号)`,与 Claude Code 的
 `Tool(specifier)` 同形,全仓只在 `Rule.parse` 解析,写错了回教学式的错误(列出认得的动词与信号):
 
 ```
@@ -107,6 +111,12 @@ break(#minecraft:beds) 也接受方块标签与 id,给主人写细规则用
 command(msg)           指令按根名写
 ```
 
+**护一片地方,护的是放下的方块。** 没有区域:主人要她别动他的房子,出厂行 `break(placed)` 已经让她挖玩家放的先问,主人
+还可以写 `deny break(placed)` 一律不许。要更细就按方块写(`deny break(placed & minecraft:oak_planks)`)。
+
+**Lua 模块不归权限层。** 她的模块存在主人客户端上(`docs/shell.md` §九),存、改、删不问主人,每一次写进回执;权限层只管
+世界与身体。
+
 **指令。** `command` 的项除了 `*` 都是指令的根名,不写斜杠:`allow command(msg)`、`allow command(trigger)`、
 `ask command(setblock)`、`deny command(tp)`、`ask command(!msg & !trigger)`。信号说的是方块与实体,一条指令没有
 它们,所以指令规则里不写信号(`*(placed)` 这类通配动词的行也就碰不到指令)。
@@ -114,10 +124,11 @@ command(msg)           指令按根名写
 - 根名在服务器的指令树上认:与她打的那个根同指一个节点的根都算它的别名(`tp` 与 `teleport`,`msg` 与
   `tell`、`w`),写哪一个都盖得住其余的——`deny command(tp)` 不会被 `teleport` 绕过去。
 - 只认根:`execute … run setblock …` 的根是 `execute`,由 `command(execute)` 那几行裁决。
-- 出厂 allow 表写了几行指令,和别的出厂行一样是数据:`command(numen)` 放行 Numen 自己的命令,它们里面的挖、放、
-  打各自按动作裁决,外层不再问一遍;`command(help)`、`command(list)`、`command(me)`、`command(msg)`、
+- 出厂 allow 表写了几行指令,和别的出厂行一样是数据:`command(help)`、`command(list)`、`command(me)`、`command(msg)`、
   `command(teammsg)`、`command(seed)`、`command(random)` 放行只读或只说话的指令,别名随根名认(`tell`、`w` 归
   `msg`,`tm` 归 `teammsg`)。代码里没有另一份"安全指令"名单;没有一行规则说到的指令一律问。
+- `command` 只说第 0 层(行首 `/` 的一行,MC 的指令树)。Numen 给她的第 1 层命令(`docs/cli.md`)不在 MC 的指令树上,
+  整行不送权限层;它们里面身体对世界的挖、放、打各自按动作裁决。
 - 主人层照旧先于出厂层:`deny command(msg)` 让她连 `tell`、`w` 也发不出去,`ask command(help)` 让查帮助也要问;
   "以后都允许"写进的是主人层,出厂层不变。
 - 能不能执行是服务器的事(她的权限等级,她不是 OP 就没有 `/give`);权限层只在服务器让她执行的指令上再问
@@ -128,13 +139,25 @@ command(msg)           指令按根名写
 | 表 | 规则 |
 |---|---|
 | deny | 空 |
-| allow | `break(!placed & !block_entity & !#minecraft:beds & !#minecraft:doors & !#minecraft:trapdoors & !#minecraft:fence_gates)`、`place(!hazard_item)`、`place(hazard_item & !near_placed)`、`attack(!owned & !named & !villager)`、`use_block(*)`、`use_entity(!owned)`、`take(*)`、`command(numen)`、`command(help)`、`command(list)`、`command(me)`、`command(msg)`、`command(teammsg)`、`command(seed)`、`command(random)` |
+| allow | `break(!placed & !self_placed & !block_entity & !#minecraft:beds & !#minecraft:doors & !#minecraft:trapdoors & !#minecraft:fence_gates)`、`break(self_placed & !contents)`、`place(!hazard_item)`、`place(hazard_item & !near_placed)`、`attack(!owned & !named & !villager)`、`use_block(*)`、`use_entity(!owned)`、`use_entity(self_owned)`、`take(*)`、`command(help)`、`command(list)`、`command(me)`、`command(msg)`、`command(teammsg)`、`command(seed)`、`command(random)` |
 | ask | `break(block_entity & contents)`、`break(placed)`、`break(block_entity)`、`break(#minecraft:beds)`、`break(#minecraft:doors)`、`break(#minecraft:trapdoors)`、`break(#minecraft:fence_gates)`、`attack(owned)`、`attack(named)`、`attack(villager)`、`drop(*)`、`place(hazard_item & near_placed)` |
 
-allow 行把日常动作一行一行写明:自然方块、不危险的放置、敌对生物与野生动物、开关门开容器、
-对没主人的实体右键、从容器拿东西、执行 Numen 自己的与只读只说话的指令。ask 表里同一个动作命中几行时第一行作数,所以更具体的在前
+allow 行把日常动作一行一行写明:自然方块(谁都没放过)、她自己放的、不危险的放置、敌对生物与野生动物、开关门开容器、
+对没主人的实体和她自己驯服的实体右键、从容器拿东西、执行只读只说话的指令。ask 表里同一个动作命中几行时第一行作数,所以更具体的在前
 (装着东西的容器先于玩家放的)。从主人的容器拿东西默认放行:她的设计就是用主人的工作台熔炉
 箱子,相当于 Claude Code 读项目文件;主人想管就把 `take(*)` 改窄、加一条 `take(placed)` 的 ask。
+
+**她自己放的。** 她垫的柱子、搭的桥、照设计砌的墙与门都记在她名下(`self_placed`),拆由出厂 allow 行
+`break(self_placed & !contents)` 放行,只有装着东西的容器仍走 `break(block_entity & contents)` 去问(东西多半是主人的,
+撤不回)。于是 `build place` 改她自己盖的房子一路不问:拆掉设计里删了的格、把她放的一格换成别的(先拆后放)由这一行与
+`place(!hazard_item)` 放行,往空处补格由 `place(!hazard_item)` 放行。主人要她拆自己的东西也先问,就在主人层写
+`ask break(self_placed)`,主人层先于出厂层。别人放的、主人放的照旧是 `break(placed)`。
+旧存档里建造收工时记在主人名下的格子照样是主人的,不迁移。
+
+**她自己驯服的。** 主人是她自己的实体(`self_owned`:她驯服的狼、猫,她结契的女仆)右键由出厂 allow 行
+`use_entity(self_owned)` 放行——叫它坐下、喂它、打开女仆的界面都不问;别人的宠物、主人的宠物照旧没有 allow 行,
+都不中也问。打它仍走 `attack(owned)` 去问:撤不回。主人要她碰自己的宠物也先问,就在主人层写
+`ask use_entity(self_owned)`。
 
 **不可逆提示。** `attack(owned)`、`break(block_entity & contents)` 是普通 ask 行,主人可以允许,
 "允许并记住"也盖得住——代码不替他决定。只是它们撤不回(宠物死了、箱子里的东西洒一地会消失),
@@ -153,8 +176,8 @@ allow 行把日常动作一行一行写明:自然方块、不危险的放置、�
 
 | 档 | 动作 | 对应 Claude Code |
 |---|---|---|
-| 从不问 | scan、look_around、inspect、status、lookup_recipe、plan_route | Read、Grep、Glob |
-| 出厂 allow 行 | 挖自然方块、砍野树、用自己的方块搭路盖房、打敌对生物、宰野生动物、开关门与栅栏门、开容器、拿东西、执行 Numen 自己的与只读只说话的指令 | 工作目录内的编辑 |
+| 从不问 | scan(blocks、map、block、container、sight)、status、inv recipes / items / count / craftable、build diff、route plan | Read、Grep、Glob |
+| 出厂 allow 行 | 挖自然方块、砍野树、用自己的方块搭路盖房、拆她自己放的、打敌对生物、宰野生动物、开关门与栅栏门、开容器、拿东西、执行只读只说话的指令 | 工作目录内的编辑 |
 | 问 | 挖玩家放的、挖带方块实体的、打有主人或有名字的、打村民、丢物品、在别人的东西旁放危险物,以及没有任何一行规则说到的动作 | `rm -rf`、`git push`、网络 |
 | 拒 | 主人写的 deny 行、observe 模式 | deny 规则 |
 
@@ -169,24 +192,24 @@ allow 行把日常动作一行一行写明:自然方块、不危险的放置、�
 
 | 时机 | 做什么 |
 |---|---|
-| 规划 | 成本模型只读裁决:放行按原价,要问的格在 `alter=any` 下乘 `CONSENT_COST_MULTIPLIER`、其余规格下无穷大,拒绝无穷大;账单每条挖掘条目带着那一条征询(`TerrainBill.Break.consent`) |
-| 执行开始 | 整条路线或整个动作过一次裁决,需要同意就发起一次征询;不是走到墙边才问 |
-| 每次动作 | `BlockDigger`、攻击落点、放置落点强制,不发起征询;到这里还没授权就当动作失败,任务按既有机制重算或收尾 |
+| 规划 | 成本模型只读裁决(端口 `TerrainPolicy`,Numen 用 `Gate` 快照实现,`GateTerrain`):放行按原价,要问的格在规格许征询(`consent`)时乘规格的 `consentMultiplier`(默认 10)、不许征询时无穷大,拒绝无穷大;账单每条挖掘条目带着许可给的凭据,就是那一条征询(`ConsentItem`)。`route.plan` 的计划在 `asks` 里列出这些格 |
+| 执行开始 | 一个动作(建造、攻击、挖点名的目标)过一次裁决,需要同意就发起一次征询。走路不在这里问:见下一行 |
+| 每次动作 | 她的两只手 `CompanionHands`(端口 `Effector`,导航、挖矿、`use block` 共用)、攻击落点强制,自己不发起征询;到这里还没授权就当动作失败,任务按既有机制重算或收尾。导航是例外里的常规:走到一格要问的,`CompanionHands` 交回 `Unasked`(裁决与那一格的征询项),`Trip` 停在它跟前、把那一格交给任务发起征询(`AbstractCompanionTask.awaitRouteConsent`),答应了接着走剩下的路,拒绝了在那里按 REFUSED 收场 |
 
 **各内容的接入点。** 内容只提出动作,判与问都归权限层(`AbstractCompanionTask.permit`/`permitAll`、
-导航的开走前放行口)。
+导航走到要问的那一格时的放行口)。
 
 | 内容 | 什么时候送动作 |
 |---|---|
-| mine | 两种用法:`block_ids` 由 `BlockSearch` 找候选;`groups` 只挖最新一次 `scan_blocks` 点名的团里、仍是扫描时那种方块的格子。选目标不看权限:主人放的方块和野树一样是候选。规格默认 `alter=any`,模型的 `spec` 叠在上面;挑目标按"走过去 + 挖它"的同一套定价(需要同意的格贵十倍,A* 按到达价挑终点),附近有野树时自然先挖野树;轮到需要同意的目标、或为了够到目标要穿过需要同意的格,动手前或开走前征询;允许就挖,拒绝(主人拒绝、主人写的 deny、observe)与服务器退回的挖掘,两种用法都按 REFUSED 附理由收场,不略过继续 |
-| scan_blocks | 不改世界、不征询。命中的每一格用挖掘落点会提交的同一个 `break` 动作在主线程问一次裁决(`Gate.judgeLive`),相连且说法相同的格子成一团,团带着说法与理由报给模型;玩家放的原木柱贴着野树是两团 |
-| goto、follow | 规划出路以后、开走以前(导航采纳每一段路之前,含路线簿里的路与预算内整路),`alter=any` 的路把账单里要问的格打包送一次;重规划再查,授权覆盖的不重复问。无路时探针放宽一档(只走不改的先查自然改动,自然改动的查 `any`),候选行标 needing consent |
-| build | 施工前把要清的格与要放的格整批裁决,要问的一张卡;允许就建,拒绝的格按"主人不让动"跳过并写进回执 |
+| mine | `work.dig` 挖给它的格(扫描交回的 Block 只在那一格还是那种方块时挖);选目标不看权限:主人放的方块和野树一样是候选,许不许挖在挖之前问,挖掉挡路的格同样问 |
+| scan_blocks | 看不改世界、不征询、不报许不许:相连的同种方块成一团交给模型,团只说在哪、有几格 |
+| move.go、follow | 规划时不问,计划把要问的格列在 `asks`。走到其中一格跟前(导航要动手改它的那一刻,`CompanionHands` 判出"要问")停下送那一格,连同没走完的路上这一声答应同样放行的格(同一个动作、同一行规则、同一种东西,`ConsentItem.covers`,卡片上列到哪儿答应就覆盖到哪儿);答应了接着走,拒绝了在那里失败(`kind = "denied"`,`hint` 是把那一格写进描述的 `avoid` 再规划的那一行);重规划后再碰到的再问,授权覆盖的不重复问。描述写 `costs = {consent = false}` 时要问的格当墙,一格都不问 |
+| build | 施工前把要清的格与要放的格整批裁决,要问的一张卡;允许就建,拒绝的格按"主人不让动"跳过并写进回执。她放下的每一格(经物品落位或照图直写)记在她自己名下,改蓝图后再 `build place` 拆、换她自己的格不问 |
 | attack | 开打前送目标,要问的合成一张卡,等答复期间不打它;自卫换目标时新冒出来的再送 |
-| interact_at、interact_entity | 按下去之前送准星落到的动作:左键是挖、打,右键是 `use_block`、`use_entity` |
-| transfer | 逐步执行,把东西从容器里拿进背包的那一步动手前送 `take`(容器是右键打开界面的那一格);她自己背包的合成格与没有方块实体的工作台类界面不算 |
-| drop_items | 每次送 `drop`,出厂是问 |
-| `command` 工具、快捷工具、`/numen drive` | 服务端唯一的执行入口(`CommandRunner`)执行前送 `command(整行)`,快捷工具送它作为 alias 的那一行;出厂 allow 行放行的(`numen`、`help`、`msg` 等)不问,没有规则说到的每条都问,等答复时这次调用悬着、不占任务槽。服务器不让她用、写错了的不送,当场失败 |
+| use block、use item、use entity、use hit | 按下去之前送准星落到的动作:左键(`use hit`)是挖、打,右键是 `use_block`、`use_entity` |
+| gui move、gui quick、gui take | 逐步执行,把东西从容器里拿进背包的那一步动手前送 `take`(容器是右键打开界面的那一格);她自己背包的合成格与没有方块实体的工作台类界面不算 |
+| inv drop | 每次送 `drop`,出厂是问 |
+| `numen.mc.run` | 原版与模组的一行指令:唯一的执行入口(`McApi`)解析通了才送 `command(整行)`;出厂 allow 行放行的(`help`、`msg` 等)不问,没有规则说到的每条都问,等答复时这次调用悬着、不占任务槽,主人允许了什么写进程序的回执。服务器不让她用、写错了的不送,当场失败。别的 API 函数不送整行,里面的身体动作各按动作裁决;用一只实体的函数经 `ServerCall.use` 送 `use_entity` |
 
 **允许的作用范围。** 对所有工具通用:本任务内,同一行规则问出来的同一种方块(或同一只实体)
 都算已授权,不再重复问——挖一堆主人放的原木只弹一次卡;换一种方块、另一只实体另问。授权只把
@@ -221,8 +244,9 @@ allow 行把日常动作一行一行写明:自然方块、不危险的放置、�
    `/numen consent deny <id> [附言]` 与它落到同一个入口 `ConsentDesk.reply`。附言只随拒绝(主人要她换个做法才会说)。
    允许:清单记成任务期授权,动作继续。拒绝:动作失败,`REFUSED` 的理由是主人那句原话或"主人拒绝";回执走既有的
    工具结果与 task_finished,不新增事件种类。
-5. 超时由服务端按游戏刻算(两分钟),主人离线或到点按拒绝,理由写"主人不在场,无法征得同意"。
-6. 悬着期间:同步工具(interact_at、drop_items)就是这次调用悬着,派发器的兜底超时在这具身体
+5. 征询期限由发起任务的类别确定:短活按服务端游戏刻等两分钟,自主长跑可无限等待。主人离线或征询到期未答复按 `PENDING`(悬而未决),
+   理由写"主人不在场,无法征得同意";未执行项保留这个原因,不记成主人拒绝。
+6. 悬着期间:同步动作(use block、inv drop)就是这次调用悬着,派发器的兜底超时在这具身体
    挂着征询时不走表;后台任务停在原地,任务期限不走表。模型不参与,没有 LLM 开销。
 
 模型看到的只有普通的工具结果和回执。系统提示词加一段:有些动作要主人点头,身体自己会问,
@@ -258,7 +282,7 @@ allow 行把日常动作一行一行写明:自然方块、不危险的放置、�
 ```
 /numen permission mode <同伴名> [ask|bypass|observe]    不带模式参数时显示当前模式
 /numen permission rules list                          主人层(带序号)与出厂层
-/numen permission rules add <deny|ask|allow> <规则>    例: add ask take(*)
+/numen permission rules add <deny|ask|allow> <规则>    例: add ask take(*)、add deny break(placed)
 /numen permission rules remove <deny|ask|allow> <序号>
 /numen permission rules reset                         清空主人层
 /numen consent <allow|remember> <请求 id>
@@ -270,11 +294,13 @@ allow 行把日常动作一行一行写明:自然方块、不危险的放置、�
 
 ## 八、与路由的接口
 
-路由这边只有两个预留位,现在都是空的:
+寻路模块经两个端口问权限层,自己不判:
 
-- `TerrainBill.Break.consent`:每条挖掘条目为什么需要同意,由权限层填,规划器自己不判。
-- `RouteSpec.Alter.ANY`:把需要同意的格子也算进路线,账单里单列;`goto route:rN` 选了这种
-  路线,执行开始前发起征询。
+- `TerrainPolicy`(规划):一格能不能挖或放——放行、要问(带一个模块不解读的凭据,Numen 给的就是那一条
+  `ConsentItem`)、拒绝(带理由)。路线上每一格的改动带着这份答复,账单据此列出要问的格。
+- `Effector`(执行):真的动手;Numen 的实现每一下之前问权限层,不许就不动手,交回裁决本身当理由。
+- `RouteSpec.consent`:许征询时需要同意的格子也算进路线(价钱乘 `consentMultiplier`),账单里单列;`route.plan` 的计划在
+  `asks` 里列出,`move.go` 走到哪一格才问哪一格(`docs/shell.md` §十)。不许征询时那几格是墙。
 
 `sacred` 不是权限,它是"别挖自己要站的那格",留在规划器。
 
@@ -293,7 +319,7 @@ allow 行把日常动作一行一行写明:自然方块、不危险的放置、�
 
 ## 十、分步落地
 
-1. 放置记录(mixin + SavedData,连同是谁放的;建造成果记在主人名下)、动作与裁决的最小接口。(已落地)
+1. 放置记录(mixin + SavedData,连同是谁放的,放的人只在 `PlacedBlocks.placedBy` 一处认)、动作与裁决的最小接口。(已落地)
 2. 信号与三张规则表、默认规则、`observe`/`bypass` 模式;`BlockDigger`、攻击、放置落点强制;
    删 §九 的旧判据。(已落地)
 3. goto、build、interact、attack、drop、mine 接入执行开始时的裁决;goto 的候选探针无路时放宽
@@ -306,6 +332,8 @@ allow 行把日常动作一行一行写明:自然方块、不危险的放置、�
    改动。已落地:挖掘落点被原生通道退回按 REFUSED"服务器没让挖掉这一格"收场;GameTest 覆盖记住、分层、
    命令答复、observe 拦开箱与拿东西、主人写 `ask take(*)`、破坏事件被取消。领地模组不在本层做,之后以
    联动插件做。
+7. 区域(09-30 加的规则项 `area:`、动作 `edit_area`、信号 `ruled`)在 10-04 随区域一起删了:保护只有"玩家放的"。原先靠区域
+   的 GameTest 改成由玩家放下方块(`deny break(placed)` 护玩家放的石头、天然的照常挖)。
 
 ## 十一、宪法修订
 

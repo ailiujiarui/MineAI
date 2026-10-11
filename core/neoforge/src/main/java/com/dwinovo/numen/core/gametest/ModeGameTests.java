@@ -15,6 +15,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -41,11 +42,8 @@ public class ModeGameTests {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = spawnAt(helper, "gametest_cghost", new BlockPos(2, 2, 2), true);
         BlockPos target = helper.absolutePos(new BlockPos(13, 2, 13));
-        TaskRecord record = call(companion, "goto", args(
-                "x", (double) target.getX(),
-                "y", (double) target.getY(),
-                "z", (double) target.getZ())).task();
-        helper.succeedWhen(() -> {
+        TaskRecord record = lua(companion, "numen.move.to(" + xyz(target) + ")").task();
+        succeedWhen(helper, () -> {
             helper.assertTrue(companion.blockPosition().distSqr(target) <= 2 * 2,
                     "creative companion has not reached the goto target");
             CompanionFactory.despawn(level.getServer(), companion);
@@ -68,14 +66,12 @@ public class ModeGameTests {
         }
         NumenPlayer companion = spawnAt(helper, "gametest_cminer", new BlockPos(2, 2, 2), true);
 
-        TaskRecord record = call(companion, "mine", args(
-                "block_ids", List.of("minecraft:gold_ore"),
-                "count", 4)).task();
+        Mining mine = mineScanned(helper, companion, 12, "minecraft:gold_ore", 4);
 
-        helper.succeedWhen(() -> {
+        succeedWhen(helper, () -> {
             for (BlockPos ore : ores) {
                 helper.assertTrue(level.getBlockState(ore).isAir(),
-                        "gold ore not broken at " + ore.toShortString());
+                        "gold ore not broken at " + ore.toShortString() + ": " + mine.outcome());
             }
             helper.assertTrue(companion.getInventory().countItem(Items.RAW_GOLD) == 0
                             && companion.getInventory().countItem(Items.GOLD_ORE.asItem()) == 0,
@@ -88,16 +84,16 @@ public class ModeGameTests {
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_mode")
     public static void creative_build_empty_inventory(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_cmason", new BlockPos(2, 2, 2), true);
+        NumenPlayer companion = spawnAt(helper, "gametest_cmason", new BlockPos(9, 2, 7), true);
         List<BuildTaskRecord.Target> targets = new ArrayList<>();
         for (BlockPos rel : boxCells(new BlockPos(8, 2, 8), 3, 1, 3, false)) {
             targets.add(new BuildTaskRecord.Target(Blocks.COBBLESTONE, Items.COBBLESTONE,
                     helper.absolutePos(rel), "cobblestone"));
         }
         var ctx = TaskDispatch.ctx("gametest-cbuild", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(3600L), targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, false), null, reply -> {});
-        helper.succeedWhen(() -> {
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(),
+                ctx.deadline(3600L), targets, false, false));
+        succeedWhen(helper, () -> {
             for (BuildTaskRecord.Target t : targets) {
                 helper.assertTrue(level.getBlockState(t.pos()).is(Blocks.COBBLESTONE),
                         "structure incomplete at " + t.pos().toShortString());
@@ -119,17 +115,20 @@ public class ModeGameTests {
                     helper.absolutePos(rel), "cobblestone"));
         }
         var ctx = TaskDispatch.ctx("gametest-sbuild-broke", companion);
-        // dispatchAsync 的回调只回"已受理"收条;预检失败落在任务记录的终态上
-        BuildTaskRecord record = new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(3600L), targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true);
-        TaskDispatch.setTask(companion, record, null, reply -> {});
-        helper.succeedWhen(() -> {
-            var result = record.getResult();
-            helper.assertTrue(result != null && !result.success()
-                            && result.message() != null
-                            && result.message().contains("not enough materials"),
-                    "expected an itemized missing-materials refusal, got: "
-                            + (result == null ? "still running" : result.message()));
+        // 盘料是受理之前的准备:料不齐,这次调用当场回错误,活不进槽、没有任务编号
+        BuildTaskRecord record = buildJob(ctx.toolCallId(), ctx.deadline(3600L), targets, true, false);
+        java.util.concurrent.atomic.AtomicReference<com.dwinovo.numen.task.TaskResult> refused =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        boolean[] accepted = new boolean[1];
+        TaskDispatch.setTask(companion, record, null, refused::set, () -> accepted[0] = true);
+        succeedWhen(helper, () -> {
+            com.dwinovo.numen.task.TaskResult result = refused.get();
+            helper.assertTrue(result != null || accepted[0], "the build has not replied");
+            helper.assertTrue(result != null && !result.success() && result.message().contains("not enough materials"),
+                    "expected an itemized missing-materials refusal, got: " + result);
+            helper.assertTrue(!accepted[0] && record.getResult() == null
+                            && com.dwinovo.numen.task.CompanionTickDispatcher.currentTaskFor(companion.getUUID()) == null,
+                    "a build without materials was accepted instead of refused at once: " + result);
             for (BuildTaskRecord.Target t : targets) {
                 helper.assertTrue(!level.getBlockState(t.pos()).is(Blocks.COBBLESTONE),
                         "must not build anything without materials");
@@ -142,7 +141,7 @@ public class ModeGameTests {
      * 空手创造爬井:1×1 黑曜石竖井(徒手黑曜石按不可破计价,四面无路),
      * 背包全空——唯一出路是免耗材画像自动补脚手架泥土后原地垫柱。守两件事:
      * 规划器敢想放置路线(hasThrowaway 画像位)+ 执行层自动补料与垫柱动作。
-     * 垫柱是改地形,goto 带 alter=natural 的规格——不带的版本见 goto_refuses_to_tunnel_by_default。
+     * 垫柱是改地形,描述许挖许放——不许的版本见 goto_refuses_to_tunnel_by_default。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_mode")
     public static void creative_pillar_out_empty_handed(GameTestHelper helper) {
@@ -158,15 +157,55 @@ public class ModeGameTests {
         }
         NumenPlayer companion = spawnAt(helper, "gametest_climber", new BlockPos(3, 2, 3), true);
         BlockPos target = helper.absolutePos(new BlockPos(12, 2, 12));
-        TaskRecord record = call(companion, "goto", args(
-                "x", (double) target.getX(),
-                "y", (double) target.getY(),
-                "z", (double) target.getZ(),
-                "spec", naturalSpec())).task();
-        helper.succeedWhen(() -> {
+        TaskRecord record = lua(companion, "numen.move.to(" + xyz(target) + ", {costs = {dig = true, place = true, consent = false}})").task();
+        succeedWhen(helper, () -> {
             helper.assertTrue(companion.blockPosition().distSqr(target) <= 2 * 2,
                     "empty-handed creative companion has not pillared out");
             CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /**
+     * 空手创造按这一趟描述写的料变料:{@code materials} 只写了圆石,困在同一口黑曜石竖井里,照样垫圆石柱爬出来,
+     * 背包里也不多出一块描述外的料。
+     *
+     * <p>钉的是"有料可垫"只有一个判据:规划器认定创造画像有料,执行器取料就得取得出规划器认下的那种。
+     * 两边各算一份时,执行器变出一组描述外的泥土、选不出能放的料,垫柱那一步采纳即夭折,重新规划又是
+     * 同一条路。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_mode")
+    public static void creative_pillars_with_the_walks_materials(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floor = helper.absolutePos(new BlockPos(3, 2, 3));
+        NumenPlayer companion = com.dwinovo.numen.entity.Companions.summon(level.getServer(),
+                java.util.UUID.randomUUID(), "gametest_cobbler", level,
+                net.minecraft.world.phys.Vec3.atBottomCenterOf(floor));
+        for (int y = 2; y <= 4; y++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dz == 0) continue;
+                    level.setBlockAndUpdate(helper.absolutePos(new BlockPos(3 + dx, y, 3 + dz)),
+                            Blocks.OBSIDIAN.defaultBlockState());
+                }
+            }
+        }
+        companion.teleportTo(floor.getX() + 0.5, floor.getY(), floor.getZ() + 0.5);
+        companion.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+        BlockPos target = helper.absolutePos(new BlockPos(12, 2, 12));
+        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ", {costs = {dig = true, place = true, consent = false}, materials = {\"minecraft:cobblestone\"}})");
+        helper.onEachTick(() -> {
+            if (walk.done() && !walk.succeeded()) {
+                helper.fail("she did not pillar out of the well with the walk's materials: " + walk.outcome());
+            }
+        });
+        succeedWhen(helper, () -> {
+            helper.assertTrue(companion.blockPosition().distSqr(target) <= 2 * 2,
+                    "she has not pillared out of the well yet");
+            helper.assertTrue(level.getBlockState(floor).is(Blocks.COBBLESTONE),
+                    "the pillar is not cobblestone: " + level.getBlockState(floor));
+            helper.assertTrue(companion.getInventory().countItem(Items.DIRT) == 0,
+                    "she conjured dirt, which is not among the walk's materials");
+            com.dwinovo.numen.entity.Companions.dismiss(level.getServer(), companion);
         });
     }
 
@@ -273,30 +312,76 @@ public class ModeGameTests {
         helper.succeed();
     }
 
-    /** 创造取物:take_items 凭空取 100 钻石入背包(创造物品栏 GUI 的假体)。 */
+    /**
+     * 游戏模式切换之后,{@code numen.status.self} 报的模式与挖掘的做法是同一份:切到创造,她报 creative,空手挖黑曜石一下就碎、什么都
+     * 不掉;切回生存,她报 survival,空手挖另一块黑曜石当场被拒(手里没有收得到它的工具),那一块原样。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 2000, batch = "numen_mode")
+    public static void status_and_digging_follow_a_game_mode_switch(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos first = helper.absolutePos(new BlockPos(8, 2, 5));
+        BlockPos second = helper.absolutePos(new BlockPos(8, 2, 7));
+        level.setBlockAndUpdate(first, Blocks.OBSIDIAN.defaultBlockState());
+        level.setBlockAndUpdate(second, Blocks.OBSIDIAN.defaultBlockState());
+        NumenPlayer companion = spawnAt(helper, "gametest_mode_switch", new BlockPos(6, 2, 6), false);
+        ToolRun[] runs = new ToolRun[2];
+
+        succeedWhen(helper, () -> {
+            if (runs[0] == null) {
+                companion.setGameMode(GameType.CREATIVE);
+                runs[0] = lua(companion, "local mode = numen.status.self().game_mode\n"
+                        + "local r = numen.work.dig(" + xyz(first) + ")\n"
+                        + "return {mode = mode, dug = r.dug, drops = #r.drops}");
+            }
+            helper.assertTrue(runs[0].done(), "the creative dig has not finished");
+            com.google.gson.JsonObject creative = runs[0].data().getAsJsonObject("returned");
+            helper.assertTrue(creative.get("mode").getAsString().equals("creative")
+                            && creative.get("dug").getAsInt() == 1 && creative.get("drops").getAsInt() == 0
+                            && level.getBlockState(first).isAir(),
+                    "in creative the status and the dig disagree: " + runs[0].receipt());
+            helper.assertTrue(runs[0].receipt().contains("Nothing dropped."),
+                    "the creative dig does not say nothing dropped: " + runs[0].receipt());
+            if (runs[1] == null) {
+                companion.setGameMode(GameType.SURVIVAL);
+                runs[1] = lua(companion, "local mode = numen.status.self().game_mode\n"
+                        + "local ok, err = pcall(numen.work.dig, " + xyz(second) + ")\n"
+                        + "return {mode = mode, dug = ok, why = ok and \"\" or err.message}");
+            }
+            helper.assertTrue(runs[1].done(), "the survival dig has not finished");
+            com.google.gson.JsonObject survival = runs[1].data().getAsJsonObject("returned");
+            helper.assertTrue(survival.get("mode").getAsString().equals("survival")
+                            && !survival.get("dug").getAsBoolean()
+                            && survival.get("why").getAsString().contains("my tools can't harvest")
+                            && level.getBlockState(second).is(Blocks.OBSIDIAN),
+                    "in survival the status and the dig disagree: " + runs[1].receipt());
+            CompanionFactory.despawn(level.getServer(), companion);
+        });
+    }
+
+    /** 创造取物:numen.creative.give 凭空取 100 钻石入背包(创造物品栏 GUI 的假体)。 */
     @GameTest(template = "floor16", timeoutTicks = 6000, batch = "numen_mode")
     public static void creative_take_items(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = spawnAt(helper, "gametest_conjure", new BlockPos(2, 2, 2), true);
-        ToolRun reply = call(companion, "take_items", args("item_id", "minecraft:diamond", "count", 100));
-        helper.succeedWhen(() -> {
-            helper.assertTrue(reply.reply() != null && reply.reply().contains("\"success\":true"),
-                    "take_items should succeed in creative, got: " + reply.reply());
+        ToolRun reply = lua(companion, "numen.creative.give(\"minecraft:diamond\", {count = 100})");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(reply.succeeded(),
+                    "creative give should succeed in creative, got: " + reply.reply());
             helper.assertTrue(companion.getInventory().countItem(Items.DIAMOND) == 100,
                     "expected 100 diamonds in inventory");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
 
-    /** 生存取物拒绝:take_items 在生存画像下吃诚实拒绝,背包不动。 */
+    /** 生存取物拒绝:numen.creative.give 在生存画像下吃诚实拒绝,背包不动。 */
     @GameTest(template = "floor16", timeoutTicks = 6000, batch = "numen_mode")
     public static void survival_take_items_refused(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = spawnAt(helper, "gametest_honest", new BlockPos(2, 2, 2), false);
-        ToolRun reply = call(companion, "take_items", args("item_id", "minecraft:diamond", "count", 10));
-        helper.succeedWhen(() -> {
-            helper.assertTrue(reply.reply() != null && reply.reply().contains("\"success\":false"),
-                    "take_items must refuse in survival, got: " + reply.reply());
+        ToolRun reply = lua(companion, "numen.creative.give(\"minecraft:diamond\", {count = 10})");
+        succeedWhen(helper, () -> {
+            helper.assertTrue(reply.refused(),
+                    "creative give must refuse in survival, got: " + reply.reply());
             helper.assertTrue(companion.getInventory().countItem(Items.DIAMOND) == 0,
                     "survival refusal must not add items");
             CompanionFactory.despawn(level.getServer(), companion);
@@ -307,7 +392,7 @@ public class ModeGameTests {
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_mode")
     public static void survival_build_consumes(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, "gametest_frugal", new BlockPos(2, 2, 2), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_frugal", new BlockPos(9, 2, 7), false);
         companion.getInventory().add(new ItemStack(Items.COBBLESTONE, 64));
         List<BuildTaskRecord.Target> targets = new ArrayList<>();
         for (BlockPos rel : boxCells(new BlockPos(8, 2, 8), 3, 1, 3, false)) {
@@ -315,9 +400,9 @@ public class ModeGameTests {
                     helper.absolutePos(rel), "cobblestone"));
         }
         var ctx = TaskDispatch.ctx("gametest-sbuild", companion);
-        TaskDispatch.setTask(companion, new BuildTaskRecord(ctx.toolCallId(),
-                ctx.deadline(3600L), targets, com.dwinovo.numen.core.task.build.ReplaceMode.REPLACE_EMPTY, true), null, reply -> {});
-        helper.succeedWhen(() -> {
+        TaskDispatch.setTask(companion, buildJob(ctx.toolCallId(),
+                ctx.deadline(3600L), targets, true, false));
+        succeedWhen(helper, () -> {
             for (BuildTaskRecord.Target t : targets) {
                 helper.assertTrue(level.getBlockState(t.pos()).is(Blocks.COBBLESTONE),
                         "structure incomplete at " + t.pos().toShortString());

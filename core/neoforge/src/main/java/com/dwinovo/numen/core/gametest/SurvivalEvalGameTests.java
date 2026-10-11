@@ -1,7 +1,6 @@
 package com.dwinovo.numen.core.gametest;
 
 import com.dwinovo.numen.core.Constants;
-import com.dwinovo.numen.core.act.BlockDigger;
 import com.dwinovo.numen.core.eval.SurvivalWorldObserver;
 import com.dwinovo.numen.entity.CompanionFactory;
 import com.dwinovo.numen.entity.NumenPlayer;
@@ -63,7 +62,7 @@ public class SurvivalEvalGameTests {
         for (int x = 10; x < 13; x++) {
             harvestAndPlant(helper, observer, body, new BlockPos(x, 2, 10), 7, body.getUUID());
         }
-        helper.startSequence().thenIdle(30).thenExecute(() -> {
+        steps(helper).thenIdle(30).thenExecute(() -> {
             drop(helper, body, new BlockPos(5, 2, 5));
             JsonObject facts = observer.observe(body);
             helper.assertTrue(facts.get("usable_pickaxe").getAsBoolean(), "stone pickaxe must qualify");
@@ -85,7 +84,7 @@ public class SurvivalEvalGameTests {
         NumenPlayer body = spawnAt(helper, "gametest_eval_shelter", new BlockPos(5, 2, 5), false);
         room(helper, true);
         SurvivalWorldObserver observer = new SurvivalWorldObserver();
-        helper.startSequence().thenIdle(30).thenExecute(() -> {
+        steps(helper).thenIdle(30).thenExecute(() -> {
             drop(helper, body, new BlockPos(5, 2, 5));
             helper.assertTrue(observer.observe(body).get("shelter").getAsBoolean(), "closed lit room should qualify");
             setDoor(helper, true);
@@ -108,7 +107,7 @@ public class SurvivalEvalGameTests {
         NumenPlayer body = spawnAt(helper, "gametest_eval_exit", new BlockPos(5, 2, 5), false);
         room(helper, true);
         SurvivalWorldObserver observer = new SurvivalWorldObserver();
-        helper.startSequence().thenIdle(30).thenExecute(() -> {
+        steps(helper).thenIdle(30).thenExecute(() -> {
             drop(helper, body, new BlockPos(5, 2, 5));
             helper.assertTrue(observer.observe(body).get("shelter").getAsBoolean(), "initial lit room should qualify");
             drop(helper, body, new BlockPos(10, 2, 5));
@@ -127,7 +126,7 @@ public class SurvivalEvalGameTests {
         BlockState door = Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.FACING, Direction.WEST);
         helper.getLevel().setBlock(corner, door.setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER), 2);
         helper.getLevel().setBlock(corner.above(), door.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER), 2);
-        helper.startSequence().thenIdle(30).thenExecute(() -> {
+        steps(helper).thenIdle(30).thenExecute(() -> {
             drop(helper, body, new BlockPos(5, 2, 5));
             helper.assertTrue(helper.getLevel().getBlockState(corner).is(Blocks.OAK_DOOR),
                     "the corner-door counterexample must contain a real door");
@@ -209,21 +208,25 @@ public class SurvivalEvalGameTests {
         rules.add(Verdict.Kind.ALLOW, Rule.parse("break(*)"));
         rules.add(Verdict.Kind.ALLOW, Rule.parse("place(*)"));
         WorldEvalObservers.start("sustainable-survival-v1", body);
+        AtomicReference<ToolRun> harvest = new AtomicReference<>();
         AtomicReference<ToolRun> plant = new AtomicReference<>();
-        helper.startSequence().thenIdle(25).thenExecute(() -> {
+        steps(helper).thenIdle(25).thenExecute(() -> {
             drop(helper, body, new BlockPos(4, 2, 12));
-            helper.assertTrue(new BlockDigger(body).destroyNow(crop), "real mature wheat destruction must succeed");
+            harvest.set(lua(body, "numen.use.hit(" + xyz(crop) + ")"));
+        }).thenWaitUntil(() -> {
+            helper.assertTrue(harvest.get().done() && harvest.get().succeeded(),
+                    "real mature wheat destruction must succeed: " + harvest.get().outcome());
             helper.assertTrue(helper.getLevel().getBlockState(crop).isAir(), "the harvested cell must really be empty");
             helper.assertTrue(WorldEvalObservers.observe(body).get("replanted_wheat").getAsInt() == 0,
                     "harvesting alone is not a completed production cycle");
-            plant.set(call(body, "interact_at", args("button", "right", "item_id", "minecraft:wheat_seeds",
-                    "x", soil.getX(), "y", soil.getY(), "z", soil.getZ())));
+        }).thenExecute(() -> {
+            plant.set(lua(body, "numen.use.block(" + xyz(soil) + ", {item = \"minecraft:wheat_seeds\"})"));
         }).thenWaitUntil(() -> {
             helper.assertTrue(plant.get().done(), "native seed placement has not finished");
             helper.assertTrue(plant.get().succeeded(), "native planting failed: " + plant.get().outcome());
             helper.assertTrue(helper.getLevel().getBlockState(crop).is(Blocks.WHEAT), "the seed must become a real crop");
             helper.assertTrue(WorldEvalObservers.observe(body).get("replanted_wheat").getAsInt() == 1,
-                    "BlockDigger hook and native BlockItem placer attribution must prove the cycle");
+                    "CompanionHands hook and native BlockItem placer attribution must prove the cycle");
         }).thenExecute(() -> {
             WorldEvalObservers.stop(body.getUUID());
             CompanionFactory.despawn(helper.getLevel().getServer(), body);

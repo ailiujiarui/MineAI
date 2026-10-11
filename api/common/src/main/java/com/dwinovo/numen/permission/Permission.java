@@ -4,6 +4,8 @@ import com.dwinovo.numen.entity.NumenPlayer;
 
 import net.minecraft.server.level.ServerLevel;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -19,13 +21,20 @@ public final class Permission {
     private Permission() {}
 
     /**
-     * 主线程:取这只同伴此刻的裁决快照——模式、主人层与出厂层规则、所在维度的放置记录、主人答应
-     * 下来的任务期授权。快照不可变,任何线程可读。
+     * 主线程:取这只同伴此刻的裁决快照——模式、主人层与出厂层规则、所在维度的放置记录、主人答应下来的任务期授权。
+     * 快照不可变,任何线程可读。
      */
     public static Gate gateFor(NumenPlayer companion) {
         ServerLevel level = (ServerLevel) companion.level();
-        return new Gate(companion, modeOf(companion), ownerRules(companion), RuleSet.factory(),
-                PlacedBlocks.of(level), ConsentDesk.of(companion).granted());
+        return new Gate(companion.getUUID(), modeOf(companion), ownerRules(companion), RuleSet.factory(),
+                PlacedBlocks.of(level), ConsentDesk.of(companion).granted(), ownerTrusted(companion));
+    }
+
+    /** 延迟执行的调用按自己的授权复核;模式和规则仍取此刻的值,拒绝优先于授权。 */
+    public static Gate gateFor(NumenPlayer companion, Object scope) {
+        ServerLevel level = companion.serverLevel();
+        return new Gate(companion.getUUID(), modeOf(companion), ownerRules(companion), RuleSet.factory(),
+                PlacedBlocks.of(level), ConsentDesk.of(companion).granted(scope), ownerTrusted(companion));
     }
 
     /** 主线程:对活世界裁决一个动作。 */
@@ -55,5 +64,11 @@ public final class Permission {
     private static RuleSet ownerRules(NumenPlayer companion) {
         UUID owner = companion.getOwnerUuid();
         return owner == null ? RuleSet.EMPTY : PermissionStore.of(companion.getServer(), owner).rules();
+    }
+
+    /** 这只同伴的主人记下的跨会话信任规则;还没有主人时是空表。 */
+    private static List<PermissionStore.Trusted> ownerTrusted(NumenPlayer companion) {
+        UUID owner = companion.getOwnerUuid();
+        return owner == null ? List.of() : PermissionStore.of(companion.getServer(), owner).trusted();
     }
 }

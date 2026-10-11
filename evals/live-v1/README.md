@@ -2,13 +2,27 @@
 
 这组评测启动项目的 NeoForge Minecraft 客户端，在新的集成服务器世界中生成同伴，将玩家目标送入真实 AgentLoop，使用指定 ProviderLibrary 配置调用模型，再由服务端读取实际世界状态判分。它补充 `bot-v1` 的分层测试；后者的脚本模型成绩不能代替这里的真实模型成绩。
 
+## 当前源码与历史档案
+
+运行代码已按最新 `main` 的 SDK／Lua 接口适配。模型通过 `lua` 工具的 `code` 参数提交程序；`CompanionToolPort` 把程序送到服务端，由现有SDK、任务槽和权限层执行。评测继续使用产品 `/goal` 入口、目标核对与模型错误策略，并在每次HTTP请求尝试及工具／程序派发前检查预算。轨迹保留模型工具结果，也记录 `program_ended` 与 `api_called` 事件；结束时收掉本轮程序和身体任务。
+
+例如木板校准的 `lua` 程序为：
+
+```lua
+return numen.inv.make("minecraft:oak_planks", 8)
+```
+
+`numen.inv.make` 是随产品发布的Lua模块，调用现有合成API；评测不预置模型行动方案。定位、移动与战斗等当前入口使用 `numen.locate.structure`、`numen.move.to`、`numen.fight.attack`，下面的能力说明按源码更新。
+
+**已有成绩和验证档案记录的是2026-10-03至2026-10-05的旧提交及旧工具协议。** 原始结果、源码哈希、工具名、测试数量和当时的API编译阻塞完整保留，不能当作本次适配后源码的成绩或测试通过证明。历史轨迹中的 `craft`、`task_status`、`inspect_gui` 等名称按原样保留，不是当前调用示例。本次没有新增真实模型跑分；当前接口的模型能力与稳定成功率留待后续单独测量，当前验证应引用本次实际产生的日志。
+
 ## 场景与评分
 
 | 场景文件 | 玩家目标与成功标准 | 用途 |
 | --- | --- | --- |
 | `scenarios/craft-planks.json` | 初始背包仅有 2 个橡木原木，最终背包至少有 8 个橡木木板 | 最短完整链路冒烟测试 |
 | `scenarios/initial-survival.json` | 普通世界空背包出发，持有石镐、熔炉、8 个火把、3 个熟牛肉，同时生命 ≥ 10、饱食 ≥ 12 | 初期生存与依赖安排的探索性长任务 |
-| `scenarios/free-survival.json` | 普通世界空背包、有些饥饿出发，自选食物和避险路线，实际进食、保有食物储备并持续存活 | `survival-v2`：原预算2/4未完成；扩大预算后4/4并满足保持条件，约21分钟成功 |
+| `scenarios/free-survival.json` | 普通世界空背包、有些饥饿出发，自选食物和避险路线，实际进食、保有食物储备并持续存活 | `survival-v2`历史成绩：原预算2/4未完成；扩大预算后4/4并满足保持条件，约21分钟成功；当前接口尚无真实模型成绩 |
 | `scenarios/sustainable-survival.json` | 普通世界空背包出发，建立工具、工作站、小麦田、亲自收割与原地补种、食物储备和规定形状的据点 | `survival-v1` 指定农业据点专项：三次正式 dev 运行均为 1/6，保留历史，不代表自由生存能力 |
 | `scenarios/expedition-preparation.json` | 固定初期物资出发，穿戴全套铁甲并备齐镐、盾、水桶、食物、照明和便携工作站 | [第二阶段独立专项](#expedition-v1)：`expedition-v1` 已接入观察与判分，尚无真实模型成绩 |
 | `scenarios/end-resources.json` | 人工远征起点，当前末影之眼成品与原料可制作量 ≥16；保留补给、铁级以上穿戴和逐件 ≥50% 耐久，安全保持200 tick | [第三阶段独立专项](#end-resources-v1)：`end-resources-v1` 已接入，真实模型尚未运行 |
@@ -60,7 +74,7 @@ python -B tools/calibrate_live_eval.py --scenario dragon-combat `
 
 prepare-only不指定provider，因此不读取真实provider库。localhost校准使用本机生成的占位配置，只让 `127.0.0.1` 返回4次空行动回复及合成用量；预期 `budget_exhausted(max_model_calls)` 和0/3里程碑，仅证明真实客户端初始化与没有误判成功。原生正例由 [DragonCombatEvalGameTests.java](../../core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/DragonCombatEvalGameTests.java) 的人工战斗夹具提供：公开本地原生龙战对象、原生造龙、禁AI／指定栖停阶段、部分低血夹具和手动推进原生死亡动画，不改成功字段；真实伤害→原生死亡→归属／统计→原生动画结束链由观察器记录。夹具始终 `calibration_fixture=true`、正式ready／成功为false；它不等价于正常末地战斗，更不算模型自主击杀成绩。具体已执行结果以验证归档为准。
 
-2026-10-05 验证：双加载器构建通过；ai／agent／core common 合计874项可执行JVM校验通过（ai及最终agent使用匹配源码的Gradle缓存），其中LiveEvalRunTest为66项；94项Python测试通过；320项必需GameTest全通过，含19项第五阶段校准。API测试仍在 `AdapterHandlersTest.java:72` 因 `JsonObject`／`String` 返回类型编译失败，未跳过、削弱或删除测试。首轮4项新增死亡校准失败：同tick原生死亡后恢复生命会漏掉延迟至身体下一tick的回执。现已在 `NumenPlayer.die` 的原生死亡统计提交时锁存，原断言保留且完整重跑通过，首次失败日志也归档。
+2026-10-05 历史验证：双加载器构建通过；ai／agent／core common 合计874项可执行JVM校验通过（ai及最终agent使用匹配源码的Gradle缓存），其中LiveEvalRunTest为66项；94项Python测试通过；320项必需GameTest全通过，含19项第五阶段校准。当时API测试在 `AdapterHandlersTest.java:72` 因 `JsonObject`／`String` 返回类型编译失败，未跳过、削弱或删除测试。首轮4项新增死亡校准失败：同tick原生死亡后恢复生命会漏掉延迟至身体下一tick的回执。随后在 `NumenPlayer.die` 的原生死亡统计提交时锁存，原断言保留且完整重跑通过，首次失败日志也归档。
 
 prepare-only与localhost真实客户端负例均通过。后者核对原生满血龙、10颗完整水晶、实际穿戴、副手盾、逐件耐久和全部物资；4次本机空行动仅经过4个服务端tick，结果为0/3、`budget_exhausted(max_model_calls)`，没有任何伤害或击杀链。三个原生正例初末快照通过Python严格夹具校验，包括空中致死、栖停致死及结束后200 tick存活；床来源反例按原生归因不明确预期拒绝。所有夹具快照都被正式协议拒绝。日志、原生初末状态、事件、轨迹、测试XML和SHA256在上述归档；没有真实模型战斗成绩。
 
@@ -68,8 +82,8 @@ prepare-only与localhost真实客户端负例均通过。后者核对原生满�
 
 | 能力 | 源码支持与尚未验证部分 |
 | --- | --- |
-| 发现龙和水晶 | `scan_nearby_entities` 通过通用实体扫描返回父龙、水晶，也可能列出原版附加的部位实体，半径上限64、结果上限20；龙不实现 `Monster`，可能归为passive。部位与父体都显示dragon类型，未提供部位名称／父UUID映射或龙阶段，部位ID未验证可由当前攻击查找路径解析 |
-| 普通近战和远程 | `attack` 可点名实体，身体已有武器选择、近战及弓／弩弹道预测，水晶有爆炸距离处理；普通生物测试不能证明末影龙可命中 |
+| 发现龙和水晶 | `numen.scan.entities` 通过通用实体扫描返回附近实体，半径上限64，当前实现不截成20个结果；龙不实现 `Monster`，可能归为passive。扫描不提供龙阶段及专门的部位／父UUID映射，部位ID能否由攻击路径可靠解析仍需验证 |
+| 普通近战和远程 | `numen.fight.attack` 可接收扫描所得实体或ID，身体已有武器选择、近战及弓／弩弹道预测，水晶有爆炸距离处理；普通生物测试不能证明末影龙可命中 |
 | 龙多部位与飞行／栖停 | 原版父龙不可直接pick，射箭依赖部位碰撞体；当前远程瞄准父实体包围盒、命中判据缺少部位归一，尚未验证可靠打龙。点名父龙的近战直接调用 `player.attack`，可走原版body部位伤害接口，但实战距离、飞行追踪和栖停近战仍未验证。通用远程距离及移动预测存在，龙阶段专用追踪缺失；栖停原版拒绝箭伤 |
 | 主岛、塔与自保 | 导航、攀爬、放块搭路、建造、水桶MLG、进食与避险已有实现；入口至主岛、末地塔顶、龙击飞与虚空边缘处置尚未验证。虚空下没有可落水的地面，不能由普通MLG推断虚空自救 |
 | 原生龙战与归因 | 评测观察实际龙战目标、原生伤害、死亡、归属、统计及动画后战斗结束；人工伤害夹具仅校准设施，不算自主打龙成绩 |
@@ -84,7 +98,7 @@ prepare-only与localhost真实客户端负例均通过。后者核对原生满�
 
 **公开起点是新世界人工设置，不是第三阶段存档。** 种子73004、普通世界生成、结构开启、普通难度、原版默认规则、正常昼夜；主世界固定坐标 `(0.5,84,32.5)`，生命20、饱食20、饱和度5。穿戴全新铁头盔／胸甲／护腿／靴，副手全新盾牌；背包全新铁镐／铁斧／铁剑各1、水桶1、普通火把32、工作台1、熔炉1、熟牛肉16（营养128），另有**8个末影之眼、8颗末影珍珠、4根烈焰棒**。用户选择延续第三阶段混合资源：`8 + min(8, 2×4) = 16`，原料仍需正常合成。装备初始化复用现有 `setup.equipment`，不会重复发进背包；不恢复旧 Agent 目标和记忆，不追加物资或救场。主人以旁观者停在初始位置。
 
-不公开要塞坐标，不在门旁出生，没有正式场景门夹具。协议**允许使用产品现有 `locate_structure` 定位**，不强迫投眼或固定路线；因此本专项测到的是允许结构定位工具时的长程找门与进入能力，不能把成绩称为纯投眼寻找能力。评分器不会把私下读取的门坐标追加给模型。
+不公开要塞坐标，不在门旁出生，没有正式场景门夹具。协议**允许使用产品现有 `numen.locate.structure("minecraft:stronghold")` 定位**，不强迫投眼或固定路线；因此本专项测到的是允许结构定位API时的长程找门与进入能力，不能把成绩称为纯投眼寻找能力。评分器不会把私下读取的门坐标追加给模型。
 
 | 事实链与最终条件 | 服务端判据 |
 | --- | --- |
@@ -103,7 +117,7 @@ prepare-only与localhost真实客户端负例均通过。后者核对原生满�
 
 服务端通过UUID在所有维度查找主体和任务，跨维度实例替换与客户端短暂看不见实体都不等于死亡；每个坐标证据带维度。缺失主体、tick观察缺口或关键门证据缺失记基础设施异常，不能算成功或能力零分。普通诊断事件列表允许截断且显式标记，关键到达、开启、入门证据独立保存；关键证据截断则拒绝成功。离开补给、遇险、返回等只按事实记覆盖；没有发生时为 `not_covered`。“记住未完成目标”“正确重规划”保留 `not_measured`，不能由换任务、路径重算或最终入门推断。
 
-产品能力审查发现：`locate_structure` 支持要塞且返回高度近似值，已有定位测试主要为平坦世界／无结构情况；`goto` 可接受坐标，但真实要塞定位、地下找门与完整远距路线仍未验证。`Interaction` 走原生物品使用与方块交互，`inspect_block` 能读 `has_eye`／`facing`，没有专门的末影之眼飞行轨迹观测；内置 `stronghold_finding` 技能也推荐结构定位工具。原料合成、补给避险、自主找门和模型记忆重规划的整条路线都没有本轮真实模型证据。
+`numen.locate.structure` 支持要塞并返回所在列、方向与距离；`numen.move.to` 模块把规划与移动组合起来，但真实要塞定位、地下找门与完整远距路线仍无本评测的模型成绩。`numen.use.block` 走原生物品使用与方块交互，`numen.scan.block` 的 `properties` 能读 `has_eye`／`facing`，没有专门的末影之眼飞行轨迹观测；内置 `stronghold_finding` 技能也推荐结构定位API。原料合成、补给避险、自主找门和模型记忆重规划的整条路线都没有本轮真实模型证据。
 
 从仓库根目录做无模型、无密钥的准备检查：
 
@@ -123,7 +137,7 @@ python -B tools/calibrate_live_eval.py --scenario end-entry `
 
 脚本只连接 `127.0.0.1`，生成本地占位配置，不读取真实provider库；结果标记 `calibration_only=true`、`real_model=false`、`usage_is_synthetic=true`、`capability_baseline=false`。原生正例由 [EndEntryEvalGameTests.java](../../core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/EndEntryEvalGameTests.java) 的简化入口校准：人工未开启门经过原生插眼，同维度放位到门平面后由真实碰撞触发原版穿门。正例只在测试中注入 `PortalRoom` 结构元数据，以校准完整观察与判分；没有设置成功标记，也不证明自然生成、寻找或步行。另有不带结构元数据的人工门反例，原生穿门仍不能算正式成功。JVM／Python反例覆盖不同门拼接、直接换维、他者贡献、死亡、观察缺口和保持边界。首次死亡在产品恢复生命前留原生回执并永久锁存；冻结快照会核验当前真实服务端tick，重复读取不会增加保持时间。设施校准通过不代表bot能自主完成本阶段；结果与日志是否已执行，以验证归档为准。
 
-2026-10-05 验证：双加载器构建通过；ai／agent／core common 合计863项 JVM 校验通过（ai及最终agent使用匹配源码的Gradle缓存），72项Python测试通过，301项必需GameTest全通过，含12项第四阶段校准。原生正例在末地保持26 tick、生命20、饱食20，最终眼库存0；同一服务端UUID仍可读取。API测试仍在 `AdapterHandlersTest.java:72` 被 `JsonObject`／`String` 返回类型阻塞，未跳过或修改该测试。各次修复前的失败与崩溃日志保留在验证归档中。
+2026-10-05 历史验证：双加载器构建通过；ai／agent／core common 合计863项 JVM 校验通过（ai及最终agent使用匹配源码的Gradle缓存），72项Python测试通过，301项必需GameTest全通过，含12项第四阶段校准。原生正例在末地保持26 tick、生命20、饱食20，最终眼库存0；同一服务端UUID仍可读取。当时API测试在 `AdapterHandlersTest.java:72` 被 `JsonObject`／`String` 返回类型阻塞，未跳过或修改该测试。各次修复前的失败与崩溃日志保留在验证归档中。
 
 prepare-only与localhost真实客户端负例均已通过。后者核对混合16份资源、实际铁甲与副手盾，4次本机脚本请求后以 `budget_exhausted(max_model_calls)` 结束，0/3里程碑，没有定位、开门或入门证据；用量是合成数据。原生正例的实际观察快照同时通过Python证据校验。日志、初末快照、轨迹、测试XML和SHA256均在上述归档，无真实模型成绩。
 
@@ -141,7 +155,7 @@ prepare-only与localhost真实客户端负例均已通过。后者核对混合16
 
 | 阶段 | 验证重点 | 拟观察的达成证据 | 当前实现与成绩 |
 | --- | --- | --- | --- |
-| **1. 建立基本生存条件** | 获取食物、工具，处理夜晚和危险 | 从空背包取得可用工具；真实进食、保有食物储备并维持生命；记录夜间或危险出现后采取的避险、自卫、补给及存活结果。允许自选食物与避险方式，不固定农业或房屋形状 | 已有自由生存专项的进食、储备、存活与安全观察；扩大预算运行成功 **4/4**。该专项不要求工具，也不单独判定夜间处置或可再生供给，因此仅覆盖本阶段部分能力，不能登记为通关阶段已完成 |
+| **1. 建立基本生存条件** | 获取食物、工具，处理夜晚和危险 | 从空背包取得可用工具；真实进食、保有食物储备并维持生命；记录夜间或危险出现后采取的避险、自卫、补给及存活结果。允许自选食物与避险方式，不固定农业或房屋形状 | 已有自由生存专项的进食、储备、存活与安全观察；历史扩大预算运行成功 **4/4**，当前SDK／Lua接口尚无模型成绩。该专项不要求工具，也不单独判定夜间处置或可再生供给，因此仅覆盖本阶段部分能力，不能登记为通关阶段已完成 |
 | **2. 准备远征资源** | 装备、补给、工作站和库存统筹 | 出发前的装备与耐久、食物、工具和工作站可用性；消耗及余量变化；离开据点后能否补给、修理或重新制作。物资要求按冻结的评测规则检查，同一份消耗性材料不能重复分配给多个待办目标 | 已实现[固定起点远征准备专项](#expedition-v1)，观察全套护甲穿戴、耐久和随身物资；尚无真实模型成绩，未验证出发后的补给或上一阶段续跑 |
 | **3. 获取进入末地所需资源** | 跨区域探索、前置依赖、风险判断 | 实际获取并保有可用于定位、开启末地传送门的资源；记录探索区域、维度变化、资源取得与消耗。结合定位损耗和传送门缺口检查余量，观察资源点失效或遇险后能否继续推进 | 已实现[固定远征起点资源专项](#end-resources-v1)，当前 ≥16 份可制作量和补给保持独立判分；真实换维、受伤与采样事实有证据，重规划未自动判分；真实模型尚未运行，不回填完整通关阶段成绩 |
 | **4. 找到并进入末地** | 长距离导航、补给安排、记住未完成目标 | 服务端确认找到实际要塞传送门位置、完成开启并进入末地；记录坐标、维度、往返和补给轨迹。中途离开补给或避险后，应能回到尚未完成的目标继续执行 | 已建设[固定资源起点专项 end-entry-v1](#end-entry-v1)，同一UUID／同一原生要塞门的到达、开启、原生入门及20 tick存活独立判分；记忆与重规划未测。没有同世界连续通关或真实模型成绩，不能回填完整通关 |
@@ -198,7 +212,7 @@ python -B tools/calibrate_live_eval.py --scenario expedition-preparation `
 
 这是评分设施校准，`real_model=false`、`capability_baseline=false`；0/5 不能算模型失败。耐久边界、穿戴与不安全食物等正反例由 [ExpeditionEvalGameTests.java](../../core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ExpeditionEvalGameTests.java) 检验；本轮执行情况及证据归档在 [expedition-verification.json](expedition-verification.json)。
 
-本轮已通过双加载器构建、848 项可执行 JVM 测试、278 项 GameTest（新增 5 项远征校准）和 48 项 Python 测试。真实客户端负例校准也已通过：4 次 localhost 脚本请求后按调用数预算结束，0/5、初始食物营养 20，未把石工具或空护甲槽判为远征就绪；客户端注册 0 个 GameTest、42 个产品工具。**API 测试仍未跑通**：已有 `AdapterHandlersTest.java:72` 的 lambda 返回 `JsonObject`，而接口要求 `String`，编译阶段受阻；本次没有修改或跳过该测试。
+2026-10-04历史建设轮通过双加载器构建、848 项可执行 JVM 测试、278 项 GameTest（新增 5 项远征校准）和 48 项 Python 测试。当时真实客户端负例校准通过：4 次 localhost 脚本请求后按调用数预算结束，0/5、初始食物营养 20，未把石工具或空护甲槽判为远征就绪；客户端注册 0 个 GameTest、42 个旧协议产品工具。当时API测试在 `AdapterHandlersTest.java:72` 因lambda返回 `JsonObject`、接口要求 `String` 而编译受阻，未修改或跳过该测试。
 
 <a id="end-resources-v1"></a>
 
@@ -232,11 +246,11 @@ python -B tools/calibrate_live_eval.py --scenario expedition-preparation `
 
 | 路线组成部分 | 当前实际支持与未验证部分 |
 | --- | --- |
-| 探索、结构定位、前置采集 | `goto/plan_route/locate_structure/locate_biome/mine` 已注册，有通用地形与定位测试；定位坐标不等于走过区域。铁镐不能采黑曜石，模型须自行取得更高镐或选择其他合法建门路线 |
-| 下界进入 | 通用 `build/interact_at/goto` 和下界技能文本可组成入口；已有直接换维回执测试，但自然建造→点火→穿门还无专项实战证据 |
-| 烈焰人、末影人及掉落 | `attack/collect_items` 有战斗和实际掉落结算；通用测试覆盖僵尸与猪，没有烈焰人／末影人专项实战证据 |
-| 合成资源 | `craft` 使用原版配方和真实库存增量；棒→粉→眼的完整自主采集制作路线尚未验证 |
-| 猪灵／村民路线 | `drop_items/collect_items` 可组成原版以物易物入口，猪灵连续资源获取未验证；村民可打开菜单，但缺少完整 offer 检查和交易选择接口，不能声称牧师交易已可可靠运行 |
+| 探索、结构定位、前置采集 | `numen.route.plan`、`numen.locate.structure`、`numen.locate.biome` 为SDK接口，`numen.move.to`、`numen.work.mine` 为Lua模块；定位坐标不等于走过区域。铁镐不能采黑曜石，模型须自行取得更高镐或选择其他合法建门路线 |
+| 下界进入 | `numen.build.place`、`numen.use.block`、`numen.move.to` 和下界技能文本提供建造、交互与移动入口；历史直接换维回执测试不证明自然建造→点火→穿门的自主路线 |
+| 烈焰人、末影人及掉落 | `numen.fight.attack` 点名战斗，`numen.work.collect` 模块扫描并收集掉落；通用战斗代码不代表已经取得烈焰人／末影人专项实战证据 |
+| 合成资源 | `numen.inv.craft` 使用原版配方和真实库存，`numen.inv.make` 模块负责配方与工作站组合；棒→粉→眼的完整自主采集制作路线尚未验证 |
+| 猪灵／村民路线 | `numen.inv.drop` 与 `numen.work.collect` 提供丢物和拾取入口，猪灵连续资源获取未验证；`numen.use.entity` 可打开菜单，当前没有专门的完整offer检查和交易选择API，不能声称牧师交易已可可靠运行 |
 
 具体源码与受控测试证据见 [验证记录](end-resources-verification.json)。写出场景不证明 bot 能完成上述路线；没有真实模型第三阶段成绩，更没有同世界从零通关成绩。
 
@@ -259,7 +273,7 @@ python -B tools/calibrate_live_eval.py --scenario end-resources `
 
 正反例由 [EndResourcesEvalGameTests.java](../../core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/EndResourcesEvalGameTests.java)、[LiveEvalRunTest.java](../../agent/src/test/java/com/dwinovo/numen/agent/acceptance/LiveEvalRunTest.java) 及 [test_run_live_eval.py](../../tools/test_run_live_eval.py) 校准：起始物资、成品／原料混合、配对不足、转换不膨胀、非随身资源、当前条件与历史里程碑、穿戴及逐件耐久和事件未覆盖。构建、测试、prepare-only、客户端结果和证据哈希归档在 [end-resources-verification.json](end-resources-verification.json)。真实模型运行需要另行指定provider与三项预算，本轮没有执行。
 
-2026-10-05（Asia/Shanghai）验证结果：双加载器构建通过；ai／agent／core common共851项可执行 JVM 校验通过（ai任务为Gradle匹配源码的缓存，其余执行通过）；289项必需 GameTest全部通过，含11项新增校准；59项 Python测试通过；prepare-only通过。首轮 GameTest为288/289，受伤校准在原版出生保护期内施加伤害被拒；参照现有测试等待70tick后，保留全部受伤／免疫／换维断言，完整重跑通过，原失败日志已归档。API测试仍在`AdapterHandlersTest.java:72`编译受阻，本轮未改动或跳过。
+2026-10-05（Asia/Shanghai）历史验证：双加载器构建通过；ai／agent／core common共851项可执行 JVM 校验通过（ai任务为Gradle匹配源码的缓存，其余执行通过）；289项必需 GameTest全部通过，含11项新增校准；59项 Python测试通过；prepare-only通过。首轮 GameTest为288/289，受伤校准在原版出生保护期内施加伤害被拒；参照现有测试等待70tick后，保留全部受伤／免疫／换维断言，完整重跑通过，原失败日志已归档。当时API测试在`AdapterHandlersTest.java:72`编译受阻，该轮未改动或跳过。
 
 localhost真实客户端负例通过：初始固定坐标、全套新铁甲实际穿戴、副手新盾牌、营养128、初末目标资源0和0/5里程碑，4次合成请求后按调用数预算结束。初末事件覆盖未发生的换维与跨区为`not_covered`，重规划为`not_measured`；注册0个GameTest、42个产品工具，源码冻结校验通过。这个结果校准了初始化、观察、判分和记录，**不计模型能力基线或第三阶段任务完成**。
 
@@ -294,7 +308,7 @@ python -B tools/run_live_eval.py --prepare-only `
 
 准备记录会明确列出尚未选择的 provider 和运行预算；实际执行时沿用下文运行器参数。预算从 CLI 指定，不写进场景文件。
 
-### 新版首次正式结果（2026-10-04）
+### 历史首条正式结果（2026-10-04，旧工具协议）
 
 `deepseek-v4.1-flash` 通过 B.AI 完成一条干净环境 dev 运行，沿用农业修复后基线的模型配置及 **80 次请求／1700 秒／260 万已报告 token** 上限。结果是 **`budget_exhausted / max_tokens`，2/4 个里程碑，任务未完成**，实际耗时 **432195.586 ms（约 7 分 12 秒）**。这是新版目标下的首条基线，不能与旧 1/6 合成同一任务的改善结论。
 
@@ -315,7 +329,7 @@ python -B tools/run_live_eval.py --prepare-only `
 
 双加载器构建通过，已可运行的 ai／agent／core common 合计 **846 项 JVM 测试**通过，**273 项必需 GameTest**与 **59 项 Python 测试**通过。API 测试仍被原有 `AdapterHandlersTest.java:72` 的一个返回类型编译错误阻断；72 是源代码行号。零付费 localhost 校准验证初始饱食 14、工具接入及“空等不能成功”的负对照，使用合成回复和合成用量，不计真实模型成绩。见[验证记录](baselines/deepseek-v4.1-flash-free-survival-v2-20261004/verification.json)。
 
-### 扩大预算对照成功（2026-10-04）
+### 历史扩大预算对照成功（2026-10-04，旧工具协议）
 
 经用户批准，只将上限改为 **400 次请求／1700 秒／3000 万累计已报告 token**，启动一条新的真实 dev 运行。与上一轮保持相同源码、模型、公开提示、场景、评分和工具；源码 SHA256 仍为`3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166`。两轮均空背包、HP20、food14，出生点均`(160.5,66,-127.5)`。独立世界及模型输出仍有随机性，不能把这一对样本当作总体成功率估计。
 
@@ -491,7 +505,7 @@ python -B tools/run_live_eval.py `
 - `run.json`、`source-hashes.json`：启动状态、候选源码哈希、环境覆盖、命令和退出信息。
 - `launcher.log`：Gradle 与客户端标准输出；选中 API Key 在写入此日志前脱敏。
 - `results/result.json`：客户端结果状态、原因、初末世界快照、里程碑、调用数和 token 用量。
-- `results/trace.json`：按任务开始后毫秒计时的观察与事件轨迹。
+- `results/trace.json`：按任务开始后毫秒计时的观察与事件轨迹；当前接口另记录Lua程序结局和结构化API调用。
 - `results/trace.jsonl`、`results/progress.json`：每秒刷新的部分证据，异常退出时也可复核。
 - `results/chat.jsonl`：启动器结束后自动脱敏导出的同伴完整聊天，包含推理、任务完成和本能事件；导出状态、路径和 SHA256 记入 `run.json`。启动过早没有聊天时明确记为不可用；多个同伴聊天则拒绝随意选择。10-04 复跑先结束再加入此导出功能，该轮的等价证据手动归档为 `companion-chat.jsonl.gz`。
 - `game/`：本次世界和本地配置，**包括私有凭据**。分享结果时不要打包整个运行目录。
@@ -506,7 +520,7 @@ python -B tools/run_live_eval.py `
 
 目标通过产品现有的 `/goal` 入口运行，沿用最多 30 轮目标推进、连续 2 次停滞后收工的规则；运行器不会自动重开目标绕过这些限制。模型自己的目标评估只影响继续行动，最终成绩仍由服务端证据判定。若大脑提前收工但世界条件未满足，本版继续观察到预算截止。
 
-木板案例已保留一次真实模型驱动物理成功的证据；可持续生存已完成排除测试夹具后的校准与正式有限重试，得到可复核的未完成基线。整夜生存、多个完整农业循环和末影龙进度仍未验证。末影龙场景只供显式选择并配足预算的长跑，不会作为默认冒烟任务自动启动。
+木板案例和生存专项的真实模型结果均按旧提交保留，当前SDK／Lua接口尚无新的真实模型成绩。历史自由生存成功只覆盖公开的有限存活与补给条件，多个完整农业循环和末影龙通关仍未验证。末影龙场景只供显式选择并配足预算的长跑，不会作为默认冒烟任务自动启动。
 
 启动器离线验证命令（不调用模型）：
 
@@ -520,4 +534,4 @@ python -B tools/test_run_live_eval.py
 python -B tools/calibrate_live_eval.py --offline --neoforge-version 21.1.233
 ```
 
-该脚本只向 `127.0.0.1` 发送模型协议请求，返回预定的 `craft` 调用及合成用量数据，不需要付费模型配置。结果本体标注 `calibration_only=true`、`real_model=false`、`usage_is_synthetic=true` 和 `capability_baseline=false`；它验证运行器接线，不测模型能力。实际校验已观察到库存由 2 个原木变为 8 个木板，随后自动保存并退出。结果与测试记录见 `verification.json`。
+该脚本只向 `127.0.0.1` 发送模型协议请求，当前返回预定的 `lua` 调用，`code` 为 `return numen.inv.make("minecraft:oak_planks", 8)`，并提供合成用量数据，不需要付费模型配置。结果本体标注 `calibration_only=true`、`real_model=false`、`usage_is_synthetic=true` 和 `capability_baseline=false`；它验证运行器接线，不测模型能力。`verification.json` 保留旧协议下库存由2个原木变为8个木板的历史校准；当前接口是否通过，应读取新运行的实际结果，不沿用旧校准的成功结论。

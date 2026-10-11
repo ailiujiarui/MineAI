@@ -75,7 +75,7 @@ public class EndEntryEvalGameTests {
         BlockPos center = fixture(helper, new BlockPos(7, 2, 7), 0, true, false);
         NumenPlayer body = observedBody(helper, "gametest_entry_unopened");
         WorldEvalObservers.tick(body);
-        helper.startSequence().thenIdle(2).thenExecute(() -> {
+        steps(helper).thenIdle(2).thenExecute(() -> {
             JsonObject facts = WorldEvalObservers.observe(body);
             assertFlag(helper, facts, "portal_reached", true);
             assertFlag(helper, facts, "portal_activated_by_companion", false);
@@ -95,7 +95,7 @@ public class EndEntryEvalGameTests {
         insertLastEye(helper, body, center);
         helper.assertTrue(helper.getLevel().getBlockState(center).is(Blocks.END_PORTAL), "the vanilla final eye must create real portal blocks");
         dropIntoPortal(body, center);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native portal travel"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native portal travel"))
                 .thenIdle(25).thenExecute(() -> {
                     NumenPlayer current = NumenPlayer.findByUuid(helper.getLevel().getServer(), body.getUUID());
                     helper.assertTrue(current != null && current.getUUID().equals(body.getUUID()) && current.level().dimension() == Level.END,
@@ -127,7 +127,7 @@ public class EndEntryEvalGameTests {
         BlockPos center = fixture(helper, new BlockPos(7, 2, 7), 12, true, true);
         NumenPlayer body = observedBody(helper, "gametest_entry_already_open");
         dropIntoPortal(body, center);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native preopened entry"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native preopened entry"))
                 .thenIdle(3).thenExecute(() -> {
                     JsonObject facts = WorldEvalObservers.observe(body);
                     assertFlag(helper, facts, "portal_activated_by_companion", false);
@@ -149,7 +149,7 @@ public class EndEntryEvalGameTests {
         insertEye(helper, other, frames(center)[10]);
         insertLastEye(helper, body, center);
         dropIntoPortal(body, center);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for assisted native entry"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for assisted native entry"))
                 .thenExecute(() -> {
                     JsonObject facts = WorldEvalObservers.observe(body);
                     assertFlag(helper, facts, "portal_activated_by_companion", false);
@@ -169,7 +169,7 @@ public class EndEntryEvalGameTests {
         body.getInventory().setItem(0, new ItemStack(Items.ENDER_EYE));
         insertLastEye(helper, body, first);
         dropIntoPortal(body, second);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for second portal native entry"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for second portal native entry"))
                 .thenExecute(() -> {
                     JsonObject facts = WorldEvalObservers.observe(body);
                     assertFlag(helper, facts, "native_end_entry", false);
@@ -183,7 +183,7 @@ public class EndEntryEvalGameTests {
     public static void directly_changing_dimension_cannot_claim_native_portal_entry(GameTestHelper helper) {
         NumenPlayer body = observedBody(helper, "gametest_entry_direct");
         change(body, helper.getLevel().getServer().getLevel(Level.END), new Vec3(100.5, 50, 0.5));
-        helper.startSequence().thenIdle(25).thenExecute(() -> {
+        steps(helper).thenIdle(25).thenExecute(() -> {
             JsonObject facts = WorldEvalObservers.observe(body);
             assertFlag(helper, facts, "native_end_entry", false);
             helper.assertTrue(facts.get("end_alive_held_ticks").getAsInt() == 0 && chain(facts).get("entry").isJsonNull(),
@@ -198,7 +198,7 @@ public class EndEntryEvalGameTests {
         body.getInventory().setItem(0, new ItemStack(Items.ENDER_EYE));
         insertLastEye(helper, body, center);
         dropIntoPortal(body, center);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for artificial native entry"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for artificial native entry"))
                 .thenExecute(() -> {
                     JsonObject facts = WorldEvalObservers.observe(body);
                     assertFlag(helper, facts, "native_end_entry", false);
@@ -215,7 +215,7 @@ public class EndEntryEvalGameTests {
         body.getInventory().setItem(0, new ItemStack(Items.ENDER_EYE));
         insertLastEye(helper, body, center);
         dropIntoPortal(body, center);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native entry before gap"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native entry before gap"))
                 .thenIdle(3).thenExecute(() -> {
                     int before = WorldEvalObservers.observe(body).get("end_alive_held_ticks").getAsInt();
                     for (int i = 0; i < 40; i++) WorldEvalObservers.observe(body);
@@ -238,7 +238,7 @@ public class EndEntryEvalGameTests {
         body.getInventory().setItem(0, new ItemStack(Items.ENDER_EYE));
         insertLastEye(helper, body, center);
         dropIntoPortal(body, center);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for first native episode"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for first native episode"))
                 .thenIdle(3).thenExecute(() -> {
                     change(body, helper.getLevel(), helper.absoluteVec(new Vec3(4.5, 2, 4.5)));
                     change(body, helper.getLevel().getServer().getLevel(Level.END), new Vec3(100.5, 50, 0.5));
@@ -258,7 +258,7 @@ public class EndEntryEvalGameTests {
         body.getInventory().setItem(0, new ItemStack(Items.ENDER_EYE));
         insertLastEye(helper, body, center);
         dropIntoPortal(body, center);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native entry before death"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native entry before death"))
                 .thenIdle(70).thenExecute(() -> body.hurt(body.damageSources().genericKill(), Float.MAX_VALUE))
                 .thenIdle(2).thenExecute(() -> {
                     JsonObject facts = WorldEvalObservers.observe(body);
@@ -277,7 +277,7 @@ public class EndEntryEvalGameTests {
         body.getInventory().setItem(0, new ItemStack(Items.ENDER_EYE));
         insertLastEye(helper, body, center);
         dropIntoPortal(body, center);
-        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native entry after history fills"))
+        steps(helper).thenWaitUntil(() -> helper.assertTrue(body.level().dimension() == Level.END, "wait for native entry after history fills"))
                 .thenIdle(25).thenExecute(() -> {
                     JsonObject facts = WorldEvalObservers.observe(body);
                     assertFlag(helper, facts, "native_end_entry", true);

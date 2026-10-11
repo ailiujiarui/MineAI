@@ -2,6 +2,7 @@ package com.dwinovo.numen.mixin;
 
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.DataSlot;
+import net.minecraft.world.inventory.MenuType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -20,4 +21,8 @@ public interface MenuDataSlotsAccessor {
 
     @Accessor("dataSlots")
     List<DataSlot> numen$dataSlots();
+
+    /** Inventory and horse menus have no type and cannot be rebuilt through MenuScreens. */
+    @Accessor("menuType")
+    MenuType<?> numen$menuType();
 }

@@ -32,13 +32,13 @@ public final class InitTag {
     public static final TagKey<Item> TAME_FOODS = item("tame_foods");
 
     /**
-     * Throwaway building blocks the pathfinder may consume as scaffolding while
-     * travelling — bridging gaps, stepping up, and pillaring. The pathfinder only
-     * ever places a block in this tag, so it never burns the player's valuables.
+     * The factory throwaway list: blocks a walk is willing to spend — bridging gaps,
+     * stepping up, and pillaring — when its description names no {@code materials}
+     * (reflexes always use it).
      * Datapack-driven so packs can add their own cheap blocks — see
-     * {@code data/numen/tags/item/scaffolds.json}.
+     * {@code data/numen/tags/item/throwaway.json}.
      */
-    public static final TagKey<Item> SCAFFOLDS = item("scaffolds");
+    public static final TagKey<Item> THROWAWAY = item("throwaway");
 
     /**
      * Blocks whose block-entity data a blueprint may carry into the world — sign

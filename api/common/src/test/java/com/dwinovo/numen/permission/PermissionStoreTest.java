@@ -101,4 +101,30 @@ class PermissionStoreTest {
         PermissionStore loaded = PermissionStore.load(tag, null);
         assertEquals(List.of(Rule.parse("break(minecraft:dirt)"), Rule.parse("take(*)")), loaded.rules().allow());
     }
+
+    @Test
+    void trustedRulesCarryTheirProvenanceSurviveAReloadRevokeAndLeaveAnAudit() {
+        PermissionStore store = new PermissionStore();
+        UUID owner = UUID.randomUUID();
+        Rule cobble = Rule.parse("break(placed & minecraft:cobblestone)");
+        assertTrue(store.trusted().isEmpty(), "新表里没有信任");
+
+        assertTrue(store.rememberTrusted(cobble, owner, "Aria"));
+        assertFalse(store.rememberTrusted(cobble, owner, "Aria"), "同一条规则不重复记");
+        assertEquals(1, store.trusted().size());
+        PermissionStore.Trusted entry = store.trusted().get(0);
+        assertEquals(cobble, entry.rule());
+        assertEquals(owner, entry.grantedBy());
+        assertEquals("Aria", entry.companionName());
+        assertTrue(entry.grantedAtMillis() > 0, "记下了什么时候允许的");
+
+        PermissionStore loaded = PermissionStore.load(store.save(new CompoundTag(), null), null);
+        assertEquals(store.trusted(), loaded.trusted(), "信任连同来历一起存档读档");
+        assertEquals(store.audit(), loaded.audit(), "审计流水一起存");
+
+        assertFalse(loaded.revokeTrusted(Rule.parse("break(minecraft:dirt)")), "不在册的撤不掉");
+        assertTrue(loaded.revokeTrusted(cobble));
+        assertTrue(loaded.trusted().isEmpty(), "撤掉之后表里没有它");
+        assertTrue(loaded.audit().get(loaded.audit().size() - 1).contains("revoked"), "撤销也留一行审计");
+    }
 }

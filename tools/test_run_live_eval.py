@@ -9,8 +9,11 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+
+import eval_common
 
 
 spec = importlib.util.spec_from_file_location("run_live_eval", Path(__file__).with_name("run_live_eval.py"))
@@ -1617,6 +1620,69 @@ class LiveLauncherTest(unittest.TestCase):
         (self.output / "results/trace.json").unlink()
         with self.assertRaisesRegex(runner.PreflightError, "trace"):
             runner.validate_result(self.output, self.scenario)
+
+
+class CalibrationFixtureProtocolTest(unittest.TestCase):
+    def response(self, scenario, messages):
+        payload = json.dumps({"messages": messages, "tools": [{"type": "function", "function": {
+            "name": "lua", "parameters": {"type": "object", "properties": {"code": {"type": "string"}},
+                                         "required": ["code"]}}}]}).encode()
+        output = io.BytesIO()
+        handler = SimpleNamespace(rfile=io.BytesIO(payload), wfile=output,
+                                  headers={"Content-Length": str(len(payload))},
+                                  server=SimpleNamespace(calibration_case=scenario),
+                                  send_response=lambda *_: None, send_header=lambda *_: None,
+                                  end_headers=lambda: None)
+        calibrator.Fixture.do_POST(handler)
+        return [json.loads(line[6:]) for line in output.getvalue().decode().splitlines()
+                if line.startswith("data: ") and line != "data: [DONE]"]
+
+    def test_crafting_control_uses_the_current_lua_tool_protocol(self):
+        chunks = self.response("craft-planks", [{"role": "user", "content": "craft eight planks"}])
+        tool = chunks[0]["choices"][0]["delta"]["tool_calls"][0]
+        self.assertEqual("lua", tool["function"]["name"])
+        self.assertEqual({"code": 'return numen.inv.make("minecraft:oak_planks", 8)'},
+                         json.loads(tool["function"]["arguments"]))
+        self.assertEqual("tool_calls", chunks[1]["choices"][0]["finish_reason"])
+        completed = self.response("craft-planks", [{"role": "tool", "tool_call_id": tool["id"],
+                                                     "content": "ok"}])
+        self.assertNotIn("tool_calls", completed[0]["choices"][0]["delta"])
+        self.assertEqual("stop", completed[1]["choices"][0]["finish_reason"])
+
+    def test_later_stage_controls_remain_idle_with_the_lua_tool_available(self):
+        for scenario in ("expedition-preparation", "end-resources", "end-entry", "dragon-combat"):
+            with self.subTest(scenario=scenario):
+                chunks = self.response(scenario, [{"role": "user", "content": "perform the stage"}])
+                self.assertNotIn("tool_calls", chunks[0]["choices"][0]["delta"])
+                self.assertEqual("stop", chunks[1]["choices"][0]["finish_reason"])
+
+
+class CandidatePatchTest(unittest.TestCase):
+    def test_large_source_snapshot_is_patched_once_per_path_in_bounded_batches(self):
+        changed = [f"core/src/main/java/{'package/' * 25}Source{index:04d}.java" for index in range(257)]
+        seen = []
+
+        def diff(command, cwd):
+            self.assertEqual(["git", "diff", "--binary", "HEAD", "--"], command[:5])
+            self.assertEqual(eval_common.ROOT, cwd)
+            batch = command[5:]
+            self.assertGreater(len(batch), 0)
+            self.assertLessEqual(len(batch), 32)
+            if sum(len(argument) + 3 for argument in command) >= 32767:
+                raise OSError(206, "The filename or extension is too long")
+            seen.extend(batch)
+            return b"".join(path.encode() + b"\0" for path in batch)
+
+        with patch.object(eval_common.subprocess, "check_output", side_effect=diff) as process:
+            actual = eval_common.candidate_patch(changed)
+        self.assertEqual(9, process.call_count)
+        self.assertEqual(changed, seen)
+        self.assertEqual(b"".join(path.encode() + b"\0" for path in changed), actual)
+
+    def test_clean_source_snapshot_does_not_invoke_git(self):
+        with patch.object(eval_common.subprocess, "check_output") as process:
+            self.assertEqual(b"", eval_common.candidate_patch([]))
+        process.assert_not_called()
 
 
 if __name__ == "__main__":

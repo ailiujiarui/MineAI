@@ -1,17 +1,15 @@
 name: Publish
 
 # 发版:Actions → Publish → Run workflow,选分支(就是 MC 版本)和渠道。命令行等价于
-#   gh workflow run publish.yml --ref 1.20.1 -f channel=beta
+#   gh workflow run publish.yml --ref 1.21.1 -f channel=beta
 #
 # 发什么全由那条分支自己说了算,这里不做任何探测:
 #   版本号  gradle.properties 的 version——游戏里显示的也是它
 #   loader  ./gradlew releaseJars 产出的 build/release/<loader>/,一个 loader 一个 jar
 #
-# 一次运行把开发者和玩家两头发完:
-#   build    构建一次 → 制品推 numen-maven → 打 tag v<版本>-<MC>[-<渠道>],把这个版本钉在这个提交上
-#   upload   每个 loader 一路,传 Modrinth 与 CurseForge
-#   release  所有 loader 都上架之后,建 GitHub Release
-# 三段用的是同一次构建的产物:maven 里的 jar 与玩家下到的 jar 是同一份字节。
+# Fork 只发本仓 GitHub Release,使用内置 GITHUB_TOKEN,无需第三方发布 secrets。
+#   build    datagenAll → releaseJars → 保存产物 → 打 tag v<版本>-<MC>[-<渠道>]
+#   release  将同一份 mineai 玩家 jar 与更新日志发布到 GitHub Release
 #
 # 中途失败了,在这次运行的页面点 "Re-run failed jobs"——只重跑失败的那几路,发出去的不会重发。
 # 别重新点 Run workflow:tag 已经打上,会被当成"这个版本发过了"拒掉。
@@ -40,7 +38,6 @@ jobs:
       version: ${{ steps.facts.outputs.version }}
       mc: ${{ steps.facts.outputs.mc }}
       tag: ${{ steps.facts.outputs.tag }}
-      loaders: ${{ steps.jars.outputs.loaders }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,8 +59,7 @@ jobs:
             echo "::error::发版要在 MC 版本分支上跑:这里是 $GITHUB_REF,本分支的 minecraft_version 是 $mc"
             exit 1
           fi
-          # 一个版本号在一个 MC 上只发一次,不分渠道——maven 坐标里没有渠道,
-          # 再发一次就是同一个坐标换一份字节。
+          # 一个版本号在一个 MC 上只发一次,不分渠道,避免同版号对应不同产物。
           released="$(git tag -l "v${version}-${mc}" "v${version}-${mc}-*")"
           if [ -n "$released" ]; then
             echo "::error::${version} 已经在 MC ${mc} 上发过(${released})。发新版先改 gradle.properties 的 version;上次中途失败的话,去那次运行点 Re-run failed jobs"
@@ -105,23 +101,8 @@ jobs:
       - name: Run data generation
         run: ./gradlew datagenAll --no-daemon
 
-      # 跨仓写入要 PAT:GITHUB_TOKEN 只对本仓有写权限。
-      - name: Checkout numen-maven
-        uses: actions/checkout@v4
-        with:
-          repository: Dwinovo/numen-maven
-          token: ${{ secrets.MAVEN_REPO_TOKEN }}
-          path: maven-repo
-
-      # 一次构建出两份东西:给玩家的 build/release/<loader>/,给开发者的 maven 制品
-      # (先落进 checkout 出来的 numen-maven,推送在后面)。
-      - name: Build release jars and maven artifacts
-        run: ./gradlew releaseJars publishAll -Plocal_maven_url=file://$PWD/maven-repo --no-daemon
-
-      - name: List loaders
-        id: jars
-        shell: bash
-        run: echo "loaders=$(ls build/release | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
+      - name: Build release jars
+        run: ./gradlew releaseJars --no-daemon
 
       # 更新日志:上一个版本以来的 feat 与 fix 提交。publish/release/ci/build 这几个 scope
       # 改的是发版机制本身,玩家用不上,不收。
@@ -133,7 +114,7 @@ jobs:
           set -euo pipefail
           prev="$(git describe --tags --abbrev=0 --match "v*-${MC}" --match "v*-${MC}-*" HEAD 2>/dev/null || true)"
           if [ -z "$prev" ]; then
-            echo "Numen 在 MC ${MC} 上的第一个版本。" > build/changelog.md
+            echo "MineAI 在 MC ${MC} 上的第一个版本。" > build/changelog.md
             exit 0
           fi
           section() {
@@ -159,32 +140,7 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-      # 多条分支可能同时发版,都往同一个仓推——撞车是常态。失败就 rebase 重试;能自动收敛的
-      # 前提是各分支写互不重叠的路径:所有坐标都带 MC 版本后缀(ai/ui 也带,见 ai/build.gradle)。
-      - name: Push maven artifacts
-        shell: bash
-        env:
-          VERSION: ${{ steps.facts.outputs.version }}
-          MC: ${{ steps.facts.outputs.mc }}
-        run: |
-          set -euo pipefail
-          cd maven-repo
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -q -m "publish: numen ${VERSION} (MC ${MC})"
-          for attempt in 1 2 3 4 5; do
-            if git push -q; then
-              echo "推送成功(第 $attempt 次)"
-              exit 0
-            fi
-            git pull -q --rebase
-            sleep $((RANDOM % 5 + 2))
-          done
-          echo "::error::重试 5 次仍未推送成功"
-          exit 1
-
-      # tag 放在最后:它表示"这个版本钉在这个提交上,开发者那头已经发出去了"。
+      # tag 放在产物保存之后:它将这个版本及待发布的玩家产物钉在这个提交上。
       - name: Tag the release commit
         shell: bash
         env:
@@ -194,53 +150,8 @@ jobs:
           git tag "$TAG" "$GITHUB_SHA"
           git push -q origin "$TAG"
 
-  upload:
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false # 一个 loader 没传上,不该把另一个也叫停
-      matrix:
-        loader: ${{ fromJSON(needs.build.outputs.loaders) }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: release
-          path: build
-
-      # Modrinth 的 version_number 上限 32 字符;超了就截断,挂 6 位哈希保证唯一。
-      - name: Name this version
-        id: meta
-        shell: bash
-        env:
-          BASE: ${{ needs.build.outputs.version }}-${{ inputs.channel }}-${{ matrix.loader }}-${{ needs.build.outputs.mc }}
-        run: |
-          set -euo pipefail
-          number="$BASE"
-          if [ "${#number}" -gt 32 ]; then
-            number="${BASE:0:25}-$(printf '%s' "$BASE" | sha1sum | cut -c1-6)"
-          fi
-          echo "number=$number" >> "$GITHUB_OUTPUT"
-
-      - name: Publish to Modrinth and CurseForge
-        uses: Kira-NT/mc-publish@v3.3.1
-        with:
-          files: build/release/${{ matrix.loader }}/*.jar
-          loaders: ${{ matrix.loader }}
-          name: numen-${{ needs.build.outputs.version }}-${{ inputs.channel }}-${{ matrix.loader }}-${{ needs.build.outputs.mc }}
-          version: ${{ steps.meta.outputs.number }}
-          game-versions: ${{ needs.build.outputs.mc }}
-          game-version-filter: none
-          version-type: ${{ inputs.channel }}
-          changelog-file: build/changelog.md
-          # CurseForge 要求每个版本勾选环境组(errorCode 1021);NeoForge/Forge 的 toml 里没有这个字段。
-          environment: client|server
-          modrinth-id: b1E5VR0g
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          curseforge-id: 1581109
-          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-
   release:
-    needs: [build, upload]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -262,5 +173,5 @@ jobs:
           [ "$CHANNEL" = release ] || flags+=(--prerelease)
           gh release create "$TAG" build/release/*/*.jar \
             --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "numen ${VERSION}-${CHANNEL} (MC ${MC})" \
+            --title "MineAI ${VERSION}-${CHANNEL} (MC ${MC})" \
             --notes-file build/changelog.md "${flags[@]}"

@@ -17,12 +17,12 @@ import java.util.stream.Stream;
 
 /**
  * 模组适配器的引擎侧持有者:一个进程一份 {@link AdapterRegistry},目录固定在
- * {@code config/numen/adapters/},启动时装载、{@code /numen adapter reload} 时热重载。
+ * {@code config/numen/adapters/},启动时装载、{@code numen.adapter.reload()} 时热重载。
  *
  * <p>它把纯 JVM 的适配框架接到运行时:目标模组在不在场走平台判断(和加载器
  * {@code Builtin} 闸门同一个 {@code isModLoaded}),缺模组的适配器整条跳过,坏文件不影响其余。
  *
- * <p>适配器本身只是"翻译表";真正动手读世界的动作由宿主按表去做(见后续的处理器接线)。
+ * <p>适配器本身只是"翻译表";宿主按表调用登记的处理器读取世界。
  */
 public final class AdapterManager {
 
@@ -80,7 +80,8 @@ public final class AdapterManager {
 
     /** 从磁盘重读并换掉当前生效集合。目标模组在场走平台;处理器在场走 {@link AdapterHandlers}。 */
     public static synchronized ReloadReport reload() {
-        ReloadReport report = REGISTRY.reload(roots(), Services.PLATFORM::isModLoaded, AdapterHandlers::has);
+        ReloadReport report = REGISTRY.reload(roots(), Services.PLATFORM::isModLoaded, AdapterHandlers::has,
+                AdapterHandlers::has);
         lastReport = report;
         Constants.LOG.info("[numen-adapter] reload {}: {} loaded, {} failed, {} skipped (added={}, updated={}, removed={})",
                 dir(), report.loaded(), report.failed(), report.skipped().size(),
@@ -94,9 +95,14 @@ public final class AdapterManager {
         return report;
     }
 
-    /** 最近一次重载的结果;还没重载过是空报告。供 {@code numen adapter list} 解释状态。 */
+    /** 最近一次重载的结果;还没重载过是空报告。供 {@code numen.adapter.list()} 解释状态。 */
     public static ReloadReport lastReport() {
         return lastReport;
+    }
+
+    /** 构造期插件登记可以晚于引擎首次装载;处理器到场后重新判依赖。 */
+    public static synchronized void handlersChanged() {
+        if (initialised) reload();
     }
 
     /** 目录里有适配文件时不再铺示例——用户删了示例就别再长回来。 */

@@ -3,6 +3,7 @@ package com.dwinovo.numen.core.gametest;
 import com.dwinovo.numen.core.Constants;
 import com.dwinovo.numen.entity.CompanionFactory;
 import com.dwinovo.numen.entity.NumenPlayer;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.BeforeBatch;
@@ -52,7 +53,7 @@ public class SurvivalGameTests {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = plainCompanion(helper, new BlockPos(4, 2, 4));
         float full = companion.getMaxHealth();
-        helper.startSequence()
+        steps(helper)
                 .thenExecuteAfter(SPAWN_INVULNERABLE_TICKS,
                         () -> drop(helper, companion, new BlockPos(4, DROP_HEIGHT, 4)))
                 .thenWaitUntil(() -> {
@@ -60,6 +61,27 @@ public class SurvivalGameTests {
                     helper.assertTrue(companion.getHealth() < full,
                             "the fall did no damage (health " + companion.getHealth() + ")");
                 })
+                .thenExecute(() -> CompanionFactory.despawn(level.getServer(), companion))
+                .thenSucceed();
+    }
+
+    /**
+     * 闲着不是卡住:四面贴着墙站着、手上没活,脱困反射只读在走的那一趟"在不在推进",没在走就不醒——她一步不挪。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_survival")
+    public static void an_idle_body_boxed_in_is_not_stuck(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (BlockPos side : List.of(new BlockPos(5, 2, 4), new BlockPos(3, 2, 4), new BlockPos(4, 2, 5),
+                new BlockPos(4, 2, 3))) {
+            level.setBlockAndUpdate(helper.absolutePos(side), net.minecraft.world.level.block.Blocks.STONE
+                    .defaultBlockState());
+        }
+        NumenPlayer companion = plainCompanion(helper, new BlockPos(4, 2, 4));
+        Vec3 start = companion.position();
+        steps(helper)
+                .thenIdle(120)
+                .thenExecute(() -> helper.assertTrue(companion.position().distanceToSqr(start) < 1.0E-4,
+                        "an idle companion wandered: " + start + " -> " + companion.position()))
                 .thenExecute(() -> CompanionFactory.despawn(level.getServer(), companion))
                 .thenSucceed();
     }
@@ -75,7 +97,7 @@ public class SurvivalGameTests {
         NumenPlayer companion = plainCompanion(helper, new BlockPos(11, 2, 11));
         companion.getInventory().add(new ItemStack(Items.WATER_BUCKET));
         float full = companion.getMaxHealth();
-        helper.startSequence()
+        steps(helper)
                 .thenExecuteAfter(SPAWN_INVULNERABLE_TICKS,
                         () -> drop(helper, companion, new BlockPos(11, DROP_HEIGHT, 11)))
                 .thenWaitUntil(() -> {
@@ -100,7 +122,7 @@ public class SurvivalGameTests {
         NumenPlayer companion = plainCompanion(helper, new BlockPos(11, 2, 11));
         companion.getInventory().add(new ItemStack(Items.WATER_BUCKET));
         var outbox = com.dwinovo.numen.entity.EventOutbox.get(level.getServer());
-        helper.startSequence()
+        steps(helper)
                 .thenExecuteAfter(SPAWN_INVULNERABLE_TICKS,
                         () -> drop(helper, companion, new BlockPos(11, DROP_HEIGHT, 11)))
                 .thenWaitUntil(() -> {
@@ -155,7 +177,7 @@ public class SurvivalGameTests {
         int cooldown = companion.getPortalCooldown();
         helper.assertTrue(cooldown > 0, "portal cooldown did not start");
 
-        helper.startSequence()
+        steps(helper)
                 .thenExecute(() -> companion.changeDimension(
                         new net.minecraft.world.level.portal.DimensionTransition(
                                 nether, new Vec3(0.5, 70.0, 0.5), Vec3.ZERO, 0.0f, 0.0f,

@@ -3,6 +3,14 @@ plugins {
     id 'net.neoforged.moddev'
 }
 
+// 独立实验只在显式启动时装载,不进发行 jar。
+sourceSets {
+    experiment {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+
 dependencies {
     // The numen-api engine, now a sibling moddev project in this build.
     // NeoForge is Mojang-mapped natively, so no remap step is needed.
@@ -21,15 +29,26 @@ dependencies {
     compileOnly project(':plugins:tlm')
     compileOnly project(':plugins:kaleidoscope')
     compileOnly project(':plugins:curios')
+    compileOnly project(':plugins:ftbquests')
+    compileOnly project(':plugins:ae2')
     compileOnly project(':plugins:mekanism')
     compileOnly project(':plugins:jei')
-    compileOnly project(':plugins:ftbquests')
     // Bundle it into core's jar (Jar-in-Jar) so players install one file and get both mods.
     jarJar(project(':api:neoforge'))
 }
 
+// GameTest 的结构模板:本模组的在 gameteststructures/,寻路模块的在它自己的 src/gametest/structures/。原版只认一个
+// 模板目录,运行前把两处同步进构建目录里的一处,运行配置指向它。
+def gameTestStructures = layout.buildDirectory.dir('gameteststructures')
+def syncGameTestStructures = tasks.register('syncGameTestStructures', Sync) {
+    from 'gameteststructures'
+    from project(':pathing').file('src/gametest/structures')
+    into gameTestStructures
+}
+
 neoForge {
     version = neoforge_version
+    addModdingDependenciesTo(sourceSets.experiment)
     // Automatically enable neoforge AccessTransformers if the file exists
     def at = project(':core:common').file('src/main/resources/META-INF/accesstransformer.cfg')
     if (at.exists()) {
@@ -38,9 +57,9 @@ neoForge {
     runs {
         configureEach {
             systemProperty('neoforge.enabledGameTestNamespaces', mod_id)
-            // 所有运行配置都指向仓库内的 SNBT 模板目录:无头跑批用,开发客户端里
+            // 所有运行配置都指向同步好的 SNBT 模板目录(见上面 syncGameTestStructures):无头跑批用,开发客户端里
             // /test run <用例> 现场围观也用(见 GameTestKit 静态块)。
-            systemProperty('numen.gametest.structures', file('gameteststructures').absolutePath)
+            systemProperty('numen.gametest.structures', gameTestStructures.get().asFile.absolutePath)
             ideName = "NeoForge ${it.name.capitalize()} (${project.path})" // Unify the run config names with fabric
         }
         client {
@@ -74,11 +93,43 @@ neoForge {
                 systemProperty('numen.eval.output', providers.gradleProperty('numenEvalOutput').get())
             }
         }
+        if (project.hasProperty('pairedExperiment')) {
+            pairedExperiment {
+                server()
+                sourceSet = sourceSets.experiment
+                gameDirectory = file(project.property('experimentDirectory'))
+                systemProperty('numen.experiment.request', file(project.property('experimentRequest')).absolutePath)
+                systemProperty('neoforge.enabledGameTestNamespaces', 'numen_experiment')
+            }
+        }
+        if (project.hasProperty('supplementalMeasurements')) {
+            supplementalMeasurements {
+                server()
+                sourceSet = sourceSets.experiment
+                gameDirectory = file(project.property('measurementDirectory'))
+                systemProperty('numen.measurement.request', file(project.property('measurementRequest')).absolutePath)
+                systemProperty('neoforge.enabledGameTestNamespaces', 'numen_experiment')
+            }
+        }
     }
     mods {
+        if (project.hasProperty('pairedExperiment') || project.hasProperty('supplementalMeasurements')) {
+            numen_experiment { sourceSet sourceSets.experiment }
+        }
         "${mod_id}" {
             sourceSet sourceSets.main
+            // 寻路模块本身随 numen-api 来(api 依赖它);这里只挂它自己的 GameTest 用例
+            if (!providers.gradleProperty('numenLiveEval').isPresent()) {
+                sourceSet project(':pathing').sourceSets.gametest
+            }
         }
+    }
+}
+
+tasks.matching { it.name ==~ /run[A-Z].*/ }.configureEach {
+    if (!providers.gradleProperty('numenLiveEval').isPresent()) {
+        dependsOn syncGameTestStructures
+        dependsOn ':pathing:gametestClasses'
     }
 }
 
@@ -102,7 +153,7 @@ def loaderAttribute = Attribute.of('io.github.mcgradleconventions.loader', Strin
 }
 sourceSets.configureEach {
     [it.compileClasspathConfigurationName, it.runtimeClasspathConfigurationName, it.getTaskName(null, 'jarJar')].each { variant ->
-        configurations.named("$variant") {
+        configurations.matching { it.name == variant }.configureEach {
             attributes {
                 attribute(loaderAttribute, 'neoforge')
             }
@@ -113,13 +164,15 @@ sourceSets.configureEach {
 // 联动模组的类与资源平铺进发行 jar——它们本质是独立模组,只是跟车一起发。
 // 目标模组不在时它们一个类都不会被加载,见 com.dwinovo.numen.plugins.Builtin。
 tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from({ project(':plugins:ysm').sourceSets.main.output })
     from({ project(':plugins:tlm').sourceSets.main.output })
     from({ project(':plugins:kaleidoscope').sourceSets.main.output })
     from({ project(':plugins:curios').sourceSets.main.output })
+    from({ project(':plugins:ftbquests').sourceSets.main.output })
+    from({ project(':plugins:ae2').sourceSets.main.output })
     from({ project(':plugins:mekanism').sourceSets.main.output })
     from({ project(':plugins:jei').sourceSets.main.output })
-    from({ project(':plugins:ftbquests').sourceSets.main.output })
 }
 
 // 开发运行不读成品 jar,而内嵌联动的类只在上面那个 jar 块里平铺——所以 runClient 里 Builtin
@@ -128,15 +181,8 @@ tasks.named('jar', Jar) {
 // 开发运行不读成品 jar,内嵌联动的类只在上面那个 jar 块里平铺。dev 的 mod 类加载器只认本模组
 // 的 sourceSet.main.output,而插件类在引擎包名下——不并进本模组输出,runClient 里 Builtin 一引用
 // 就 NoClassDefFoundError。这里把插件的编译产物并进本模组输出;发布路径仍由上面的 from 平铺。
-sourceSets.main.output.dir(project(':plugins:mekanism').layout.buildDirectory.dir('classes/java/main'),
-        builtBy: ':plugins:mekanism:classes')
-sourceSets.main.output.dir(project(':plugins:jei').layout.buildDirectory.dir('classes/java/main'),
-        builtBy: ':plugins:jei:classes')
-processResources {
-    from({ project(':plugins:mekanism').sourceSets.main.output.resourcesDir }) {
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    }
-    from({ project(':plugins:jei').sourceSets.main.output.resourcesDir }) {
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    }
+
+// 跟车发的联动,它们的防漂移测试(技能与命令说明按命令树读一遍)随本模块的 check 一起跑:构建发行 jar 就查过它带上的文字
+tasks.named('check') {
+    dependsOn(':plugins:ysm:test', ':plugins:tlm:test', ':plugins:kaleidoscope:test', ':plugins:ftbquests:test')
 }

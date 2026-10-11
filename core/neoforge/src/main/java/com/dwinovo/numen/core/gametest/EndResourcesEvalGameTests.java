@@ -244,7 +244,7 @@ public class EndResourcesEvalGameTests {
         assertCoverage(helper, before, "dimension_change", "not_covered", 0);
         assertCoverage(helper, before, "hurt", "not_covered", 0);
         // 原版新生玩家有六十刻出生保护;和生存伤害用例一样等七十刻,再走真实伤害结算。
-        helper.startSequence()
+        steps(helper)
                 .thenExecuteAfter(70, () -> {
                     helper.assertTrue(body.hurt(helper.getLevel().damageSources().generic(), 2), "native generic damage must be accepted");
                     body.setInvulnerable(true);
@@ -305,7 +305,7 @@ public class EndResourcesEvalGameTests {
         helper.assertTrue(WorldEvalObservers.observe(body).get("loadout_held_ticks").getAsInt() == 0,
                 "initial scanning cannot contribute a server tick");
         final int[] before = {0};
-        helper.startSequence()
+        steps(helper)
                 .thenIdle(5)
                 .thenExecute(() -> {
                     before[0] = WorldEvalObservers.observe(body).get("loadout_held_ticks").getAsInt();

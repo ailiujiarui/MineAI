@@ -40,6 +40,12 @@ public final class ClientPayloadHandlers {
      * 客户端启动钩子上。
      */
     public static void install() {
+        ClientPayloadSink.registryAccess = () -> {
+            var connection = net.minecraft.client.Minecraft.getInstance().getConnection();
+            return connection == null ? null : connection.registryAccess();
+        };
+        ClientPayloadSink.receiveSpectatorState = com.dwinovo.numen.client.spectator.SpectatorClient::handle;
+        ClientPayloadSink.receiveSpectatorMenu = com.dwinovo.numen.spectator.SpectatorMenuClient::handle;
         ClientPayloadSink.companionList = ClientPayloadHandlers::handleCompanionList;
         // getOrCreate:跟死亡/事件同理 —— 这是状态推送,只在槽变化的那一刻发一次,
         // loop 还没造出来就丢掉的话,客户端永远不会再听说这件活。
@@ -53,10 +59,7 @@ public final class ClientPayloadHandlers {
         ClientPayloadSink.event = p ->
                 AgentLoopRegistry.getOrCreate(p.entityUuid()).pushEvents(p.entries());
         ClientPayloadSink.state = p ->
-                ClientNumenState.update(p.uuid(), new ClientNumenState.Snapshot(
-                        p.loaded(), p.items(), p.craft(), p.foodLevel(), p.saturation(),
-                        p.selectedSlot(), p.offhand(), p.effects(),
-                        p.vehicleType(), p.vehicleId(), p.bodyState(),
+                ClientNumenState.update(p.uuid(), com.dwinovo.numen.agent.request.BodySnapshot.of(p,
                         System.currentTimeMillis()));
         ClientPayloadSink.locations = ClientPayloadHandlers::handleLocations;
         ClientPayloadSink.respawn = ClientPayloadHandlers::handleRespawn;

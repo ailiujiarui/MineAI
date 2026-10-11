@@ -1,5 +1,7 @@
 package com.dwinovo.numen.core.tools;
 
+import com.dwinovo.numen.entity.NumenPlayer;
+import com.dwinovo.numen.spectator.SpectatorMenuBridge;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
@@ -21,12 +23,19 @@ public final class MenuOps {
      */
     public static void dripInto(AbstractContainerMenu menu, Player who, int from, int to, int count) {
         menu.clicked(from, 0, ClickType.PICKUP, who);            // grab the stack
+        captureStep(who);
         int drops = Math.min(count, menu.getCarried().getCount());
         for (int i = 0; i < drops; i++) {
             menu.clicked(to, 1, ClickType.PICKUP, who);          // drop ONE (merges / fills)
+            captureStep(who);
         }
         if (!menu.getCarried().isEmpty()) {
             menu.clicked(from, 0, ClickType.PICKUP, who);        // return the remainder
+            captureStep(who);
         }
+    }
+
+    private static void captureStep(Player who) {
+        if (who instanceof NumenPlayer companion) SpectatorMenuBridge.captureActionStep(companion);
     }
 }

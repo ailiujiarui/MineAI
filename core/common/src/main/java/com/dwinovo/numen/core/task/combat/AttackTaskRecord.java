@@ -9,14 +9,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@code attack} 的进度账本:请求的实体 id、每个 id 的终态(打倒/丢失/够不着)与出手次数。
+ * {@code fight attack} 的进度账本:请求的实体 id、每个 id 的终态(打倒/丢失/够不着)与出手次数。
  *
  * <p>近战与远程曾是两个工具、两份账本,差别只在措辞("defeated/hits" 对 "destroyed/shots"),
  * 为此有三个抽象的词汇钩子。现在只有一个工具,措辞也就只有一套,钩子跟着消失。
  */
 public final class AttackTaskRecord extends TaskRecord {
-
-    public static final String TOOL_NAME = "attack";
 
     public final List<Integer> entityIds;
 
@@ -31,14 +29,20 @@ public final class AttackTaskRecord extends TaskRecord {
     private final Set<Integer> defeated = new LinkedHashSet<>();
     private final Set<Integer> lost = new LinkedHashSet<>();
     private final Set<Integer> unreachable = new LinkedHashSet<>();
-    /** 权限层不让打的:id → 理由。宠物、有名字的、村民,主人没点头就不动手。 */
+    /** 权限层明确拒绝的:id → 理由。 */
     private final Map<Integer, String> refused = new LinkedHashMap<>();
+    /** 没问到同意的:id → 原因。目标还在,不能记成拒绝或丢失。 */
+    private final Map<Integer, String> pending = new LinkedHashMap<>();
     private final Map<Integer, Integer> strikesByEntity = new LinkedHashMap<>();
     private int strikes;
 
-    public AttackTaskRecord(String toolCallId, long deadlineGameTime,
+    /**
+     * @param name       这件活叫什么:命令派的是那次调用的任务名,本能开的仗是本能的 id
+     * @param toolCallId 派它的那次调用;本能开的仗是本能自己起的号
+     */
+    public AttackTaskRecord(String name, String toolCallId, long deadlineGameTime,
                             List<Integer> entityIds, boolean indiscriminate) {
-        super(TOOL_NAME, toolCallId, deadlineGameTime);
+        super(name, toolCallId, deadlineGameTime);
         this.entityIds = List.copyOf(entityIds);
         this.indiscriminate = indiscriminate;
     }
@@ -47,12 +51,14 @@ public final class AttackTaskRecord extends TaskRecord {
     public Set<Integer> lost() { return Set.copyOf(lost); }
     public Set<Integer> unreachable() { return Set.copyOf(unreachable); }
     public Map<Integer, String> refused() { return Map.copyOf(refused); }
+    public Map<Integer, String> pending() { return Map.copyOf(pending); }
     public int strikes() { return strikes; }
 
-    public void defeated(int id) { defeated.add(id); }
-    public void lost(int id) { lost.add(id); }
-    public void unreachable(int id) { unreachable.add(id); }
-    public void refused(int id, String why) { refused.put(id, why); }
+    public void defeated(int id) { pending.remove(id); defeated.add(id); }
+    public void lost(int id) { pending.remove(id); lost.add(id); }
+    public void unreachable(int id) { pending.remove(id); unreachable.add(id); }
+    public void refused(int id, String why) { pending.remove(id); refused.put(id, why); }
+    public void pending(int id, String why) { pending.put(id, why); }
 
     /** 出手一次(挥击或射出一箭)。 */
     public void strike(int id) {
@@ -76,7 +82,7 @@ public final class AttackTaskRecord extends TaskRecord {
     }
 
     /**
-     * 一行人话 —— 这是<b>给主人看的</b>:头顶气泡、面板、task_status 印的都是它。
+     * 一行人话 —— 这是<b>给主人看的</b>:头顶气泡、面板、task status 印的都是它。
      * 工具 id 不写进来,需要它的地方(运行时状态的 tool 属性、派发回执)本来就有。
      */
     @Override
