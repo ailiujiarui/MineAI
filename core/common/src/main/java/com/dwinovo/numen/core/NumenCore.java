@@ -57,6 +57,9 @@ public final class NumenCore {
         initialised = true;
         registerTools();
         registerTaskRunners();
+        com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen ->
+                numen.on(com.dwinovo.numen.api.CompanionEvent.HURT, hurt ->
+                        com.dwinovo.numen.eval.WorldEvalObservers.hurt(hurt.companion(), hurt.source(), hurt.amount())));
         // 原版四件甲是第一处穿戴来源,和模组的饰品栏走同一扇门;内嵌联动在这之后才开闸,所以原版排在最前
         com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen -> {
             numen.registerGear(new com.dwinovo.numen.core.gear.VanillaArmor());

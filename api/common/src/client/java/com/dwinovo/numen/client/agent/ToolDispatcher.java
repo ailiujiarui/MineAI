@@ -36,6 +36,10 @@ public final class ToolDispatcher implements ToolPort {
     /** The in-flight call the backstop is timing, and when it runs out (epoch millis); null when idle. */
     private LlmToolCall timed;
     private long deadlineMillis = 0;
+    /** Optional eval budget. Denial leaves the batch for cancellation on the next client tick. */
+    public void executionPermit(java.util.function.BooleanSupplier permit) {
+        tools.executionPermit(permit);
+    }
 
     /** @param entity the live client-side body (for client-run tools); may resolve to null when out of view */
     public ToolDispatcher(UUID entityUuid, Supplier<AbstractClientPlayer> entity, CompanionToolPort.AfterCut afterCut) {
