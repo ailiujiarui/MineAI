@@ -1,0 +1,53 @@
+{
+  "evaluation_version": "bot-v1.2",
+  "evaluation_sha256": "58bc1f13308f19af6eddb4dc3264ff184ae5dcd74c5111b40cb12c001b897207",
+  "candidate": "f39ee4d9bfa0+9c18e1f4d386",
+  "git_revision": "f39ee4d9bfa0615491c099607fc6ef2b5b249b3f",
+  "source_sha256": "9c18e1f4d3866137d362492c2c105f27992bdf4341828b4dca2bb0436d8f436b",
+  "git_status": "M agent/build.gradle\n M agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java\n M ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java\n M core/neoforge/build.gradle\n M docs/architecture-mind-model.md\n?? agent/src/test/java/com/dwinovo/numen/agent/loop/ResponseBenchmark.java\n?? agent/src/test/java/com/dwinovo/numen/agent/plan/PlanningBenchmark.java\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/BenchmarkGameTests.java\n?? evals/\n?? tools/run_bot_eval.py\n?? tools/test_run_bot_eval.py",
+  "started_at_utc": "2026-10-02T17:15:03.950702+00:00",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.2",
+  "java_launcher": "openjdk version \"25.0.1\" 2025-10-21 LTS\nOpenJDK Runtime Environment Temurin-25.0.1+8 (build 25.0.1+8-LTS)\nOpenJDK 64-Bit Server VM Temurin-25.0.1+8 (build 25.0.1+8-LTS, mixed mode, sharing)",
+  "selected_layers": [
+    "body",
+    "planning",
+    "response"
+  ],
+  "repetitions": 1,
+  "concurrency": 1,
+  "neoforge_version_override": null,
+  "external_model_call_budget": 0,
+  "commands": [
+    {
+      "argv": [
+        "E:\\mineAI\\gradlew.bat",
+        ":agent:benchmark",
+        "--no-daemon",
+        "--console=plain",
+        "-PnumenEvalOutput=E:\\mineAI\\build\\evals\\bot-v1\\baseline-final-pinned-243\\raw",
+        "--offline"
+      ],
+      "exit_code": 0,
+      "timeout": false,
+      "duration_ms": 8941,
+      "log": "agent.log"
+    },
+    {
+      "argv": [
+        "E:\\mineAI\\gradlew.bat",
+        ":core:neoforge:runGameTestServer",
+        "--no-daemon",
+        "--console=plain",
+        "-PnumenEvalOutput=E:\\mineAI\\build\\evals\\bot-v1\\baseline-final-pinned-243\\raw",
+        "--offline"
+      ],
+      "exit_code": 1,
+      "timeout": false,
+      "duration_ms": 7671,
+      "log": "gametest.log"
+    }
+  ],
+  "environment_sha256": "4c946703e4e9d7811a1258bf1b6f85d34124be4978baa9e027498dc580de013a",
+  "finished_at_utc": "2026-10-02T17:15:21.510902+00:00"
+}
