@@ -1,0 +1,405 @@
+{
+  "recorded_at_utc": "2026-10-04T12:58:39.899884+00:00",
+  "run": "build/evals/live-v1/free-survival-v2-20261004",
+  "source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+  "model": {
+    "provider": "deepseek",
+    "model": "deepseek-v4.1-flash",
+    "context_window": 1000000,
+    "reasoning_effort": ""
+  },
+  "started_at_utc": "2026-10-04T12:44:34.677425+00:00",
+  "finished_at_utc": "2026-10-04T12:52:18.873777+00:00",
+  "result_status": "budget_exhausted",
+  "result_reason": "max_tokens",
+  "elapsed_ms": 432195.586,
+  "launcher_exit_code": 0,
+  "launcher_timeout": false,
+  "crosschecks": {
+    "all_70_call_counts_match": true,
+    "trace_json_equals_jsonl": true,
+    "attempts_sequential_1_to_70": true,
+    "headers_sequential_lr_1_to_lr_70_no_retry_ids": true,
+    "paired_events_sequential_without_overlap": true,
+    "all_headers_http_200": true,
+    "all_headers_sse": true,
+    "every_stream_has_json_chunks": true,
+    "every_logged_usage_positive_consistent": true,
+    "logged_total_matches_result": true,
+    "logged_output_matches_result": true,
+    "logged_prompt_matches_uncached_plus_cache": true,
+    "all_reviewed_sources_match_frozen_manifest": true,
+    "no_logged_network_faults": true,
+    "last_reply_tool_not_dispatched": true,
+    "no_post_terminal_model_or_tool_events": true
+  },
+  "counts": {
+    "response_headers": 70,
+    "completed_streams_chat_done": 70,
+    "model_calls": 70,
+    "model_usage": 70,
+    "assistant": 70,
+    "tool_started": 77,
+    "tool_finished": 77,
+    "assistant_tool_calls": 78,
+    "denied_model_calls": 0,
+    "trace_event_types": {
+      "started": 1,
+      "snapshot": 1978,
+      "fixture": 1,
+      "owner_goal": 1,
+      "model_call": 70,
+      "model_usage": 70,
+      "assistant": 70,
+      "tool_started": 77,
+      "tool_finished": 77,
+      "first_text_delta": 1,
+      "finished": 1
+    }
+  },
+  "usage": {
+    "complete": true,
+    "unknown_reports": 0,
+    "purpose_reports": {
+      "TURN": 70
+    },
+    "normalized_tokens": {
+      "input": 88693,
+      "output": 15994,
+      "cache_read": 2540416,
+      "cache_write": 0,
+      "total": 2645103
+    },
+    "logged_prompt_including_cache": 2629109,
+    "fresh_input_plus_output": 104687,
+    "prompt_cache_hit_fraction": 0.9662649970008851,
+    "cost": null,
+    "accounting": "input is uncached prompt; cache_read/cache_write are disjoint prompt categories; output is completion. max_tokens sums all four, including cached prompt tokens. All 70 usage purpose events are TURN; no COMPACT/goal-judge usage events occurred."
+  },
+  "latencies_ms": {
+    "response_headers": {
+      "count": 70,
+      "min": 1582,
+      "median": 2369.5,
+      "p90": 2845.8,
+      "p95": 3038.95,
+      "max": 5849,
+      "sum": 172133
+    },
+    "completed_chat": {
+      "count": 70,
+      "min": 2340,
+      "median": 3436.0,
+      "p90": 5928.7,
+      "p95": 7577.449999999999,
+      "max": 18158,
+      "sum": 296000
+    },
+    "trace_call_to_usage": {
+      "count": 70,
+      "min": 2345.311300000001,
+      "median": 3441.642449999992,
+      "p90": 5931.6166600000015,
+      "p95": 7581.721275000007,
+      "max": 18165.25939999998,
+      "sum": 296395.6347000002
+    }
+  },
+  "stream_json_chunks": {
+    "count": 70,
+    "min": 8,
+    "median": 45.5,
+    "p90": 190.60000000000005,
+    "p95": 265.94999999999993,
+    "max": 621,
+    "sum": 5959
+  },
+  "finish_reasons": {
+    "tool_calls": 68,
+    "stop": 2
+  },
+  "waiting_fractions": {
+    "headers_sum_ms": 172133,
+    "headers_fraction_of_eval": 0.3982757010387422,
+    "completed_roundtrip_sum_ms": 296000,
+    "completed_roundtrip_fraction_of_eval": 0.6848751111493304,
+    "known_sse_idle_timeout_wait_ms": 0,
+    "interpretation": "Completed roundtrips include healthy model generation and stream transfer; these ratios are not silent-wait fractions. Existing body tasks can progress concurrently."
+  },
+  "terminal_budget": {
+    "max_tokens": 2600000,
+    "tokens_before_attempt_70": 2593604,
+    "remaining_before_attempt_70": 6396,
+    "attempt_70_prompt_tokens": 51461,
+    "attempt_70_output_tokens": 38,
+    "attempt_70_total_tokens": 51499,
+    "after_attempt_70": 2645103,
+    "overshoot_tokens": 45103,
+    "overshoot_fraction_of_limit": 0.017347307692307693,
+    "last_usage_elapsed_ms": 432049.5629,
+    "last_assistant_elapsed_ms": 432050.0051,
+    "finished_elapsed_ms": 432195.586,
+    "assistant_to_finish_ms": 145.58090000000084,
+    "last_assistant_tool_names": [
+      "task_status"
+    ],
+    "last_assistant_tools_not_dispatched": true,
+    "events_after_last_assistant": [
+      "snapshot",
+      "finished"
+    ],
+    "explanation": "Attempt 70 was admitted while cumulative reported usage was below the limit. Its full usage arrived only at completed response. used() marks pending max_tokens; beforeTool denies queued tools; next authoritative snapshot finalizes budget_exhausted. No 71st request or final task_status dispatch is recorded."
+  },
+  "shutdown": {
+    "owner_stop_halt_lines": 1,
+    "disconnect_halt_lines": 1,
+    "caller_cancel_inflight_lines": 0,
+    "interpretation": "OWNER_STOP after budget exhaustion and DISCONNECT at client shutdown are lifecycle stops; all 70 streams had completed before shutdown, with no in-flight HTTP caller cancellation."
+  },
+  "slowest_requests": [
+    {
+      "attempt": 48,
+      "request_id": "lr-48",
+      "headers_ms": 5849,
+      "completed_ms": 18158,
+      "json_chunks": 621,
+      "output_tokens": 1644
+    },
+    {
+      "attempt": 47,
+      "request_id": "lr-47",
+      "headers_ms": 2371,
+      "completed_ms": 12363,
+      "json_chunks": 485,
+      "output_tokens": 1308
+    },
+    {
+      "attempt": 20,
+      "request_id": "lr-20",
+      "headers_ms": 5009,
+      "completed_ms": 9906,
+      "json_chunks": 223,
+      "output_tokens": 627
+    },
+    {
+      "attempt": 30,
+      "request_id": "lr-30",
+      "headers_ms": 2252,
+      "completed_ms": 7703,
+      "json_chunks": 250,
+      "output_tokens": 636
+    },
+    {
+      "attempt": 53,
+      "request_id": "lr-53",
+      "headers_ms": 2010,
+      "completed_ms": 7424,
+      "json_chunks": 279,
+      "output_tokens": 745
+    }
+  ],
+  "logs": [
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/launcher.log",
+      "bytes": 257886,
+      "sha256": "166931558a263483cb7885ffd9024b3e56e2c294ff58485b5b724141e7a0e2ee",
+      "lines": 1772,
+      "response_headers": 70,
+      "chat_done": 70,
+      "faults": {
+        "sse_idle_timeout": 0,
+        "transport_retry": 0,
+        "http_connect_timeout": 0,
+        "http_timeout": 0,
+        "tls_handshake_error": 0,
+        "sse_subscriber_error": 0,
+        "caller_cancel_inflight": 0,
+        "transport_error": 0,
+        "accumulator_error": 0
+      },
+      "transport_or_llm_warn_error": 0
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/game/logs/latest.log",
+      "bytes": 281614,
+      "sha256": "a99c88a6e2cbf74d0230b13b82fbda3126bd69eddc183de65fc565722654663b",
+      "lines": 1683,
+      "response_headers": 70,
+      "chat_done": 70,
+      "faults": {
+        "sse_idle_timeout": 0,
+        "transport_retry": 0,
+        "http_connect_timeout": 0,
+        "http_timeout": 0,
+        "tls_handshake_error": 0,
+        "sse_subscriber_error": 0,
+        "caller_cancel_inflight": 0,
+        "transport_error": 0,
+        "accumulator_error": 0
+      },
+      "transport_or_llm_warn_error": 0
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/game/logs/debug.log",
+      "bytes": 281614,
+      "sha256": "a99c88a6e2cbf74d0230b13b82fbda3126bd69eddc183de65fc565722654663b",
+      "lines": 1683,
+      "response_headers": 70,
+      "chat_done": 70,
+      "faults": {
+        "sse_idle_timeout": 0,
+        "transport_retry": 0,
+        "http_connect_timeout": 0,
+        "http_timeout": 0,
+        "tls_handshake_error": 0,
+        "sse_subscriber_error": 0,
+        "caller_cancel_inflight": 0,
+        "transport_error": 0,
+        "accumulator_error": 0
+      },
+      "transport_or_llm_warn_error": 0
+    }
+  ],
+  "evidence": [
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/run.json",
+      "bytes": 4453,
+      "sha256": "201c386ced00506d74fb929b46df5e47ea75ad9f301f3aa738ffc8af73c1e512"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/source-hashes.json",
+      "bytes": 184943,
+      "sha256": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/results/model.json",
+      "bytes": 117,
+      "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/results/result.json",
+      "bytes": 12035,
+      "sha256": "66ecfb412d45143bc1096446e820c82209da98f3f74bd91ee08d3e1a9c1af145"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/results/trace.json",
+      "bytes": 3337073,
+      "sha256": "c4a21c9d50bf3b6b2afbfc394c50d91674fe88dfa9a5842c2a94e1303bd0dabc"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-20261004/results/trace.jsonl",
+      "bytes": 2083395,
+      "sha256": "750f9f65279bafeab006da132416baedae379a950873a56d07ecd384054fc66a"
+    }
+  ],
+  "reviewed_sources": [
+    {
+      "path": "agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java",
+      "bytes": 24323,
+      "sha256": "45e80d80a0e49ab6b37e524bd674c4fb5d70a7970a9e73e68182ae69b6f0c593",
+      "relevant_lines": [
+        114,
+        133,
+        141,
+        160,
+        184,
+        293,
+        307
+      ],
+      "matches_frozen_manifest": true
+    },
+    {
+      "path": "agent/src/main/java/com/dwinovo/numen/agent/loop/AgentLoop.java",
+      "bytes": 25040,
+      "sha256": "e14007977bd8dab0be855a3b15318657f10f0bf76f1683501d39ee69ab769e2d",
+      "relevant_lines": [
+        288,
+        298,
+        301
+      ],
+      "matches_frozen_manifest": true
+    },
+    {
+      "path": "api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalClient.java",
+      "bytes": 15089,
+      "sha256": "d1a6c002a3edd19adba4b3740feba3bb686da17aada031142fa308c7d62be732",
+      "relevant_lines": [
+        210,
+        226,
+        228,
+        241,
+        278
+      ],
+      "matches_frozen_manifest": true
+    },
+    {
+      "path": "api/common/src/client/java/com/dwinovo/numen/client/agent/ToolDispatcher.java",
+      "bytes": 9902,
+      "sha256": "09c901f5ef350ac65d3bf3a817eac0905ce680f6e61dd39ae4ea963bc5292c40",
+      "relevant_lines": [
+        165,
+        178,
+        185
+      ],
+      "matches_frozen_manifest": true
+    },
+    {
+      "path": "ai/src/main/java/com/dwinovo/numen/agent/llm/NumenLlmClient.java",
+      "bytes": 17085,
+      "sha256": "e278faf6059d61b3d6175880e30c54da9492a879dfbc1a40f6f5ffbdf0be1785",
+      "relevant_lines": [
+        222,
+        229,
+        240,
+        253
+      ],
+      "matches_frozen_manifest": true
+    },
+    {
+      "path": "ai/src/main/java/com/dwinovo/numen/agent/provider/DeepSeekProvider.java",
+      "bytes": 2356,
+      "sha256": "9c24a3b2e9fa76ccba451572e3792d12e722a04f8b43373a9fc8f21b58901d1b",
+      "relevant_lines": [
+        46,
+        49
+      ],
+      "matches_frozen_manifest": true
+    },
+    {
+      "path": "ai/src/main/java/com/dwinovo/numen/agent/provider/LlmProvider.java",
+      "bytes": 10913,
+      "sha256": "2db760d9c6fb4259df2a01a41c5925e6e5d91673441eaa01a433ba932f075681",
+      "relevant_lines": [
+        183,
+        196
+      ],
+      "matches_frozen_manifest": true
+    },
+    {
+      "path": "ai/src/main/java/com/dwinovo/numen/agent/provider/Usage.java",
+      "bytes": 2301,
+      "sha256": "d6e7ac8736cd4fb2971de46f49cf944255c08f9b0fe04d68c4bf847351748bff",
+      "relevant_lines": [
+        16,
+        26
+      ],
+      "matches_frozen_manifest": true
+    }
+  ],
+  "conclusion": "This run completed all 70 streaming HTTP attempts with nonzero usage; no SSE idle timeout, retry, network error or in-flight caller cancellation was logged. It stopped on cumulative token budget, not a transport stall.",
+  "limitations": [
+    "One completed run establishes this run's behavior only; it cannot guarantee future gateway availability or identify the external cause of historical timeouts.",
+    "Production logs do not record per-request first wire byte, first SSE line, line-ending framing or inter-byte gaps.",
+    "chat done is logged after postSse completes; raw SSE DONE/EOF and per-request raw usage frames are not separately preserved.",
+    "Usage category totals are the runtime provider-normalized result; model_usage trace records purpose, not individual numeric categories. Numeric prompt/output/total sums agree with all 70 chat summaries, but this is not independent billing verification.",
+    "first_token_ms means first visible text delta across the run; first_reply_ms can refer to an earlier tool-only reply. Neither is per-request first wire activity.",
+    "Healthy roundtrip fraction cannot be equated with the historical 79% SSE timeout waiting lower bound."
+  ],
+  "read_only_review": {
+    "no_gradle": true,
+    "no_external_requests": true,
+    "no_provider_secret_read_or_copy": true,
+    "no_source_config_readme_or_prior_archive_edits": true,
+    "verification_json_untouched": true
+  }
+}

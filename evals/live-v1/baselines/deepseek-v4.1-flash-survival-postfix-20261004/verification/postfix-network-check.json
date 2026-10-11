@@ -1,0 +1,206 @@
+{
+  "run": "build/evals/live-v1/survival-postfix-20261004",
+  "started_at_utc": "2026-10-04T11:27:58.101027+00:00",
+  "finished_at_utc": "2026-10-04T11:39:10.490372+00:00",
+  "model": {
+    "provider": "deepseek",
+    "model": "deepseek-v4.1-flash",
+    "context_window": 1000000,
+    "reasoning_effort": ""
+  },
+  "result_status": "budget_exhausted",
+  "result_reason": "max_tokens",
+  "elapsed_ms": 640950.4102,
+  "count_crosscheck": {
+    "complete_45_call_matching": true,
+    "trace_json_and_jsonl_identical": true,
+    "attempts_sequential_1_to_45": true,
+    "paired_events_sequential_without_overlap": true,
+    "model_calls": 45,
+    "model_usage": 45,
+    "assistant": 45,
+    "response_headers": 45,
+    "chat_done": 45,
+    "unknown_usage_reports": 0,
+    "usage_complete": true,
+    "header_ids_unique": true,
+    "all_headers_http_200": true,
+    "all_headers_sse": true
+  },
+  "logs": {
+    "build/evals/live-v1/survival-postfix-20261004/launcher.log": {
+      "bytes": 128333,
+      "lines": 766,
+      "sha256": "e8db2796b502d919af6f1d51d7eb725a7383c8971b24b9230ed4a2b073d274c0",
+      "fault_counts": {
+        "sse_idle_timeout": 0,
+        "transport_retry": 0,
+        "http_connect_timeout": 0,
+        "http_timeout": 0,
+        "tls_handshake_error": 0,
+        "sse_subscriber_error": 0,
+        "caller_cancel": 0
+      },
+      "transport_warn_or_error": 0
+    },
+    "build/evals/live-v1/survival-postfix-20261004/game/logs/latest.log": {
+      "bytes": 136687,
+      "lines": 677,
+      "sha256": "b6af45e28160d34685f5e6cf5fd22ba8a18aae8fe05dad3fabd717a3dbdaf063",
+      "fault_counts": {
+        "sse_idle_timeout": 0,
+        "transport_retry": 0,
+        "http_connect_timeout": 0,
+        "http_timeout": 0,
+        "tls_handshake_error": 0,
+        "sse_subscriber_error": 0,
+        "caller_cancel": 0
+      },
+      "transport_warn_or_error": 0
+    },
+    "build/evals/live-v1/survival-postfix-20261004/game/logs/debug.log": {
+      "bytes": 136687,
+      "lines": 677,
+      "sha256": "b6af45e28160d34685f5e6cf5fd22ba8a18aae8fe05dad3fabd717a3dbdaf063",
+      "fault_counts": {
+        "sse_idle_timeout": 0,
+        "transport_retry": 0,
+        "http_connect_timeout": 0,
+        "http_timeout": 0,
+        "tls_handshake_error": 0,
+        "sse_subscriber_error": 0,
+        "caller_cancel": 0
+      },
+      "transport_warn_or_error": 0
+    }
+  },
+  "latencies_ms": {
+    "response_headers": {
+      "count": 45,
+      "min": 1707,
+      "median": 2207,
+      "p90": 2731.6,
+      "p95": 3125.799999999999,
+      "max": 3222,
+      "sum": 103663
+    },
+    "completed_chat": {
+      "count": 45,
+      "min": 2251,
+      "median": 4442,
+      "p90": 33228.200000000004,
+      "p95": 52955.399999999965,
+      "max": 70941,
+      "sum": 555068
+    },
+    "trace_call_to_usage": {
+      "count": 45,
+      "min": 2256.8285000000033,
+      "median": 4448.928400000092,
+      "p90": 33233.38930000002,
+      "p95": 52962.423319999965,
+      "max": 70949.50930000003,
+      "sum": 555330.3861000001
+    }
+  },
+  "stream_json_chunks": {
+    "count": 45,
+    "min": 15,
+    "median": 106,
+    "p90": 1454.8000000000002,
+    "p95": 2478.7999999999984,
+    "max": 3193,
+    "sum": 22417
+  },
+  "finish_reasons": {
+    "tool_calls": 43,
+    "stop": 2
+  },
+  "waiting_fractions": {
+    "headers_elapsed_sum_ms": 103663,
+    "headers_fraction_of_eval": 0.16173326102974697,
+    "completed_model_roundtrip_sum_ms": 555068,
+    "completed_model_roundtrip_fraction_of_eval": 0.8660077147416106,
+    "known_sse_idle_timeout_wait_ms": 0,
+    "interpretation": "Completed roundtrips include healthy model generation and stream transfer, not only silent waiting; body tasks can progress concurrently."
+  },
+  "logged_token_totals": {
+    "input_including_cache": 2588933,
+    "output": 66932,
+    "total": 2655865
+  },
+  "token_crosscheck": {
+    "logged_total_matches_result": true,
+    "logged_output_matches_result": true,
+    "logged_input_matches_uncached_plus_cache": true
+  },
+  "slowest_requests": [
+    {
+      "attempt": 41,
+      "request_id": "lr-41",
+      "headers_ms": 2695,
+      "completed_ms": 70941,
+      "json_chunks": 3193,
+      "output_tokens": 10132
+    },
+    {
+      "attempt": 40,
+      "request_id": "lr-40",
+      "headers_ms": 2179,
+      "completed_ms": 58124,
+      "json_chunks": 2597,
+      "output_tokens": 8557
+    },
+    {
+      "attempt": 3,
+      "request_id": "lr-3",
+      "headers_ms": 2609,
+      "completed_ms": 55401,
+      "json_chunks": 2663,
+      "output_tokens": 6905
+    },
+    {
+      "attempt": 20,
+      "request_id": "lr-20",
+      "headers_ms": 2072,
+      "completed_ms": 43173,
+      "json_chunks": 2006,
+      "output_tokens": 5996
+    },
+    {
+      "attempt": 35,
+      "request_id": "lr-35",
+      "headers_ms": 2059,
+      "completed_ms": 34189,
+      "json_chunks": 1482,
+      "output_tokens": 4473
+    },
+    {
+      "attempt": 42,
+      "request_id": "lr-42",
+      "headers_ms": 2448,
+      "completed_ms": 31787,
+      "json_chunks": 1414,
+      "output_tokens": 4745
+    }
+  ],
+  "historical_run": {
+    "source_run": "build/evals/live-v1/20261004T085904056498Z-9f759470",
+    "launcher_idle_timeout_count": 15,
+    "idle_chunks": {
+      "0": 15
+    },
+    "transport_retry_lines": 14,
+    "elapsed_ms": 1700028.6634,
+    "sse_timeout_wait_lower_bound_ms": 1350000,
+    "sse_timeout_wait_lower_bound_fraction": 0.7941042578070687
+  },
+  "conclusion": "This run completed all 45 streaming model attempts with usage and had no logged SSE idle timeout, retry, cancellation or HTTP connection/timeout error.",
+  "limitations": [
+    "One completed run is evidence about this run, not a guarantee the external gateway cannot stall later.",
+    "Production logs do not record per-request first byte/first SSE line or inter-byte gaps.",
+    "The eval first_token_ms is its first visible text delta and does not measure the first SSE JSON chunk; a tool-only first response completed earlier.",
+    "The external cause of the historical 15 timeouts remains unproven; the current successful run does not prove the CR framing fix caused the improvement.",
+    "Completed model roundtrip fraction and historical timeout lower-bound fraction measure different things and cannot be equated."
+  ]
+}

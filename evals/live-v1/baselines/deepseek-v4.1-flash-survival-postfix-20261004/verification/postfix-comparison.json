@@ -1,0 +1,1845 @@
+{
+  "case_id": "live.sustainable-survival",
+  "evaluation_version": "survival-v1",
+  "candidate_directory": "build/evals/live-v1/survival-postfix-20261004",
+  "measurement_note": "Milestone elapsed_ms comes from formal result.json. Per-metric first_threshold_observed_ms and extrema use sampled trace snapshots, not exact game transition timestamps. Null means never observed at threshold.",
+  "comparison_note": "Compare same public scenario and limits. Transport and GUI fixes, model randomness, endpoint latency and differing spawn height prevent attributing score change to GUI alone.",
+  "baselines": [
+    {
+      "label": "original_20261003",
+      "directory": "build/evals/live-v1/20261003T022055527569Z-300c622c",
+      "result_path": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/result.json",
+      "trace_path": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/trace.jsonl",
+      "status": "budget_exhausted",
+      "reason": "max_seconds",
+      "elapsed_ms": 1700033.8171,
+      "budget": {
+        "max_model_calls": 80,
+        "max_seconds": 1700,
+        "max_tokens": 2600000
+      },
+      "model_calls": 58,
+      "usage_reports": 45,
+      "usage_complete": false,
+      "tokens": {
+        "input": 119837,
+        "output": 45084,
+        "cache_read": 2316288,
+        "cache_write": 0,
+        "total": 2481209
+      },
+      "first_token_ms": 142226.6213,
+      "first_reply_ms": 95141.8508,
+      "success_held_ticks": 0,
+      "completed_milestones": 1,
+      "milestones": [
+        {
+          "id": "usable-tools",
+          "achieved": true,
+          "elapsed_ms": 865538.641,
+          "criteria": [
+            {
+              "metric": "world.usable_pickaxe",
+              "required": true,
+              "final_value": true,
+              "first_threshold_observed_ms": 865538.641,
+              "minimum_observed": false,
+              "maximum_observed": true
+            },
+            {
+              "metric": "world.usable_hoe",
+              "required": true,
+              "final_value": true,
+              "first_threshold_observed_ms": 596700.5269,
+              "minimum_observed": false,
+              "maximum_observed": true
+            }
+          ]
+        },
+        {
+          "id": "placed-workstations",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.crafting_tables",
+              "required": 1,
+              "final_value": 1,
+              "first_threshold_observed_ms": 568804.0194,
+              "minimum_observed": 0,
+              "maximum_observed": 1
+            },
+            {
+              "metric": "world.furnaces",
+              "required": 1,
+              "final_value": 0,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": 0,
+              "maximum_observed": 0
+            }
+          ]
+        },
+        {
+          "id": "growing-field",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.growing_wheat",
+              "required": 8,
+              "final_value": 0,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": 0,
+              "maximum_observed": 0
+            }
+          ]
+        },
+        {
+          "id": "harvest-and-replant",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.replanted_wheat",
+              "required": 3,
+              "final_value": 0,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": 0,
+              "maximum_observed": 0
+            }
+          ]
+        },
+        {
+          "id": "safe-food-reserve",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.food_nutrition",
+              "required": 20,
+              "final_value": 0,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": 0,
+              "maximum_observed": 4
+            }
+          ]
+        },
+        {
+          "id": "safe-base",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.shelter",
+              "required": true,
+              "final_value": false,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": false,
+              "maximum_observed": false
+            },
+            {
+              "metric": "health",
+              "required": 10,
+              "final_value": 12.533333,
+              "first_threshold_observed_ms": 0.0,
+              "minimum_observed": 8.0,
+              "maximum_observed": 20.0
+            },
+            {
+              "metric": "food",
+              "required": 12,
+              "final_value": 16,
+              "first_threshold_observed_ms": 0.0,
+              "minimum_observed": 16,
+              "maximum_observed": 20
+            }
+          ]
+        }
+      ],
+      "final_health": 12.533333,
+      "final_food": 16,
+      "deaths": 0,
+      "initial_position": [
+        160.5,
+        66.0,
+        -127.5
+      ],
+      "final_position": [
+        165.6955602714977,
+        66.0,
+        -118.66359851128355
+      ],
+      "final_inventory": {
+        "minecraft:coal": 8,
+        "minecraft:cobblestone": 61,
+        "minecraft:diorite": 3,
+        "minecraft:dirt": 113,
+        "minecraft:furnace": 1,
+        "minecraft:oak_door": 3,
+        "minecraft:oak_log": 9,
+        "minecraft:oak_planks": 3,
+        "minecraft:oak_sapling": 2,
+        "minecraft:stick": 6,
+        "minecraft:stone_hoe": 1,
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:stone_shovel": 1,
+        "minecraft:stone_sword": 1,
+        "minecraft:wheat_seeds": 8,
+        "minecraft:wooden_hoe": 1,
+        "minecraft:wooden_sword": 1
+      },
+      "final_shelter_reason": "open_or_oversize_room",
+      "zero_chunk_idle_timeout_log_lines": 11,
+      "gui_and_stop_tool_evidence": [
+        {
+          "elapsed_ms": 260454.8266,
+          "call_id": "call_00_g032zo1b7soh49e4lf4upszc",
+          "tool": "task_stop",
+          "arguments": {
+            "task_id": "t1"
+          },
+          "result": {
+            "success": false,
+            "message": "没有 t1 这个 id。当前:身体空闲;表:无。"
+          }
+        }
+      ]
+    },
+    {
+      "label": "unchanged_retry_20261004",
+      "directory": "build/evals/live-v1/20261004T085904056498Z-9f759470",
+      "result_path": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/result.json",
+      "trace_path": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/trace.jsonl",
+      "status": "budget_exhausted",
+      "reason": "max_seconds",
+      "elapsed_ms": 1700028.6634,
+      "budget": {
+        "max_model_calls": 80,
+        "max_seconds": 1700,
+        "max_tokens": 2600000
+      },
+      "model_calls": 56,
+      "usage_reports": 40,
+      "usage_complete": false,
+      "tokens": {
+        "input": 80243,
+        "output": 23269,
+        "cache_read": 1434752,
+        "cache_write": 0,
+        "total": 1538264
+      },
+      "first_token_ms": 128187.134,
+      "first_reply_ms": 94112.9785,
+      "success_held_ticks": 0,
+      "completed_milestones": 1,
+      "milestones": [
+        {
+          "id": "usable-tools",
+          "achieved": true,
+          "elapsed_ms": 1516560.4277,
+          "criteria": [
+            {
+              "metric": "world.usable_pickaxe",
+              "required": true,
+              "final_value": true,
+              "first_threshold_observed_ms": 1423063.0796,
+              "minimum_observed": false,
+              "maximum_observed": true
+            },
+            {
+              "metric": "world.usable_hoe",
+              "required": true,
+              "final_value": true,
+              "first_threshold_observed_ms": 1516560.4277,
+              "minimum_observed": false,
+              "maximum_observed": true
+            }
+          ]
+        },
+        {
+          "id": "placed-workstations",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.crafting_tables",
+              "required": 1,
+              "final_value": 1,
+              "first_threshold_observed_ms": 608354.7312,
+              "minimum_observed": 0,
+              "maximum_observed": 1
+            },
+            {
+              "metric": "world.furnaces",
+              "required": 1,
+              "final_value": 0,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": 0,
+              "maximum_observed": 0
+            }
+          ]
+        },
+        {
+          "id": "growing-field",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.growing_wheat",
+              "required": 8,
+              "final_value": 0,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": 0,
+              "maximum_observed": 0
+            }
+          ]
+        },
+        {
+          "id": "harvest-and-replant",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.replanted_wheat",
+              "required": 3,
+              "final_value": 0,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": 0,
+              "maximum_observed": 0
+            }
+          ]
+        },
+        {
+          "id": "safe-food-reserve",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.food_nutrition",
+              "required": 20,
+              "final_value": 0,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": 0,
+              "maximum_observed": 0
+            }
+          ]
+        },
+        {
+          "id": "safe-base",
+          "achieved": false,
+          "elapsed_ms": null,
+          "criteria": [
+            {
+              "metric": "world.shelter",
+              "required": true,
+              "final_value": false,
+              "first_threshold_observed_ms": null,
+              "minimum_observed": false,
+              "maximum_observed": false
+            },
+            {
+              "metric": "health",
+              "required": 10,
+              "final_value": 20.0,
+              "first_threshold_observed_ms": 0.0,
+              "minimum_observed": 19.0,
+              "maximum_observed": 20.0
+            },
+            {
+              "metric": "food",
+              "required": 12,
+              "final_value": 20,
+              "first_threshold_observed_ms": 0.0,
+              "minimum_observed": 20,
+              "maximum_observed": 20
+            }
+          ]
+        }
+      ],
+      "final_health": 20.0,
+      "final_food": 20,
+      "deaths": 0,
+      "initial_position": [
+        160.5,
+        78.0,
+        -127.5
+      ],
+      "final_position": [
+        152.23909900440336,
+        57.0,
+        -135.44157403656874
+      ],
+      "final_inventory": {
+        "minecraft:coal": 6,
+        "minecraft:cobblestone": 21,
+        "minecraft:dirt": 12,
+        "minecraft:furnace": 1,
+        "minecraft:oak_log": 12,
+        "minecraft:oak_planks": 35,
+        "minecraft:stick": 9,
+        "minecraft:stone_hoe": 1,
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:stone_sword": 1
+      },
+      "final_shelter_reason": "roof_gap",
+      "zero_chunk_idle_timeout_log_lines": 15,
+      "gui_and_stop_tool_evidence": [
+        {
+          "elapsed_ms": 245430.9794,
+          "call_id": "call_00_iu9p01fe5qbg1ase87ufnht1",
+          "tool": "inspect_gui",
+          "arguments": {},
+          "result": {
+            "success": false,
+            "message": "invalid arguments: Unable to construct this menu by type"
+          }
+        },
+        {
+          "elapsed_ms": 844127.7961,
+          "call_id": "call_00_7eqbmwxkb90i2zt1jj33rcwy",
+          "tool": "task_stop",
+          "arguments": {},
+          "result": {
+            "success": true,
+            "message": "已叫停 t4(挖 stone+1 6/30)。收尾结果会以 task_finished(status=stopped) 事件送达。",
+            "data": {
+              "task_id": "t4"
+            }
+          }
+        },
+        {
+          "elapsed_ms": 1626056.1456,
+          "call_id": "call_01_7mm1mtzya22n3lg70ap2ny8p",
+          "tool": "inspect_gui",
+          "arguments": {},
+          "result": {
+            "success": false,
+            "message": "invalid arguments: Unable to construct this menu by type"
+          }
+        }
+      ]
+    }
+  ],
+  "candidate": {
+    "label": "postfix_20261004",
+    "directory": "build/evals/live-v1/survival-postfix-20261004",
+    "result_path": "build/evals/live-v1/survival-postfix-20261004/results/result.json",
+    "trace_path": "build/evals/live-v1/survival-postfix-20261004/results/trace.jsonl",
+    "chat_path": "build/evals/live-v1/survival-postfix-20261004/results/chat.jsonl",
+    "status": "budget_exhausted",
+    "reason": "max_tokens",
+    "elapsed_ms": 640950.4102,
+    "budget": {
+      "max_model_calls": 80,
+      "max_seconds": 1700,
+      "max_tokens": 2600000
+    },
+    "model_calls": 45,
+    "usage_reports": 45,
+    "usage_complete": true,
+    "tokens": {
+      "input": 116485,
+      "output": 66932,
+      "cache_read": 2472448,
+      "cache_write": 0,
+      "total": 2655865
+    },
+    "first_token_ms": 29141.2138,
+    "first_reply_ms": 3842.4742,
+    "success_held_ticks": 0,
+    "completed_milestones": 1,
+    "milestones": [
+      {
+        "id": "usable-tools",
+        "achieved": true,
+        "elapsed_ms": 461047.4126,
+        "criteria": [
+          {
+            "metric": "world.usable_pickaxe",
+            "required": true,
+            "final_value": true,
+            "first_threshold_observed_ms": 461047.4126,
+            "minimum_observed": false,
+            "maximum_observed": true
+          },
+          {
+            "metric": "world.usable_hoe",
+            "required": true,
+            "final_value": true,
+            "first_threshold_observed_ms": 461047.4126,
+            "minimum_observed": false,
+            "maximum_observed": true
+          }
+        ]
+      },
+      {
+        "id": "placed-workstations",
+        "achieved": false,
+        "elapsed_ms": null,
+        "criteria": [
+          {
+            "metric": "world.crafting_tables",
+            "required": 1,
+            "final_value": 1,
+            "first_threshold_observed_ms": 283644.7764,
+            "minimum_observed": 0,
+            "maximum_observed": 1
+          },
+          {
+            "metric": "world.furnaces",
+            "required": 1,
+            "final_value": 0,
+            "first_threshold_observed_ms": null,
+            "minimum_observed": 0,
+            "maximum_observed": 0
+          }
+        ]
+      },
+      {
+        "id": "growing-field",
+        "achieved": false,
+        "elapsed_ms": null,
+        "criteria": [
+          {
+            "metric": "world.growing_wheat",
+            "required": 8,
+            "final_value": 0,
+            "first_threshold_observed_ms": null,
+            "minimum_observed": 0,
+            "maximum_observed": 0
+          }
+        ]
+      },
+      {
+        "id": "harvest-and-replant",
+        "achieved": false,
+        "elapsed_ms": null,
+        "criteria": [
+          {
+            "metric": "world.replanted_wheat",
+            "required": 3,
+            "final_value": 0,
+            "first_threshold_observed_ms": null,
+            "minimum_observed": 0,
+            "maximum_observed": 0
+          }
+        ]
+      },
+      {
+        "id": "safe-food-reserve",
+        "achieved": false,
+        "elapsed_ms": null,
+        "criteria": [
+          {
+            "metric": "world.food_nutrition",
+            "required": 20,
+            "final_value": 0,
+            "first_threshold_observed_ms": null,
+            "minimum_observed": 0,
+            "maximum_observed": 0
+          }
+        ]
+      },
+      {
+        "id": "safe-base",
+        "achieved": false,
+        "elapsed_ms": null,
+        "criteria": [
+          {
+            "metric": "world.shelter",
+            "required": true,
+            "final_value": false,
+            "first_threshold_observed_ms": null,
+            "minimum_observed": false,
+            "maximum_observed": false
+          },
+          {
+            "metric": "health",
+            "required": 10,
+            "final_value": 20.0,
+            "first_threshold_observed_ms": 0.0,
+            "minimum_observed": 20.0,
+            "maximum_observed": 20.0
+          },
+          {
+            "metric": "food",
+            "required": 12,
+            "final_value": 20,
+            "first_threshold_observed_ms": 0.0,
+            "minimum_observed": 20,
+            "maximum_observed": 20
+          }
+        ]
+      }
+    ],
+    "final_health": 20.0,
+    "final_food": 20,
+    "deaths": 0,
+    "initial_position": [
+      160.5,
+      78.0,
+      -127.5
+    ],
+    "final_position": [
+      157.8622078291864,
+      58.0,
+      -131.50386451997935
+    ],
+    "final_inventory": {
+      "minecraft:coal": 7,
+      "minecraft:cobblestone": 26,
+      "minecraft:dirt": 17,
+      "minecraft:furnace": 1,
+      "minecraft:oak_door": 3,
+      "minecraft:oak_planks": 43,
+      "minecraft:oak_sapling": 1,
+      "minecraft:stone_hoe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_sword": 1,
+      "minecraft:torch": 4,
+      "minecraft:wooden_pickaxe": 1
+    },
+    "final_shelter_reason": "unsafe_floor",
+    "final_world": {
+      "growing_wheat": 0,
+      "crafting_tables": 1,
+      "furnaces": 0,
+      "evidence": {
+        "scan_origin": {
+          "position": [
+            157,
+            58,
+            -132
+          ]
+        },
+        "wheat": [],
+        "crafting_tables": [
+          {
+            "position": [
+              160,
+              63,
+              -131
+            ]
+          }
+        ],
+        "furnaces": [],
+        "coordinates_truncated": false,
+        "scanned_game_tick": 12866,
+        "dimension": "minecraft:overworld",
+        "food": [],
+        "tools": [
+          {
+            "id": "minecraft:stone_pickaxe",
+            "count": 1,
+            "remaining_durability": 94
+          },
+          {
+            "id": "minecraft:stone_hoe",
+            "count": 1,
+            "remaining_durability": 131
+          }
+        ],
+        "shelter": {
+          "valid": false,
+          "position": {
+            "position": [
+              157,
+              58,
+              -132
+            ]
+          },
+          "reason": "unsafe_floor"
+        },
+        "replanted_wheat": []
+      },
+      "usable_pickaxe": true,
+      "usable_hoe": true,
+      "food_nutrition": 0,
+      "shelter": false,
+      "replanted_wheat": 0
+    },
+    "tool_started_count": 70,
+    "tool_finished_count": 70,
+    "tool_finished_counts": {
+      "get_self_status": 3,
+      "get_world_info": 3,
+      "look_around": 3,
+      "load_skill": 1,
+      "scan_blocks": 6,
+      "scan_nearby_entities": 1,
+      "todowrite": 1,
+      "mine": 3,
+      "inspect_block": 12,
+      "command": 19,
+      "craft": 13,
+      "build": 2,
+      "equip_item": 2,
+      "goto": 1
+    },
+    "command_counts": {
+      "numen task --help": 1,
+      "numen task status": 18
+    },
+    "tool_failures": [
+      {
+        "trace_line": 1111,
+        "elapsed_ms": 221510.067,
+        "tool": "craft",
+        "arguments": {
+          "count": 1,
+          "item_id": "minecraft:wooden_pickaxe"
+        },
+        "result": {
+          "success": false,
+          "message": "wooden_pickaxe is a 3x3 recipe — it needs a crafting table within reach (~4 blocks). None within 16 blocks — craft a crafting_table (4 planks, fits your own 2x2) and build it (op `set`), then craft again."
+        }
+      }
+    ],
+    "unexecuted_assistant_calls": [
+      {
+        "trace_assistant_line": 3201,
+        "elapsed_ms": 640805.3524,
+        "call": {
+          "id": "call_00_tccoisfqy0hq05ugncnwrgk5",
+          "type": "function",
+          "function": {
+            "name": "build",
+            "arguments": "{\"ops\": [{\"op\": \"layer\", \"x1\": 162, \"y1\": 63, \"z1\": -130, \"rows\": [\"#####\", \"#...#\", \"D...#\", \"#...#\", \"#####\"], \"legend\": {\"#\": \"minecraft:oak_planks\", \"D\": \"minecraft:oak_door\"}}, {\"op\": \"layer\", \"x1\": 162, \"y1\": 64, \"z1\": -130, \"rows\": [\"#####\", \"#...#\", \"....#\", \"#...#\", \"#####\"], \"legend\": {\"#\": \"minecraft:oak_planks\"}}, {\"op\": \"layer\", \"x1\": 162, \"y1\": 65, \"z1\": -130, \"rows\": [\"CCC##\", \"#...#\", \"#...#\", \"#...#\", \"#####\"], \"legend\": {\"#\": \"minecraft:oak_planks\", \"C\": \"minecraft:cobblestone\"}}, {\"op\": \"layer\", \"x1\": 162, \"y1\": 66, \"z1\": -130, \"rows\": [\"#####\", \"#ddd#\", \"#ddd#\", \"#####\", \"#####\"], \"legend\": {\"#\": \"minecraft:cobblestone\", \"d\": \"minecraft:dirt\"}}, {\"op\": \"set\", \"x\": 165, \"y\": 63, \"z\": -127, \"block_id\": \"minecraft:torch\"}, {\"op\": \"set\", \"x\": 161, \"y\": 63, \"z\": -129, \"block_id\": \"minecraft:furnace\"}]}"
+          }
+        },
+        "reason": "Assistant proposed call but no matching tool_started before formal budget stop"
+      }
+    ],
+    "zero_chunk_idle_timeout_log_lines": 0,
+    "waiting_headers_or_body_idle_timeout_log_lines": 0,
+    "retry_log_lines": 0,
+    "gui_and_stop_tool_evidence": [],
+    "gui_live_fix_validation": "not_exercised: no inspect_gui or GUI CLI calls",
+    "task_stop_observation": "No direct task_stop or CLI stop calls; prior misuse did not recur in this run",
+    "repeated_status_queries": {
+      "count": 18,
+      "request_fraction": 0.4,
+      "reported_tokens": 1133599,
+      "fraction_of_total_reported_tokens": 0.42682854738475035,
+      "usage_by_request": [
+        {
+          "request": 6,
+          "trace_assistant_line": 536,
+          "elapsed_ms": 106524.5084,
+          "launcher_line": 258,
+          "duration_ms": 2735,
+          "chunks": 34,
+          "input_including_cache": 40045,
+          "output": 83,
+          "total": 40128
+        },
+        {
+          "request": 7,
+          "trace_assistant_line": 551,
+          "elapsed_ms": 108790.5263,
+          "launcher_line": 266,
+          "duration_ms": 2251,
+          "chunks": 29,
+          "input_including_cache": 40209,
+          "output": 82,
+          "total": 40291
+        },
+        {
+          "request": 8,
+          "trace_assistant_line": 569,
+          "elapsed_ms": 111598.516,
+          "launcher_line": 271,
+          "duration_ms": 2789,
+          "chunks": 56,
+          "input_including_cache": 40372,
+          "output": 161,
+          "total": 40533
+        },
+        {
+          "request": 9,
+          "trace_assistant_line": 589,
+          "elapsed_ms": 114814.5566,
+          "launcher_line": 277,
+          "duration_ms": 3198,
+          "chunks": 54,
+          "input_including_cache": 40614,
+          "output": 149,
+          "total": 40763
+        },
+        {
+          "request": 10,
+          "trace_assistant_line": 604,
+          "elapsed_ms": 117149.2164,
+          "launcher_line": 283,
+          "duration_ms": 2319,
+          "chunks": 25,
+          "input_including_cache": 40844,
+          "output": 70,
+          "total": 40914
+        },
+        {
+          "request": 15,
+          "trace_assistant_line": 1085,
+          "elapsed_ms": 217139.3158,
+          "launcher_line": 365,
+          "duration_ms": 3689,
+          "chunks": 67,
+          "input_including_cache": 45548,
+          "output": 201,
+          "total": 45749
+        },
+        {
+          "request": 25,
+          "trace_assistant_line": 1644,
+          "elapsed_ms": 325671.5978,
+          "launcher_line": 464,
+          "duration_ms": 11654,
+          "chunks": 488,
+          "input_including_cache": 61254,
+          "output": 1492,
+          "total": 62746
+        },
+        {
+          "request": 26,
+          "trace_assistant_line": 1662,
+          "elapsed_ms": 328613.7381,
+          "launcher_line": 472,
+          "duration_ms": 2931,
+          "chunks": 47,
+          "input_including_cache": 62955,
+          "output": 123,
+          "total": 63078
+        },
+        {
+          "request": 27,
+          "trace_assistant_line": 1684,
+          "elapsed_ms": 332260.9963,
+          "launcher_line": 479,
+          "duration_ms": 3629,
+          "chunks": 76,
+          "input_including_cache": 63160,
+          "output": 211,
+          "total": 63371
+        },
+        {
+          "request": 28,
+          "trace_assistant_line": 1701,
+          "elapsed_ms": 335022.5108,
+          "launcher_line": 485,
+          "duration_ms": 2750,
+          "chunks": 36,
+          "input_including_cache": 63453,
+          "output": 102,
+          "total": 63555
+        },
+        {
+          "request": 29,
+          "trace_assistant_line": 1720,
+          "elapsed_ms": 338025.6087,
+          "launcher_line": 491,
+          "duration_ms": 2988,
+          "chunks": 23,
+          "input_including_cache": 63637,
+          "output": 64,
+          "total": 63701
+        },
+        {
+          "request": 30,
+          "trace_assistant_line": 1738,
+          "elapsed_ms": 340760.1392,
+          "launcher_line": 499,
+          "duration_ms": 2717,
+          "chunks": 33,
+          "input_including_cache": 63783,
+          "output": 88,
+          "total": 63871
+        },
+        {
+          "request": 31,
+          "trace_assistant_line": 1757,
+          "elapsed_ms": 344017.4248,
+          "launcher_line": 508,
+          "duration_ms": 3246,
+          "chunks": 31,
+          "input_including_cache": 63953,
+          "output": 87,
+          "total": 64040
+        },
+        {
+          "request": 32,
+          "trace_assistant_line": 1775,
+          "elapsed_ms": 346756.6484,
+          "launcher_line": 515,
+          "duration_ms": 2724,
+          "chunks": 27,
+          "input_including_cache": 64122,
+          "output": 76,
+          "total": 64198
+        },
+        {
+          "request": 38,
+          "trace_assistant_line": 2306,
+          "elapsed_ms": 455200.8485,
+          "launcher_line": 610,
+          "duration_ms": 7679,
+          "chunks": 216,
+          "input_including_cache": 74328,
+          "output": 685,
+          "total": 75013
+        },
+        {
+          "request": 42,
+          "trace_assistant_line": 3101,
+          "elapsed_ms": 621981.6877,
+          "launcher_line": 685,
+          "duration_ms": 31787,
+          "chunks": 1414,
+          "input_including_cache": 95522,
+          "output": 4745,
+          "total": 100267
+        },
+        {
+          "request": 43,
+          "trace_assistant_line": 3127,
+          "elapsed_ms": 626439.7533,
+          "launcher_line": 694,
+          "duration_ms": 4442,
+          "chunks": 58,
+          "input_including_cache": 100452,
+          "output": 171,
+          "total": 100623
+        },
+        {
+          "request": 44,
+          "trace_assistant_line": 3148,
+          "elapsed_ms": 630062.143,
+          "launcher_line": 705,
+          "duration_ms": 3608,
+          "chunks": 22,
+          "input_including_cache": 100701,
+          "output": 57,
+          "total": 100758
+        }
+      ],
+      "tool_result_evidence": [
+        {
+          "trace_line": 538,
+          "elapsed_ms": 106532.4661,
+          "result": {
+            "success": true,
+            "message": "t1(挖 oak_log+1 0/16) running,已进行 20s,时间预算剩 460s。没有挂着的表。",
+            "data": {
+              "task_id": "t1",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 20,
+              "budget_left_s": 460
+            }
+          }
+        },
+        {
+          "trace_line": 553,
+          "elapsed_ms": 108798.4228,
+          "result": {
+            "success": true,
+            "message": "t1(挖 oak_log+1 0/16) running,已进行 22s,时间预算剩 457s。没有挂着的表。",
+            "data": {
+              "task_id": "t1",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 22,
+              "budget_left_s": 457
+            }
+          }
+        },
+        {
+          "trace_line": 571,
+          "elapsed_ms": 111605.6117,
+          "result": {
+            "success": true,
+            "message": "t1(挖 oak_log+1 0/16) running,已进行 25s,时间预算剩 455s。没有挂着的表。",
+            "data": {
+              "task_id": "t1",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 25,
+              "budget_left_s": 455
+            }
+          }
+        },
+        {
+          "trace_line": 591,
+          "elapsed_ms": 114822.5988,
+          "result": {
+            "success": true,
+            "message": "t1(挖 oak_log+1 0/16) running,已进行 28s,时间预算剩 451s。没有挂着的表。",
+            "data": {
+              "task_id": "t1",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 28,
+              "budget_left_s": 451
+            }
+          }
+        },
+        {
+          "trace_line": 606,
+          "elapsed_ms": 117157.3532,
+          "result": {
+            "success": true,
+            "message": "t1(挖 oak_log+1 1/16) running,已进行 30s,时间预算剩 449s。没有挂着的表。",
+            "data": {
+              "task_id": "t1",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 30,
+              "budget_left_s": 449
+            }
+          }
+        },
+        {
+          "trace_line": 1087,
+          "elapsed_ms": 217147.1766,
+          "result": {
+            "success": true,
+            "message": "身体空闲,没有后台任务。没有挂着的表。"
+          }
+        },
+        {
+          "trace_line": 1646,
+          "elapsed_ms": 325679.0698,
+          "result": {
+            "success": true,
+            "message": "t5(挖 coal_ore+1 0/8) running,已进行 11s,时间预算剩 228s。没有挂着的表。",
+            "data": {
+              "task_id": "t5",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 11,
+              "budget_left_s": 228
+            }
+          }
+        },
+        {
+          "trace_line": 1664,
+          "elapsed_ms": 328621.8214,
+          "result": {
+            "success": true,
+            "message": "t5(挖 coal_ore+1 0/8) running,已进行 14s,时间预算剩 225s。没有挂着的表。",
+            "data": {
+              "task_id": "t5",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 14,
+              "budget_left_s": 225
+            }
+          }
+        },
+        {
+          "trace_line": 1686,
+          "elapsed_ms": 332268.7417,
+          "result": {
+            "success": true,
+            "message": "t5(挖 coal_ore+1 0/8) running,已进行 18s,时间预算剩 222s。没有挂着的表。",
+            "data": {
+              "task_id": "t5",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 18,
+              "budget_left_s": 222
+            }
+          }
+        },
+        {
+          "trace_line": 1703,
+          "elapsed_ms": 335030.2986,
+          "result": {
+            "success": true,
+            "message": "t5(挖 coal_ore+1 0/8) running,已进行 21s,时间预算剩 219s。没有挂着的表。",
+            "data": {
+              "task_id": "t5",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 21,
+              "budget_left_s": 219
+            }
+          }
+        },
+        {
+          "trace_line": 1722,
+          "elapsed_ms": 338033.7181,
+          "result": {
+            "success": true,
+            "message": "t5(挖 coal_ore+1 0/8) running,已进行 24s,时间预算剩 216s。没有挂着的表。",
+            "data": {
+              "task_id": "t5",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 24,
+              "budget_left_s": 216
+            }
+          }
+        },
+        {
+          "trace_line": 1740,
+          "elapsed_ms": 340768.5858,
+          "result": {
+            "success": true,
+            "message": "t5(挖 coal_ore+1 0/8) running,已进行 26s,时间预算剩 213s。没有挂着的表。",
+            "data": {
+              "task_id": "t5",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 26,
+              "budget_left_s": 213
+            }
+          }
+        },
+        {
+          "trace_line": 1759,
+          "elapsed_ms": 344025.2901,
+          "result": {
+            "success": true,
+            "message": "t5(挖 coal_ore+1 0/8) running,已进行 30s,时间预算剩 210s。没有挂着的表。",
+            "data": {
+              "task_id": "t5",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 30,
+              "budget_left_s": 210
+            }
+          }
+        },
+        {
+          "trace_line": 1777,
+          "elapsed_ms": 346764.4715,
+          "result": {
+            "success": true,
+            "message": "t5(挖 coal_ore+1 0/8) running,已进行 32s,时间预算剩 207s。没有挂着的表。",
+            "data": {
+              "task_id": "t5",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 32,
+              "budget_left_s": 207
+            }
+          }
+        },
+        {
+          "trace_line": 2308,
+          "elapsed_ms": 455208.7068,
+          "result": {
+            "success": true,
+            "message": "身体空闲,没有后台任务。没有挂着的表。"
+          }
+        },
+        {
+          "trace_line": 3103,
+          "elapsed_ms": 621989.41,
+          "result": {
+            "success": true,
+            "message": "t8(挖 stone 11/24) running,已进行 31s,时间预算剩 688s。没有挂着的表。",
+            "data": {
+              "task_id": "t8",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 31,
+              "budget_left_s": 688
+            }
+          }
+        },
+        {
+          "trace_line": 3129,
+          "elapsed_ms": 626447.6365,
+          "result": {
+            "success": true,
+            "message": "t8(挖 stone 15/24) running,已进行 36s,时间预算剩 684s。没有挂着的表。",
+            "data": {
+              "task_id": "t8",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 36,
+              "budget_left_s": 684
+            }
+          }
+        },
+        {
+          "trace_line": 3150,
+          "elapsed_ms": 630074.365,
+          "result": {
+            "success": true,
+            "message": "t8(挖 stone 22/24) running,已进行 39s,时间预算剩 680s。没有挂着的表。",
+            "data": {
+              "task_id": "t8",
+              "task": "mine",
+              "state": "running",
+              "elapsed_s": 39,
+              "budget_left_s": 680
+            }
+          }
+        }
+      ],
+      "clusters": [
+        {
+          "task": "t1 wood",
+          "count": 5,
+          "first_finished_ms": 106532.4661,
+          "last_finished_ms": 117157.3532,
+          "trace_lines": [
+            538,
+            553,
+            571,
+            591,
+            606
+          ],
+          "observed_target_progress": "first four 0/16; last 1/16",
+          "note": "Body still works; query does not advance goal"
+        },
+        {
+          "task": "t5 coal",
+          "count": 8,
+          "first_finished_ms": 325679.0698,
+          "last_finished_ms": 346764.4715,
+          "trace_lines": [
+            1646,
+            1664,
+            1686,
+            1703,
+            1722,
+            1740,
+            1759,
+            1777
+          ],
+          "observed_target_progress": "all 0/8, although navigation digs and inventory cobblestone increases",
+          "note": "Not a claim that body made no physical progress"
+        },
+        {
+          "task": "t8 stone",
+          "count": 3,
+          "trace_lines": [
+            3103,
+            3129,
+            3150
+          ],
+          "observed_target_progress": "11/24,15/24,22/24",
+          "first_finished_ms": 621989.41,
+          "last_finished_ms": 630074.365
+        },
+        {
+          "task": "idle after build/goto",
+          "count": 2,
+          "trace_lines": [
+            1087,
+            2308
+          ],
+          "first_finished_ms": 217147.1766,
+          "last_finished_ms": 455208.7068
+        }
+      ]
+    },
+    "input_growth": {
+      "first_request": {
+        "launcher_line": 185,
+        "duration_ms": 3738,
+        "chunks": 84,
+        "input_including_cache": 19399,
+        "output": 279,
+        "total": 19678
+      },
+      "last_request": {
+        "launcher_line": 719,
+        "duration_ms": 10724,
+        "chunks": 713,
+        "input_including_cache": 100836,
+        "output": 1640,
+        "total": 102476
+      },
+      "first_to_last_input_factor": 5.197999896901902,
+      "summed_input_including_cache": 2588933,
+      "summed_output": 66932,
+      "cache_read_fraction_of_total": 0.9309388843182917,
+      "all_requests": [
+        {
+          "launcher_line": 185,
+          "duration_ms": 3738,
+          "chunks": 84,
+          "input_including_cache": 19399,
+          "output": 279,
+          "total": 19678
+        },
+        {
+          "launcher_line": 207,
+          "duration_ms": 26620,
+          "chunks": 1272,
+          "input_including_cache": 21961,
+          "output": 3311,
+          "total": 25272
+        },
+        {
+          "launcher_line": 222,
+          "duration_ms": 55401,
+          "chunks": 2663,
+          "input_including_cache": 29903,
+          "output": 6905,
+          "total": 36808
+        },
+        {
+          "launcher_line": 234,
+          "duration_ms": 9876,
+          "chunks": 443,
+          "input_including_cache": 37108,
+          "output": 1277,
+          "total": 38385
+        },
+        {
+          "launcher_line": 252,
+          "duration_ms": 7382,
+          "chunks": 253,
+          "input_including_cache": 39133,
+          "output": 781,
+          "total": 39914
+        },
+        {
+          "launcher_line": 258,
+          "duration_ms": 2735,
+          "chunks": 34,
+          "input_including_cache": 40045,
+          "output": 83,
+          "total": 40128
+        },
+        {
+          "launcher_line": 266,
+          "duration_ms": 2251,
+          "chunks": 29,
+          "input_including_cache": 40209,
+          "output": 82,
+          "total": 40291
+        },
+        {
+          "launcher_line": 271,
+          "duration_ms": 2789,
+          "chunks": 56,
+          "input_including_cache": 40372,
+          "output": 161,
+          "total": 40533
+        },
+        {
+          "launcher_line": 277,
+          "duration_ms": 3198,
+          "chunks": 54,
+          "input_including_cache": 40614,
+          "output": 149,
+          "total": 40763
+        },
+        {
+          "launcher_line": 283,
+          "duration_ms": 2319,
+          "chunks": 25,
+          "input_including_cache": 40844,
+          "output": 70,
+          "total": 40914
+        },
+        {
+          "launcher_line": 290,
+          "duration_ms": 2720,
+          "chunks": 39,
+          "input_including_cache": 41004,
+          "output": 105,
+          "total": 41109
+        },
+        {
+          "launcher_line": 338,
+          "duration_ms": 16453,
+          "chunks": 603,
+          "input_including_cache": 41116,
+          "output": 1815,
+          "total": 42931
+        },
+        {
+          "launcher_line": 345,
+          "duration_ms": 4148,
+          "chunks": 106,
+          "input_including_cache": 42998,
+          "output": 321,
+          "total": 43319
+        },
+        {
+          "launcher_line": 355,
+          "duration_ms": 14827,
+          "chunks": 685,
+          "input_including_cache": 43463,
+          "output": 2005,
+          "total": 45468
+        },
+        {
+          "launcher_line": 365,
+          "duration_ms": 3689,
+          "chunks": 67,
+          "input_including_cache": 45548,
+          "output": 201,
+          "total": 45749
+        },
+        {
+          "launcher_line": 371,
+          "duration_ms": 4345,
+          "chunks": 103,
+          "input_including_cache": 45838,
+          "output": 285,
+          "total": 46123
+        },
+        {
+          "launcher_line": 376,
+          "duration_ms": 6899,
+          "chunks": 254,
+          "input_including_cache": 46202,
+          "output": 796,
+          "total": 46998
+        },
+        {
+          "launcher_line": 382,
+          "duration_ms": 7510,
+          "chunks": 238,
+          "input_including_cache": 47129,
+          "output": 716,
+          "total": 47845
+        },
+        {
+          "launcher_line": 387,
+          "duration_ms": 3870,
+          "chunks": 72,
+          "input_including_cache": 48038,
+          "output": 223,
+          "total": 48261
+        },
+        {
+          "launcher_line": 399,
+          "duration_ms": 43173,
+          "chunks": 2006,
+          "input_including_cache": 48840,
+          "output": 5996,
+          "total": 54836
+        },
+        {
+          "launcher_line": 421,
+          "duration_ms": 15455,
+          "chunks": 625,
+          "input_including_cache": 55691,
+          "output": 1775,
+          "total": 57466
+        },
+        {
+          "launcher_line": 431,
+          "duration_ms": 3108,
+          "chunks": 50,
+          "input_including_cache": 59738,
+          "output": 134,
+          "total": 59872
+        },
+        {
+          "launcher_line": 437,
+          "duration_ms": 9164,
+          "chunks": 324,
+          "input_including_cache": 59949,
+          "output": 1022,
+          "total": 60971
+        },
+        {
+          "launcher_line": 443,
+          "duration_ms": 2820,
+          "chunks": 57,
+          "input_including_cache": 61031,
+          "output": 150,
+          "total": 61181
+        },
+        {
+          "launcher_line": 464,
+          "duration_ms": 11654,
+          "chunks": 488,
+          "input_including_cache": 61254,
+          "output": 1492,
+          "total": 62746
+        },
+        {
+          "launcher_line": 472,
+          "duration_ms": 2931,
+          "chunks": 47,
+          "input_including_cache": 62955,
+          "output": 123,
+          "total": 63078
+        },
+        {
+          "launcher_line": 479,
+          "duration_ms": 3629,
+          "chunks": 76,
+          "input_including_cache": 63160,
+          "output": 211,
+          "total": 63371
+        },
+        {
+          "launcher_line": 485,
+          "duration_ms": 2750,
+          "chunks": 36,
+          "input_including_cache": 63453,
+          "output": 102,
+          "total": 63555
+        },
+        {
+          "launcher_line": 491,
+          "duration_ms": 2988,
+          "chunks": 23,
+          "input_including_cache": 63637,
+          "output": 64,
+          "total": 63701
+        },
+        {
+          "launcher_line": 499,
+          "duration_ms": 2717,
+          "chunks": 33,
+          "input_including_cache": 63783,
+          "output": 88,
+          "total": 63871
+        },
+        {
+          "launcher_line": 508,
+          "duration_ms": 3246,
+          "chunks": 31,
+          "input_including_cache": 63953,
+          "output": 87,
+          "total": 64040
+        },
+        {
+          "launcher_line": 515,
+          "duration_ms": 2724,
+          "chunks": 27,
+          "input_including_cache": 64122,
+          "output": 76,
+          "total": 64198
+        },
+        {
+          "launcher_line": 524,
+          "duration_ms": 2991,
+          "chunks": 15,
+          "input_including_cache": 64280,
+          "output": 39,
+          "total": 64319
+        },
+        {
+          "launcher_line": 548,
+          "duration_ms": 12542,
+          "chunks": 536,
+          "input_including_cache": 64367,
+          "output": 1774,
+          "total": 66141
+        },
+        {
+          "launcher_line": 560,
+          "duration_ms": 34189,
+          "chunks": 1482,
+          "input_including_cache": 66248,
+          "output": 4473,
+          "total": 70721
+        },
+        {
+          "launcher_line": 568,
+          "duration_ms": 7244,
+          "chunks": 237,
+          "input_including_cache": 70788,
+          "output": 767,
+          "total": 71555
+        },
+        {
+          "launcher_line": 578,
+          "duration_ms": 17893,
+          "chunks": 834,
+          "input_including_cache": 71801,
+          "output": 2446,
+          "total": 74247
+        },
+        {
+          "launcher_line": 610,
+          "duration_ms": 7679,
+          "chunks": 216,
+          "input_including_cache": 74328,
+          "output": 685,
+          "total": 75013
+        },
+        {
+          "launcher_line": 616,
+          "duration_ms": 5775,
+          "chunks": 197,
+          "input_including_cache": 75150,
+          "output": 561,
+          "total": 75711
+        },
+        {
+          "launcher_line": 640,
+          "duration_ms": 58124,
+          "chunks": 2597,
+          "input_including_cache": 76653,
+          "output": 8557,
+          "total": 85210
+        },
+        {
+          "launcher_line": 650,
+          "duration_ms": 70941,
+          "chunks": 3193,
+          "input_including_cache": 85317,
+          "output": 10132,
+          "total": 95449
+        },
+        {
+          "launcher_line": 685,
+          "duration_ms": 31787,
+          "chunks": 1414,
+          "input_including_cache": 95522,
+          "output": 4745,
+          "total": 100267
+        },
+        {
+          "launcher_line": 694,
+          "duration_ms": 4442,
+          "chunks": 58,
+          "input_including_cache": 100452,
+          "output": 171,
+          "total": 100623
+        },
+        {
+          "launcher_line": 705,
+          "duration_ms": 3608,
+          "chunks": 22,
+          "input_including_cache": 100701,
+          "output": 57,
+          "total": 100758
+        },
+        {
+          "launcher_line": 719,
+          "duration_ms": 10724,
+          "chunks": 713,
+          "input_including_cache": 100836,
+          "output": 1640,
+          "total": 102476
+        }
+      ],
+      "large_output_requests": [
+        {
+          "request": 2,
+          "trace_assistant_line": 156,
+          "elapsed_ms": 30513.3118,
+          "launcher_line": 207,
+          "duration_ms": 26620,
+          "chunks": 1272,
+          "input_including_cache": 21961,
+          "output": 3311,
+          "total": 25272
+        },
+        {
+          "request": 3,
+          "trace_assistant_line": 420,
+          "elapsed_ms": 86439.6131,
+          "launcher_line": 222,
+          "duration_ms": 55401,
+          "chunks": 2663,
+          "input_including_cache": 29903,
+          "output": 6905,
+          "total": 36808
+        },
+        {
+          "request": 20,
+          "trace_assistant_line": 1410,
+          "elapsed_ms": 283018.3732,
+          "launcher_line": 399,
+          "duration_ms": 43173,
+          "chunks": 2006,
+          "input_including_cache": 48840,
+          "output": 5996,
+          "total": 54836
+        },
+        {
+          "request": 35,
+          "trace_assistant_line": 2138,
+          "elapsed_ms": 422333.811,
+          "launcher_line": 560,
+          "duration_ms": 34189,
+          "chunks": 1482,
+          "input_including_cache": 66248,
+          "output": 4473,
+          "total": 70721
+        },
+        {
+          "request": 40,
+          "trace_assistant_line": 2617,
+          "elapsed_ms": 519186.1309,
+          "launcher_line": 640,
+          "duration_ms": 58124,
+          "chunks": 2597,
+          "input_including_cache": 76653,
+          "output": 8557,
+          "total": 85210
+        },
+        {
+          "request": 41,
+          "trace_assistant_line": 2950,
+          "elapsed_ms": 590178.5156,
+          "launcher_line": 650,
+          "duration_ms": 70941,
+          "chunks": 3193,
+          "input_including_cache": 85317,
+          "output": 10132,
+          "total": 95449
+        },
+        {
+          "request": 42,
+          "trace_assistant_line": 3101,
+          "elapsed_ms": 621981.6877,
+          "launcher_line": 685,
+          "duration_ms": 31787,
+          "chunks": 1414,
+          "input_including_cache": 95522,
+          "output": 4745,
+          "total": 100267
+        }
+      ]
+    },
+    "reasoning_evidence": [
+      {
+        "chat_line": 27,
+        "reasoning_characters": 134,
+        "content_characters": 0,
+        "reasoning_excerpt": "The task is running. It says 0/16 after 20s — it picked up an oak sapling. Hmm, maybe it's traveling. Let me wait.\n\nI'll end turn now."
+      },
+      {
+        "chat_line": 29,
+        "reasoning_characters": 518,
+        "content_characters": 0,
+        "reasoning_excerpt": "The mine task is running and picked up an oak sapling. It should proceed to logs. Let me wait for the task_finished event. End turn.\n\nI need to produce some output. Let me just end turn quietly... but I must output something. Minimal.\n\nActually, maybe I should just not call tools and end with text. The event will come.\n\nHmm, but if I end the turn with just text, does the system continue? The task_finished event will arrive as a new injected event, starting a new turn for me. Yes.\n\nLet me output a very brief line."
+      },
+      {
+        "chat_line": 31,
+        "reasoning_characters": 447,
+        "content_characters": 0,
+        "reasoning_excerpt": "It picked up an oak sapling (from breaking leaves?). It's traveling to the logs. Let me be patient. I'll end the turn now to avoid spamming.\n\nActually, the runtime state says I should not poll. Let me end the turn. But I have to write something... Let me just wait silently — output a short text.\n\nHmm, actually there's a risk: the mine task might be slow navigating from my plateau down to the trees. It has a 460s budget. Fine.\n\nLet me end turn."
+      },
+      {
+        "chat_line": 33,
+        "reasoning_characters": 125,
+        "content_characters": 0,
+        "reasoning_excerpt": "Still running. Let me wait for the event. I'll end the turn with minimal text.\n\nI'm going to stop issuing polls and just end."
+      },
+      {
+        "chat_line": 35,
+        "reasoning_characters": 401,
+        "content_characters": 9,
+        "reasoning_excerpt": "It's progressing. Let me wait for the event. End turn.\n\nI'll stop polling and just output a short line... Actually I realize repeatedly calling task_status is exactly \"polling\" which I'm told not to do. Let me end the turn now.\n\nI'll output a brief text with no tool call.\n\nHmm, but if I output no tool call, the turn ends and nothing happens until the event. That's correct behavior.\n\nLet me do that."
+      },
+      {
+        "chat_line": 75,
+        "reasoning_characters": 347,
+        "content_characters": 0,
+        "reasoning_excerpt": "Interesting — I already have cobblestone x3 and dirt x4 (picked up from mining). Good.\n\nLet me wait for the coal task.\n\nI'll end the turn.\n\nHmm, I keep getting forced to output. Let me just wait silently with minimal text.\n\nActually, I wonder — should I be concerned that repeated task_status calls count as polling? Yes. Let me just end the turn."
+      },
+      {
+        "chat_line": 77,
+        "reasoning_characters": 723,
+        "content_characters": 0,
+        "reasoning_excerpt": "Now cobblestone x4 and dirt x4 are being collected. The task is digging down.\n\nLet me wait. End turn with minimal text. Actually I already have text. Let me just produce an empty-ish response... I must produce something. Let me just say nothing meaningful — maybe I don't need to speak at all every turn. But I have to output tokens. Let me output a single short phrase or nothing.\n\nHmm, the harness requires my response. I'll just not call tools and write a brief line. Actually — if I write nothing at all, is that OK? Probably it needs content. Let me write a very short line.\n\nWait — actually the"
+      },
+      {
+        "chat_line": 79,
+        "reasoning_characters": 258,
+        "content_characters": 0,
+        "reasoning_excerpt": "Confirmed inventory. Now wait for the coal task to finish.\n\nLet me end the turn without calling tools.\n\nI'll write a brief line. Actually, let me not say anything more — the previous \"挖煤中\" covers it.\n\nHmm, I must output something. I'll output a minimal line."
+      },
+      {
+        "chat_line": 81,
+        "reasoning_characters": 86,
+        "content_characters": 0,
+        "reasoning_excerpt": "OK. Now I'll just wait for the event. Let me end the turn.\n\nI'll write a minimal line."
+      },
+      {
+        "chat_line": 83,
+        "reasoning_characters": 230,
+        "content_characters": 0,
+        "reasoning_excerpt": "Still mining. Let me end the turn now — no more polling.\n\nI'll output nothing but a minimal phrase without tool call.\n\nActually, I realize repeatedly ending turns with task_status calls is wasteful. Let me just end with text only."
+      },
+      {
+        "chat_line": 85,
+        "reasoning_characters": 185,
+        "content_characters": 0,
+        "reasoning_excerpt": "OK, I'll wait for the event now. Let me end turn.\n\nActually, let me use this turn to be useful — no body actions allowed. I'll just end.\n\nLet me output a minimal text with no tool call."
+      },
+      {
+        "chat_line": 87,
+        "reasoning_characters": 148,
+        "content_characters": 0,
+        "reasoning_excerpt": "Cobblestone x10 accumulating while mining. Good.\n\nLet me wait for the event and stop polling.\n\nI'll end the turn with a short text and no tool call."
+      },
+      {
+        "chat_line": 89,
+        "reasoning_characters": 105,
+        "content_characters": 12,
+        "reasoning_excerpt": "OK. Now I really should just wait. Let me end the turn with a plain text and no tool call.\n\nI'll do that."
+      },
+      {
+        "chat_line": 111,
+        "reasoning_characters": 26334,
+        "content_characters": 0,
+        "reasoning_excerpt": "Hmm, the runtime_state is stale again (shows oak_planks x49, stick x2, stone_pickaxe, stone_sword, torch x4 — missing stone_hoe, furnace, doors, and planks should be 43).\n\nTrust the craft results:\n- stone_pickaxe, stone_sword, stone_hoe, furnace crafted\n- 3 oak doors\n- planks: 49-6 = 43\n- sticks: 5-5 = 0\n- cobble: 17-15 = 2\n\nWait, the runtime state says cobblestone x12 — that's stale from before the tools (17-5? no). Hmm, 17 cobble - pickaxe 3 = 14, -sword 2 = 12, -hoe 2 = 10, -furnace 8 = 2. So 2 cobble left. The runtime shows 12 which matches right after the sword. Stale.\n\nOK so: 2 cobble, 4"
+      },
+      {
+        "chat_line": 114,
+        "reasoning_characters": 32143,
+        "content_characters": 12,
+        "reasoning_excerpt": "Now the inventory is accurate: coal 7, cobblestone 2, dirt 4, furnace 1, oak_door 3, oak_planks 43, oak_sapling 1, stone_hoe 1, stone_pickaxe 1, stone_sword 1, torch 4, wooden_pickaxe 1.\n\ngame_time = 10431. Night at ~13000 (dusk starts 12000-13000, mobs spawn when light <7 which happens after sunset ~12500-13000). So ~2500-3000 ticks ≈ 2-2.5 minutes. TIGHT.\n\nHmm! 2.5 minutes to mine 30 cobble and build. That's cutting it close.\n\nLet me reconsider: do I need 72 blocks? Alternative: build a smaller shelter: interior 2x2, footprint 4x4, 3-high walls + roof: ring 12×3 = 36 cells (minus 1 door top "
+      },
+      {
+        "chat_line": 116,
+        "reasoning_characters": 14780,
+        "content_characters": 0,
+        "reasoning_excerpt": "Waiting for the mining. Let me use the time... I can't do body actions. Let me wait.\n\nLet me end the turn.\n\nActually, I could set a timer as a reminder — not needed.\n\nLet me just wait for task_finished.\n\nI'll output minimal text.\n\nHmm, actually — I want to reconsider the shelter location. The site x162..166, z-130..-126. Is the ground flat there (all at y62)? From look_around. I'm reasonably confident.\n\nAlso, hmm, I should double check the ground under the shelter: the interior floor must be solid and flat at y62 (so I stand at y63 everywhere). If the natural ground varies, I'll fix it after b"
+      },
+      {
+        "chat_line": 118,
+        "reasoning_characters": 512,
+        "content_characters": 0,
+        "reasoning_excerpt": "Wait — the inventory shows dirt x13! Because mining stone dug through dirt and collected it. So I now have cobblestone 13 and dirt 13. That changes my material plan (more dirt available). Good.\n\nThe mine is at 11/24 stone.\n\nLet me wait for it to finish.\n\nNote: mining stone is also gathering dirt (13). So after this I'll have cobble ~24 and dirt ~15+.\n\nLet me wait.\n\nI'll end the turn.\n\nActually, hmm — the mine task is digging a big hole. Time is passing. Let me just wait.\n\nLet me output minimal text and end."
+      },
+      {
+        "chat_line": 120,
+        "reasoning_characters": 62,
+        "content_characters": 0,
+        "reasoning_excerpt": "Good, wait for the task to finish. Let me wait.\n\nEnd the turn."
+      },
+      {
+        "chat_line": 122,
+        "reasoning_characters": 3846,
+        "content_characters": 11,
+        "reasoning_excerpt": "Inventory: cobblestone 24, dirt 15, planks 43, furnace 1, doors 3, torches 4, tools. \n\nThe task is at 21/24. Let it finish.\n\nNow I have enough: even without more cobble: 43 planks + 24 cobble + 15 dirt = 82 blocks ≥ 71 ✓.\n\nLet me wait for the task to finish, then build.\n\nAlso time: game_time was 10431 at ~2 min ago. Now maybe ~11500. Night at ~13000. ~1500 ticks = 75s left. HURRY.\n\nLet me wait for the task completion then immediately build.\n\nHmm — actually, can I dispatch the build now? \"dispatching another body action REPLACES this one outright\" — the runtime says dispatching another body act"
+      }
+    ],
+    "progress_limits": {
+      "not_achieved_at_any_sample": [
+        "placed-workstations",
+        "growing-field",
+        "harvest-and-replant",
+        "safe-food-reserve",
+        "safe-base"
+      ],
+      "post_only_milestone_ms": 179902.99760000006,
+      "field_food_base_actions": "No farm/plant/harvest, food gathering/cooking, or dispatched shelter build. Dispatched build calls only placed crafting tables. Final assistant shelter/furnace build was not dispatched before budget stop."
+    },
+    "evidence_paths": {
+      "formal_stop": "result.json: $.status, $.reason, $.elapsed_ms, $.tokens",
+      "milestone_time": "result.json: $.milestones[0].elapsed_ms",
+      "final_state": "result.json: $.final_snapshot",
+      "final_unexecuted_build_trace_line": 3201,
+      "formal_stop_trace_line": 3203,
+      "final_build_chat_line": 122,
+      "first_input_usage_launcher_line": 185,
+      "last_input_usage_launcher_line": 719
+    }
+  },
+  "candidate_trace_checks": {
+    "inspect_gui": "For every tool_finished call named inspect_gui, record args, result.success and message; an own-inventory call with {} should succeed and include GUI: InventoryMenu, crafting grid 2x2, actual inventory and cursor. Record zero calls as not exercised, not success.",
+    "task_stop": "Record every task_stop call and its preceding task snapshot/result. Valid aborts are not misuse. Inspect assistant reasoning in selected companion chat for an intended end-of-turn/no-poll action that instead stopped a background task; absence of stop calls is only non-recurrence in this run."
+  }
+}

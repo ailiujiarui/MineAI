@@ -1,0 +1,100 @@
+{
+  "recorded_at_utc": "2026-10-04T13:33:01.196253+00:00",
+  "scope": "User-approved single real-model comparison; only the resource budget profile changes. Read-only preparation except this ignored evidence artifact.",
+  "evaluation_version": "survival-v2",
+  "case_id": "live.free-survival",
+  "approved_budget": {
+    "max_model_calls": 400,
+    "max_seconds": 1700,
+    "max_tokens": 30000000
+  },
+  "prior_budget": {
+    "max_model_calls": 80,
+    "max_seconds": 1700,
+    "max_tokens": 2600000
+  },
+  "baseline_archive": "evals/live-v1/baselines/deepseek-v4.1-flash-free-survival-v2-20261004",
+  "comparison_run": "build/evals/live-v1/free-survival-v2-budget-20261004",
+  "previous_result": {
+    "status": "budget_exhausted",
+    "reason": "max_tokens",
+    "task_success": false,
+    "model_calls": 70,
+    "elapsed_seconds": 432.195586,
+    "tokens": {
+      "input": 88693,
+      "output": 15994,
+      "cache_read": 2540416,
+      "cache_write": 0,
+      "total": 2645103
+    },
+    "milestones_reached": 2,
+    "milestones_total": 4
+  },
+  "minimum_success_duration": {
+    "actual_game_ticks": 25200,
+    "survival_ticks": 24000,
+    "hold_ticks": 1200,
+    "seconds_at_20_tps": 1260,
+    "note": "Actual survival time plus final criteria held together. Sleeping cannot substitute time-of-day changes for these ticks; lower TPS requires more wall-clock time."
+  },
+  "prior_resource_constraints": [
+    {
+      "limit": "max_tokens",
+      "value": 2600000,
+      "observed": "Stopped after 70 requests at 432.195586 seconds, long before the 1260-second normal-TPS earliest success. Final complete-response accounting overshot the threshold to 2645103."
+    },
+    {
+      "limit": "max_model_calls",
+      "value": 80,
+      "observed": "Was not reached in the prior run, but at its observed request rate would admit about 494 seconds of activity. Raising only max_tokens could immediately expose this next cutoff."
+    }
+  ],
+  "calibration_estimates": {
+    "method": "Descriptive extrapolation from one prior trajectory; not a prediction or success guarantee.",
+    "calls_at_1260_seconds_same_rate": 205,
+    "tokens_at_1260_seconds_constant_average": 7711392,
+    "tokens_at_1260_seconds_linear_prompt_growth": 13770600,
+    "calls_at_1700_seconds_same_rate": 276,
+    "tokens_at_1700_seconds_linear_prompt_growth": 23137322,
+    "assumptions": [
+      "Request rate remains similar.",
+      "Linear prompt-growth illustration uses prior first prompt 19085 and last prompt 51461 over 70 requests.",
+      "Actual task timing, polling, context growth, compaction, latency and environment can change consumption."
+    ]
+  },
+  "frozen_control": {
+    "source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+    "new_source_sha256_matches": true,
+    "scenario_equal_excluding_budget": true,
+    "scenario_excluding_budget_sha256": "f8236d3e13b7f0239cc21a889e80569195a440a5f9cdfe0159ffc0329af41368",
+    "same_case_and_version": true,
+    "unchanged_requirements": [
+      "Model configuration",
+      "Source and tools",
+      "Public prompt",
+      "World observer and scoring",
+      "Seed and initial setup",
+      "1700-second evaluation cap"
+    ],
+    "changed_only": [
+      "Resource budget profile: model-call ceiling 80 to 400 and cumulative-token ceiling 2600000 to 30000000"
+    ],
+    "original_record_preserved": true,
+    "initial_world_state_caveat": "The same seed does not guarantee identical spawn height or coordinates. Prior initial position was [160.5, 66.0, -127.5]; inspect and retain both actual initial snapshots before interpreting the comparison."
+  },
+  "limitations": [
+    "An enlarged resource budget tests whether early cutoff was a major constraint; it does not guarantee task success.",
+    "A budget-exhausted run establishes non-completion under recorded limits, not inability under every larger budget.",
+    "Cached input is counted in the cumulative token ceiling. It is not freshly generated text and token totals do not establish monetary cost.",
+    "Prior usage was 2540416 cached-input tokens, 88693 fresh-input tokens and 15994 output tokens; 96.04 percent of total was cached input.",
+    "The observer and prompt remain frozen; inefficiencies such as repeated status polling are preserved for this comparison.",
+    "This remains one exposed dev scenario and one new trajectory, not an independent success-rate estimate."
+  ],
+  "preparation_safety": {
+    "external_requests": 0,
+    "gradle_runs": 0,
+    "source_config_prompt_readme_or_old_archive_edits": false,
+    "continuous_polling": false
+  }
+}

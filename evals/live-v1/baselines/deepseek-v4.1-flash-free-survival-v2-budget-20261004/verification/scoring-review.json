@@ -1,0 +1,176 @@
+{
+  "review_status": "semantic_review_passed",
+  "evaluation_version": "survival-v2",
+  "case_id": "live.free-survival",
+  "world_observer": "free-survival-v2",
+  "run_directory": "build/evals/live-v1/free-survival-v2-20261004",
+  "request_scenario_matches_frozen_public_file": true,
+  "scenario_path": "evals/live-v1/scenarios/free-survival.json",
+  "scenario_file_sha256": "824e6934526a4afa0631fd84f784ea0bd892a96ae9294339a48ac20cd425e2d1",
+  "observer_path": "core/common/src/main/java/com/dwinovo/numen/core/eval/FreeSurvivalWorldObserver.java",
+  "observer_file_sha256": "2a00e92f32df8e07dfbe1f3f62044ce385562a74123d578f29f9b411bc3d3bde",
+  "public_initial_state": {
+    "inventory": {},
+    "health": 20,
+    "food": 14,
+    "saturation": 0,
+    "difficulty": "normal"
+  },
+  "milestones": [
+    {
+      "id": "first-safe-food",
+      "condition": {
+        "world": {
+          "food_nutrition": 4
+        }
+      }
+    },
+    {
+      "id": "effective-refuel",
+      "condition": {
+        "world": {
+          "safe_meals": 1
+        }
+      }
+    },
+    {
+      "id": "safe-food-reserve",
+      "condition": {
+        "world": {
+          "food_nutrition": 20
+        }
+      }
+    },
+    {
+      "id": "survived-first-cycle",
+      "condition": {
+        "min_health": 10,
+        "min_food": 12,
+        "world": {
+          "elapsed_ticks": 24000,
+          "safe_state": true
+        }
+      }
+    }
+  ],
+  "success": {
+    "min_health": 10,
+    "min_food": 12,
+    "world": {
+      "safe_meals": 1,
+      "food_nutrition": 20,
+      "elapsed_ticks": 24000,
+      "safe_state": true
+    }
+  },
+  "success_hold_ticks": 1200,
+  "run_budget": {
+    "max_model_calls": 80,
+    "max_seconds": 1700,
+    "max_tokens": 2600000
+  },
+  "route_constraints": {
+    "food_species_prescribed": false,
+    "requires_wheat": false,
+    "requires_harvest_replant": false,
+    "requires_hoe_or_pickaxe": false,
+    "requires_crafting_table_or_furnace": false,
+    "requires_building_or_room_shape": false,
+    "requires_repeatable_or_infinite_food_production": false,
+    "requires_dragon": false
+  },
+  "what_success_demonstrates": [
+    "Survived without death for at least 24000 actual overworld game ticks",
+    "Completed at least one native safe-food consumption with positive food or saturation gain",
+    "Retained safe-food inventory supplying at least 20 nutrition during the final hold",
+    "HP>=10, food>=12 and sampled current safety conditions all held together for 1200 ticks after minimum elapsed_ticks was reached"
+  ],
+  "what_success_does_not_demonstrate": [
+    "Infinite survival or renewable food production",
+    "Reproduction of the old sustainable wheat and rectangular shelter task",
+    "An independently constructed or continuously safe permanent base",
+    "Safety from every possible future environmental hazard or untargeted nearby mob"
+  ],
+  "observer_semantics": {
+    "consumption": "NumenPlayer.eat copies the real pre-consumption stack, runs vanilla native consumption, and reports to the active observer only when that input stack count decreases; accepted meals also require safeNutrition>0 and positive food or saturation delta.",
+    "reserve": "Current body inventory is read server-side; food nutrition includes real FOOD and SUSPICIOUS_STEW_EFFECTS components. Foods with possible harmful effects do not count.",
+    "elapsed_ticks": "Overworld getGameTime minus the first authoritative observer sample. getDayTime is not used, so sleep day-clock jumps do not satisfy the elapsed-tick criterion.",
+    "safety": "Alive; no fire, lava, fully frozen state, submerged eyes with air<=40, HARMFUL active effects, or alive Mob within Euclidean 16 blocks that targets this body and has line of sight.",
+    "meal_evidence": "First 64 meal records plus truncation indicator and independent first_effective_safe_meal preserve the first successful replenishment even after history fills.",
+    "hold": "LiveEvalRun requires all success conditions together, uses game_tick for the hold, resets on unmet conditions or an observation gap above 20 ticks, and fails on the first death."
+  },
+  "interpretation_limits": [
+    "Milestones latch when first attained; 4/4 alone is not final success unless the simultaneous hold criterion is also met.",
+    "The score uses periodic authoritative snapshots; the final safety claim is bounded by the specified hazard checks and observation cadence.",
+    "At nominal 20 TPS, elapsed24000 plus hold1200 implies about21 minutes before success. This is a world-tick requirement, not a guarantee about wall-clock duration; the1700-second wall budget allows nominally440 seconds beyond that minimum, while calls/tokens may exhaust earlier.",
+    "The initial food14/saturation0 is an explicit published fixture, not a hidden mid-run intervention."
+  ],
+  "comparability": {
+    "directly_comparable_to_survival_v1": false,
+    "old_evaluation_version": "survival-v1",
+    "old_case_id": "live.sustainable-survival",
+    "reason": "Both the public objective and scoring conditions changed. Keep v1 records as separate historical results; do not combine1/6 with v2 four-milestone scores or claim a same-task score gain."
+  },
+  "evidence": [
+    {
+      "path": "evals/live-v1/scenarios/free-survival.json",
+      "json_paths": [
+        "$.prompt",
+        "$.setup",
+        "$.success",
+        "$.milestones",
+        "$.success_hold_ticks"
+      ]
+    },
+    {
+      "path": "core/common/src/main/java/com/dwinovo/numen/core/eval/FreeSurvivalWorldObserver.java",
+      "lines": [
+        25,
+        30,
+        44,
+        50,
+        67,
+        77,
+        84,
+        103,
+        110
+      ]
+    },
+    {
+      "path": "api/common/src/main/java/com/dwinovo/numen/entity/NumenPlayer.java",
+      "lines": [
+        106,
+        108,
+        112,
+        114,
+        115
+      ]
+    },
+    {
+      "path": "api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java",
+      "lines": [
+        164,
+        165,
+        178
+      ]
+    },
+    {
+      "path": "agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java",
+      "lines": [
+        59,
+        62,
+        175,
+        188,
+        198,
+        201,
+        207,
+        212
+      ]
+    }
+  ],
+  "verification_reported_by_root": {
+    "new_gametests_passed": 7,
+    "full_gametest_total_passed": 273
+  },
+  "final_run_result": null
+}

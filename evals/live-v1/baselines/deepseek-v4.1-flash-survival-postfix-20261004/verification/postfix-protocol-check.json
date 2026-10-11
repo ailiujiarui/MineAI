@@ -1,0 +1,1682 @@
+{
+  "created_at_utc": "2026-10-04T11:35:19.058141+00:00",
+  "scope": "Read-only initial protocol audit plus completed post-fix result/source/chat/token-stop verification. No network/model calls, Gradle, source/config/world/prompt/README edits.",
+  "all_request_model_fixture_protocols_match": true,
+  "runs": [
+    {
+      "run_dir": "build/evals/live-v1/survival-postfix-20261004",
+      "run_id": "20261004T112758100085Z-f54d7a4b",
+      "run_started_at_utc": "2026-10-04T11:27:58.101027+00:00",
+      "run_status_at_read_time": "budget_exhausted",
+      "candidate": "f39ee4d9bfa0+4d82d348064d",
+      "source_sha256": "4d82d348064d82f1a47877571e5e5c854af15546cb1d332b93415341ee3e932e",
+      "source_manifest_entries": 1244,
+      "scenario_sha256": "1533ad96fa993ec7ad03003a961a9459438baa8369fb931312c7f5eceb09ceec",
+      "request_scenario_canonical_sha256": "ea8c74f4c91b223b5edaa0ce587de08873f0d1924fb6ea5ec0946c8e023b000d",
+      "prompt_sha256": "0820255087feb994047f22473fd00f81ab6d0479bfed922a365c09bbdfcf654d",
+      "model": {
+        "provider": "deepseek",
+        "model": "deepseek-v4.1-flash",
+        "context_window": 1000000,
+        "reasoning_effort": ""
+      },
+      "provider_binding": {
+        "id": "eval-model",
+        "provider": "deepseek",
+        "model": "deepseek-v4.1-flash",
+        "reasoning_effort": "",
+        "ctx": 1000000
+      },
+      "protocol": {
+        "evaluation_version": "survival-v1",
+        "case_id": "live.sustainable-survival",
+        "split": "dev",
+        "seed": 73002,
+        "world_preset": "normal",
+        "world_observer": "sustainable-survival-v1",
+        "success_hold_ticks": 1200,
+        "setup": {
+          "inventory": {}
+        },
+        "success": {
+          "min_health": 10,
+          "min_food": 12,
+          "world": {
+            "usable_pickaxe": true,
+            "usable_hoe": true,
+            "crafting_tables": 1,
+            "furnaces": 1,
+            "growing_wheat": 8,
+            "replanted_wheat": 3,
+            "food_nutrition": 20,
+            "shelter": true
+          }
+        },
+        "milestones": [
+          {
+            "id": "usable-tools",
+            "condition": {
+              "world": {
+                "usable_pickaxe": true,
+                "usable_hoe": true
+              }
+            }
+          },
+          {
+            "id": "placed-workstations",
+            "condition": {
+              "world": {
+                "crafting_tables": 1,
+                "furnaces": 1
+              }
+            }
+          },
+          {
+            "id": "growing-field",
+            "condition": {
+              "world": {
+                "growing_wheat": 8
+              }
+            }
+          },
+          {
+            "id": "harvest-and-replant",
+            "condition": {
+              "world": {
+                "replanted_wheat": 3
+              }
+            }
+          },
+          {
+            "id": "safe-food-reserve",
+            "condition": {
+              "world": {
+                "food_nutrition": 20
+              }
+            }
+          },
+          {
+            "id": "safe-base",
+            "condition": {
+              "min_health": 10,
+              "min_food": 12,
+              "world": {
+                "shelter": true
+              }
+            }
+          }
+        ],
+        "budget": {
+          "max_model_calls": 80,
+          "max_seconds": 1700,
+          "max_tokens": 2600000
+        }
+      },
+      "launcher": {
+        "offline_gradle": true,
+        "neoforge_version_override": "21.1.233",
+        "startup_seconds": 180
+      },
+      "fixture": {
+        "setup": {
+          "inventory": {}
+        },
+        "goal_max_turns": 30,
+        "goal_stuck_limit": 2,
+        "owner_mode": "spectator",
+        "owner_follows_companion": false,
+        "registered_tools": [
+          "command",
+          "goto",
+          "attack",
+          "locate_structure",
+          "locate_biome",
+          "collect_items",
+          "fish",
+          "follow",
+          "mine",
+          "equip_item",
+          "build",
+          "blueprint",
+          "blueprint_read",
+          "interact_at",
+          "sleep",
+          "interact_entity",
+          "eat",
+          "task_status",
+          "task_stop",
+          "set_timer",
+          "drop_items",
+          "take_items",
+          "inspect_gui",
+          "transfer",
+          "close_gui",
+          "get_self_status",
+          "get_owner_status",
+          "lookup_recipe",
+          "craft",
+          "scan_nearby_entities",
+          "scan_blocks",
+          "scaffold_materials",
+          "look_around",
+          "inspect_block",
+          "inspect_block_storage",
+          "get_world_info",
+          "todowrite",
+          "load_skill",
+          "remember",
+          "recall",
+          "forget",
+          "plan_route"
+        ],
+        "registered_game_tests": 0,
+        "client_tracking_limit": "Owner remains at spawn; built-in body and perception tools resolve the companion on the server by UUID. Client presentation and plugins that require a client entity may lose tracking beyond viewing distance or after dimension travel"
+      },
+      "initial_snapshot": {
+        "position": [
+          160.5,
+          78.0,
+          -127.5
+        ],
+        "inventory": {},
+        "health": 20.0,
+        "food": 20,
+        "alive": true,
+        "deaths": 0,
+        "dimension": "minecraft:overworld",
+        "current_task": null
+      },
+      "initial_world_facts": {
+        "growing_wheat": 0,
+        "crafting_tables": 0,
+        "furnaces": 0,
+        "usable_pickaxe": false,
+        "usable_hoe": false,
+        "food_nutrition": 0,
+        "shelter": false,
+        "replanted_wheat": 0
+      },
+      "sources": [
+        {
+          "file_ref": "build/evals/live-v1/survival-postfix-20261004/request.json",
+          "bytes": 4553,
+          "sha256": "12476b1a2665925921fc71745e1f77bd922d317058e4a1f10cae33a41542b805"
+        },
+        {
+          "file_ref": "build/evals/live-v1/survival-postfix-20261004/run.json",
+          "bytes": 4294,
+          "sha256": "cc8c4dc3ec9afafb8c8b5b960c0e3740978af8ee23ede08bc2bdcd1d6f41734c"
+        },
+        {
+          "file_ref": "build/evals/live-v1/survival-postfix-20261004/source-hashes.json",
+          "bytes": 184626,
+          "sha256": "d7a22b3603a26c2d209632f66e99c38c9eded04cb1bfd9622606ac4f56ad354a"
+        },
+        {
+          "file_ref": "build/evals/live-v1/survival-postfix-20261004/results/model.json",
+          "bytes": 117,
+          "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+        }
+      ],
+      "initial_trace_provenance": {
+        "file_ref": "build/evals/live-v1/survival-postfix-20261004/results/trace.jsonl",
+        "started_canonical_sha256": "4170c184e25bacf206887e0296157cf53c3060887fbcd4bdd3edc4cc3f4e461a",
+        "fixture_canonical_sha256": "17679b6a68402cc05752bb6c48a16c08eee508d8fc9a611002db77658e8f38c5",
+        "whole_trace_sha256_omitted_because_new_run_is_live": true
+      },
+      "pre_completion_status_at_initial_check": "launching",
+      "run_finished_at_utc": "2026-10-04T11:39:10.490372+00:00"
+    },
+    {
+      "run_dir": "build/evals/live-v1/20261004T085904056498Z-9f759470",
+      "run_id": "20261004T085904056498Z-9f759470",
+      "run_started_at_utc": "2026-10-04T08:59:04.057697+00:00",
+      "run_status_at_read_time": "budget_exhausted",
+      "candidate": "f39ee4d9bfa0+1b3e98c40b00",
+      "source_sha256": "1b3e98c40b00cd8be8e937cabf769c3dce208b7eb304694c50694b0acd568006",
+      "source_manifest_entries": 1244,
+      "scenario_sha256": "1533ad96fa993ec7ad03003a961a9459438baa8369fb931312c7f5eceb09ceec",
+      "request_scenario_canonical_sha256": "ea8c74f4c91b223b5edaa0ce587de08873f0d1924fb6ea5ec0946c8e023b000d",
+      "prompt_sha256": "0820255087feb994047f22473fd00f81ab6d0479bfed922a365c09bbdfcf654d",
+      "model": {
+        "provider": "deepseek",
+        "model": "deepseek-v4.1-flash",
+        "context_window": 1000000,
+        "reasoning_effort": ""
+      },
+      "provider_binding": {
+        "id": "eval-model",
+        "provider": "deepseek",
+        "model": "deepseek-v4.1-flash",
+        "reasoning_effort": "",
+        "ctx": 1000000
+      },
+      "protocol": {
+        "evaluation_version": "survival-v1",
+        "case_id": "live.sustainable-survival",
+        "split": "dev",
+        "seed": 73002,
+        "world_preset": "normal",
+        "world_observer": "sustainable-survival-v1",
+        "success_hold_ticks": 1200,
+        "setup": {
+          "inventory": {}
+        },
+        "success": {
+          "min_health": 10,
+          "min_food": 12,
+          "world": {
+            "usable_pickaxe": true,
+            "usable_hoe": true,
+            "crafting_tables": 1,
+            "furnaces": 1,
+            "growing_wheat": 8,
+            "replanted_wheat": 3,
+            "food_nutrition": 20,
+            "shelter": true
+          }
+        },
+        "milestones": [
+          {
+            "id": "usable-tools",
+            "condition": {
+              "world": {
+                "usable_pickaxe": true,
+                "usable_hoe": true
+              }
+            }
+          },
+          {
+            "id": "placed-workstations",
+            "condition": {
+              "world": {
+                "crafting_tables": 1,
+                "furnaces": 1
+              }
+            }
+          },
+          {
+            "id": "growing-field",
+            "condition": {
+              "world": {
+                "growing_wheat": 8
+              }
+            }
+          },
+          {
+            "id": "harvest-and-replant",
+            "condition": {
+              "world": {
+                "replanted_wheat": 3
+              }
+            }
+          },
+          {
+            "id": "safe-food-reserve",
+            "condition": {
+              "world": {
+                "food_nutrition": 20
+              }
+            }
+          },
+          {
+            "id": "safe-base",
+            "condition": {
+              "min_health": 10,
+              "min_food": 12,
+              "world": {
+                "shelter": true
+              }
+            }
+          }
+        ],
+        "budget": {
+          "max_model_calls": 80,
+          "max_seconds": 1700,
+          "max_tokens": 2600000
+        }
+      },
+      "launcher": {
+        "offline_gradle": true,
+        "neoforge_version_override": "21.1.233",
+        "startup_seconds": 600
+      },
+      "fixture": {
+        "setup": {
+          "inventory": {}
+        },
+        "goal_max_turns": 30,
+        "goal_stuck_limit": 2,
+        "owner_mode": "spectator",
+        "owner_follows_companion": false,
+        "registered_tools": [
+          "command",
+          "goto",
+          "attack",
+          "locate_structure",
+          "locate_biome",
+          "collect_items",
+          "fish",
+          "follow",
+          "mine",
+          "equip_item",
+          "build",
+          "blueprint",
+          "blueprint_read",
+          "interact_at",
+          "sleep",
+          "interact_entity",
+          "eat",
+          "task_status",
+          "task_stop",
+          "set_timer",
+          "drop_items",
+          "take_items",
+          "inspect_gui",
+          "transfer",
+          "close_gui",
+          "get_self_status",
+          "get_owner_status",
+          "lookup_recipe",
+          "craft",
+          "scan_nearby_entities",
+          "scan_blocks",
+          "scaffold_materials",
+          "look_around",
+          "inspect_block",
+          "inspect_block_storage",
+          "get_world_info",
+          "todowrite",
+          "load_skill",
+          "remember",
+          "recall",
+          "forget",
+          "plan_route"
+        ],
+        "registered_game_tests": 0,
+        "client_tracking_limit": "Owner remains at spawn; built-in body and perception tools resolve the companion on the server by UUID. Client presentation and plugins that require a client entity may lose tracking beyond viewing distance or after dimension travel"
+      },
+      "initial_snapshot": {
+        "position": [
+          160.5,
+          78.0,
+          -127.5
+        ],
+        "inventory": {},
+        "health": 20.0,
+        "food": 20,
+        "alive": true,
+        "deaths": 0,
+        "dimension": "minecraft:overworld",
+        "current_task": null
+      },
+      "initial_world_facts": {
+        "growing_wheat": 0,
+        "crafting_tables": 0,
+        "furnaces": 0,
+        "usable_pickaxe": false,
+        "usable_hoe": false,
+        "food_nutrition": 0,
+        "shelter": false,
+        "replanted_wheat": 0
+      },
+      "sources": [
+        {
+          "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/request.json",
+          "bytes": 4559,
+          "sha256": "8f5599b13808d2e2f38704723f061a8fec84369f950a7111abcb45b7f4d6bd79"
+        },
+        {
+          "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/run.json",
+          "bytes": 3822,
+          "sha256": "bc8ac64ebfcbb13282d2dc5bca600f8236ae37edb287722b62ecf462b1f63c80"
+        },
+        {
+          "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/source-hashes.json",
+          "bytes": 184626,
+          "sha256": "6b4a9c916acb9e9803de4f09ad3572dbf95e04f3329147578030c992cef44f1d"
+        },
+        {
+          "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/model.json",
+          "bytes": 117,
+          "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+        }
+      ],
+      "initial_trace_provenance": {
+        "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/trace.jsonl",
+        "started_canonical_sha256": "5f8f4617bf77294290510a195276fc1b878789b2749cf9ee1710c9b5807dd9c9",
+        "fixture_canonical_sha256": "17679b6a68402cc05752bb6c48a16c08eee508d8fc9a611002db77658e8f38c5",
+        "whole_trace_sha256_omitted_because_new_run_is_live": true
+      },
+      "pre_completion_status_at_initial_check": "budget_exhausted",
+      "run_finished_at_utc": "2026-10-04T09:28:01.091868+00:00"
+    },
+    {
+      "run_dir": "build/evals/live-v1/20261003T022055527569Z-300c622c",
+      "run_id": "20261003T022055527569Z-300c622c",
+      "run_started_at_utc": "2026-10-03T02:20:55.529034+00:00",
+      "run_status_at_read_time": "budget_exhausted",
+      "candidate": "f39ee4d9bfa0+1b3e98c40b00",
+      "source_sha256": "1b3e98c40b00cd8be8e937cabf769c3dce208b7eb304694c50694b0acd568006",
+      "source_manifest_entries": 1244,
+      "scenario_sha256": "1533ad96fa993ec7ad03003a961a9459438baa8369fb931312c7f5eceb09ceec",
+      "request_scenario_canonical_sha256": "ea8c74f4c91b223b5edaa0ce587de08873f0d1924fb6ea5ec0946c8e023b000d",
+      "prompt_sha256": "0820255087feb994047f22473fd00f81ab6d0479bfed922a365c09bbdfcf654d",
+      "model": {
+        "provider": "deepseek",
+        "model": "deepseek-v4.1-flash",
+        "context_window": 1000000,
+        "reasoning_effort": ""
+      },
+      "provider_binding": {
+        "id": "eval-model",
+        "provider": "deepseek",
+        "model": "deepseek-v4.1-flash",
+        "reasoning_effort": "",
+        "ctx": 1000000
+      },
+      "protocol": {
+        "evaluation_version": "survival-v1",
+        "case_id": "live.sustainable-survival",
+        "split": "dev",
+        "seed": 73002,
+        "world_preset": "normal",
+        "world_observer": "sustainable-survival-v1",
+        "success_hold_ticks": 1200,
+        "setup": {
+          "inventory": {}
+        },
+        "success": {
+          "min_health": 10,
+          "min_food": 12,
+          "world": {
+            "usable_pickaxe": true,
+            "usable_hoe": true,
+            "crafting_tables": 1,
+            "furnaces": 1,
+            "growing_wheat": 8,
+            "replanted_wheat": 3,
+            "food_nutrition": 20,
+            "shelter": true
+          }
+        },
+        "milestones": [
+          {
+            "id": "usable-tools",
+            "condition": {
+              "world": {
+                "usable_pickaxe": true,
+                "usable_hoe": true
+              }
+            }
+          },
+          {
+            "id": "placed-workstations",
+            "condition": {
+              "world": {
+                "crafting_tables": 1,
+                "furnaces": 1
+              }
+            }
+          },
+          {
+            "id": "growing-field",
+            "condition": {
+              "world": {
+                "growing_wheat": 8
+              }
+            }
+          },
+          {
+            "id": "harvest-and-replant",
+            "condition": {
+              "world": {
+                "replanted_wheat": 3
+              }
+            }
+          },
+          {
+            "id": "safe-food-reserve",
+            "condition": {
+              "world": {
+                "food_nutrition": 20
+              }
+            }
+          },
+          {
+            "id": "safe-base",
+            "condition": {
+              "min_health": 10,
+              "min_food": 12,
+              "world": {
+                "shelter": true
+              }
+            }
+          }
+        ],
+        "budget": {
+          "max_model_calls": 80,
+          "max_seconds": 1700,
+          "max_tokens": 2600000
+        }
+      },
+      "launcher": {
+        "offline_gradle": true,
+        "neoforge_version_override": "21.1.233",
+        "startup_seconds": 600
+      },
+      "fixture": {
+        "setup": {
+          "inventory": {}
+        },
+        "goal_max_turns": 30,
+        "goal_stuck_limit": 2,
+        "owner_mode": "spectator",
+        "owner_follows_companion": false,
+        "registered_tools": [
+          "command",
+          "goto",
+          "attack",
+          "locate_structure",
+          "locate_biome",
+          "collect_items",
+          "fish",
+          "follow",
+          "mine",
+          "equip_item",
+          "build",
+          "blueprint",
+          "blueprint_read",
+          "interact_at",
+          "sleep",
+          "interact_entity",
+          "eat",
+          "task_status",
+          "task_stop",
+          "set_timer",
+          "drop_items",
+          "take_items",
+          "inspect_gui",
+          "transfer",
+          "close_gui",
+          "get_self_status",
+          "get_owner_status",
+          "lookup_recipe",
+          "craft",
+          "scan_nearby_entities",
+          "scan_blocks",
+          "scaffold_materials",
+          "look_around",
+          "inspect_block",
+          "inspect_block_storage",
+          "get_world_info",
+          "todowrite",
+          "load_skill",
+          "remember",
+          "recall",
+          "forget",
+          "plan_route"
+        ],
+        "registered_game_tests": 0,
+        "client_tracking_limit": "Owner remains at spawn; built-in body and perception tools resolve the companion on the server by UUID. Client presentation and plugins that require a client entity may lose tracking beyond viewing distance or after dimension travel"
+      },
+      "initial_snapshot": {
+        "position": [
+          160.5,
+          66.0,
+          -127.5
+        ],
+        "inventory": {},
+        "health": 20.0,
+        "food": 20,
+        "alive": true,
+        "deaths": 0,
+        "dimension": "minecraft:overworld",
+        "current_task": null
+      },
+      "initial_world_facts": {
+        "growing_wheat": 0,
+        "crafting_tables": 0,
+        "furnaces": 0,
+        "usable_pickaxe": false,
+        "usable_hoe": false,
+        "food_nutrition": 0,
+        "shelter": false,
+        "replanted_wheat": 0
+      },
+      "sources": [
+        {
+          "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/request.json",
+          "bytes": 4559,
+          "sha256": "7644986d8f3cfc05d0c7f7462ca0650c8a25a9ff17c31fde136578c78d7886fe"
+        },
+        {
+          "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/run.json",
+          "bytes": 3822,
+          "sha256": "3dd619e72428e5148b4565471d597b80d9bf9f1bbf4ac8d4e4fe0b6df63bcb52"
+        },
+        {
+          "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/source-hashes.json",
+          "bytes": 184626,
+          "sha256": "6b4a9c916acb9e9803de4f09ad3572dbf95e04f3329147578030c992cef44f1d"
+        },
+        {
+          "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/model.json",
+          "bytes": 117,
+          "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+        }
+      ],
+      "initial_trace_provenance": {
+        "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/trace.jsonl",
+        "started_canonical_sha256": "59fc198fe4abf314bf1a4ff93332bc604b7c78a44140017f5044116e0b70b3e1",
+        "fixture_canonical_sha256": "17679b6a68402cc05752bb6c48a16c08eee508d8fc9a611002db77658e8f38c5",
+        "whole_trace_sha256_omitted_because_new_run_is_live": true
+      },
+      "pre_completion_status_at_initial_check": "budget_exhausted",
+      "run_finished_at_utc": "2026-10-03T02:49:55.121001+00:00"
+    }
+  ],
+  "comparisons": [
+    {
+      "new_run": "survival-postfix-20261004",
+      "old_run": "20261004T085904056498Z-9f759470",
+      "request_scenario_equal": true,
+      "prompt_equal": true,
+      "model_equal": true,
+      "provider_binding_equal": true,
+      "fixture_equal": true,
+      "initial_snapshot_equal": true,
+      "initial_world_facts_equal": true,
+      "added_source_files": [],
+      "removed_source_files": [],
+      "changed_source_files": [
+        {
+          "file_ref": "ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java",
+          "old_sha256": "cd0649a58de3eb2c568289e5166e594c5c75d91f3ce555a54aa9b14a97eb12c5",
+          "new_sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53"
+        },
+        {
+          "file_ref": "ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java",
+          "old_sha256": "8606d19016b8a5f052e08acad200fe6796155cbea2e2062bab55796c1cdf0145",
+          "new_sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325"
+        },
+        {
+          "file_ref": "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java",
+          "old_sha256": "0017243c32c60bc1b8c645ead99a8741e3ad5f3196581934c36c4a9efb452cc7",
+          "new_sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a"
+        },
+        {
+          "file_ref": "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java",
+          "old_sha256": "1abb31d08c19067657f3fe264d749d5c8b6ed4da4866f9d397611e61e10289d4",
+          "new_sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e"
+        },
+        {
+          "file_ref": "tools/run_live_eval.py",
+          "old_sha256": "066c16db681a2f48d9037a1e3a00026f913860e7e3cde296add1bd5f045512ef",
+          "new_sha256": "b3fcdca91a3eb1f7047c63c12178d093ddbfe26b437f93b148ec61d27c713f9a"
+        }
+      ],
+      "launcher_differences": [
+        {
+          "field": "startup_seconds",
+          "old_value": 600,
+          "new_value": 180
+        }
+      ]
+    },
+    {
+      "new_run": "survival-postfix-20261004",
+      "old_run": "20261003T022055527569Z-300c622c",
+      "request_scenario_equal": true,
+      "prompt_equal": true,
+      "model_equal": true,
+      "provider_binding_equal": true,
+      "fixture_equal": true,
+      "initial_snapshot_equal": false,
+      "initial_world_facts_equal": true,
+      "added_source_files": [],
+      "removed_source_files": [],
+      "changed_source_files": [
+        {
+          "file_ref": "ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java",
+          "old_sha256": "cd0649a58de3eb2c568289e5166e594c5c75d91f3ce555a54aa9b14a97eb12c5",
+          "new_sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53"
+        },
+        {
+          "file_ref": "ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java",
+          "old_sha256": "8606d19016b8a5f052e08acad200fe6796155cbea2e2062bab55796c1cdf0145",
+          "new_sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325"
+        },
+        {
+          "file_ref": "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java",
+          "old_sha256": "0017243c32c60bc1b8c645ead99a8741e3ad5f3196581934c36c4a9efb452cc7",
+          "new_sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a"
+        },
+        {
+          "file_ref": "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java",
+          "old_sha256": "1abb31d08c19067657f3fe264d749d5c8b6ed4da4866f9d397611e61e10289d4",
+          "new_sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e"
+        },
+        {
+          "file_ref": "tools/run_live_eval.py",
+          "old_sha256": "066c16db681a2f48d9037a1e3a00026f913860e7e3cde296add1bd5f045512ef",
+          "new_sha256": "b3fcdca91a3eb1f7047c63c12178d093ddbfe26b437f93b148ec61d27c713f9a"
+        }
+      ],
+      "launcher_differences": [
+        {
+          "field": "startup_seconds",
+          "old_value": 600,
+          "new_value": 180
+        }
+      ]
+    }
+  ],
+  "candidate_verification": {
+    "manifest_matches_current_workspace_at_read_time": true,
+    "matching_files": 1244,
+    "source_mismatches": [],
+    "computed_source_sha256": "4d82d348064d82f1a47877571e5e5c854af15546cb1d332b93415341ee3e932e",
+    "aggregate_digest_implementation": "Reused tools/run_bot_eval.py:digest_files, sorting native filesystem Path objects; hashes relative UTF-8 filename, NUL, then file bytes for each entry.",
+    "candidate_contains_http_and_gui_fixes": true,
+    "source_checks": {
+      "http_default_line_splitter_present": true,
+      "http_header_phase_logging_present": true,
+      "http_non2xx_phase_present": true,
+      "gui_inventory_menu_bypasses_get_type_for_adapter_lookup": true,
+      "gui_own_inventory_check_before_adapter_lookup": true
+    },
+    "changed_file_scope": {
+      "http_transport_and_regression_test": [
+        "ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java",
+        "ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java"
+      ],
+      "gui_inventory_inspection_and_regression_test": [
+        "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java",
+        "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java"
+      ],
+      "eval_evidence_export": [
+        "tools/run_live_eval.py"
+      ]
+    },
+    "prompt_protocol_observer_and_agent_loop_sources_unchanged": true
+  },
+  "differences_and_limits": [
+    "startup_seconds changed from 600 to 180. Scenario max_seconds remains 1700; authoritative started/fixture/model_call events confirm the startup ceiling did not prevent evaluation entry.",
+    "The new initial position matches the recent 20261004 pre-fix run at [160.5,78,-127.5]. The 20261003 run started at [160.5,66,-127.5]; seed equality alone does not guarantee identical initial spawn/canopy conditions.",
+    "The old world-generation-check.json verified actual seed 73002 for the old two worlds. This audit checks the new requested seed and authoritative initial snapshot without reading or modifying live level.dat.",
+    "All samples are one dev case with rep 0 and a stochastic model. A single post-fix rerun supports a case-level observation, not a general capability claim or causal certainty.",
+    "Post-completion source integrity and final result legality are now verified; post-fix status is budget_exhausted(max_tokens), not an infrastructure error or survival success. Exact upstream spend still requires separate billing reconciliation."
+  ],
+  "recommended_final_comparison_metrics": [
+    {
+      "metric": "protocol_and_candidate_integrity",
+      "evidence": "run.json/request.json/source-hashes.json and runner final integrity validation",
+      "purpose": "Confirm the scenario, prompt, model, budgets and final source freeze."
+    },
+    {
+      "metric": "capability_result",
+      "evidence": "results/result.json",
+      "purpose": "Compare status, success, passed milestone vector (0..6), success hold evidence and initial/final snapshots. Transport success alone is not a survival pass."
+    },
+    {
+      "metric": "progress_timing",
+      "evidence": "results/trace.jsonl authoritative snapshots",
+      "purpose": "Compare time to each milestone, final world facts, deaths/health/food and stuck/cancelled tasks."
+    },
+    {
+      "metric": "network_attempts_and_latency",
+      "evidence": "launcher.log per lr attempt plus model_call/model_usage trace",
+      "purpose": "Count actual attempts, completed responses, retries, idle kills and final cancellation; compare attempt-duration distributions and waiting fraction using one documented definition."
+    },
+    {
+      "metric": "header_line_phase_evidence",
+      "evidence": "new launcher.log header and idle diagnostics",
+      "purpose": "Report new header latency and stall phases. Historical logs lack stage instrumentation; do not invent comparable old header timings."
+    },
+    {
+      "metric": "gui_root_cause_recurrence",
+      "evidence": "launcher.log and redacted results/chat.jsonl tool results",
+      "purpose": "Check whether InventoryMenu getType/inspect_gui exceptions recur and whether inventory crafting progresses."
+    },
+    {
+      "metric": "reported_tokens_and_usage_completeness",
+      "evidence": "results/result.json and per-response launcher usage summaries",
+      "purpose": "Report uncached input, cache read, output, total including cache and usage_complete separately. Billing claims require independent reconciliation; incomplete usage is not verified complete spend."
+    }
+  ],
+  "final_checked_at_utc": "2026-10-04T11:50:38.967211+00:00",
+  "final_status": "budget_exhausted",
+  "final_reason": "max_tokens",
+  "final_success": false,
+  "final_validation": {
+    "all_three_runs_pass_existing_result_validator": true,
+    "postfix_source_freeze_verified": true,
+    "source_sha256": "4d82d348064d82f1a47877571e5e5c854af15546cb1d332b93415341ee3e932e",
+    "source_manifest_entries": 1244,
+    "source_mismatches": [],
+    "runner_successfully_reached_final_scored_metadata": true,
+    "run_summaries": [
+      {
+        "run_dir": "build/evals/live-v1/survival-postfix-20261004",
+        "run_id": "20261004T112758100085Z-f54d7a4b",
+        "status": "budget_exhausted",
+        "reason": "max_tokens",
+        "success": false,
+        "elapsed_ms": 640950.4102,
+        "launcher_duration_ms": 671621,
+        "launcher_exit_code": 0,
+        "launcher_timeout": false,
+        "launcher_interrupted": false,
+        "validator": "tools/run_live_eval.py:validate_result",
+        "validator_passed": true,
+        "result_spec_exactly_matches_request": true,
+        "progress_exactly_matches_result": true,
+        "finished_trace_matches_result": true,
+        "model_calls": 45,
+        "denied_model_calls": 0,
+        "usage_reports": 45,
+        "unknown_usage_reports": 0,
+        "usage_complete": true,
+        "tokens": {
+          "input": 116485,
+          "output": 66932,
+          "cache_read": 2472448,
+          "cache_write": 0,
+          "total": 2655865
+        },
+        "launcher_usage_records_match_token_totals": true,
+        "milestone_count": 1,
+        "milestone_vector": [
+          {
+            "id": "usable-tools",
+            "reached": true,
+            "elapsed_ms": 461047.4126
+          },
+          {
+            "id": "placed-workstations",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "growing-field",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "harvest-and-replant",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "safe-food-reserve",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "safe-base",
+            "reached": false,
+            "elapsed_ms": null
+          }
+        ],
+        "success_held_ticks": 0,
+        "initial_position": [
+          160.5,
+          78.0,
+          -127.5
+        ],
+        "final_health": 20.0,
+        "final_food": 20,
+        "final_deaths": 0,
+        "final_world_facts": {
+          "growing_wheat": 0,
+          "crafting_tables": 1,
+          "furnaces": 0,
+          "usable_pickaxe": true,
+          "usable_hoe": true,
+          "food_nutrition": 0,
+          "shelter": false,
+          "replanted_wheat": 0
+        },
+        "sources": [
+          {
+            "file_ref": "build/evals/live-v1/survival-postfix-20261004/run.json",
+            "bytes": 4294,
+            "sha256": "cc8c4dc3ec9afafb8c8b5b960c0e3740978af8ee23ede08bc2bdcd1d6f41734c"
+          },
+          {
+            "file_ref": "build/evals/live-v1/survival-postfix-20261004/request.json",
+            "bytes": 4553,
+            "sha256": "12476b1a2665925921fc71745e1f77bd922d317058e4a1f10cae33a41542b805"
+          },
+          {
+            "file_ref": "build/evals/live-v1/survival-postfix-20261004/results/result.json",
+            "bytes": 10468,
+            "sha256": "2601ced1693fc28c9cfaa5766856393b9589256ca1c0db9b11176571af6e5d72"
+          },
+          {
+            "file_ref": "build/evals/live-v1/survival-postfix-20261004/results/progress.json",
+            "bytes": 10468,
+            "sha256": "2601ced1693fc28c9cfaa5766856393b9589256ca1c0db9b11176571af6e5d72"
+          },
+          {
+            "file_ref": "build/evals/live-v1/survival-postfix-20261004/results/model.json",
+            "bytes": 117,
+            "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+          },
+          {
+            "file_ref": "build/evals/live-v1/survival-postfix-20261004/results/trace.json",
+            "bytes": 5310600,
+            "sha256": "0cf5e38fa9ebb7b3e3c1b0838d5e1ded647e7b4dc4f2aada16ab943679885bf7"
+          },
+          {
+            "file_ref": "build/evals/live-v1/survival-postfix-20261004/results/trace.jsonl",
+            "bytes": 2907323,
+            "sha256": "24cfba6a8c2e652a38c4a6508f4791db9cb7d0265ad7a77b962705db0686dfa1"
+          },
+          {
+            "file_ref": "build/evals/live-v1/survival-postfix-20261004/launcher.log",
+            "bytes": 128333,
+            "sha256": "e8db2796b502d919af6f1d51d7eb725a7383c8971b24b9230ed4a2b073d274c0"
+          }
+        ]
+      },
+      {
+        "run_dir": "build/evals/live-v1/20261004T085904056498Z-9f759470",
+        "run_id": "20261004T085904056498Z-9f759470",
+        "status": "budget_exhausted",
+        "reason": "max_seconds",
+        "success": false,
+        "elapsed_ms": 1700028.6634,
+        "launcher_duration_ms": 1736295,
+        "launcher_exit_code": 0,
+        "launcher_timeout": false,
+        "launcher_interrupted": false,
+        "validator": "tools/run_live_eval.py:validate_result",
+        "validator_passed": true,
+        "result_spec_exactly_matches_request": true,
+        "progress_exactly_matches_result": true,
+        "finished_trace_matches_result": true,
+        "model_calls": 56,
+        "denied_model_calls": 0,
+        "usage_reports": 40,
+        "unknown_usage_reports": 0,
+        "usage_complete": false,
+        "tokens": {
+          "input": 80243,
+          "output": 23269,
+          "cache_read": 1434752,
+          "cache_write": 0,
+          "total": 1538264
+        },
+        "launcher_usage_records_match_token_totals": true,
+        "milestone_count": 1,
+        "milestone_vector": [
+          {
+            "id": "usable-tools",
+            "reached": true,
+            "elapsed_ms": 1516560.4277
+          },
+          {
+            "id": "placed-workstations",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "growing-field",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "harvest-and-replant",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "safe-food-reserve",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "safe-base",
+            "reached": false,
+            "elapsed_ms": null
+          }
+        ],
+        "success_held_ticks": 0,
+        "initial_position": [
+          160.5,
+          78.0,
+          -127.5
+        ],
+        "final_health": 20.0,
+        "final_food": 20,
+        "final_deaths": 0,
+        "final_world_facts": {
+          "growing_wheat": 0,
+          "crafting_tables": 1,
+          "furnaces": 0,
+          "usable_pickaxe": true,
+          "usable_hoe": true,
+          "food_nutrition": 0,
+          "shelter": false,
+          "replanted_wheat": 0
+        },
+        "sources": [
+          {
+            "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/run.json",
+            "bytes": 3822,
+            "sha256": "bc8ac64ebfcbb13282d2dc5bca600f8236ae37edb287722b62ecf462b1f63c80"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/request.json",
+            "bytes": 4559,
+            "sha256": "8f5599b13808d2e2f38704723f061a8fec84369f950a7111abcb45b7f4d6bd79"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/result.json",
+            "bytes": 10220,
+            "sha256": "79e6c02bb69b81fe711b8c50a43613a78b7ea3e8cc3b7d3fa62185cd890af33a"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/progress.json",
+            "bytes": 10220,
+            "sha256": "79e6c02bb69b81fe711b8c50a43613a78b7ea3e8cc3b7d3fa62185cd890af33a"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/model.json",
+            "bytes": 117,
+            "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/trace.json",
+            "bytes": 12068860,
+            "sha256": "782f7c7c96ba20fe7c5a9bbfa2c22cdc20639fbc4073cac50c152a9cd26b3adf"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/results/trace.jsonl",
+            "bytes": 6465166,
+            "sha256": "7e7237daf9c255c42efcf7ef0675acf44a3ff98b5e2142639ef6771071422846"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261004T085904056498Z-9f759470/launcher.log",
+            "bytes": 150408,
+            "sha256": "bedb5717d13fd11d91a88a78337218a9515f7434e6968b9521a131c0b838928d"
+          }
+        ]
+      },
+      {
+        "run_dir": "build/evals/live-v1/20261003T022055527569Z-300c622c",
+        "run_id": "20261003T022055527569Z-300c622c",
+        "status": "budget_exhausted",
+        "reason": "max_seconds",
+        "success": false,
+        "elapsed_ms": 1700033.8171,
+        "launcher_duration_ms": 1738758,
+        "launcher_exit_code": 0,
+        "launcher_timeout": false,
+        "launcher_interrupted": false,
+        "validator": "tools/run_live_eval.py:validate_result",
+        "validator_passed": true,
+        "result_spec_exactly_matches_request": true,
+        "progress_exactly_matches_result": true,
+        "finished_trace_matches_result": true,
+        "model_calls": 58,
+        "denied_model_calls": 0,
+        "usage_reports": 45,
+        "unknown_usage_reports": 0,
+        "usage_complete": false,
+        "tokens": {
+          "input": 119837,
+          "output": 45084,
+          "cache_read": 2316288,
+          "cache_write": 0,
+          "total": 2481209
+        },
+        "launcher_usage_records_match_token_totals": true,
+        "milestone_count": 1,
+        "milestone_vector": [
+          {
+            "id": "usable-tools",
+            "reached": true,
+            "elapsed_ms": 865538.641
+          },
+          {
+            "id": "placed-workstations",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "growing-field",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "harvest-and-replant",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "safe-food-reserve",
+            "reached": false,
+            "elapsed_ms": null
+          },
+          {
+            "id": "safe-base",
+            "reached": false,
+            "elapsed_ms": null
+          }
+        ],
+        "success_held_ticks": 0,
+        "initial_position": [
+          160.5,
+          66.0,
+          -127.5
+        ],
+        "final_health": 12.533333,
+        "final_food": 16,
+        "final_deaths": 0,
+        "final_world_facts": {
+          "growing_wheat": 0,
+          "crafting_tables": 1,
+          "furnaces": 0,
+          "usable_pickaxe": true,
+          "usable_hoe": true,
+          "food_nutrition": 0,
+          "shelter": false,
+          "replanted_wheat": 0
+        },
+        "sources": [
+          {
+            "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/run.json",
+            "bytes": 3822,
+            "sha256": "3dd619e72428e5148b4565471d597b80d9bf9f1bbf4ac8d4e4fe0b6df63bcb52"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/request.json",
+            "bytes": 4559,
+            "sha256": "7644986d8f3cfc05d0c7f7462ca0650c8a25a9ff17c31fde136578c78d7886fe"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/result.json",
+            "bytes": 11108,
+            "sha256": "368407a0469bdd71502fd99281cb8fee66ddbf3142fb184c4b2c5efa723c8bd3"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/progress.json",
+            "bytes": 11108,
+            "sha256": "368407a0469bdd71502fd99281cb8fee66ddbf3142fb184c4b2c5efa723c8bd3"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/model.json",
+            "bytes": 117,
+            "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/trace.json",
+            "bytes": 16736695,
+            "sha256": "ac167dda63d8a3e66dd5c548532880f29161c4130bbde655b86b832531ad3343"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/results/trace.jsonl",
+            "bytes": 9168931,
+            "sha256": "46762fa9d89366ef213aa0dbf56f7381eb73510876dd1f04ecd13e0a5d94e352"
+          },
+          {
+            "file_ref": "build/evals/live-v1/20261003T022055527569Z-300c622c/launcher.log",
+            "bytes": 180897,
+            "sha256": "05cfd26bc64c7f1e59f89a826995077f828be6a4b98d88615930cd8274aa74dc"
+          }
+        ]
+      }
+    ],
+    "chat_export": {
+      "metadata": {
+        "status": "captured",
+        "companion_uuid": "e81e73e5-c483-4ca6-b071-1c2111c07e3f",
+        "source_ref": "game/config/numen/companions/e81e73e5-c483-4ca6-b071-1c2111c07e3f/chat.jsonl",
+        "file_ref": "results/chat.jsonl",
+        "sha256": "74a13333e50528b3e952bfdb24dc33e9798c1b272669ab6709835ad6ec061d0e"
+      },
+      "source": {
+        "file_ref": "build/evals/live-v1/survival-postfix-20261004/game/config/numen/companions/e81e73e5-c483-4ca6-b071-1c2111c07e3f/chat.jsonl",
+        "bytes": 519232,
+        "sha256": "74a13333e50528b3e952bfdb24dc33e9798c1b272669ab6709835ad6ec061d0e"
+      },
+      "export": {
+        "file_ref": "build/evals/live-v1/survival-postfix-20261004/results/chat.jsonl",
+        "bytes": 519232,
+        "sha256": "74a13333e50528b3e952bfdb24dc33e9798c1b272669ab6709835ad6ec061d0e"
+      },
+      "metadata_sha256_matches": true,
+      "source_and_export_bytes_equal": true,
+      "valid_jsonl_record_count": 123,
+      "role_counts": {
+        "user": 6,
+        "assistant": 45,
+        "tool": 70
+      },
+      "assistant_reasoning_records": 45,
+      "header_records": 1,
+      "halt_records": 1,
+      "credential_audit_note": "This verifies selected transcript and export integrity without reading provider credentials. Root owns final exact-secret comparison; byte equality alone is not a credential-leak guarantee."
+    },
+    "new_network_summary": {
+      "actual_model_call_events": 45,
+      "purpose_counts": {
+        "TURN": 45
+      },
+      "headers_received": 45,
+      "all_header_statuses": 200,
+      "completed_usage_records": 45,
+      "retry_logs": 0,
+      "timeout_logs": 0,
+      "caller_cancelled_http_logs": 0,
+      "headers_latency_ms": {
+        "min": 1707,
+        "median": 2207,
+        "max": 3222
+      },
+      "per_response_usage": [
+        {
+          "elapsed_ms": 3738,
+          "json_chunks": 84,
+          "prompt_tokens": 19399,
+          "output_tokens": 279,
+          "total_tokens": 19678
+        },
+        {
+          "elapsed_ms": 26620,
+          "json_chunks": 1272,
+          "prompt_tokens": 21961,
+          "output_tokens": 3311,
+          "total_tokens": 25272
+        },
+        {
+          "elapsed_ms": 55401,
+          "json_chunks": 2663,
+          "prompt_tokens": 29903,
+          "output_tokens": 6905,
+          "total_tokens": 36808
+        },
+        {
+          "elapsed_ms": 9876,
+          "json_chunks": 443,
+          "prompt_tokens": 37108,
+          "output_tokens": 1277,
+          "total_tokens": 38385
+        },
+        {
+          "elapsed_ms": 7382,
+          "json_chunks": 253,
+          "prompt_tokens": 39133,
+          "output_tokens": 781,
+          "total_tokens": 39914
+        },
+        {
+          "elapsed_ms": 2735,
+          "json_chunks": 34,
+          "prompt_tokens": 40045,
+          "output_tokens": 83,
+          "total_tokens": 40128
+        },
+        {
+          "elapsed_ms": 2251,
+          "json_chunks": 29,
+          "prompt_tokens": 40209,
+          "output_tokens": 82,
+          "total_tokens": 40291
+        },
+        {
+          "elapsed_ms": 2789,
+          "json_chunks": 56,
+          "prompt_tokens": 40372,
+          "output_tokens": 161,
+          "total_tokens": 40533
+        },
+        {
+          "elapsed_ms": 3198,
+          "json_chunks": 54,
+          "prompt_tokens": 40614,
+          "output_tokens": 149,
+          "total_tokens": 40763
+        },
+        {
+          "elapsed_ms": 2319,
+          "json_chunks": 25,
+          "prompt_tokens": 40844,
+          "output_tokens": 70,
+          "total_tokens": 40914
+        },
+        {
+          "elapsed_ms": 2720,
+          "json_chunks": 39,
+          "prompt_tokens": 41004,
+          "output_tokens": 105,
+          "total_tokens": 41109
+        },
+        {
+          "elapsed_ms": 16453,
+          "json_chunks": 603,
+          "prompt_tokens": 41116,
+          "output_tokens": 1815,
+          "total_tokens": 42931
+        },
+        {
+          "elapsed_ms": 4148,
+          "json_chunks": 106,
+          "prompt_tokens": 42998,
+          "output_tokens": 321,
+          "total_tokens": 43319
+        },
+        {
+          "elapsed_ms": 14827,
+          "json_chunks": 685,
+          "prompt_tokens": 43463,
+          "output_tokens": 2005,
+          "total_tokens": 45468
+        },
+        {
+          "elapsed_ms": 3689,
+          "json_chunks": 67,
+          "prompt_tokens": 45548,
+          "output_tokens": 201,
+          "total_tokens": 45749
+        },
+        {
+          "elapsed_ms": 4345,
+          "json_chunks": 103,
+          "prompt_tokens": 45838,
+          "output_tokens": 285,
+          "total_tokens": 46123
+        },
+        {
+          "elapsed_ms": 6899,
+          "json_chunks": 254,
+          "prompt_tokens": 46202,
+          "output_tokens": 796,
+          "total_tokens": 46998
+        },
+        {
+          "elapsed_ms": 7510,
+          "json_chunks": 238,
+          "prompt_tokens": 47129,
+          "output_tokens": 716,
+          "total_tokens": 47845
+        },
+        {
+          "elapsed_ms": 3870,
+          "json_chunks": 72,
+          "prompt_tokens": 48038,
+          "output_tokens": 223,
+          "total_tokens": 48261
+        },
+        {
+          "elapsed_ms": 43173,
+          "json_chunks": 2006,
+          "prompt_tokens": 48840,
+          "output_tokens": 5996,
+          "total_tokens": 54836
+        },
+        {
+          "elapsed_ms": 15455,
+          "json_chunks": 625,
+          "prompt_tokens": 55691,
+          "output_tokens": 1775,
+          "total_tokens": 57466
+        },
+        {
+          "elapsed_ms": 3108,
+          "json_chunks": 50,
+          "prompt_tokens": 59738,
+          "output_tokens": 134,
+          "total_tokens": 59872
+        },
+        {
+          "elapsed_ms": 9164,
+          "json_chunks": 324,
+          "prompt_tokens": 59949,
+          "output_tokens": 1022,
+          "total_tokens": 60971
+        },
+        {
+          "elapsed_ms": 2820,
+          "json_chunks": 57,
+          "prompt_tokens": 61031,
+          "output_tokens": 150,
+          "total_tokens": 61181
+        },
+        {
+          "elapsed_ms": 11654,
+          "json_chunks": 488,
+          "prompt_tokens": 61254,
+          "output_tokens": 1492,
+          "total_tokens": 62746
+        },
+        {
+          "elapsed_ms": 2931,
+          "json_chunks": 47,
+          "prompt_tokens": 62955,
+          "output_tokens": 123,
+          "total_tokens": 63078
+        },
+        {
+          "elapsed_ms": 3629,
+          "json_chunks": 76,
+          "prompt_tokens": 63160,
+          "output_tokens": 211,
+          "total_tokens": 63371
+        },
+        {
+          "elapsed_ms": 2750,
+          "json_chunks": 36,
+          "prompt_tokens": 63453,
+          "output_tokens": 102,
+          "total_tokens": 63555
+        },
+        {
+          "elapsed_ms": 2988,
+          "json_chunks": 23,
+          "prompt_tokens": 63637,
+          "output_tokens": 64,
+          "total_tokens": 63701
+        },
+        {
+          "elapsed_ms": 2717,
+          "json_chunks": 33,
+          "prompt_tokens": 63783,
+          "output_tokens": 88,
+          "total_tokens": 63871
+        },
+        {
+          "elapsed_ms": 3246,
+          "json_chunks": 31,
+          "prompt_tokens": 63953,
+          "output_tokens": 87,
+          "total_tokens": 64040
+        },
+        {
+          "elapsed_ms": 2724,
+          "json_chunks": 27,
+          "prompt_tokens": 64122,
+          "output_tokens": 76,
+          "total_tokens": 64198
+        },
+        {
+          "elapsed_ms": 2991,
+          "json_chunks": 15,
+          "prompt_tokens": 64280,
+          "output_tokens": 39,
+          "total_tokens": 64319
+        },
+        {
+          "elapsed_ms": 12542,
+          "json_chunks": 536,
+          "prompt_tokens": 64367,
+          "output_tokens": 1774,
+          "total_tokens": 66141
+        },
+        {
+          "elapsed_ms": 34189,
+          "json_chunks": 1482,
+          "prompt_tokens": 66248,
+          "output_tokens": 4473,
+          "total_tokens": 70721
+        },
+        {
+          "elapsed_ms": 7244,
+          "json_chunks": 237,
+          "prompt_tokens": 70788,
+          "output_tokens": 767,
+          "total_tokens": 71555
+        },
+        {
+          "elapsed_ms": 17893,
+          "json_chunks": 834,
+          "prompt_tokens": 71801,
+          "output_tokens": 2446,
+          "total_tokens": 74247
+        },
+        {
+          "elapsed_ms": 7679,
+          "json_chunks": 216,
+          "prompt_tokens": 74328,
+          "output_tokens": 685,
+          "total_tokens": 75013
+        },
+        {
+          "elapsed_ms": 5775,
+          "json_chunks": 197,
+          "prompt_tokens": 75150,
+          "output_tokens": 561,
+          "total_tokens": 75711
+        },
+        {
+          "elapsed_ms": 58124,
+          "json_chunks": 2597,
+          "prompt_tokens": 76653,
+          "output_tokens": 8557,
+          "total_tokens": 85210
+        },
+        {
+          "elapsed_ms": 70941,
+          "json_chunks": 3193,
+          "prompt_tokens": 85317,
+          "output_tokens": 10132,
+          "total_tokens": 95449
+        },
+        {
+          "elapsed_ms": 31787,
+          "json_chunks": 1414,
+          "prompt_tokens": 95522,
+          "output_tokens": 4745,
+          "total_tokens": 100267
+        },
+        {
+          "elapsed_ms": 4442,
+          "json_chunks": 58,
+          "prompt_tokens": 100452,
+          "output_tokens": 171,
+          "total_tokens": 100623
+        },
+        {
+          "elapsed_ms": 3608,
+          "json_chunks": 22,
+          "prompt_tokens": 100701,
+          "output_tokens": 57,
+          "total_tokens": 100758
+        },
+        {
+          "elapsed_ms": 10724,
+          "json_chunks": 713,
+          "prompt_tokens": 100836,
+          "output_tokens": 1640,
+          "total_tokens": 102476
+        }
+      ]
+    },
+    "final_comparability": {
+      "request_scenario_model_prompt_fixture_still_match": true,
+      "prefer_recent_prefix_run": "20261004T085904056498Z-9f759470",
+      "recent_prefix_initial_position_matches": true,
+      "older_prefix_initial_position_differs_in_y": true,
+      "all_are_dev_rep0": true,
+      "all_achieved_same_single_milestone": "usable-tools",
+      "termination_reason_differs": "The post-fix run reached observed-token budget in 640950.4102ms; both older runs hit wall-clock budget at about 1700000ms. Same configured budgets do not imply equal number of completed model decisions.",
+      "billing_not_verified_from_usage_complete_alone": true
+    }
+  },
+  "token_budget_audit": {
+    "budget_semantics": "Stop threshold on cumulatively reported prompt+output usage, including cache read/write. A call is permitted before sending using already-reported usage; provider final usage may make that call cross the threshold. This is not a hard pre-request reservation of unknown future tokens.",
+    "threshold": 2600000,
+    "final_observed_total": 2655865,
+    "overshoot": 55865,
+    "overshoot_percent": 2.148653846153846,
+    "after_44_completed_calls": 2553389,
+    "remaining_before_call_45": 46611,
+    "call_45_usage": {
+      "elapsed_ms": 10724,
+      "json_chunks": 713,
+      "prompt_tokens": 100836,
+      "output_tokens": 1640,
+      "total_tokens": 102476
+    },
+    "equation": "2553389 + 102476 = 2655865; 102476 - 46611 = 55865",
+    "prompt_total_including_cache": 2588933,
+    "uncached_input": 116485,
+    "cache_read": 2472448,
+    "cache_write": 0,
+    "output": 66932,
+    "fresh_tokens_excluding_cache_read": 183417,
+    "calls": 45,
+    "usage_reports": 45,
+    "unknown_usage_reports": 0,
+    "usage_complete": true,
+    "no_request_46": true,
+    "last_usage_elapsed_ms": 640804.543,
+    "final_finished_elapsed_ms": 640950.4102,
+    "usage_to_final_observation_ms": 145.86720000009518,
+    "last_assistant_tool_call_ids": [
+      "call_00_tccoisfqy0hq05ugncnwrgk5"
+    ],
+    "last_assistant_tools_not_started": true,
+    "termination_precedence": "After usage exceeds threshold, used() marks pending max_tokens; beforeTool rejects additional tool work, and the next authoritative observation finalizes budget_exhausted. The time (1700s) and call-count (80) limits were not reached.",
+    "source_evidence": [
+      {
+        "file_ref": "tools/run_live_eval.py",
+        "line": 362,
+        "fact": "--max-tokens help explicitly says a final call may overshoot."
+      },
+      {
+        "file_ref": "agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java",
+        "line": 103,
+        "fact": "tryModelCall checks already-reported cumulative usage before each real send."
+      },
+      {
+        "file_ref": "agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java",
+        "line": 129,
+        "fact": "used accumulates full provider usage, including cache categories, then marks max_tokens pending above threshold."
+      },
+      {
+        "file_ref": "agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java",
+        "line": 172,
+        "fact": "observe ends the run when observed usage exceeds maxTokens before awarding further milestones."
+      },
+      {
+        "file_ref": "ai/src/main/java/com/dwinovo/numen/agent/provider/Usage.java",
+        "line": 31,
+        "fact": "total=uncached input+cacheRead+cacheWrite+output."
+      },
+      {
+        "file_ref": "api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalClient.java",
+        "line": 225,
+        "fact": "ModelUsed event feeds reported usage into LiveEvalRun."
+      },
+      {
+        "file_ref": "agent/src/test/java/com/dwinovo/numen/agent/acceptance/LiveEvalRunTest.java",
+        "line": 281,
+        "fact": "Existing cacheTokensCountTowardTheExplicitBudget test confirms cache tokens count; no test run performed for this audit."
+      }
+    ]
+  }
+}

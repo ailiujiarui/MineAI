@@ -1,0 +1,400 @@
+{
+  "record_type": "read_only_world_generation_check",
+  "created_at_utc": "2026-10-04T09:18:05.204535+00:00",
+  "method": "Python standard-library gzip/zlib decompression and NBT parsing of saved level.dat and region chunk; no installed NBT package, network, game interaction or source modification",
+  "runs": [
+    {
+      "run_id": "20261003T022055527569Z-300c622c",
+      "requested_seed": 73002,
+      "actual_seed": 73002,
+      "world_gen_settings": {
+        "bonus_chest": 0,
+        "seed": 73002,
+        "generate_features": 1,
+        "dimensions": {
+          "minecraft:overworld": {
+            "generator": {
+              "settings": "minecraft:overworld",
+              "biome_source": {
+                "preset": "minecraft:overworld",
+                "type": "minecraft:multi_noise"
+              },
+              "type": "minecraft:noise"
+            },
+            "type": "minecraft:overworld"
+          },
+          "minecraft:the_nether": {
+            "generator": {
+              "settings": "minecraft:nether",
+              "biome_source": {
+                "preset": "minecraft:nether",
+                "type": "minecraft:multi_noise"
+              },
+              "type": "minecraft:noise"
+            },
+            "type": "minecraft:the_nether"
+          },
+          "minecraft:the_end": {
+            "generator": {
+              "settings": "minecraft:end",
+              "biome_source": {
+                "type": "minecraft:the_end"
+              },
+              "type": "minecraft:noise"
+            },
+            "type": "minecraft:the_end"
+          }
+        }
+      },
+      "minecraft_version": {
+        "Snapshot": 0,
+        "Series": "main",
+        "Id": 3955,
+        "Name": "1.21.1"
+      },
+      "data_version": 3955,
+      "saved_spawn": {
+        "SpawnX": 160,
+        "SpawnY": 66,
+        "SpawnZ": -128,
+        "SpawnAngle": 0.0
+      },
+      "saved_time": 33978,
+      "saved_day_time": 33978,
+      "level_dat": {
+        "path": "E:\\mineAI\\build\\evals\\live-v1\\20261003T022055527569Z-300c622c\\game\\saves\\numen-eval-d4a5b6df92f24fa5b453d95856339dd3\\level.dat",
+        "sha256": "4d52b19f8cb4e90b21abe2dfe5de1125c285139143ac8de6100ea90a3bc3bfda",
+        "read_at_utc": "2026-10-04T09:18:05.179908+00:00",
+        "bytes": 2416
+      },
+      "initial_snapshot": {
+        "position": [
+          160.5,
+          66.0,
+          -127.5
+        ],
+        "game_tick": 48
+      },
+      "saved_chunk": {
+        "region_path": "E:\\mineAI\\build\\evals\\live-v1\\20261003T022055527569Z-300c622c\\game\\saves\\numen-eval-d4a5b6df92f24fa5b453d95856339dd3\\region\\r.0.-1.mca",
+        "region_sha256": "0eaa65d434305f316e2457ee99b6d3e2734a0aba8451f1140a3d5812730b875d",
+        "read_at_utc": "2026-10-04T09:18:05.182568+00:00",
+        "chunk_position": [
+          10,
+          -8
+        ],
+        "status": "minecraft:full",
+        "last_update_game_tick": 29012,
+        "block_column_x160_z_minus128": [
+          {
+            "y": 60,
+            "block": "minecraft:dirt"
+          },
+          {
+            "y": 61,
+            "block": "minecraft:dirt"
+          },
+          {
+            "y": 62,
+            "block": "minecraft:grass_block"
+          },
+          {
+            "y": 63,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 64,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 65,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 66,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 67,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 68,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 69,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 70,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 71,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 72,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 73,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 74,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 75,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 76,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 77,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 78,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 79,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 80,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 81,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 82,
+            "block": "minecraft:air"
+          }
+        ]
+      }
+    },
+    {
+      "run_id": "20261004T085904056498Z-9f759470",
+      "requested_seed": 73002,
+      "actual_seed": 73002,
+      "world_gen_settings": {
+        "bonus_chest": 0,
+        "seed": 73002,
+        "generate_features": 1,
+        "dimensions": {
+          "minecraft:overworld": {
+            "generator": {
+              "settings": "minecraft:overworld",
+              "biome_source": {
+                "preset": "minecraft:overworld",
+                "type": "minecraft:multi_noise"
+              },
+              "type": "minecraft:noise"
+            },
+            "type": "minecraft:overworld"
+          },
+          "minecraft:the_nether": {
+            "generator": {
+              "settings": "minecraft:nether",
+              "biome_source": {
+                "preset": "minecraft:nether",
+                "type": "minecraft:multi_noise"
+              },
+              "type": "minecraft:noise"
+            },
+            "type": "minecraft:the_nether"
+          },
+          "minecraft:the_end": {
+            "generator": {
+              "settings": "minecraft:end",
+              "biome_source": {
+                "type": "minecraft:the_end"
+              },
+              "type": "minecraft:noise"
+            },
+            "type": "minecraft:the_end"
+          }
+        }
+      },
+      "minecraft_version": {
+        "Snapshot": 0,
+        "Series": "main",
+        "Id": 3955,
+        "Name": "1.21.1"
+      },
+      "data_version": 3955,
+      "saved_spawn": {
+        "SpawnX": 160,
+        "SpawnY": 78,
+        "SpawnZ": -128,
+        "SpawnAngle": 0.0
+      },
+      "saved_time": 18000,
+      "saved_day_time": 18000,
+      "level_dat": {
+        "path": "E:\\mineAI\\build\\evals\\live-v1\\20261004T085904056498Z-9f759470\\game\\saves\\numen-eval-cf04617752b644afaae37bdcb2f5250f\\level.dat",
+        "sha256": "ffda0d9eb747e186d002dc8ca83da416b38d183416652de98cbf27df15b68e76",
+        "read_at_utc": "2026-10-04T09:18:05.190443+00:00",
+        "bytes": 2418
+      },
+      "initial_snapshot": {
+        "position": [
+          160.5,
+          78.0,
+          -127.5
+        ],
+        "game_tick": 49
+      },
+      "saved_chunk": {
+        "region_path": "E:\\mineAI\\build\\evals\\live-v1\\20261004T085904056498Z-9f759470\\game\\saves\\numen-eval-cf04617752b644afaae37bdcb2f5250f\\region\\r.0.-1.mca",
+        "region_sha256": "a727006bd60566d4985dc5e5a158395749cd17da2fa02a421da8623904b066f2",
+        "read_at_utc": "2026-10-04T09:18:05.197015+00:00",
+        "chunk_position": [
+          10,
+          -8
+        ],
+        "status": "minecraft:full",
+        "last_update_game_tick": 6749,
+        "block_column_x160_z_minus128": [
+          {
+            "y": 60,
+            "block": "minecraft:dirt"
+          },
+          {
+            "y": 61,
+            "block": "minecraft:dirt"
+          },
+          {
+            "y": 62,
+            "block": "minecraft:grass_block"
+          },
+          {
+            "y": 63,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 64,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 65,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 66,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 67,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 68,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 69,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 70,
+            "block": "minecraft:oak_leaves"
+          },
+          {
+            "y": 71,
+            "block": "minecraft:oak_leaves"
+          },
+          {
+            "y": 72,
+            "block": "minecraft:oak_leaves"
+          },
+          {
+            "y": 73,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 74,
+            "block": "minecraft:oak_leaves"
+          },
+          {
+            "y": 75,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 76,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 77,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 78,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 79,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 80,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 81,
+            "block": "minecraft:air"
+          },
+          {
+            "y": 82,
+            "block": "minecraft:air"
+          }
+        ]
+      }
+    }
+  ],
+  "findings": {
+    "seed_applied": true,
+    "world_gen_settings_identical": true,
+    "shared_base_ground_column": {
+      "position_x_z": [
+        160,
+        -128
+      ],
+      "blocks": [
+        {
+          "y": 60,
+          "block": "minecraft:dirt"
+        },
+        {
+          "y": 61,
+          "block": "minecraft:dirt"
+        },
+        {
+          "y": 62,
+          "block": "minecraft:grass_block"
+        }
+      ],
+      "matches_both_saved_columns": true
+    },
+    "saved_spawn_y_differs": true,
+    "tree_canopy_limitation": {
+      "verified_code_path": "LiveEvalWorld.surfaceSpawn -> PlayerRespawnLogic.getSpawnPosInChunk -> MOTION_BLOCKING heightmap and first downward block with a full upper collision face",
+      "local_sources": [
+        "api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java",
+        "core/neoforge/build/moddev/artifacts/neoforge-21.1.233-sources.jar!/net/minecraft/server/level/PlayerRespawnLogic.java"
+      ],
+      "interpretation": "This spawn selector permits leaves or logs as the footing and does not require terrain ground. Current initial y78 and early trace oak logs at y73 nearby are consistent with spawning on a tree canopy. The same seed does not establish identical realized initial state.",
+      "unproven_cause": "The specific origin of the initial foliage or spawn-height difference (such as feature-generation scheduling or startup heightmap timing) was not established."
+    },
+    "old_final_tree_column_limit": "The old run mined nearby trees; its saved column is a final state rather than a frozen initial chunk. Air in that final column cannot reconstruct the old initial foliage or prove a seed/world-generation change.",
+    "current_live_save_limit": "Current saved files were read while the game was running. They represent the saved state at the recorded read times, not the current in-memory world or a pristine initial snapshot."
+  }
+}

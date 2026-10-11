@@ -1,0 +1,661 @@
+{
+  "audit_version": 1,
+  "phase": "final",
+  "captured_at_utc": "2026-10-04T13:37:06.233221+00:00",
+  "run_directory": "build/evals/live-v1/free-survival-v2-budget-20261004",
+  "previous_run_directory": "build/evals/live-v1/free-survival-v2-20261004",
+  "run_id": "20261004T133052524974Z-538d479c",
+  "previous_run_id": "20261004T124434676423Z-02d1f91a",
+  "checks": {
+    "requested_budget_matches_authorized_profile": true,
+    "metadata_request_budget_equal": true,
+    "scenario_except_budget_equal_previous": true,
+    "scenario_except_budget_equal_packaged": true,
+    "prompt_exactly_equal_previous": true,
+    "owner_goal_exactly_matches_request": true,
+    "model_json_equal_previous": true,
+    "provider_metadata_equal_previous": true,
+    "provider_id_equal_previous": true,
+    "source_manifest_exactly_equal_previous": true,
+    "candidate_and_source_digest_equal_previous": true,
+    "current_source_files_match_manifest": true,
+    "current_source_digest_matches_metadata": true,
+    "scenario_file_sha_matches_metadata": true,
+    "fixture_exactly_equal_previous": true,
+    "fixture_has_42_unique_tools_and_0_gametests": true,
+    "initial_started_at_elapsed_zero": true,
+    "initial_world_elapsed_ticks_zero": true,
+    "initial_hp_food_empty_inventory_match_setup": true,
+    "progress_spec_exactly_matches_request": true,
+    "progress_initial_snapshot_exactly_matches_started": true,
+    "runtime_launch_profile_equal_previous": true
+  },
+  "blockers": [],
+  "budget_comparison": {
+    "previous": {
+      "max_model_calls": 80,
+      "max_seconds": 1700,
+      "max_tokens": 2600000
+    },
+    "current": {
+      "max_model_calls": 400,
+      "max_seconds": 1700,
+      "max_tokens": 30000000
+    },
+    "changed_fields": [
+      "max_model_calls",
+      "max_tokens"
+    ],
+    "unchanged_max_seconds": true,
+    "token_meter": "Observed cumulative input + output + cache_read + cache_write; cache hits count toward the limit."
+  },
+  "protocol": {
+    "evaluation_version": "survival-v2",
+    "case_id": "live.free-survival",
+    "split": "dev",
+    "rep": 0,
+    "seed": 73002,
+    "world_preset": "normal",
+    "world_observer": "free-survival-v2",
+    "setup": {
+      "inventory": {},
+      "food_level": 14,
+      "saturation": 0
+    },
+    "success": {
+      "min_health": 10,
+      "min_food": 12,
+      "world": {
+        "safe_meals": 1,
+        "food_nutrition": 20,
+        "elapsed_ticks": 24000,
+        "safe_state": true
+      }
+    },
+    "success_hold_ticks": 1200,
+    "milestones": [
+      {
+        "id": "first-safe-food",
+        "condition": {
+          "world": {
+            "food_nutrition": 4
+          }
+        }
+      },
+      {
+        "id": "effective-refuel",
+        "condition": {
+          "world": {
+            "safe_meals": 1
+          }
+        }
+      },
+      {
+        "id": "safe-food-reserve",
+        "condition": {
+          "world": {
+            "food_nutrition": 20
+          }
+        }
+      },
+      {
+        "id": "survived-first-cycle",
+        "condition": {
+          "min_health": 10,
+          "min_food": 12,
+          "world": {
+            "elapsed_ticks": 24000,
+            "safe_state": true
+          }
+        }
+      }
+    ],
+    "prompt_sha256": "25d13924add86a87fb8a52e34aa16340e6f5cbab8429e18b3d876a0265ece0b8",
+    "owner_goal_sha256": "25d13924add86a87fb8a52e34aa16340e6f5cbab8429e18b3d876a0265ece0b8",
+    "scenario_file_ref": "evals/live-v1/scenarios/free-survival.json",
+    "scenario_file_sha256": "824e6934526a4afa0631fd84f784ea0bd892a96ae9294339a48ac20cd425e2d1",
+    "request_differences_except_scenario_budget": [
+      "output_dir",
+      "world_name"
+    ],
+    "request_extra_key_differences": []
+  },
+  "model": {
+    "provider_id": "eval-model",
+    "provider_metadata": {
+      "id": "eval-model",
+      "provider": "deepseek",
+      "model": "deepseek-v4.1-flash",
+      "reasoning_effort": "",
+      "ctx": 1000000
+    },
+    "model_json": {
+      "provider": "deepseek",
+      "model": "deepseek-v4.1-flash",
+      "context_window": 1000000,
+      "reasoning_effort": ""
+    },
+    "launcher_client_initializations": [
+      {
+        "provider": "deepseek",
+        "model": "deepseek-v4.1-flash",
+        "endpoint": "https://api.b.ai/v1/chat/completions",
+        "streaming": "true"
+      }
+    ]
+  },
+  "source_freeze": {
+    "candidate": "f39ee4d9bfa0+3dbcf9f4192e",
+    "source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+    "current_recomputed_source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+    "manifest_file_count": 1246,
+    "manifest_added_vs_previous": [],
+    "manifest_removed_vs_previous": [],
+    "manifest_changed_vs_previous": [],
+    "current_manifest_mismatches": [],
+    "valid_at_read_time_only": true,
+    "final_verification_pending": false,
+    "final_verification_passed": true
+  },
+  "fixture": {
+    "setup": {
+      "inventory": {},
+      "food_level": 14,
+      "saturation": 0
+    },
+    "goal_max_turns": 30,
+    "goal_stuck_limit": 2,
+    "owner_mode": "spectator",
+    "owner_follows_companion": false,
+    "registered_tools": [
+      "command",
+      "goto",
+      "attack",
+      "locate_structure",
+      "locate_biome",
+      "collect_items",
+      "fish",
+      "follow",
+      "mine",
+      "equip_item",
+      "build",
+      "blueprint",
+      "blueprint_read",
+      "interact_at",
+      "sleep",
+      "interact_entity",
+      "eat",
+      "task_status",
+      "task_stop",
+      "set_timer",
+      "drop_items",
+      "take_items",
+      "inspect_gui",
+      "transfer",
+      "close_gui",
+      "get_self_status",
+      "get_owner_status",
+      "lookup_recipe",
+      "craft",
+      "scan_nearby_entities",
+      "scan_blocks",
+      "scaffold_materials",
+      "look_around",
+      "inspect_block",
+      "inspect_block_storage",
+      "get_world_info",
+      "todowrite",
+      "load_skill",
+      "remember",
+      "recall",
+      "forget",
+      "plan_route"
+    ],
+    "registered_game_tests": 0,
+    "client_tracking_limit": "Owner remains at spawn; built-in body and perception tools resolve the companion on the server by UUID. Client presentation and plugins that require a client entity may lose tracking beyond viewing distance or after dimension travel"
+  },
+  "initial_state": {
+    "current": {
+      "started_elapsed_ms": 0.0,
+      "game_tick": 65,
+      "position": [
+        160.5,
+        66.0,
+        -127.5
+      ],
+      "dimension": "minecraft:overworld",
+      "health": 20.0,
+      "food": 14,
+      "inventory": {},
+      "alive": true,
+      "deaths": 0,
+      "world": {
+        "food_nutrition": 0,
+        "safe_meals": 0,
+        "restored_food": 0,
+        "elapsed_ticks": 0,
+        "safe_state": true
+      },
+      "saturation_directly_exposed": false
+    },
+    "previous": {
+      "started_elapsed_ms": 0.0,
+      "game_tick": 48,
+      "position": [
+        160.5,
+        66.0,
+        -127.5
+      ],
+      "dimension": "minecraft:overworld",
+      "health": 20.0,
+      "food": 14,
+      "inventory": {},
+      "alive": true,
+      "deaths": 0,
+      "world": {
+        "food_nutrition": 0,
+        "safe_meals": 0,
+        "restored_food": 0,
+        "elapsed_ticks": 0,
+        "safe_state": true
+      },
+      "saturation_directly_exposed": false
+    },
+    "spawn_exactly_equal_previous": true,
+    "food_health_inventory_exactly_equal_previous": true,
+    "differences": [
+      "game_tick"
+    ],
+    "saturation_evidence": {
+      "requested": 0,
+      "fixture": 0,
+      "direct_t0_snapshot_readback": null,
+      "initializer_file_ref": "api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java",
+      "initializer_sha256": "0e465991bfbf05ccd7289bc63446701509958ee7bd64f9bed9a3ae83dc2159d0",
+      "initializer_related_lines": [
+        {
+          "line": 157,
+          "text": "double foodValue = setup.has(\"food_level\") ? setup.get(\"food_level\").getAsDouble() : 20;"
+        },
+        {
+          "line": 158,
+          "text": "float saturation = setup.has(\"saturation\") ? setup.get(\"saturation\").getAsFloat()"
+        },
+        {
+          "line": 159,
+          "text": ": (float) Math.min(5, foodValue);"
+        },
+        {
+          "line": 160,
+          "text": "if (!Double.isFinite(foodValue) || foodValue != Math.rint(foodValue) || foodValue < 0 || foodValue > 20"
+        },
+        {
+          "line": 161,
+          "text": "|| !Float.isFinite(saturation) || saturation < 0 || saturation > foodValue) {"
+        },
+        {
+          "line": 164,
+          "text": "body.getFoodData().setFoodLevel((int) foodValue);"
+        },
+        {
+          "line": 165,
+          "text": "body.getFoodData().setSaturation(saturation);"
+        }
+      ],
+      "limitation": "Started snapshots expose food but not saturation; requested/fixture saturation 0 and frozen initializer are verified, without an independent direct t=0 saturation readback."
+    }
+  },
+  "progress_at_single_read": {
+    "status": "running",
+    "reason": null,
+    "elapsed_ms": 325692.116,
+    "model_calls": 31,
+    "usage_reports": 30,
+    "unknown_usage_reports": 0,
+    "usage_complete": false,
+    "tokens": {
+      "input": 40055,
+      "output": 11496,
+      "cache_read": 862208,
+      "cache_write": 0,
+      "total": 913759
+    },
+    "milestones": [],
+    "success_held_ticks": 0
+  },
+  "provenance": {
+    "build/evals/live-v1/free-survival-v2-budget-20261004/run.json": "76af844bd65d76811ef8286899984356d0840b6c2eb8500ec19fa3c44303a370",
+    "build/evals/live-v1/free-survival-v2-budget-20261004/request.json": "be7b161aeca34b4fdf6e813177b18e4dc11d0ffac3e439d03831ae0760d4e098",
+    "build/evals/live-v1/free-survival-v2-budget-20261004/source-hashes.json": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53",
+    "build/evals/live-v1/free-survival-v2-budget-20261004/results/model.json": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9",
+    "build/evals/live-v1/free-survival-v2-20261004/run.json": "201c386ced00506d74fb929b46df5e47ea75ad9f301f3aa738ffc8af73c1e512",
+    "build/evals/live-v1/free-survival-v2-20261004/request.json": "3fa55d26113958e7a7305187781f1fd63d7d8f3520336d919bc98e7374a68453",
+    "build/evals/live-v1/free-survival-v2-20261004/source-hashes.json": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53",
+    "build/evals/live-v1/free-survival-v2-20261004/results/model.json": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+  },
+  "progress_sha256_at_read_time": "42a0caae7ca85ff573173751fa4691c7ecbb5f9076f9dbae14abac8983442b8a",
+  "limitations": [
+    "This is a dev case and a single fresh-world comparison, not a held-out success rate.",
+    "Only the budget profile differs in the protocol/source/model/fixture; run IDs, output paths, world names and startup game ticks naturally differ.",
+    "Both runs request seed 73002 and have the same observed starting position. Independently generated worlds can vary in trees, entities and later stochastic behavior; complete world identity was not verified and should not be assumed.",
+    "The initial progress record is a snapshot of the running evaluation. Final launcher exit, result validation, source freeze, trace and chat export are verified in final_validation. Usage is explicitly incomplete for three attempted calls."
+  ],
+  "final_validation": {
+    "captured_at_utc": "2026-10-04T13:56:13.399541+00:00",
+    "checks": {
+      "validate_result_passed": true,
+      "launcher_exited_normally": true,
+      "metadata_result_success_reason_agree": true,
+      "result_spec_exact_request": true,
+      "progress_exact_result": true,
+      "trace_json_exact_jsonl": true,
+      "final_trace_snapshot_exact_result": true,
+      "finished_event_exact_terminal": true,
+      "final_world_meets_all_success_conditions": true,
+      "hold_ticks_meet_required": true,
+      "trailing_condition_snapshots_tick_span_equals_hold": true,
+      "elapsed_ticks_equal_final_minus_initial_game_tick": true,
+      "milestone_ids_exactly_all_requested": true,
+      "source_manifest_complete_current_scope": true,
+      "source_manifest_hashes_unchanged": true,
+      "source_aggregate_matches_frozen_metadata": true,
+      "source_manifest_exactly_equal_previous": true,
+      "candidate_source_digest_equal_previous": true,
+      "scenario_except_budget_equal_previous": true,
+      "model_and_provider_exactly_equal_previous": true,
+      "fixture_exactly_equal_previous": true,
+      "registered_42_unique_tools_zero_gametests": true,
+      "trace_model_call_usage_counts_match_result": true,
+      "usage_is_explicitly_incomplete": true,
+      "reported_token_parts_sum_to_total": true,
+      "chat_captured_export_hash_matches_metadata": true,
+      "chat_source_exists_and_exact_export": true,
+      "chat_assistant_count_matches_trace": true,
+      "chat_tool_count_matches_trace": true
+    },
+    "check_count": 29,
+    "checks_passed": 29,
+    "blockers": [],
+    "validator": {
+      "function": "tools/run_live_eval.py:validate_result",
+      "passed": true,
+      "scenario_source": "request.json.scenario"
+    },
+    "authoritative_outcome": {
+      "status": "success",
+      "reason": "authoritative_success_criterion_met",
+      "success": true,
+      "elapsed_ms": 1260287.7338,
+      "elapsed_seconds": 1260.2877338,
+      "success_held_ticks": 1202,
+      "required_hold_ticks": 1200,
+      "milestones": [
+        {
+          "id": "first-safe-food",
+          "elapsed_ms": 508386.6895
+        },
+        {
+          "id": "safe-food-reserve",
+          "elapsed_ms": 934442.5031
+        },
+        {
+          "id": "effective-refuel",
+          "elapsed_ms": 991687.5087
+        },
+        {
+          "id": "survived-first-cycle",
+          "elapsed_ms": 1200186.9896
+        }
+      ],
+      "health": 20.0,
+      "food": 14,
+      "alive": true,
+      "deaths": 0,
+      "world_facts": {
+        "safe_meals": 1,
+        "restored_food": 8,
+        "food_nutrition": 24,
+        "elapsed_ticks": 25206,
+        "safe_state": true
+      },
+      "safe_food_evidence": [
+        {
+          "id": "minecraft:cooked_porkchop",
+          "count": 1,
+          "nutrition": 8
+        },
+        {
+          "id": "minecraft:cooked_beef",
+          "count": 2,
+          "nutrition": 16
+        }
+      ],
+      "effective_meal_evidence": {
+        "id": "minecraft:cooked_beef",
+        "count": 1,
+        "game_tick": 19897,
+        "dimension": "minecraft:overworld",
+        "food_before": 6,
+        "food_after": 14,
+        "saturation_before": 0.0,
+        "saturation_after": 12.8,
+        "safe_nutrition": 8,
+        "effective_safe_meal": true
+      },
+      "safety_evidence": {
+        "valid": true,
+        "on_fire": false,
+        "in_lava": false,
+        "drowning": false,
+        "air_supply": 300,
+        "fully_frozen": false,
+        "harmful_effects": [],
+        "visible_attackers_within_16": []
+      }
+    },
+    "continuous_hold_trace": {
+      "trailing_snapshot_count": 277,
+      "first_met_elapsed_ms": 1200186.9896,
+      "first_met_game_tick": 24069,
+      "final_game_tick": 25271,
+      "tick_span": 1202
+    },
+    "launcher": {
+      "argv": [
+        "E:\\mineAI\\gradlew.bat",
+        ":core:neoforge:runClient",
+        "--no-daemon",
+        "--console=plain",
+        "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\free-survival-v2-budget-20261004\\request.json",
+        "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\free-survival-v2-budget-20261004\\game",
+        "--offline",
+        "-Pneoforge_version=21.1.233"
+      ],
+      "exit_code": 0,
+      "timeout": false,
+      "interrupted": false,
+      "duration_ms": 1303014,
+      "log": "launcher.log"
+    },
+    "finished_at_utc": "2026-10-04T13:52:36.536067+00:00",
+    "budget_and_usage": {
+      "budget": {
+        "max_model_calls": 400,
+        "max_seconds": 1700,
+        "max_tokens": 30000000
+      },
+      "model_calls": 186,
+      "usage_reports": 183,
+      "unknown_usage_reports": 0,
+      "usage_complete": false,
+      "tokens": {
+        "input": 251554,
+        "output": 74648,
+        "cache_read": 13159808,
+        "cache_write": 0,
+        "total": 13486010
+      },
+      "cost": null,
+      "missing_usage_attempts": [
+        {
+          "attempt": 121,
+          "elapsed_ms": 905926.006,
+          "usage_records": 0,
+          "assistant_records": 0,
+          "first_usage_elapsed_ms": null
+        },
+        {
+          "attempt": 122,
+          "elapsed_ms": 908627.7504,
+          "usage_records": 0,
+          "assistant_records": 0,
+          "first_usage_elapsed_ms": null
+        },
+        {
+          "attempt": 186,
+          "elapsed_ms": 1259799.4111,
+          "usage_records": 0,
+          "assistant_records": 0,
+          "first_usage_elapsed_ms": null
+        }
+      ],
+      "missing_usage_http_classifications": [
+        {
+          "http_log_request_id": 186,
+          "classification": "caller_cancelled",
+          "duration_ms": 539
+        }
+      ],
+      "usage_record_data_keys": [
+        "purpose"
+      ],
+      "token_total_is_observed_lower_bound": true,
+      "limitation": "Three attempted calls have no usage report. 13,486,010 is the observed total from 183 reports, not complete billing/token consumption for all 186 attempts. unknown_usage_reports=0 does not override usage_complete=false.",
+      "trace_usage_contains_token_amounts": false,
+      "token_amount_evidence": "Final result/progress aggregate telemetry; model_usage trace events record purpose only, so individual token report amounts cannot be independently summed from that trace or chat export.",
+      "http_log_number_association_note": "HTTP lr-N identifiers and evaluator model_call attempt numbers are separate counters; matching numbers are recorded as log evidence, without assuming semantic equivalence unless the full ordering is separately reconciled."
+    },
+    "source_freeze": {
+      "manifest_files": 1246,
+      "current_scope_files": 1246,
+      "source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+      "current_scope_digest": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+      "candidate": "f39ee4d9bfa0+3dbcf9f4192e",
+      "added_vs_manifest": [],
+      "removed_vs_manifest": [],
+      "changed_vs_manifest": []
+    },
+    "comparison_to_previous": {
+      "scenario_except_budget_exactly_equal": true,
+      "source_manifest_exactly_equal": true,
+      "provider_model_exactly_equal": true,
+      "fixture_exactly_equal": true,
+      "previous_budget": {
+        "max_model_calls": 80,
+        "max_seconds": 1700,
+        "max_tokens": 2600000
+      },
+      "current_budget": {
+        "max_model_calls": 400,
+        "max_seconds": 1700,
+        "max_tokens": 30000000
+      },
+      "budget_changed_fields": [
+        "max_model_calls",
+        "max_tokens"
+      ],
+      "initial_spawn_equal": true,
+      "limitation": "One dev run with larger budget succeeded. Fresh worlds and model responses can vary; this does not isolate a population-level budget effect or establish a held-out success rate."
+    },
+    "chat": {
+      "metadata": {
+        "status": "captured",
+        "companion_uuid": "6b13b54e-0aec-4b6a-a2ec-05ff1cc0c6e5",
+        "source_ref": "game/config/numen/companions/6b13b54e-0aec-4b6a-a2ec-05ff1cc0c6e5/chat.jsonl",
+        "file_ref": "results/chat.jsonl",
+        "sha256": "c4ef014aea9ce4c9e6b805841fca9e121e23ef81480bb4d80fe0fafdd49ca386"
+      },
+      "export_actual_sha256": "c4ef014aea9ce4c9e6b805841fca9e121e23ef81480bb4d80fe0fafdd49ca386",
+      "source_actual_sha256": "c4ef014aea9ce4c9e6b805841fca9e121e23ef81480bb4d80fe0fafdd49ca386",
+      "jsonl_records": 416,
+      "record_role_type_counts": {
+        "header": 1,
+        "user": 24,
+        "assistant": 183,
+        "tool": 207,
+        "halt": 1
+      },
+      "assistant_reasoning_records": 183,
+      "last_trace_assistant_elapsed_ms": 1259790.5227,
+      "last_trace_assistant_tool_names": [
+        "command"
+      ],
+      "last_trace_assistant_tool_ids": [
+        "call_00_qp0y96iecsbjsme9tjryng5y"
+      ],
+      "last_trace_assistant_tool_schema_keys": [
+        [
+          "id",
+          "type",
+          "function"
+        ]
+      ]
+    },
+    "trace_event_counts": {
+      "started": 1,
+      "snapshot": 5748,
+      "fixture": 1,
+      "owner_goal": 1,
+      "model_call": 186,
+      "model_usage": 183,
+      "assistant": 183,
+      "tool_started": 207,
+      "tool_finished": 207,
+      "first_text_delta": 1,
+      "finished": 1
+    },
+    "archive_verification_inventory": {
+      "build/evals/live-v1/free-survival-v2-budget-20261004/run.json": {
+        "bytes": 4522,
+        "sha256": "60ad852d319de610e06e906ec242bb53e71163e038d64640ac221ab0189a6c75"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/request.json": {
+        "bytes": 3655,
+        "sha256": "be7b161aeca34b4fdf6e813177b18e4dc11d0ffac3e439d03831ae0760d4e098"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/source-hashes.json": {
+        "bytes": 184943,
+        "sha256": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/launcher.log": {
+        "bytes": 440396,
+        "sha256": "ba469846ac3e477a5d18ba5b45a6fbfe124ce421c423d23bc291ae237fdfe105"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/results/model.json": {
+        "bytes": 117,
+        "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/results/result.json": {
+        "bytes": 17623,
+        "sha256": "0c1f5340357b5c4b2adc420fe641b854d5a7d648e4b8b629e22549d33722b7ef"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/results/progress.json": {
+        "bytes": 17623,
+        "sha256": "0c1f5340357b5c4b2adc420fe641b854d5a7d648e4b8b629e22549d33722b7ef"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/results/trace.json": {
+        "bytes": 11716861,
+        "sha256": "98c3a1b7344465452772c79fbf8b4a5fcad82edb0ba88697a9fde3e619e7ac50"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/results/trace.jsonl": {
+        "bytes": 7210042,
+        "sha256": "44f961dd265b8d2cb182d2ded56d257c53e771ebc4398ae9d6bf96a27c8cd314"
+      },
+      "build/evals/live-v1/free-survival-v2-budget-20261004/results/chat.jsonl": {
+        "bytes": 627647,
+        "sha256": "c4ef014aea9ce4c9e6b805841fca9e121e23ef81480bb4d80fe0fafdd49ca386"
+      }
+    },
+    "archive_state": "Result files validated and hashes captured; game/world archiving remains root-owned and was not performed by this audit."
+  }
+}
