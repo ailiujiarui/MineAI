@@ -1,20 +1,19 @@
 package com.dwinovo.numen.plugins.kaleidoscope;
 
-import com.dwinovo.numen.agent.script.ErrorKind;
-import com.dwinovo.numen.entity.InputDriver;
-import com.dwinovo.numen.entity.NumenPlayer;
-import com.dwinovo.numen.permission.Action;
-import com.dwinovo.numen.permission.ConsentAnswer;
-import com.dwinovo.numen.permission.ConsentDesk;
-import com.dwinovo.numen.permission.ConsentItem;
-import com.dwinovo.numen.permission.Gate;
-import com.dwinovo.numen.permission.Permission;
-import com.dwinovo.numen.permission.Verdict;
-import com.dwinovo.numen.sdk.Call;
-import com.dwinovo.numen.task.Preparation;
-import com.dwinovo.numen.task.Task;
-import com.dwinovo.numen.task.TaskResult;
-import com.dwinovo.numen.task.TaskState;
+import com.dwinovo.numen.api.agent.script.ErrorKind;
+import com.dwinovo.numen.api.entity.NumenPlayer;
+import com.dwinovo.numen.api.permission.Action;
+import com.dwinovo.numen.api.permission.ConsentAnswer;
+import com.dwinovo.numen.api.permission.ConsentDesk;
+import com.dwinovo.numen.api.permission.ConsentItem;
+import com.dwinovo.numen.api.permission.Gate;
+import com.dwinovo.numen.api.permission.Permission;
+import com.dwinovo.numen.api.permission.Verdict;
+import com.dwinovo.numen.api.sdk.Call;
+import com.dwinovo.numen.api.task.Preparation;
+import com.dwinovo.numen.api.task.Task;
+import com.dwinovo.numen.api.task.TaskResult;
+import com.dwinovo.numen.api.task.TaskState;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
@@ -151,7 +150,7 @@ final class PotActTask implements Task {
             }
         }
         // 动锅之前先看着它:这些动作直接走方块实体,没有准星射线替身体转头,不看的话她会背对着锅做
-        InputDriver.lookAt(cook, Vec3.atCenterOf(r.pos));
+        cook.look().at(Vec3.atCenterOf(r.pos));
         Cooker cooker = Cooker.at(level, r.pos);
         Cooker.Step step = r.act.on(cooker, cook, dish, portions);
         lastStep = step.note();
@@ -235,11 +234,7 @@ final class PotActTask implements Task {
     }
 
     @Override
-    public void stop(NumenPlayer cook, StopReason why) {
-        cook.controls().stop();
-        // 装盘时为铲菜按下的潜行,还没铲就被停下也松开
-        cook.controls().set(com.dwinovo.numen.pathing.body.Controls.Key.SNEAK, false);
-    }
+    public void stop(NumenPlayer cook, StopReason why) {}
 
     @Override
     public TaskResult result(TaskState terminal) {

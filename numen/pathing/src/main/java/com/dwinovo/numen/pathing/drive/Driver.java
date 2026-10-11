@@ -1,0 +1,677 @@
+package com.dwinovo.numen.pathing.drive;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.ToDoubleFunction;
+
+import com.dwinovo.numen.pathing.body.Body;
+import com.dwinovo.numen.api.entity.BodyAction;
+import com.dwinovo.numen.api.entity.Controls.Key;
+import com.dwinovo.numen.pathing.plan.CostModel;
+import com.dwinovo.numen.pathing.plan.Maneuver;
+import com.dwinovo.numen.pathing.plan.Materials;
+import com.dwinovo.numen.pathing.plan.Moves;
+import com.dwinovo.numen.pathing.plan.Stance;
+import com.dwinovo.numen.pathing.plan.TerrainPolicy;
+import com.dwinovo.numen.pathing.plan.Threats;
+import com.dwinovo.numen.pathing.search.Favoring;
+import com.dwinovo.numen.pathing.search.Goal;
+import com.dwinovo.numen.pathing.search.HandOver;
+import com.dwinovo.numen.pathing.search.Origin;
+import com.dwinovo.numen.pathing.search.Pending;
+import com.dwinovo.numen.pathing.search.Route;
+import com.dwinovo.numen.pathing.search.Search;
+import com.dwinovo.numen.pathing.search.SearchResult;
+import com.dwinovo.numen.pathing.search.Searches;
+import com.dwinovo.numen.pathing.search.WorldSnapshot;
+import com.dwinovo.numen.pathing.spec.RouteSpec;
+import com.dwinovo.numen.pathing.world.BodyStats;
+import com.dwinovo.numen.pathing.world.Kinematics;
+import com.dwinovo.numen.api.entity.Sight;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * 段状态机:一次导航从头到尾怎么走。首段从身体脚下搜;路线走到只剩几秒、又没到目标时,提前从路线终点搜下一段,
+ * 接在后面,段与段之间不停顿;一步走不下去就从身体此刻的位置重新搜(旧路打折,不无谓换道),同一步三次走不下去就收场。
+ *
+ * <p>这里只做组装:派搜索(拷快照、组成本模型、记日志)、驱动正在走的那一步({@link Step})、下载具、对外交出状态。其余各归一个部件——
+ * <ul>
+ *   <li>路线与进度:{@link Course};</li>
+ *   <li>认步,即身体此刻在路线上的哪一步:{@link Tracker}(身体此刻在哪个节点,照搜索定起点的同一条规则({@link Origin})在活世界上定);</li>
+ *   <li>接续,何时搜下一段、怎么拼、末尾几步何时能开始走:{@link Continuation};</li>
+ *   <li>复原,走不下去几次重搜、半程路线不再变近就收场:{@link Recovery};</li>
+ *   <li>到达,停稳之后到没到:{@link Arrival}(路过的导航不停稳,走进目标就算到了)。</li>
+ * </ul>
+ *
+ * <h2>规划的结论</h2>
+ * 搜索没有交出路线时,段状态机只交出那次搜索的停因与输入({@link Halt.Searched}),为什么没路由门面在同一份快照上诊断。
+ */
+public final class Driver {
+
+    /** 起点身体待不住(卡在方块里、悬在半空)最多等多少刻。 */
+    private static final int STRANDED_TICKS = 60;
+
+    /** 导航的状态。 */
+    public enum State {
+        RUNNING, ARRIVED, HALTED
+    }
+
+    /** 为什么派这次搜索。 */
+    private enum Purpose {
+        /** 从身体脚下搜(首段,或走不下去之后重搜)。 */
+        FROM_BODY("从脚下"),
+        /** 从当前路线的终点搜下一段。 */
+        NEXT("接续");
+
+        /** 日志里的叫法。 */
+        final String label;
+
+        Purpose(String label) {
+            this.label = label;
+        }
+    }
+
+    private final Rig rig;
+    private final RouteSpec spec;
+    private final int budget;
+    /** 路过这个目标,不停下。 */
+    private final boolean passing;
+    private final Watchdog watchdog = new Watchdog();
+    private Goal goal;
+
+    private final Course course = new Course();
+    private final Tracker tracker = new Tracker();
+    private final Continuation continuation = new Continuation();
+    private final Recovery recovery = new Recovery();
+    private Step step;
+
+    private Pending<SearchResult> pending;
+    private Purpose purpose;
+    private Search pendingSearch;
+    private Favoring favoring = Favoring.NONE;
+
+    private int stranded;
+
+    private State state = State.RUNNING;
+    private Halt halt;
+    /** 上一刻对外交出的"在推进":变了才记日志。 */
+    private boolean moving = true;
+
+    /**
+     * @param budget 每次搜索最多展开几个节点
+     * @param seed    先照这条路走(调用方给的);没有为 null。它只是第一段,走不下去照样按目标与规格重搜
+     * @param passing 路过这个目标:走进去就算到了,不停稳
+     */
+    public Driver(Body body, TerrainPolicy terrain, Materials materials, Threats threats, Goal goal,
+                  RouteSpec spec, int budget, Route seed, boolean passing) {
+        this.rig = new Rig(body, terrain, materials, threats);
+        this.goal = goal;
+        this.spec = spec;
+        this.budget = budget;
+        this.passing = passing;
+        if (seed != null) {
+            install(seed, goalHas(seed.end(), seed.endStance()));
+        }
+    }
+
+    // ==================== 对外 ====================
+
+    public State state() {
+        return state;
+    }
+
+    /** 收场的原因;没收场为 null。 */
+    public Halt halt() {
+        return halt;
+    }
+
+    public EditLedger ledger() {
+        return rig.ledger;
+    }
+
+    public List<BodyAction> actions() {
+        return rig.actions();
+    }
+
+    public Journal journal() {
+        return rig.journal;
+    }
+
+    /** 到此刻为止身体真在水下憋过的每一段。 */
+    public List<DiveLog.Dive> dives() {
+        return rig.dives.dives(rig.entity);
+    }
+
+    /** 在推进:{@link Watchdog} 对外交出的信号。 */
+    public boolean progressing() {
+        return watchdog.progressing();
+    }
+
+    /** 身体此刻是计划内的坠落:宿主的摔落反射只接管计划外的。 */
+    public boolean plannedFall() {
+        return step != null && step.falls() && !rig.entity.onGround();
+    }
+
+    /**
+     * 身体此刻在计划内的一段水下:在走的这一步憋着气,而此刻的氧气撑得到这一段水下走完——规划时算过,这一步开始前与执行中的
+     * 每一刻再按真实氧气算({@link Step#holdsBreath})。撑不到的那一刻起就不是计划内的了:这一步以憋不住气走不下去、从脚下重搜。
+     * 宿主的换气本能只接管计划外的。
+     */
+    public boolean plannedDive() {
+        return state == State.RUNNING && !course.finished() && course.current().submerged()
+                && (step == null || step.holdsBreath());
+    }
+
+    /**
+     * 身体此刻站着等一次搜索的结论:没有路可走(或路走完了还没到),或路线末尾的几步要等接续段到了才开始({@link Continuation#settled}),
+     * 派出去的搜索还没回来。
+     */
+    public boolean waiting() {
+        return state == State.RUNNING && pending != null && (course.finished() || !continuation.settled(course));
+    }
+
+    /** 此刻在走的路线(不含已经走过的步);没有为空。 */
+    public List<Route.Leg> remaining() {
+        return course.remaining();
+    }
+
+    /**
+     * 换目标(跟着的东西挪了):在走的这条路原本到得了目标,而它的终点在新目标里还算数、停在那儿没变贵
+     * ({@link Goal#keepsStop}),就照走;否则扔掉它,从身体脚下按新目标重搜,旧路打折,在飞的搜索作废。手上还没有路、从脚下的
+     * 搜索在飞时,让它搜完,交回来的路走到终点再按那时的目标判。
+     * 交进来的还是同一个目标(目标是值,每刻重编一次也相等),什么都不变:在走的路与在飞的搜索照旧。
+     */
+    public void retarget(Goal next) {
+        if (next.equals(goal)) {
+            return;
+        }
+        Goal before = goal;
+        goal = next;
+        recovery.retarget();
+        if (course.isEmpty() && pending != null) {
+            // 手上没有路、从脚下的搜索还在飞:让它搜完。跟着会动的东西时目标每刻都变,变一次就作废重派的话,在飞的那一次永远
+            // 搜不完,她就一直站着;交回来的路照走,走到终点按那时的目标判,不在里面就从那儿重搜
+            PathLog.debug("{} 换目标 {} -> {},在飞的搜索搜完再说", rig.who, before, next);
+            return;
+        }
+        BlockPos end = course.end();
+        Stance endStance = course.endStance();
+        if (course.complete() && end != null && endStance != null && Goal.keepsStop(rig.world(), before, next, end, endStance)) {
+            PathLog.debug("{} 换目标 {} -> {},在走的路终点还算数,照走", rig.who, before, next);
+            return;
+        }
+        // 跟随、战斗走位的目标随对方挪动一再换,记 DEBUG;换了之后的搜索照常记 INFO
+        PathLog.debug("{} 换目标 {} -> {},从脚下重搜", rig.who, before, next);
+        reset();
+    }
+
+    /** 叫停:在飞的搜索作废,松开所有键(包括潜行),手上正在挖的放下。 */
+    public void stop() {
+        if (pending != null) {
+            pending.cancel();
+            pending = null;
+        }
+        rig.keys.releaseAll();
+        rig.mouse.release();
+        if (state == State.RUNNING) {
+            state = State.HALTED;
+        }
+    }
+
+    // ==================== 每刻 ====================
+
+    public State tick() {
+        if (state != State.RUNNING) {
+            return state;
+        }
+        rig.tally.begin();
+        try {
+            advance();
+            watchProgress();
+        } finally {
+            rig.tally.end(rig.who);
+        }
+        return state;
+    }
+
+    /** 推一刻。 */
+    private State advance() {
+        DiveLog.Dive surfaced = rig.dives.observe(rig.entity);
+        if (surfaced != null) {
+            PathLog.info("{} 出水 从 {} 到 {} 憋了 {} 刻 氧气最低 {}/{}", rig.who, PathLog.pos(surfaced.from()),
+                    PathLog.pos(surfaced.to()), surfaced.ticks(), surfaced.lowestAir(), surfaced.maxAir());
+        }
+        if (rig.entity.isPassenger()) {
+            // 原版按潜行就从载具上下来
+            rig.keys.releaseAll();
+            rig.keys.press(Key.SNEAK);
+            BodyAction.Dismounted dismount = new BodyAction.Dismounted(rig.entity.getVehicle().getType());
+            pendingDismount = dismount;
+            return state;
+        }
+        if (pendingDismount != null) {
+            rig.act(pendingDismount);
+            pendingDismount = null;
+        }
+        poll();
+        if (state != State.RUNNING) {
+            return state;
+        }
+        drive();
+        return state;
+    }
+
+    /** "在推进"变了就记一笔:一秒没挪也没干活时宿主的脱困反射会接手,日志里要看得出是从哪一刻起、停在哪一步。 */
+    private void watchProgress() {
+        boolean now = watchdog.progressing();
+        if (now == moving || state != State.RUNNING) {
+            return;
+        }
+        moving = now;
+        if (now) {
+            PathLog.debug("{} 恢复推进 {}", rig.who, PathLog.at(rig.entity.position()));
+        } else {
+            PathLog.info("{} 不在推进(一秒没挪也没干活) {} {}", rig.who,
+                    step != null ? PathLog.step(step.planned()) : "没有在走的步", PathLog.body(rig.entity));
+        }
+    }
+
+    /** 按了潜行、还没看到身体下来的那次下载具。 */
+    private BodyAction.Dismounted pendingDismount;
+
+    private void drive() {
+        ServerPlayer body = rig.entity;
+        BlockPos node = node();
+        if (course.isEmpty() && !course.complete() || course.finished() && !course.complete()) {
+            // 没有路,或路走完了还没到:等在飞的搜索,没有就从脚下搜
+            hold();
+            if (pending == null) {
+                if (node == null) {
+                    // 脚下待不住:朝旁边待得住的节点挪,挪了一阵还不行就收场
+                    if (++stranded > STRANDED_TICKS) {
+                        halt(new Halt.Stranded(body.blockPosition(), rig.world().getBlockState(body.blockPosition())));
+                    } else {
+                        stepOut();
+                    }
+                    return;
+                }
+                stranded = 0;
+                dispatch(Purpose.FROM_BODY, node, null);
+            }
+            watchdog.waiting(body.position());
+            return;
+        }
+        if (course.finished()) {
+            arrive(node);
+            return;
+        }
+        if (track(node)) {
+            return;
+        }
+        if (course.finished()) {
+            arrive(node);
+            return;
+        }
+        if (step == null) {
+            if (!continuation.settled(course)) {
+                // 后面接什么还没定下来:不开始走末尾这几步,等接续段到了(或确认接不上)。末尾的步怎么走只由路线数据定,不由线程快慢定
+                hold();
+                if (pending == null) {
+                    Route.Leg last = course.lastLeg();
+                    dispatch(Purpose.NEXT, last.maneuver().to(), last);
+                }
+                watchdog.waiting(body.position());
+                return;
+            }
+            Maneuver planned = course.current();
+            List<Maneuver> diving = new ArrayList<>();
+            for (int i = course.cur() + 1; planned.submerged() && i < course.size() && course.at(i).submerged(); i++) {
+                diving.add(course.at(i));
+            }
+            step = new Step(rig, planned, course.ahead(Continuation.TAIL - 1), diving, goal, spec, watchdog);
+        }
+        Beat beat = step.tick();
+        switch (beat) {
+            case Beat.Going going -> lookahead();
+            case Beat.Blocked blocked -> fail(blocked.blockage());
+            case Beat.Denied denied -> {
+                rig.mouse.release();
+                halt(new Halt.Denied(denied.cell(), denied.reason()));
+            }
+        }
+    }
+
+    // ==================== 人在哪一步 ====================
+
+    /** 身体此刻所在的节点(与搜索定起点同一条规则);悬在半空、卡在方块里为 null。 */
+    private BlockPos node() {
+        ServerPlayer body = rig.entity;
+        BodyStats stats = rig.snapshot().stats();
+        return Origin.of(rig.world(), stats, body.getX(), body.getY(), body.getZ()).orElse(null);
+    }
+
+    /**
+     * 身体脚下不是一个待得住的节点(头顶压着方块、原版让它趴着;卡在方块里),却踩在地上:朝旁边最近的一个待得住的节点
+     * 挪过去,挪到了就能从那里搜。悬在半空、旁边都待不住时什么也不做。
+     */
+    private void stepOut() {
+        ServerPlayer body = rig.entity;
+        if (!body.onGround()) {
+            return;
+        }
+        BodyStats stats = rig.snapshot().stats();
+        BlockPos here = BlockPos.containing(body.getX(), com.dwinovo.numen.pathing.world.Footing.cellOf(body.getY()),
+                body.getZ());
+        Vec3 best = null;
+        double bestDistance = Double.POSITIVE_INFINITY;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                BlockPos next = here.offset(dx, 0, dz);
+                if ((dx == 0 && dz == 0) || Stance.at(rig.world(), stats, next) == null) {
+                    continue;
+                }
+                Vec3 c = Control.center(next);
+                double d = distanceSqr(c);
+                if (d < bestDistance) {
+                    best = c;
+                    bestDistance = d;
+                }
+            }
+        }
+        if (best != null) {
+            Steering.stop(rig, best.x, best.z, body.getY());
+        }
+    }
+
+    /** 按身体落在了哪个节点认步({@link Tracker}),认出来的结果在这里落实:走完的步记账、退回的步当走不下去、丢了路线就重搜。路线被扔掉(或收场)了返回 true。 */
+    private boolean track(BlockPos node) {
+        if (node == null || step != null && step.holds()) {
+            return false;
+        }
+        switch (tracker.locate(course, node, this::settled)) {
+            case Tracker.Fix.Advanced advanced -> {
+                if (step != null) {
+                    step.finish(node);
+                }
+                for (int k = course.cur(); k < advanced.to(); k++) {
+                    Maneuver walked = course.at(k);
+                    rig.ledger.stepped(walked.kind());
+                    recovery.walked(walked);
+                }
+                course.advanceTo(advanced.to());
+                step = null;
+                return false;
+            }
+            case Tracker.Fix.FellBack fellBack -> {
+                // 落回了前面一步的起点:正在走的这一步没走成,和走不下去一样记一次、从这里重搜。悄悄退回去重走的话,同一处一圈圈地退,
+                // 每一步的期限都从头算,永远等不到"卡住"
+                Maneuver current = course.current();
+                fail(new Blockage(current.to(), rig.world().getBlockState(current.to()), current.kind(), null,
+                        Blockage.Hitch.FELL_BACK));
+                return true;
+            }
+            case Tracker.Fix.Lost lost -> {
+                // 落在路线之外:从这里重新搜,不算这一步走不下去
+                replan("离开路线,落在 " + PathLog.pos(node) + ",该在 " + PathLog.step(course.current()));
+                return true;
+            }
+            case Tracker.Fix.Here here -> {
+                return false;
+            }
+        }
+    }
+
+    /** 身体此刻稳稳地以 {@code kind} 的方式待着。 */
+    private boolean settled(Stance.Kind kind) {
+        ServerPlayer body = rig.entity;
+        return switch (kind) {
+            case GROUND -> body.onGround();
+            case CLIMBING -> body.onClimbable();
+            case SWIMMING -> body.isInWater();
+        };
+    }
+
+    // ==================== 到达 ====================
+
+    /** 路线走完了:在终点上停稳({@link Steering}),停稳了问 {@link Arrival};路过的导航走进目标就算到了。 */
+    private void arrive(BlockPos node) {
+        ServerPlayer body = rig.entity;
+        BlockPos end = course.end();
+        Stance endStance = course.endStance();
+        step = null;
+        if (passing && node != null && Arrival.passes(goal, rig.world(), rig.snapshot().stats(), node)) {
+            PathLog.debug("{} 路过 {},不停", rig.who, PathLog.pos(node));
+            state = State.ARRIVED;
+            return;
+        }
+        rig.keys.release(Key.SPRINT);
+        rig.keys.release(Key.JUMP);
+        rig.keys.set(Key.SNEAK, endStance.kind() == Stance.Kind.CLIMBING);
+        if (endStance.kind() == Stance.Kind.SWIMMING && body.getY() < end.getY() + Control.FLOAT) {
+            rig.keys.press(Key.JUMP);
+        }
+        Vec3 c = Control.center(end);
+        boolean still = Steering.stop(rig, c.x, c.z, endStance.feetY())
+                || Math.sqrt(horizontalSpeedSqr()) < Control.STILL && distanceSqr(c) < 0.3 * 0.3;
+        watchdog.observe(body.position(), false);
+        if (!still || node == null || !settled(endStance.kind())) {
+            if (node != null && !node.equals(end) && settled(Stance.Kind.GROUND) && tracker.strays()) {
+                replan("没停在终点 " + PathLog.pos(end) + ",落在 " + PathLog.pos(node));
+            }
+            return;
+        }
+        switch (Arrival.judge(goal, rig.world(), rig.snapshot().stats(), node, body.getEyePosition(), body.blockInteractionRange())) {
+            case Arrival.Verdict.Replan replan -> replan(replan.why());
+            case Arrival.Verdict.Blind blind -> {
+                rig.keys.releaseAll();
+                halt(new Halt.NoSight(blind.target()));
+            }
+            case Arrival.Verdict.Arrived arrived -> {
+                rig.keys.releaseAll();
+                if (arrived.aim() != null) {
+                    rig.look.at(arrived.aim());
+                }
+                state = State.ARRIVED;
+            }
+        }
+    }
+
+    private boolean goalHas(BlockPos node, Stance stance) {
+        return stance != null && goal.contains(node.getX(), node.getY(), node.getZ(), stance);
+    }
+
+    // ==================== 搜索 ====================
+
+    private CostModel model() {
+        return CostModel.of(spec, rig.snapshot(), rig.terrain, rig.materials, rig.threats);
+    }
+
+    /** 排障用:此刻在哪一步。走过的经过见日志({@link PathLog})。 */
+    @Override
+    public String toString() {
+        String at = !course.finished() ? course.cur() + "/" + course.size() + " " + PathLog.step(course.current())
+                : course.cur() + "/" + course.size();
+        return "Driver[" + state + " step " + at + " complete=" + course.complete() + " pending=" + (pending == null ? "-" : purpose)
+                + "]";
+    }
+
+    /**
+     * 从 {@code from} 派一次搜索:在世界所在的线程上拷下以它为中心的快照,成本模型按此刻的身体与端口现组;展开到
+     * {@link HandOver#NODES} 个节点就先交出半程。接着路线往下搜时起点接在 {@code arrival} 那一步后面(憋气从走完那一步时的样子起),
+     * 从身体脚下搜为 null(憋气从身体此刻的样子起)。
+     */
+    private void dispatch(Purpose why, BlockPos from, Route.Leg arrival) {
+        long t0 = System.nanoTime();
+        WorldSnapshot view = WorldSnapshot.around(rig.entity.serverLevel(), from);
+        long t1 = System.nanoTime();
+        CostModel model = model();
+        long t2 = System.nanoTime();
+        rig.tally.dispatched(t1 - t0, t2 - t1);
+        PathLog.debug("{} 派搜索 {} 从 {} 去 {} 拷快照 {} 组成本模型 {}", rig.who, why.label, PathLog.pos(from), goal,
+                PathLog.ms(t1 - t0), PathLog.ms(t2 - t1));
+        Search search = new Search(view, model, from, goal, budget, favoring).handingOverAt(HandOver.NODES).after(arrival);
+        pendingSearch = search;
+        purpose = why;
+        pending = Searches.submit(search);
+    }
+
+    private void poll() {
+        if (pending == null) {
+            return;
+        }
+        SearchResult result = pending.poll();
+        if (result == null) {
+            return;
+        }
+        Search search = pendingSearch;
+        logSearch(search, result, pending);
+        pending = null;
+        if (purpose == Purpose.NEXT) {
+            if (continuation.splice(course, result.route(), result.arrived(), minimum())) {
+                partial(result);
+            } else {
+                // 接续段没搜出来:走到终点后从脚下再搜
+                PathLog.info("{} 接续段接不上,走到终点 {} 再从脚下搜", rig.who, PathLog.pos(course.end()));
+            }
+            return;
+        }
+        if (result.route() == null) {
+            BlockPos node = node();
+            Stance here = node == null ? null : Stance.at(rig.world(), rig.snapshot().stats(), node);
+            if (here != null && goalHas(node, here) && settled(here.kind())) {
+                // 最后一步进了目标的同一刻,这次搜索没交出路:她已经到了
+                PathLog.debug("{} 搜索没交出路,可她已经站在目标里 {}", rig.who, PathLog.pos(node));
+                course.clear();
+                course.install(new Route(node, here, List.of()), true, minimum());
+                return;
+            }
+            halt(recovery.lastBlockage() != null && result.stop() == SearchResult.Stop.EXHAUSTED
+                    ? new Halt.Blocked(recovery.lastBlockage())
+                    : new Halt.Searched(result.stop(), result.breathless(), search));
+            return;
+        }
+        install(result.route(), result.arrived());
+        partial(result);
+    }
+
+    /**
+     * 一次搜索的结论记一行:谁、为什么搜、从哪到哪、规格要点、展开几个节点、在工作线程上跑了多久与排队多久、为什么停、
+     * 交出的路线;DEBUG 再记一行路线上的每一步。
+     */
+    private void logSearch(Search search, SearchResult result, Pending<SearchResult> done) {
+        Route route = result.route();
+        rig.journal.searched(result.stop() == SearchResult.Stop.BUDGET, result.expanded());
+        PathLog.info("{} 搜索 {} {} 去 {} {} 展开 {} 用时 {} 排队 {} 停因 {} {}", rig.who, purpose.label,
+                PathLog.pos(search.start()), search.goal(), PathLog.spec(search.model().spec()), result.expanded(),
+                PathLog.ms(done.ranNanos()), PathLog.ms(done.queuedNanos()), result.stop(),
+                route == null ? "没交出路线" : (result.arrived() ? "到目标 " : "半程 ") + PathLog.route(route));
+        if (route != null && PathLog.debugging()) {
+            PathLog.debug("{} 路线 {}", rig.who, PathLog.legs(route));
+        }
+    }
+
+    /** 半程路线:连续几段都没让离目标更近({@link Recovery#stalled}),就按那次搜索的停因收场。 */
+    private void partial(SearchResult result) {
+        if (result.arrived()) {
+            return;
+        }
+        BlockPos end = result.route().end();
+        if (recovery.stalled(goal.estimate(end.getX(), end.getY(), end.getZ(), Kinematics.pace(rig.snapshot().stats())))) {
+            PathLog.info("{} 半程路线连续 {} 段没离目标更近,收场", rig.who, Recovery.STALE_PARTIALS);
+            halt(new Halt.Searched(result.stop(), result.breathless(), pendingSearch));
+        }
+    }
+
+    private void install(Route route, boolean arrived) {
+        course.install(route, arrived, minimum());
+        continuation.reset();
+        step = null;
+        tracker.reset();
+    }
+
+    /** 一步几何上最短要几刻:运动学算的,加挖掘的刻数({@code Move.ticks});成本模型只组一份给一条路线的每一步。 */
+    private ToDoubleFunction<Maneuver> minimum() {
+        CostModel model = model();
+        return m -> Moves.of(m.kind()).ticks(model, m);
+    }
+
+    /** 路线快走完、又没到目标:从终点提前搜下一段。 */
+    private void lookahead() {
+        if (pending == null && continuation.due(course)) {
+            Route.Leg last = course.lastLeg();
+            dispatch(Purpose.NEXT, last.maneuver().to(), last);
+        }
+    }
+
+    /** 扔掉当前路线,从身体脚下重新搜,旧路打折;{@code why} 记进日志。 */
+    private void replan(String why) {
+        rig.journal.replanned();
+        PathLog.info("{} 重搜:{} 身体 {}", rig.who, why, PathLog.at(rig.entity.position()));
+        reset();
+    }
+
+    /** 扔掉当前路线,下一刻从身体脚下重新搜,旧路打折。 */
+    private void reset() {
+        if (!course.isEmpty()) {
+            favoring = Favoring.along(course.route());
+        }
+        if (pending != null) {
+            pending.cancel();
+            pending = null;
+        }
+        rig.mouse.release();
+        course.clear();
+        continuation.reset();
+        tracker.reset();
+        step = null;
+    }
+
+    /** 一步走不下去:记一次;同一步第三次,就以它收场,否则重新搜。 */
+    private void fail(Blockage blockage) {
+        Maneuver m = course.current();
+        Recovery.Verdict verdict = recovery.failed(m, blockage);
+        rig.journal.blocked();
+        PathLog.info("{} 走不下去 {} 这一步 {} 第 {}/{} 次 -> {} {}", rig.who, PathLog.blockage(blockage), PathLog.step(m),
+                verdict.count(), Recovery.STRIKES, verdict.giveUp() ? "收场" : "重搜", PathLog.body(rig.entity));
+        if (verdict.giveUp()) {
+            rig.mouse.release();
+            halt(new Halt.Blocked(blockage));
+            return;
+        }
+        reset();
+    }
+
+    private void hold() {
+        rig.keys.release(Key.FORWARD);
+        rig.keys.release(Key.BACK);
+        rig.keys.release(Key.SPRINT);
+        rig.keys.release(Key.JUMP);
+        rig.keys.release(Key.LEFT);
+        rig.keys.release(Key.RIGHT);
+    }
+
+    private void halt(Halt why) {
+        halt = why;
+        state = State.HALTED;
+        if (pending != null) {
+            pending.cancel();
+            pending = null;
+        }
+        rig.keys.releaseAll();
+    }
+
+    private double horizontalSpeedSqr() {
+        Vec3 v = rig.entity.getDeltaMovement();
+        return v.x * v.x + v.z * v.z;
+    }
+
+    private double distanceSqr(Vec3 c) {
+        double dx = c.x - rig.entity.getX();
+        double dz = c.z - rig.entity.getZ();
+        return dx * dx + dz * dz;
+    }
+
+}

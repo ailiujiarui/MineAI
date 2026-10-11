@@ -8,7 +8,7 @@ import java.nio.file.Path;
  * JEI 联动(新模型):把"一个物品在 JEI 里的配方"登记成 {@code jei.recipe} 一组 API,
  * 由脚本在主人的客户端上当场问。旧模型的 {@code jei_recipe} 工具没有技能与模块,这里照旧不带。
  *
- * <p>JEI 的配方注册表只在客户端有,所以这组函数是 {@link com.dwinovo.numen.sdk.ClientCall} 一侧的:
+ * <p>JEI 的配方注册表只在客户端有,所以这组函数是 {@link com.dwinovo.numen.api.sdk.ClientCall} 一侧的:
  * 服务端上的程序调它,引擎转发到主人的客户端执行,再把结果送回来。目标模组不在场时整个模块不会被
  * {@code Builtin} 放行,一个类都不加载。
  */

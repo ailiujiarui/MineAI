@@ -115,7 +115,7 @@ area drop ores g2 / area refresh ores / area list / area delete ores
 
 ### 分层
 
-存储、判定、集合运算放在 `api`(权限层要用,`api` 不能引用 `core`);命令组、`--into`、说法放在 `core`。
+存储、判定、集合运算放在 Numen API(权限层要用,Numen API 不能引用 Numen);命令组、`--into`、说法放在 Numen。
 
 ## 四、route
 
@@ -190,10 +190,10 @@ route reverse mine --as back                 反着的一条
 
 ## 七、落地顺序
 
-1. **area 地基(`api`)与权限规则项 `area:`**:类型、小节位图、集合运算、存储(按主人的 SavedData)、判定;`Rule`/`Gate` 认 `area:`。
-2. **route 与 move(`core`)**:路线对象与存储、`route` 组、计划与承诺、`move go`、`move goto` 改简写;删 `RouteBook`、`move route`、
+1. **area 地基(Numen API)与权限规则项 `area:`**:类型、小节位图、集合运算、存储(按主人的 SavedData)、判定;`Rule`/`Gate` 认 `area:`。
+2. **route 与 move(Numen)**:路线对象与存储、`route` 组、计划与承诺、`move go`、`move goto` 改简写;删 `RouteBook`、`move route`、
    `--route`、PROBING;`Trip` 收成规划 + 执行。先只收坐标终点。
-3. **area 接进 core**:`area` 命令组、`scan blocks --into/--in`、`work mine --area`、`work collect --area`、路线的终点/途经点/禁区收
+3. **area 接进 Numen**:`area` 命令组、`scan blocks --into/--in`、`work mine --area`、`work collect --area`、路线的终点/途经点/禁区收
    area、路线标志 `area:`;删 `GroupBook`、`--groups`、`in_work_area`、`box`、盒子写法;`WorkArea`、`BuildSite` 改用 area。
 4. 文档:`cli.md` 附录、`pathing.md` 适配层、`permission-layer.md`、技能里的写法。
 
@@ -216,7 +216,7 @@ route reverse mine --as back                 反着的一条
 
 ### 第 1 步:area 地基与权限规则项(09-30)
 
-- **api `com.dwinovo.numen.area`**:`Cells`(一堆格子,按 16³ 小节位图,键是原版 `SectionPos.asLong`;附带的方块按节调色板,
+- **api `com.dwinovo.numen.api.area`**:`Cells`(一堆格子,按 16³ 小节位图,键是原版 `SectionPos.asLong`;附带的方块按节调色板,
   每格 `Seen(state, tick)`;构造:盒子、单点、一组格、带方块的一组格、球;运算:并、差、交、按方块筛、外扩,逐节位运算)、`Area`
   (一个维度 + 编号的部分,整块是部分的并;跨维度运算报错)、`AreaRef`(`名字`/`名字/部分`,全仓只在这里读)、`AreaStore`(按主人的
   主世界 SavedData,`numen_areas_<主人>`)。
@@ -229,9 +229,9 @@ route reverse mine --as back                 反着的一条
 
 ### 第 2 步:route 与 move(09-30)
 
-- **规划与执行分开**:`core/nav/Survey` 只搜不走,多段逐段规划(下一段接在上一段后面,`PlanQuery.after`),没走到的段交出看清的
+- **规划与执行分开**:`numen/nav/Survey` 只搜不走,多段逐段规划(下一段接在上一段后面,`PlanQuery.after`),没走到的段交出看清的
   那一截(`PlanResult.partial`);`Trip` 只管照路走、边走边细算。PROBING 与失败后放宽规格探路删掉。
-- **路线对象** `core/route`:`Itinerary`(名字、维度、路段 = 去处 + 这一段的规格标志、整条的规格标志、最近一次计划、最近 8 次走过的
+- **路线对象** `numen/route`:`Itinerary`(名字、维度、路段 = 去处 + 这一段的规格标志、整条的规格标志、最近一次计划、最近 8 次走过的
   记录;标志存原文,读回走同一棵命令树,翻译只在 `RouteSpecFlags`)、`Plan`(从哪一格、何时;每段状态、步数、刻数、要挖/放/问的格)、
   `Routes`(按主人的 SavedData)。
 - **承诺**:`Plan.bind` 把"只许改计划里那几格"写成这一趟的位置代价(pathing 加了 `PositionCosts.confine`,合并取交集),执行层重搜时
@@ -243,7 +243,7 @@ route reverse mine --as back                 反着的一条
   假设身上有料,可能报出身上没有的垫料,`route plan` 按真实库存算。`route reverse` 的终点是这条路线上次规划时的起点,没规划过就拒绝。
 - `move goto` = 她自己的匿名路线 `goto-<名字>` → 规划 → 执行;失败回执给出 `route spec … --alter …`、`route plan …` 这样能照抄的下一步。
 
-### 第 3 步:area 接进 core(09-30)
+### 第 3 步:area 接进 Numen(09-30)
 
 **路线这一半**
 
@@ -252,7 +252,7 @@ route reverse mine --as back                 反着的一条
   `near` = 各格的 `within`;寻路模块没有为区域加新的到达。大区域有界:只在离出发点最近的 4096 格里挑(api `Cells.nearest`,
   按小节由近到远翻),`at`/`near` 至多 64 个成员,`use` 至多 8 个。
 - 禁区与标志:`--avoid area:名字`(禁入 + 禁站)、`--avoid_break/place/step area:名字`。盒子写法删掉,写了当场说"框成区域再写
-  `area:`"。pathing 只加一样数据 `PositionCosts.Region`(`contains(long cell)`),core 的 `NamedAreas` 用区域的小节位图实现它,
+  `area:`"。pathing 只加一样数据 `PositionCosts.Region`(`contains(long cell)`),Numen 的 `NamedAreas` 用区域的小节位图实现它,
   不逐格展开(四百万格翻译一次不到一秒)。
 - 区域按名字活引用,规划时按主人当时的区域解析(`NamedAreas`,与权限规则同一口径);被删了如实说是哪一段。
 
@@ -284,7 +284,7 @@ route reverse mine --as back                 反着的一条
   搜索展开的节点不多过区里的格数,不另设预算。走动的规格是 `alter natural`,要问主人的格不进路线、在动手那一刻逐格 `permit`,不走
   `Trip` 的先整条规划。区外的只报告(`Beyond`,存 `Cells` 不展开成清单),下一步两种写法都给:`route new … --arrive dig --alter natural`、
   `route plan`、`move go`,或 `move_goto … arrive:dig alter:natural`,到了再 `work dig`。
-- **任务**:`MineCompanionTask` 收成 `DigCompanionTask`(包 `core/task/dig`)。删掉的:卡死尺里"挪出两格就算进展"(只为走远路);
+- **任务**:`MineCompanionTask` 收成 `DigCompanionTask`(包 `numen/task/dig`)。删掉的:卡死尺里"挪出两格就算进展"(只为走远路);
   路线规格与 `DEFAULT_SPEC`(alter any)。卡死尺改成"二十秒里没挥一下、没挖掉、没捡到"。掉落物的目标与 `work collect` 同一个
   (`DropTracker.pickUp`:离那一格一格以内),弹到区边外一格的也捡得到。
 - **`work collect`**:删掉 `--radius`,范围就是同一个工作区(与 `--area` 求交),走动同样关在里面。
@@ -296,7 +296,7 @@ route reverse mine --as back                 反着的一条
   一次,挖不掉的收工时归为 `BuildOutstanding.Cause.NOT_CLEARED`,连同挖掘执行的那句话。要放方块的格身上有料才清。创造模式照原版
   一下就碎:写成空气(通知邻居)再落位,不走挖掘。`BlockDigger.destroyNow` 删掉,破坏方块只有她的手这一条路。
 - **`use block left`**:纯按键——朝那一格中心看,准星落在谁就按谁,手上是什么就用什么,按住直到碎或 `--hold_ticks` 到,不挪步;
-  落在别的格或实体上回执照实说。`Interaction` 的左键挖方块直接按 `CompanionHands`,不再经 `BlockDigger`(那里的换工具、清视线
+  落在别的格或实体上回执照实说。`Interaction` 的左键挖方块直接按她的鼠标(`Mouse.dig`),不再经 `BlockDigger`(那里的换工具、清视线
   归挖掘执行)。
 - **`use block right`**(09-30 跟进):同样退回纯按键——看向目标看得见的那一面,准星落在谁就点谁,手上是什么就用什么,不挪步、
   不换工具、不再先清视线上的软遮挡;点到别的格或实体照实说,右键落在别的格上时写出 `work dig` 挖掉它或 `arrive:use` 从另一面点。
@@ -308,7 +308,7 @@ route reverse mine --as back                 反着的一条
 
 - **路线不存**:`Itinerary`、`Routes`(按主人的 SavedData)、`route new/via/drop/spec/show/list/delete/reverse`、路线标志的翻译
   (`RouteFlags`、`RouteSpecFlags`、`RouteOps`、`RoutePlanning`)、`move goto` 的匿名路线 `goto-<名字>`、`area add --route` 都删了。
-  Lua 程序自己就有变量,一趟路是一张表(`core/route/Description`):去处与途经点(`to`、`stops`,途经点 `type = "through"` 路过不停、
+  Lua 程序自己就有变量,一趟路是一张表(`numen/route/Description`):去处与途经点(`to`、`stops`,途经点 `type = "through"` 路过不停、
   `"stop"` 先停稳)、移动方式(`mode`:`walk` 或 `boat`)、偏好旋钮(`costs`)、避开(`avoid`、`avoid_break/place/step`)、
   放开(`allow`)、垫路料(`materials`)。没有备选路线。去处与避开不收名字,收一格、一个盒子(两个 Pos)、带 `cells` 的表。
 - **计划**:`route.plan(描述)` 只规划不动,交回 `Plan`(`ok`、`why`、`spec`、`from`、`steps`、`seconds`、每站一段的 `legs`,段里有

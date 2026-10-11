@@ -1,12 +1,12 @@
 package com.dwinovo.numen.plugins.kaleidoscope;
 
-import com.dwinovo.numen.sdk.ServerCall;
-import com.dwinovo.numen.task.TaskRecord;
+import com.dwinovo.numen.api.sdk.ServerCall;
+import com.dwinovo.numen.api.task.TaskRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 
 /** {@code kaleidoscope.pot} 的一步派下来的那件活:在哪一格、哪一步、哪道菜(这一步用不着菜时为 null)。 */
-public final class PotActRecord extends TaskRecord {
+public final class PotActRecord extends TaskRecord<KaleidoscopeApi.Done> {
 
     /** 一下一下的那几步(倒油、下料、盖盖、装盘)的期限:够下满九格料还有余。 */
     private static final int STEP_TICKS = 30 * 20;

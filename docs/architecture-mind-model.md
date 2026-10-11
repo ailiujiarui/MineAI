@@ -3,16 +3,22 @@
 一个同伴 = 一具身体(服务端)+ 一个大脑(客户端 LLM)+ 两个消息口。
 任何新功能必须能在本文档里找到自己的位置;找不到,先修宪再动工。
 
-**仓界(2026-07-16 裁决):机器在 numen-api,内容在 numen-core。** 判定口诀:
+**仓界(2026-07-16 裁决):机器在 Numen API,内容在 Numen。** 判定口诀:
 "这是机器,还是塞进机器的内容?"——收件箱/大脑循环/任务队列与竞价调度/
 工具运输/异步受理/闲时生命体征是机器;本能链/任务执行器/30 个工具/寻路是
 内容,经四个登记口插入(BrainChains 链、CompanionTaskFactory 任务执行器、
-ToolRegistry 工具、ReflexRegistry 本能名册)。第三方内容包与 core 地位平等。
+ToolRegistry 工具、ReflexRegistry 本能名册)。第三方内容包与 Numen 地位平等。
 
-**寻路是独立模块,Numen 经端口接入;规划与执行共用一份地形几何。** `pathing` 只依赖原版,
-设计稿见 `docs/pathing.md`。同伴的身体就是它的身体端口(`NumenPlayer implements Body`:一副键盘、
-每刻一次物理步进);手、许可、垫路料、要避开的生物四个端口由 core 的适配层 `core/nav` 实现。
-core 的任务、命令、感知、反射只经门面、规格、目标与身体机制用寻路,地形几何、挖掘定价这类机器
+**寻路是 Numen(Numen API 的第一个插件)的内容,独立成模块,经端口接入;规划与执行共用一份地形几何。** `pathing` 只依赖
+原版与 Numen API 公开的那部分(瘦 api jar),随 Numen 的加载器 jar 发出,Numen API 不依赖它。设计稿见 `docs/pathing.md`。
+她缺的那半个客户端——一副键盘 `Controls`、一个视角 `Look`、一个鼠标 `Mouse`(准星、左键挖、右键用,动手之前身体是同伴就过权限层)、
+一个快捷栏 `Hotbar` 与它留下的记录 `BodyAction`、每刻一次的物理步进 `Physics`,以及身体与寻路规划共用的原版公式与几何(`DigTime`、`Reach`、
+`Sight`、`Faces`、`Replaceable`)——是 Numen API 的公开部分(`com.dwinovo.numen.api.entity`),`NumenPlayer.controls()`、`look()`、`mouse()`、
+`hotbar()` 各给出一件,谁驱动她都用同一份;第三方想自己写一套寻路(还能挖、能放),按它们让她动。设计与取舍见 `docs/companion-input.md`。
+寻路模块的身体端口 `Body` 在寻路这一侧,Numen 的适配层 `numen/nav` 的 `CompanionBody` 把同伴接进去(无状态:寻路只经
+`entity()`、`controls()`、`look()`、`mouse()`、`hotbar()`、`snapshot()` 用身体,不按身体对象存状态);许可、垫路料、要避开的生物三个端口也由适配层实现。
+`CompanionBrain` 换驱动者时统一松开键盘与鼠标。
+Numen 的任务、命令、感知、反射只经门面、规格、目标与身体机制用寻路,地形几何、挖掘定价这类机器
 只在适配层里接;结局与实际账说给模型听只在 `NavText` 一处。
 
 ## 零、总纲:她看一眼很贵
@@ -200,7 +206,7 @@ interface Reflex {
   急件停下时还在跑的,停止键与切断照样收尾的,重启后接回或没接回来的,管理员 drive 派的),收尾发给主人客户端进收件箱(§四)成一条事件,
   完成、失败等要她当场知道的由发送方标成急件。程序停下之后才到的、本来归程序的收尾由程序转交出去,不丢。timeout 携带进度,重派同一调用
   可续做;stopped 是叫停的回执。
-- **事件唯一入口**(numen-api `NumenEvents`):所有 `<event>` 的 kind 在此登记,
+- **事件唯一入口**(Numen API `NumenEvents`):所有 `<event>` 的 kind 在此登记,
   XML 组装、转义、游戏内时间戳在此收口——散装手搓 `<event>` 字符串违宪。
   入口不管时机:何时被消费是队列按自己规则说了算,事件类型没有贵贱之分。
 - **模型侧感知**:每个用户回合注入 `<current_task>`,内容由**服务端推**
@@ -233,7 +239,7 @@ interface Reflex {
 
 ## 八、权限层:身体的任何动作在动手前怎么过门
 
-设计稿 `docs/permission-layer.md`。放在 api,它是机器;core 的任务与工具是往里送动作的
+设计稿 `docs/permission-layer.md`。放在 Numen API,它是机器;Numen 的任务与工具是往里送动作的
 内容。五个零件:
 
 **动作(Action)。** 身体要对世界做的一件具体的事及其目标:`break(pos)`、`place(pos, block)`、
@@ -289,7 +295,7 @@ deny 空;allow 为 `break(!placed & !self_placed & !block_entity & !#minecraft:b
 |---|---|
 | 规划 | 成本模型只读裁决:拒绝无穷大;要问的格在 `alter=any` 下按有限代价算进路线、其余规格下无穷大;路线上那一格的改动(`Edit.Dig`)带着许可给的凭据,就是那一条征询(`ConsentItem`) |
 | 执行开始 | 整条路线或整个动作过一次裁决,需要同意就发起一次征询;不是走到墙边才问 |
-| 每次动作 | 她的两只手(`CompanionHands`,导航、挖矿、`use block` 共用的唯一挖掘与放置落点)、攻击落点强制,不发起征询;到这里还没授权就当动作失败,任务按既有机制重算或收尾 |
+| 每次动作 | 她的鼠标(`NumenPlayer.mouse()`,导航、挖矿、`use block` 共用的唯一挖掘与放置落点,身体是同伴就在动手那一刻过权限层)、攻击落点强制,不发起征询;到这里还没授权就当动作失败,任务按既有机制重算或收尾 |
 
 **各内容的接入点。** 内容只提出动作(`AbstractCompanionTask.permit`),判与问归权限层。mine 选目标
 不看权限,规格 `alter=any`,按"走过去 + 挖它"的同一套定价挑,动手前把挖掘交给权限层;goto、follow

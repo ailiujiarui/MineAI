@@ -1,13 +1,13 @@
 package com.dwinovo.numen.plugins.jei;
 
-import com.dwinovo.numen.agent.script.ApiError;
-import com.dwinovo.numen.agent.script.ErrorKind;
+import com.dwinovo.numen.api.agent.script.ApiError;
+import com.dwinovo.numen.api.agent.script.ErrorKind;
 import com.dwinovo.numen.api.NumenApi;
-import com.dwinovo.numen.sdk.ClientCall;
-import com.dwinovo.numen.sdk.Doc;
-import com.dwinovo.numen.sdk.Example;
-import com.dwinovo.numen.sdk.Fn;
-import com.dwinovo.numen.sdk.Note;
+import com.dwinovo.numen.api.sdk.ClientCall;
+import com.dwinovo.numen.api.sdk.Doc;
+import com.dwinovo.numen.api.sdk.Example;
+import com.dwinovo.numen.api.sdk.Fn;
+import com.dwinovo.numen.api.sdk.Note;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientSupplier;
 import mezz.jei.api.ingredients.IIngredientType;

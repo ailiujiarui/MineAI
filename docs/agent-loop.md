@@ -69,7 +69,7 @@ pi 默认"插话一次取一条"、工具并行;这两点我们不照搬(§七�
 │          McpTranscript、显示记录                                            │
 └──────────────────────────────┬──────────────────────────────────────────────┘
                                │ 端口
-┌─ 循环内核 AgentLoop(agent 模块,com.dwinovo.numen.agent.loop,纯 Java)──────┐
+┌─ 循环内核 AgentLoop(agent 模块,com.dwinovo.numen.api.agent.loop,纯 Java)──────┐
 │  Run(阶段 + 取消令牌)、Hold(停牌)、pump()、halt()、两层循环、重试决定、       │
 │  LoopEvent 事件、LoopStatus 只读快照                                         │
 └───────┬──────────────┬───────────────┬───────────────┬──────────────────────┘
@@ -84,14 +84,14 @@ pi 默认"插话一次取一条"、工具并行;这两点我们不照搬(§七�
 | 模块 | 内容 |
 |---|---|
 | `ai`(现有,纯 Java) | 传输、服务商、`NumenLlmClient`、`ConvoState`/`ConvoLog`/`CompactSplit`;新增 `ProtocolView` |
-| `agent`(新建,纯 Java,依赖 ai) | 循环内核(`Run`、`Hold`、`pump`、`halt`、`LoopEvent`、`LoopStatus`、端口接口);队列 `EventQueue`/`EventTypes`/`JsonlJournal`(从 api 的 `event` 包搬来,包名 `com.dwinovo.numen.agent.inbox`);长期目标 `GoalState`/`GoalPrompts`(从 api 搬来)与 `GoalSteward`;`Compactor` |
-| `api`(依赖 agent) | 同伴门面 `EntityAgentLoop`、`ToolDispatcher`、`TurnPresenter`、`SystemPromptComposer`、`RuntimeState`;`NumenEvents` 与服务端 `EventOutbox`(用到 Minecraft,留下) |
+| `agent`(新建,纯 Java,依赖 ai) | 循环内核(`Run`、`Hold`、`pump`、`halt`、`LoopEvent`、`LoopStatus`、端口接口);队列 `EventQueue`/`EventTypes`/`JsonlJournal`(从 Numen API 的 `event` 包搬来,包名 `com.dwinovo.numen.api.agent.inbox`);长期目标 `GoalState`/`GoalPrompts`(从 Numen API 搬来)与 `GoalSteward`;`Compactor` |
+| `numen-api`(依赖 agent) | 同伴门面 `EntityAgentLoop`、`ToolDispatcher`、`TurnPresenter`、`SystemPromptComposer`、`RuntimeState`;`NumenEvents` 与服务端 `EventOutbox`(用到 Minecraft,留下) |
 
-- **内核单独成模块**:不放 api——api 依赖 Minecraft,"不引用 Minecraft"只能靠自觉,编译器拦不住;
+- **内核单独成模块**:不放 Numen API——Numen API 依赖 Minecraft,"不引用 Minecraft"只能靠自觉,编译器拦不住;
   不放 ai——ai 是"大脑与服务商之间的连接层",循环是大脑本身。`agent` 模块零 Minecraft 依赖,
   由构建保证;测试在 `agent/src/test`,不带 Minecraft 类路径。
 - **搬家不破坏插件**:`EventQueue`/`EventTypes`/`JsonlJournal`/`GoalState`/`GoalPrompts` 都不引用 Minecraft;
-  队列与类型表只在 api 内部使用(`core`、`plugins` 与仓外桥接均未引用),改包名没有外部调用方。
+  队列与类型表只在 Numen API 内部使用(Numen、`plugins` 与仓外桥接均未引用),改包名没有外部调用方。
 - **接入构建照 `ai` 的样子**:`settings.gradle` include;`agent/build.gradle`(`java-library` + 发布坐标
   `numen-agent-<minecraft_version>`);`api:common` 以 `api project(':agent')` 依赖;加载器发行 jar 平铺它的
   类与源码;NeoForge 开发运行带上它的源码集;插件编译路径 `compileOnly`;根构建发布依赖它。
@@ -374,7 +374,7 @@ record Type(String id,
 它不走队列,走运行期状态。现在插件只有 `contributeState`:在**客户端**发请求时现算,只读得到客户端手里的
 数据——同伴走远、换了维度,客户端里没有她的实体,读不到;而核心的背包块由服务端推送,没有这个问题。
 
-- **新增服务端身体状态片段**:插件在服务端给一个"身体 → 一段描述"的函数;引擎在 `CompanionStateWatch`
+- **新增服务端身体状态片段**:插件在服务端给一个"身体 → 一段描述"的函数;Numen API 在 `CompanionStateWatch`
   检测变化时一并算、有变化随状态包推给主人的客户端;这段描述出现在运行期状态里,也出现在
   `status_self` 里("你的全部"不再漏掉插件管的部位)。
 - **两个来源按事实住在哪里分工**:身体上的事实(饰品栏、模组给的装备位)用服务端片段;只有主人客户端知道
@@ -635,7 +635,7 @@ sealed interface LoopEvent {
 
 ## 十七、分步落地
 
-每一步单独提交、单独跑通 `:ai:test :agent:test :api:common:test :core:common:test :ui:test`(第 0 步之前
+每一步单独提交、单独跑通 `:ai:test :agent:test :numen-api:common:test :numen:common:test :ui:test`(第 0 步之前
 没有 `:agent:test`)、两个加载器构建、GameTest;客户端行为变化的步骤部署后真机过一遍。
 `CONTRIBUTING.md` 的测试命令同步补上 `:ai:test :agent:test`。
 
@@ -681,7 +681,7 @@ sealed interface LoopEvent {
 - **目标的评估窗口按消息认起点**:往回扫到设定目标的那条(`GoalPrompts.isDirective`),不记"设定时的历史位置"——
   目标跨重进游戏活着,重进后历史按条数上限读回,位置早就对不上了。
 - **组件**:`Compactor` 在 `agent.memory`,`GoalSteward` 在 `agent.goal`(都有单测);`SystemPromptComposer`、
-  `RuntimeState`(含当前任务的镜像)在 api 客户端。工作站坐标与任务镜像也各自订阅内核,门面自己不订阅任何事件。
+  `RuntimeState`(含当前任务的镜像)在 Numen API 客户端。工作站坐标与任务镜像也各自订阅内核,门面自己不订阅任何事件。
 - **模型端口的失败只有一个出口**:请求还没组装出来就出的错(服务商配置对不上、历史转不成线格式)同样作为
   失败交回,不会同步抛出去让内核永远等在 `MODEL`。
 

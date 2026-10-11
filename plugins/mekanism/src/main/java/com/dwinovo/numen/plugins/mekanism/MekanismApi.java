@@ -1,15 +1,15 @@
 package com.dwinovo.numen.plugins.mekanism;
 
-import com.dwinovo.numen.agent.script.ApiError;
-import com.dwinovo.numen.agent.script.ErrorKind;
+import com.dwinovo.numen.api.agent.script.ApiError;
+import com.dwinovo.numen.api.agent.script.ErrorKind;
 import com.dwinovo.numen.api.NumenApi;
-import com.dwinovo.numen.platform.Services;
-import com.dwinovo.numen.sdk.Doc;
-import com.dwinovo.numen.sdk.Example;
-import com.dwinovo.numen.sdk.Fn;
-import com.dwinovo.numen.sdk.Note;
-import com.dwinovo.numen.sdk.SeeAlso;
-import com.dwinovo.numen.sdk.ServerCall;
+import com.dwinovo.numen.api.platform.Services;
+import com.dwinovo.numen.api.sdk.Doc;
+import com.dwinovo.numen.api.sdk.Example;
+import com.dwinovo.numen.api.sdk.Fn;
+import com.dwinovo.numen.api.sdk.Note;
+import com.dwinovo.numen.api.sdk.SeeAlso;
+import com.dwinovo.numen.api.sdk.ServerCall;
 import mekanism.api.RelativeSide;
 import mekanism.api.chemical.ChemicalStack;
 import mekanism.api.chemical.IChemicalHandler;
@@ -132,7 +132,7 @@ public final class MekanismApi {
             sideConfig = readSideConfig(side);
         }
 
-        List<String> storage = Services.CAPS.describe(level, pos);
+        List<String> storage = Services.CAPS.read(level, pos).lines();
         if (storage == null) {
             storage = List.of();
         }
