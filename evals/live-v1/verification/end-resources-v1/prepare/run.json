@@ -1,0 +1,44 @@
+{
+  "evaluation_version": "end-resources-v1",
+  "run_id": "20261004T160556964484Z-a6b52a86",
+  "split": "dev",
+  "rep": 0,
+  "started_at_utc": "2026-10-04T16:05:56.966353+00:00",
+  "status": "prepared",
+  "success": null,
+  "model_cost": null,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.2",
+  "offline_gradle": true,
+  "neoforge_version_override": "21.1.233",
+  "command": null,
+  "case_id": "live.end-resources",
+  "budget": {
+    "max_model_calls": null,
+    "max_seconds": null,
+    "max_tokens": null
+  },
+  "blockers": [
+    "Explicit --max-model-calls is required before launch",
+    "Explicit --max-seconds is required before launch",
+    "Explicit --max-tokens is required before launch",
+    "Provider library and entry ID are required before launch"
+  ],
+  "candidate": "6d0999ef5c39+5d854e654b31",
+  "source_sha256": "5d854e654b31e3835c9641e0e5af997c8c188dd5255594c818a0bdb7edc63c69",
+  "git_status": "M agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java\n M agent/src/test/java/com/dwinovo/numen/agent/acceptance/LiveEvalRunTest.java\n M ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java\n M ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java\n M api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java\n M api/common/src/main/java/com/dwinovo/numen/entity/Companions.java\n M api/common/src/main/java/com/dwinovo/numen/eval/WorldEvalObservers.java\n M api/common/src/main/java/com/dwinovo/numen/task/CompanionTickDispatcher.java\n M core/common/src/main/java/com/dwinovo/numen/core/NumenCore.java\n M core/common/src/main/java/com/dwinovo/numen/core/eval/ExpeditionWorldObserver.java\n M core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java\n M core/neoforge/build.gradle\n M core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java\n M docs/architecture-mind-model.md\n M evals/README.md\n M evals/live-v1/README.md\n M tools/calibrate_live_eval.py\n M tools/run_live_eval.py\n M tools/test_run_live_eval.py\n?? core/common/src/main/java/com/dwinovo/numen/core/eval/EndResourcesWorldObserver.java\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/EndResourcesEvalGameTests.java\n?? evals/live-v1/scenarios/end-resources.json\n?? tools/__pycache__/",
+  "scenario_sha256": "73809e5b59378781867e83677943af077079ab37b7daecc323f28503930eb522",
+  "startup_seconds": 600,
+  "planned_command": [
+    "E:\\mineAI\\gradlew.bat",
+    ":core:neoforge:runClient",
+    "--no-daemon",
+    "--console=plain",
+    "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\20261004T160556964484Z-a6b52a86\\request.json",
+    "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\20261004T160556964484Z-a6b52a86\\game",
+    "--offline",
+    "-Pneoforge_version=21.1.233"
+  ],
+  "reason": "No client launched; no model calls or capability score",
+  "finished_at_utc": "2026-10-04T16:05:57.750184+00:00"
+}

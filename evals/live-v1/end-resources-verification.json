@@ -1,0 +1,433 @@
+{
+  "evaluation_version": "end-resources-v1",
+  "case_id": "live.end-resources",
+  "recorded_at_utc": "2026-10-04T16:07:14.879849+00:00",
+  "recorded_timezone": "Asia/Shanghai",
+  "status": "partial_failure",
+  "reason": "Required API test compilation remains blocked by the previously recorded adapter lambda return type; stage construction and all other checks passed",
+  "environment": {
+    "minecraft": "1.21.1",
+    "neoforge_override": "21.1.233",
+    "gradle_offline": true,
+    "gradle_properties_unchanged": true
+  },
+  "scenario": {
+    "path": "scenarios/end-resources.json",
+    "sha256": "73809e5b59378781867e83677943af077079ab37b7daecc323f28503930eb522",
+    "split": "dev",
+    "initialization": "Public artificial expedition inventory and worn equipment in a fresh normal survival world",
+    "restores_previous_stage": false,
+    "seed": 73004,
+    "spawn": [
+      0.5,
+      84.0,
+      32.5
+    ],
+    "user_choices": {
+      "eye_equivalents": 16,
+      "accept_finished_and_raw": true,
+      "minimum_equipment_durability_percent": 50,
+      "other_stage_2_supply_requirements_retained": true,
+      "success_hold_ticks": 200
+    },
+    "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+    "initial_target_resources": 0,
+    "milestones": 5,
+    "real_model_baseline": null
+  },
+  "build": {
+    "status": "passed",
+    "command": ".\\gradlew.bat :core:fabric:build :core:neoforge:build --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "evidence": [
+      {
+        "path": "verification/end-resources-v1/build.log.gz",
+        "bytes": 2492,
+        "sha256": "4f4da210270a9ccd962dee418bcc55402feebc084861dec67fa3556bef8a8564",
+        "source_path": "build/evals/end-resources-v1/build.log",
+        "uncompressed_sha256": "e970d2d448ecc959a4c16ca6ece841b505a125bb7d4c714ff62190e5f8ac1104"
+      },
+      {
+        "path": "verification/end-resources-v1/build-final.log.gz",
+        "bytes": 2189,
+        "sha256": "6abfc7339698e1f0b0742cf033ea7d290ab7ce521fb2fc8956d5723a98b92ebf",
+        "source_path": "build/evals/end-resources-v1/build-final.log",
+        "uncompressed_sha256": "c1ecb9ef69f0e49b95ba81e9f27fc186beea4d894ed863a2a31b221272e13472"
+      }
+    ]
+  },
+  "jvm_tests": {
+    "status": "partial_failure",
+    "command": ".\\gradlew.bat :ai:test :agent:test :api:common:test :core:common:test --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "passed_modules": [
+      {
+        "module": "ai",
+        "status": "passed",
+        "tests": 152,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_suites": 21,
+        "xml_aggregate_sha256": "7f67735209f431805878274ad19fd306208b18d9ec09a659e535b1d93f2edda6"
+      },
+      {
+        "module": "agent",
+        "status": "passed",
+        "tests": 318,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_suites": 43,
+        "xml_aggregate_sha256": "3952fadaa03f9f669b23e49ddc939b153864b65d7ac4fcbc848c8d34681723ae"
+      },
+      {
+        "module": "core/common",
+        "status": "passed",
+        "tests": 381,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_suites": 50,
+        "xml_aggregate_sha256": "d48c1383443b383a64d0dc5eb1dd47e3911e3d1d59f5fb041889e798bdb332e2"
+      }
+    ],
+    "passed_tests": 851,
+    "ai_execution": "Gradle UP-TO-DATE; matching-source cached suite retained",
+    "blocked_task": ":api:common:compileTestJava",
+    "tests_run_in_blocked_module": false,
+    "error": "AdapterHandlersTest.java:72: JsonObject cannot be converted to String",
+    "preexisting_evidence": "expedition-verification.json",
+    "core_followup_command": ".\\gradlew.bat :core:common:test --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "evidence": [
+      {
+        "path": "verification/end-resources-v1/jvm.log.gz",
+        "bytes": 1361,
+        "sha256": "5716ebdcbcab38e4a18919531a0b3547fb30b4a940fcf02ca786d14dacc16bfb",
+        "source_path": "build/evals/end-resources-v1/jvm.log",
+        "uncompressed_sha256": "1aa25df0417cb4eb20df6dbb89a6e8eda67a50e593f27b1f94945d0ae0bcacbd"
+      },
+      {
+        "path": "verification/end-resources-v1/core-jvm.log.gz",
+        "bytes": 847,
+        "sha256": "c959d915f2e21e5a9dc91c3eb4fe733cbe9a63da98660cae9faef10ab40dda29",
+        "source_path": "build/evals/end-resources-v1/core-jvm.log",
+        "uncompressed_sha256": "ba28b5b87eb037311a5511d70f2a0fd4ecef188325bc592867c01319d6e651f3"
+      },
+      {
+        "path": "verification/end-resources-v1/LiveEvalRunTest.xml",
+        "bytes": 7051,
+        "sha256": "a2277b1da69ddd31a59997ef96193bdb4553f8b8f19eb10260ac29d3f95599b3",
+        "source_path": "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.LiveEvalRunTest.xml"
+      }
+    ]
+  },
+  "game_tests": {
+    "status": "passed",
+    "required_tests": 289,
+    "new_end_resource_calibration_tests": 11,
+    "pass_marker": "All 289 required tests passed",
+    "command": ".\\gradlew.bat :core:neoforge:runGameTestServer --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "evidence": {
+      "path": "verification/end-resources-v1/gametest-final.log.gz",
+      "bytes": 32700,
+      "sha256": "b14da75059304d528fd0cc7c8ca6656543fadbb80ea64d85b04561768ff9da50",
+      "source_path": "build/evals/end-resources-v1/gametest-final.log",
+      "uncompressed_sha256": "21e7e664d79bba60bc9d758c1ff28b4dfd9543daf0fa559bf5652bfc26a4ee3e"
+    },
+    "initial_invocation": {
+      "status": "failed",
+      "passed": 288,
+      "required": 289,
+      "failed_test": "native_dimension_and_accepted_damage_events_are_recorded_without_inventing_a_route",
+      "reason": "Native generic damage was attempted during vanilla spawn protection; fixture waits for it to end without weakening the accepted/immune damage assertions",
+      "evidence": {
+        "path": "verification/end-resources-v1/gametest.log.gz",
+        "bytes": 33033,
+        "sha256": "73bdf6acd202e83964f8d31d8b9153ea0936cfc422ba2ce0417076850a040876",
+        "source_path": "build/evals/end-resources-v1/gametest.log",
+        "uncompressed_sha256": "3dceeab5beeebf905ca7726b53140e8bda242e16110e55995e33c9c86c80bd96"
+      }
+    }
+  },
+  "python_tests": {
+    "status": "passed",
+    "live_runner_tests": 59,
+    "command": "python -B -m unittest discover -s tools -p test_run_live_eval.py",
+    "evidence": {
+      "path": "verification/end-resources-v1/python-live-final.log.gz",
+      "bytes": 61,
+      "sha256": "26cf8bb6feb72f95b67f0afccff942f76769f2332468496a5461902ded596670",
+      "source_path": "build/evals/end-resources-v1/python-live-final.log",
+      "uncompressed_sha256": "fe06571176a470506498cf97388d15a8c34c13e9ee6462a0a47e30251b1a3516"
+    }
+  },
+  "prepare_only": {
+    "status": "prepared",
+    "command": "python -B tools/run_live_eval.py --prepare-only --scenario evals/live-v1/scenarios/end-resources.json --offline --neoforge-version 21.1.233",
+    "model_requests": 0,
+    "real_provider_configuration_read": false,
+    "evidence": [
+      {
+        "path": "verification/end-resources-v1/prepare/run.json",
+        "bytes": 3153,
+        "sha256": "e40d8dbb51fbdc0d4c6ca60ad442f121afdd491ed587aff6218c9148d6bb927a",
+        "source_path": "build/evals/live-v1/20261004T160556964484Z-a6b52a86/run.json"
+      },
+      {
+        "path": "verification/end-resources-v1/prepare/request.json",
+        "bytes": 6282,
+        "sha256": "ca74b7b72eddbdf4d157f7f8f0806b362919f3dc66532115838654675d417525",
+        "source_path": "build/evals/live-v1/20261004T160556964484Z-a6b52a86/request.json"
+      },
+      {
+        "path": "verification/end-resources-v1/prepare/source-hashes.json",
+        "bytes": 185690,
+        "sha256": "8778f788d86fc754aa73f855c6c5a071e6b5724d2a33d6c285d11e5832b57951",
+        "source_path": "build/evals/live-v1/20261004T160556964484Z-a6b52a86/source-hashes.json"
+      }
+    ]
+  },
+  "local_client_calibration": {
+    "calibration_only": true,
+    "real_model": false,
+    "usage_is_synthetic": true,
+    "capability_baseline": false,
+    "scenario": "end-resources",
+    "launcher_exit_code": 0,
+    "purpose": "Reject the prepared expedition inventory as end-resource success with idle localhost replies",
+    "expected_outcome": "budget_exhausted",
+    "scripted_request_budget_reached": true,
+    "starter_inventory_matches": true,
+    "initial_resources_zero": true,
+    "final_resources_zero": true,
+    "initial_worn_armor_matches": true,
+    "initial_offhand_shield_matches": true,
+    "initial_equipment_ready": true,
+    "initial_food_nutrition": 128,
+    "no_milestones": true,
+    "absent_travel_uncovered": true,
+    "event_coverage_consistent": true,
+    "replanning_not_measured": true,
+    "passed": true,
+    "command": "python -B tools/calibrate_live_eval.py --scenario end-resources --offline --neoforge-version 21.1.233",
+    "result_status": "budget_exhausted",
+    "result_reason": "max_model_calls",
+    "milestones_reached": 0,
+    "scripted_requests": 4,
+    "synthetic_tokens": {
+      "input": 4,
+      "output": 4,
+      "cache_read": 0,
+      "cache_write": 0,
+      "total": 8
+    },
+    "elapsed_ms": 493.8362,
+    "initial_position": [
+      0.5,
+      84.0,
+      32.5
+    ],
+    "registered_game_tests": 0,
+    "registered_tool_count": 42,
+    "source_frozen": true,
+    "source_sha256": "834d980dda65b6be330676f21aba3ff030ded62e50ea4558bd41ccc1cc71666b",
+    "source_files": 1251,
+    "same_scenario_except_calibration_source_and_budget": true,
+    "evidence": [
+      {
+        "path": "verification/end-resources-v1/client/run.json",
+        "bytes": 4125,
+        "sha256": "2326a2d184ac58f7a7b40324a6e53fceff8c7d1e620ce1e624e0c969be65dd3b",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/run.json"
+      },
+      {
+        "path": "verification/end-resources-v1/client/request.json",
+        "bytes": 6136,
+        "sha256": "02a89f82f02424cda9f0c224a00c61b963e5ecf562be998513dfab63d9cbf309",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/request.json"
+      },
+      {
+        "path": "verification/end-resources-v1/client/source-hashes.json",
+        "bytes": 185723,
+        "sha256": "a5e056ea95ae0f52760fd50bd2602a7d600dfeb57e4c05d3911a00141780069d",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/source-hashes.json"
+      },
+      {
+        "path": "verification/end-resources-v1/client/calibration.json",
+        "bytes": 792,
+        "sha256": "eca3ee3d15b1e4ab239af8f15bac68b7f2ae13c30886dda11bbb0aea0f18fbdc",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/calibration.json"
+      },
+      {
+        "path": "verification/end-resources-v1/client/results/result.json",
+        "bytes": 25508,
+        "sha256": "42b79f265d8815fc1a29189623bce84b47a5c9f7b97c1dc50f7ac3269ccbc5de",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/results/result.json"
+      },
+      {
+        "path": "verification/end-resources-v1/client/results/progress.json",
+        "bytes": 25508,
+        "sha256": "42b79f265d8815fc1a29189623bce84b47a5c9f7b97c1dc50f7ac3269ccbc5de",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/results/progress.json"
+      },
+      {
+        "path": "verification/end-resources-v1/client/results/trace.json",
+        "bytes": 45572,
+        "sha256": "d459e0d7ac4037e0e154c679500fa2e0bfea55b55333fc03e9f2f29be5c06612",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/results/trace.json"
+      },
+      {
+        "path": "verification/end-resources-v1/client/results/trace.jsonl",
+        "bytes": 26651,
+        "sha256": "ec296485807f8ca724fb1cd9700a45f5e416c9c458214e8f7a3295fe4274b09b",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/results/trace.jsonl"
+      },
+      {
+        "path": "verification/end-resources-v1/client/results/chat.jsonl",
+        "bytes": 6960,
+        "sha256": "b24ae43629395402de71d4164c73ba0187e36243e5ff7497ca18c555a7b6949e",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/results/chat.jsonl"
+      },
+      {
+        "path": "verification/end-resources-v1/client/results/model.json",
+        "bytes": 121,
+        "sha256": "ce788ceaa6d7405cd6d8b2a0dff36ef1fa6aa68cdaf1330479b0500775711862",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/results/model.json"
+      },
+      {
+        "path": "verification/end-resources-v1/client/launcher.log.gz",
+        "bytes": 7397,
+        "sha256": "61a846c5685e07df6614ea67ef893d3672cb352a6972b85a322cdc19f62eacd6",
+        "source_path": "build/evals/live-v1/calibration-5bda98891aa446188c373bdcb0441d41/launcher.log",
+        "uncompressed_sha256": "fe319f137caac4a7e3af0814e7625d9fb7455fe94edfdcd4a8a975c12b13aae5"
+      }
+    ]
+  },
+  "capability_review": [
+    {
+      "capability": "exploration and locating",
+      "status": "generic_entry_points_and_controlled_tests",
+      "code": [
+        "core/common/src/main/java/com/dwinovo/numen/core/tools/work/MoveToTool.java",
+        "core/common/src/main/java/com/dwinovo/numen/core/task/locate/LocateStructureCompanionTask.java"
+      ],
+      "limit": "Location query is not evidence of travel; full Nether exploration unverified"
+    },
+    {
+      "capability": "Nether portal entry",
+      "status": "full_route_unverified",
+      "code": [
+        "core/common/src/main/resources/skills/nether_entry/SKILL.md",
+        "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/SurvivalGameTests.java"
+      ],
+      "limit": "Existing dimension test calls changeDimension directly; no natural build/ignite/traverse proof"
+    },
+    {
+      "capability": "blaze/enderman combat and drops",
+      "status": "generic_entry_points_only",
+      "code": [
+        "core/common/src/main/java/com/dwinovo/numen/core/task/combat/AttackCompanionTask.java",
+        "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/CombatGameTests.java"
+      ],
+      "limit": "Generic combat covers zombie/pig, no blaze/enderman resource route test"
+    },
+    {
+      "capability": "crafting",
+      "status": "native_recipe_entry_point",
+      "code": [
+        "core/common/src/main/java/com/dwinovo/numen/core/tools/CraftOps.java"
+      ],
+      "limit": "Observer conversion fixtures directly arrange inventories; no real-model rod/powder/eye route score"
+    },
+    {
+      "capability": "piglin barter",
+      "status": "generic_drop_and_collect_entry_points",
+      "code": [
+        "core/common/src/main/java/com/dwinovo/numen/core/task/inventory/DropCompanionTask.java"
+      ],
+      "limit": "No dedicated barter/continuous resource acquisition proof"
+    },
+    {
+      "capability": "villager trading",
+      "status": "offer_selection_not_implemented",
+      "code": [
+        "core/common/src/main/java/com/dwinovo/numen/core/act/Interaction.java",
+        "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java"
+      ],
+      "limit": "Can open menu; no reliable MerchantOffer inspection and selection"
+    },
+    {
+      "capability": "risk/resource-site replanning",
+      "status": "not_measured",
+      "limit": "World safety recovery and task changes cannot automatically establish model replanning"
+    }
+  ],
+  "workspace_preservation": {
+    "branch": "main",
+    "no_reset_clean_stash_commit_or_pr": true,
+    "preexisting_modified_files": [
+      {
+        "path": "agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java",
+        "sha256": "72a29906a0124364dcb737dc2101c090aea9fb7cb54ecc94b0e534d5fed061ae",
+        "final_sha256": "72a29906a0124364dcb737dc2101c090aea9fb7cb54ecc94b0e534d5fed061ae",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java",
+        "sha256": "e320c29f077220231bc057b6b334975f9017edbb6f4df7bab596ae4aaf4faff7",
+        "final_sha256": "e320c29f077220231bc057b6b334975f9017edbb6f4df7bab596ae4aaf4faff7",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java",
+        "sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53",
+        "final_sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java",
+        "sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325",
+        "final_sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java",
+        "sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a",
+        "final_sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "core/neoforge/build.gradle",
+        "sha256": "126d7b83c170453651844fbfcaa641bde92af8d0a627ee219cdb5137a080cfb2",
+        "final_sha256": "126d7b83c170453651844fbfcaa641bde92af8d0a627ee219cdb5137a080cfb2",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java",
+        "sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e",
+        "final_sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "docs/architecture-mind-model.md",
+        "sha256": "53fb5f7a40f9f736fa15df0d1e25b876f0d41a57252b64b9acf8a7b773956e54",
+        "final_sha256": "53fb5f7a40f9f736fa15df0d1e25b876f0d41a57252b64b9acf8a7b773956e54",
+        "unchanged_by_this_work": true
+      }
+    ]
+  },
+  "real_model_run": {
+    "status": "not_run",
+    "capability_score": null,
+    "external_model_requests": 0,
+    "real_model_key_access": false,
+    "automatic_optimization_loop": false,
+    "reason": "Construction and scripted localhost calibration only; no authorized real-model trial"
+  },
+  "limits": [
+    "One hand-authored dev scenario, not an independent test set",
+    "Fixed artificial stage-3 start, not a stage-2 save or Agent checkpoint",
+    "No stage-4/stage-5 work or from-zero completion claim",
+    "Native dimension/damage event calibration is not a successful autonomous route",
+    "Snapshot event sampling may miss short-lived transitions; full frozen loadout continuity is separately observed once per server tick"
+  ]
+}

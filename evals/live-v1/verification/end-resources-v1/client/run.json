@@ -1,0 +1,74 @@
+{
+  "evaluation_version": "end-resources-v1",
+  "run_id": "20261004T160627567294Z-a40e69d6",
+  "split": "dev",
+  "rep": 0,
+  "started_at_utc": "2026-10-04T16:06:27.568461+00:00",
+  "status": "budget_exhausted",
+  "success": false,
+  "model_cost": null,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.2",
+  "offline_gradle": true,
+  "neoforge_version_override": "21.1.233",
+  "command": {
+    "argv": [
+      "E:\\mineAI\\gradlew.bat",
+      ":core:neoforge:runClient",
+      "--no-daemon",
+      "--console=plain",
+      "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\calibration-5bda98891aa446188c373bdcb0441d41\\request.json",
+      "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\calibration-5bda98891aa446188c373bdcb0441d41\\game",
+      "--offline",
+      "-Pneoforge_version=21.1.233"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "interrupted": false,
+    "duration_ms": 33842,
+    "log": "launcher.log"
+  },
+  "provider": {
+    "id": "fixture",
+    "provider": "openai",
+    "model": "scripted-loopback-fixture",
+    "reasoning_effort": null,
+    "ctx": 64000
+  },
+  "case_id": "live.end-resources",
+  "budget": {
+    "max_model_calls": 4,
+    "max_seconds": 45,
+    "max_tokens": 1000
+  },
+  "blockers": [],
+  "candidate": "6d0999ef5c39+834d980dda65",
+  "source_sha256": "834d980dda65b6be330676f21aba3ff030ded62e50ea4558bd41ccc1cc71666b",
+  "git_status": "M agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java\n M agent/src/test/java/com/dwinovo/numen/agent/acceptance/LiveEvalRunTest.java\n M ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java\n M ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java\n M api/common/src/client/java/com/dwinovo/numen/client/eval/LiveEvalWorld.java\n M api/common/src/main/java/com/dwinovo/numen/entity/Companions.java\n M api/common/src/main/java/com/dwinovo/numen/eval/WorldEvalObservers.java\n M api/common/src/main/java/com/dwinovo/numen/task/CompanionTickDispatcher.java\n M core/common/src/main/java/com/dwinovo/numen/core/NumenCore.java\n M core/common/src/main/java/com/dwinovo/numen/core/eval/ExpeditionWorldObserver.java\n M core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java\n M core/neoforge/build.gradle\n M core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java\n M docs/architecture-mind-model.md\n M evals/README.md\n M evals/live-v1/README.md\n M tools/calibrate_live_eval.py\n M tools/run_live_eval.py\n M tools/test_run_live_eval.py\n?? core/common/src/main/java/com/dwinovo/numen/core/eval/EndResourcesWorldObserver.java\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/EndResourcesEvalGameTests.java\n?? evals/live-v1/scenarios/end-resources.json\n?? tools/__pycache__/",
+  "scenario_sha256": "e8a628cab1e87e4d473cf53fa19be2477fb0df814e9ac8275bc156933e6e23ef",
+  "startup_seconds": 600,
+  "planned_command": [
+    "E:\\mineAI\\gradlew.bat",
+    ":core:neoforge:runClient",
+    "--no-daemon",
+    "--console=plain",
+    "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\calibration-5bda98891aa446188c373bdcb0441d41\\request.json",
+    "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\calibration-5bda98891aa446188c373bdcb0441d41\\game",
+    "--offline",
+    "-Pneoforge_version=21.1.233"
+  ],
+  "companion_chat": {
+    "status": "captured",
+    "companion_uuid": "3e1abe26-bcc9-4ef0-8262-bfc2a4bd6b0f",
+    "source_ref": "game/config/numen/companions/3e1abe26-bcc9-4ef0-8262-bfc2a4bd6b0f/chat.jsonl",
+    "file_ref": "results/chat.jsonl",
+    "sha256": "b24ae43629395402de71d4164c73ba0187e36243e5ff7497ca18c555a7b6949e"
+  },
+  "reason": "max_model_calls",
+  "result_ref": "results/result.json",
+  "finished_at_utc": "2026-10-04T16:07:02.309208+00:00",
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false
+}
