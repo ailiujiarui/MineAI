@@ -35,6 +35,12 @@ public final class CompanionToolPort implements ToolPort, SerialCalls.Port {
 
     /** 在飞的那一个的回报口,供 {@link #failInFlight} 用;没有在飞的是 null。 */
     private java.util.function.Consumer<SerialCalls.Settled> inFlightDone;
+    private java.util.function.BooleanSupplier executionPermit;
+
+    /** 评测的执行预算;拒绝时不派工具或程序,未决调用留给评测下一刻统一切断。 */
+    public void executionPermit(java.util.function.BooleanSupplier permit) {
+        executionPermit = permit;
+    }
 
     /**
      * 被切断的程序在服务端交出回执之后,这里把它转给收件的人:程序编号与回执的文字。切断时这一批已经作废,模型读不到这份回执,
@@ -148,6 +154,7 @@ public final class CompanionToolPort implements ToolPort, SerialCalls.Port {
      */
     @Override
     public void invoke(LlmToolCall call, java.util.function.Consumer<SerialCalls.Settled> done) {
+        if (executionPermit != null && !executionPermit.getAsBoolean()) return;
         NumenTool tool = ToolRegistry.resolve(call.name());
         if (tool == null) {
             Constants.LOG.warn("[numen-dispatch#{}] LLM called unknown tool '{}' (id={})",

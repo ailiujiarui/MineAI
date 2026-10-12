@@ -1,0 +1,116 @@
+{
+  "status": "passed",
+  "calibration_only": true,
+  "real_model": false,
+  "capability_baseline": false,
+  "source": "build/evals/dragon-combat-v1/native-dragon-calibration-initial.json",
+  "source_sha256": "ced2588b1e58f10f833d80f87a288cd2074df8e950a7cf7e5a80f0b5b15aa1ca",
+  "python_validator_sha256": "4dd0e230be0507c7f79871e5c3b2d6b1b7424aa63ff52580c01caac05a11772b",
+  "initial_validation_note": "Three positive fixture finals initially rejected because the validator reused formal fixture eligibility for raw survival-hold validation; terminal-chain evidence was separated from formal eligibility and all fixtures were revalidated. Formal result validation still rejects calibration fixtures.",
+  "fixtures": [
+    {
+      "kind": "bed_source_statistic_limit",
+      "calibration_fixture": true,
+      "real_model": false,
+      "capability_baseline": false,
+      "checks": [
+        {
+          "snapshot": "initial_snapshot",
+          "status": "passed",
+          "game_tick": 575,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "post_kill_alive_ticks": 0
+        },
+        {
+          "snapshot": "final_snapshot",
+          "status": "rejected",
+          "reason": "final_snapshot cannot score ambiguous native damage attribution as a combat outcome"
+        }
+      ],
+      "passed": true,
+      "native_limitation": {
+        "attribution_ambiguous": true,
+        "source_actor_uuid": null,
+        "companion_dragon_kills": 0,
+        "native_kill_statistic": null,
+        "fight_end": null
+      }
+    },
+    {
+      "kind": "airborne_native_chain",
+      "calibration_fixture": true,
+      "real_model": false,
+      "capability_baseline": false,
+      "checks": [
+        {
+          "snapshot": "initial_snapshot",
+          "status": "passed",
+          "game_tick": 595,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "post_kill_alive_ticks": 0
+        },
+        {
+          "snapshot": "final_snapshot",
+          "status": "passed",
+          "game_tick": 596,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "post_kill_alive_ticks": 1
+        }
+      ],
+      "passed": true
+    },
+    {
+      "kind": "native_chain",
+      "calibration_fixture": true,
+      "real_model": false,
+      "capability_baseline": false,
+      "checks": [
+        {
+          "snapshot": "initial_snapshot",
+          "status": "passed",
+          "game_tick": 595,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "post_kill_alive_ticks": 0
+        },
+        {
+          "snapshot": "final_snapshot",
+          "status": "passed",
+          "game_tick": 596,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "post_kill_alive_ticks": 1
+        }
+      ],
+      "passed": true
+    },
+    {
+      "kind": "native_chain_with_200_tick_survival",
+      "calibration_fixture": true,
+      "real_model": false,
+      "capability_baseline": false,
+      "checks": [
+        {
+          "snapshot": "initial_snapshot",
+          "status": "passed",
+          "game_tick": 575,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "post_kill_alive_ticks": 0
+        },
+        {
+          "snapshot": "final_snapshot",
+          "status": "passed",
+          "game_tick": 775,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "post_kill_alive_ticks": 200
+        }
+      ],
+      "passed": true
+    }
+  ]
+}

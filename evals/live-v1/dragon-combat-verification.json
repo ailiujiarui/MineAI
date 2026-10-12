@@ -1,0 +1,614 @@
+{
+  "evaluation_version": "dragon-combat-v1",
+  "case_id": "live.dragon-combat",
+  "recorded_at_utc": "2026-10-04T18:55:19.398663+00:00",
+  "recorded_timezone": "Asia/Shanghai",
+  "status": "partial_failure",
+  "reason": "Stage-five construction, all executable checks, prepare-only and localhost calibration passed; required API tests retain their preexisting compilation blocker",
+  "environment": {
+    "minecraft": "1.21.1",
+    "neoforge_override": "21.1.233",
+    "gradle_offline": true,
+    "gradle_no_daemon": true,
+    "gradle_runs_serial": true,
+    "gradle_properties_unchanged": true
+  },
+  "scenario": {
+    "path": "scenarios/dragon-combat.json",
+    "sha256": "8faf1df7a2c78bbd5177a74a932a4c0224c82c1c72ed6ddd51250f51ee7b1d10",
+    "split": "dev",
+    "seed": 73005,
+    "difficulty": "normal",
+    "world_preset": "normal",
+    "structures": true,
+    "setup": {
+      "dimension": "minecraft:the_end",
+      "native_dragon_battle": true,
+      "spawn": [
+        100.5,
+        49.0,
+        0.5
+      ],
+      "inventory": {
+        "minecraft:iron_sword": 1,
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:iron_axe": 1,
+        "minecraft:bow": 1,
+        "minecraft:water_bucket": 1,
+        "minecraft:cooked_beef": 32,
+        "minecraft:cobblestone": 128,
+        "minecraft:arrow": 128
+      },
+      "equipment": {
+        "head": "minecraft:iron_helmet",
+        "chest": "minecraft:iron_chestplate",
+        "legs": "minecraft:iron_leggings",
+        "feet": "minecraft:iron_boots",
+        "offhand": "minecraft:shield"
+      }
+    },
+    "initial_health": 20,
+    "initial_food": 20,
+    "initial_saturation": 5,
+    "initial_damage_per_gear": 0,
+    "initial_enchantments": [],
+    "restore_previous_stage": false,
+    "normal_native_battle": {
+      "dragon_health": 200,
+      "crystals_alive": 10,
+      "dragon_ai": true,
+      "invulnerable": false,
+      "first_fight": true,
+      "prior_dragon_kills": 0
+    },
+    "initialization_before_task_clock": true,
+    "runtime_resupply_or_rescue": false,
+    "user_choices": {
+      "post_fight_survival_ticks": 200,
+      "return_overworld_required": false,
+      "final_health_food_durability_thresholds": null,
+      "first_death_fails": true,
+      "same_tick_mutual_kill_fails": true
+    },
+    "real_model_baseline": null
+  },
+  "build": {
+    "status": "passed",
+    "command": ".\\gradlew.bat :core:fabric:build :core:neoforge:build --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "final_evidence": {
+      "path": "verification/dragon-combat-v1/build-native-death.log.gz",
+      "bytes": 2453,
+      "sha256": "a21f4ee0a82275a56f625b3935059c928b22e5165340d0de2c2d0758c4ec81f9",
+      "source_path": "build/evals/dragon-combat-v1/build-native-death.log",
+      "uncompressed_sha256": "2b101754935521811257b5b02d76b7239149ba438083da1f0876b81feaab541e"
+    }
+  },
+  "jvm": {
+    "status": "partial_failure",
+    "passed_checks": 874,
+    "modules": [
+      {
+        "module": "ai",
+        "suites": 21,
+        "tests": 152,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "agent",
+        "suites": 43,
+        "tests": 341,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "core/common",
+        "suites": 50,
+        "tests": 381,
+        "failures": 0,
+        "errors": 0
+      }
+    ],
+    "live_eval_run_test_cases": 66,
+    "new_stage_five_test_cases": 11,
+    "command": ".\\gradlew.bat :ai:test :agent:test :api:common:test :core:common:test --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "final_evidence": {
+      "path": "verification/dragon-combat-v1/jvm-native-death.log.gz",
+      "bytes": 1360,
+      "sha256": "ce96fbaf6a68ed2397feb56988d9fccfc682c91c0613d552071e6d6bc7d3ce6d",
+      "source_path": "build/evals/dragon-combat-v1/jvm-native-death.log",
+      "uncompressed_sha256": "1b32eabc63f6a0a0af79fedda10d7b15e6ca35e60a9b09aa71177a201afe760d"
+    },
+    "core_evidence": {
+      "path": "verification/dragon-combat-v1/core-jvm-native-death.log.gz",
+      "bytes": 846,
+      "sha256": "2f8494b128295057d9dec14759eb32b3157af91ab9dd24b69e286aaef7e493de",
+      "source_path": "build/evals/dragon-combat-v1/core-jvm-native-death.log",
+      "uncompressed_sha256": "64442294bca0fd1ec72276ab6c649bf80e448c4eb044696966c1fca77a62923f"
+    },
+    "cache_note": "ai and final agent are matching-source Gradle UP-TO-DATE checks; the 381 core/common checks were run separately after the required command stopped at API compilation",
+    "blocker": {
+      "path": "api/common/src/test/java/com/dwinovo/numen/api/adapter/AdapterHandlersTest.java",
+      "line": 72,
+      "reason": "lambda returns JsonObject where the interface requires String",
+      "preexisting": true,
+      "test_weakened_skipped_deleted_or_fixed": false
+    },
+    "testcases": {
+      "path": "verification/dragon-combat-v1/jvm-testcases.json.gz",
+      "bytes": 20482,
+      "sha256": "b4cb5e556b4cffa28dade9b3e4f15c49fc898f168bcc0806b1c2a82ba4eec3c0",
+      "source_path": "build/evals/dragon-combat-v1/jvm-testcases.json",
+      "uncompressed_sha256": "443a7282b78f11edeebf02420de8c0a85ec6f782084164fa6eba95d0a2bac387"
+    },
+    "grader_xml": {
+      "path": "verification/dragon-combat-v1/LiveEvalRunTest.xml",
+      "bytes": 10990,
+      "sha256": "d0d7ce8d84d8c56a44270cabdb7c7186173be97871efb3af0bd61b29ac36e819",
+      "source_path": "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.LiveEvalRunTest.xml"
+    }
+  },
+  "python": {
+    "status": "passed",
+    "tests": 94,
+    "command": "python -B -m unittest discover -s tools -p test_run_live_eval.py",
+    "evidence": {
+      "path": "verification/dragon-combat-v1/python-final.log.gz",
+      "bytes": 61,
+      "sha256": "0898f2f41b5acfabe05ea17e208a5fa9b42b0f8ca68f102f4780d93c47430caa",
+      "source_path": "build/evals/dragon-combat-v1/python-final.log",
+      "uncompressed_sha256": "ab47c2a053a78ba2b843ceb17af0a60c7efb0367ec361ce99b16a47f0b1c6805"
+    }
+  },
+  "gametest": {
+    "status": "passed",
+    "required_tests": 320,
+    "new_stage_five_tests": 19,
+    "command": ".\\gradlew.bat :core:neoforge:runGameTestServer --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "pass_marker": "All 320 required tests passed",
+    "final_evidence": {
+      "path": "verification/dragon-combat-v1/gametest-final.log.gz",
+      "bytes": 44133,
+      "sha256": "71d86c06c2ec44028e319e0a4734c5974be6e811f90524142dad29ee689c1f48",
+      "source_path": "build/evals/dragon-combat-v1/gametest-final.log",
+      "uncompressed_sha256": "5c83db0c160deae91bf7599105e35acfdaf017c7c05e347e5b1e328c8856c075"
+    },
+    "first_attempt": {
+      "passed": 316,
+      "failed": 4,
+      "evidence": {
+        "path": "verification/dragon-combat-v1/gametest.log.gz",
+        "bytes": 45081,
+        "sha256": "044c706ea1f34b05f19cdbc19adb6f4fbf3ddf3fd72b2364d892bab562c9dddf",
+        "source_path": "build/evals/dragon-combat-v1/gametest.log",
+        "uncompressed_sha256": "fff2d433b227cc86533718ac2114fda1cd2cfcf8afadb17c6e55613805a13a55"
+      },
+      "cause": "Native companion death was only recorded on the following body tick, losing death after immediate same-tick health recovery",
+      "fix": "Latch death in NumenPlayer.die after the native DEATHS statistic commits; keep all four original assertions",
+      "tests_weakened": false
+    }
+  },
+  "prepare_only": {
+    "status": "passed",
+    "command": "python -B tools/run_live_eval.py --prepare-only --scenario evals/live-v1/scenarios/dragon-combat.json --offline --neoforge-version 21.1.233",
+    "run_directory": "build/evals/live-v1/20261004T185234477531Z-76503138",
+    "evidence": {
+      "request.json": {
+        "path": "verification/dragon-combat-v1/prepare/request.json",
+        "bytes": 4939,
+        "sha256": "15a43445b595d1762e97d8a463602062cfb713bac7a25c38488eede8738ca735",
+        "source_path": "build/evals/live-v1/20261004T185234477531Z-76503138/request.json"
+      },
+      "run.json": {
+        "path": "verification/dragon-combat-v1/prepare/run.json",
+        "bytes": 3739,
+        "sha256": "ecdc0523101becd7ca4cdd422332294a0c781d822fa30683399033e1489edaeb",
+        "source_path": "build/evals/live-v1/20261004T185234477531Z-76503138/run.json"
+      },
+      "source-hashes.json": {
+        "path": "verification/dragon-combat-v1/prepare/source-hashes.json",
+        "bytes": 187747,
+        "sha256": "a5dce180977664d28a0902f1eb75c5247ae942f3f34a7f9048b98a4aa85a63a4",
+        "source_path": "build/evals/live-v1/20261004T185234477531Z-76503138/source-hashes.json"
+      }
+    },
+    "log": {
+      "path": "verification/dragon-combat-v1/prepare-final.log.gz",
+      "bytes": 145,
+      "sha256": "25f0c784ed4f4f03aa688f36643399e49d18c30e9b4c916ccb5807ec4f6e2349",
+      "source_path": "build/evals/dragon-combat-v1/prepare-final.log",
+      "uncompressed_sha256": "b2a6fb01f63cf0e022c85dcdb7cd6671a81c99847b9ea2598f5322e49ffef68c"
+    },
+    "client_launched": false,
+    "real_provider_read": false,
+    "model_calls": 0
+  },
+  "localhost": {
+    "status": "passed",
+    "command": "python -B tools/calibrate_live_eval.py --scenario dragon-combat --offline --neoforge-version 21.1.233",
+    "run_directory": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d",
+    "expected_task_status": "budget_exhausted",
+    "reason": "max_model_calls",
+    "milestones_achieved": 0,
+    "milestones_total": 3,
+    "scripted_calls": 4,
+    "calibration": {
+      "calibration_only": true,
+      "real_model": false,
+      "usage_is_synthetic": true,
+      "capability_baseline": false,
+      "scenario": "dragon-combat",
+      "launcher_exit_code": 0,
+      "purpose": "Verify the fresh native End battle and reject idle localhost replies as a dragon kill",
+      "expected_outcome": "budget_exhausted",
+      "scripted_request_budget_reached": true,
+      "starter_inventory_matches": true,
+      "initial_worn_armor_matches": true,
+      "initial_offhand_matches": true,
+      "initial_gear_full_durability": true,
+      "initial_public_spawn_matches": true,
+      "same_subject": true,
+      "same_target_and_fight": true,
+      "observer_evidence_valid": true,
+      "no_combat_progress": true,
+      "no_milestones": true,
+      "passed": true
+    },
+    "endpoint": "127.0.0.1",
+    "real_provider_read": false,
+    "runtime_source_files_unchanged": true,
+    "evidence": {
+      "calibration.json": {
+        "path": "verification/dragon-combat-v1/client/calibration.json",
+        "bytes": 738,
+        "sha256": "8e89f778c0eb48d570ecdd4913c57ba3d2778bc306bb6f73a7f3a72a9cf9aa70",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/calibration.json"
+      },
+      "request.json": {
+        "path": "verification/dragon-combat-v1/client/request.json",
+        "bytes": 4700,
+        "sha256": "50905a6f55475efea13fbfd6d786a964e93f08c71dcf7ac5945578c6286e61f8",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/request.json"
+      },
+      "run.json": {
+        "path": "verification/dragon-combat-v1/client/run.json",
+        "bytes": 4711,
+        "sha256": "f34bbb2ab8860314e2928cc5a58fb8f80b481b3377f2eac117558437a40f33e0",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/run.json"
+      },
+      "source-hashes.json": {
+        "path": "verification/dragon-combat-v1/client/source-hashes.json",
+        "bytes": 187780,
+        "sha256": "416f025ccda12d55e492c09e7bcbcac7d32dea0330c3b2efa2e5a54ed8ece94e",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/source-hashes.json"
+      },
+      "launcher.log": {
+        "path": "verification/dragon-combat-v1/client/launcher.log.gz",
+        "bytes": 7759,
+        "sha256": "54024c63adb0d7a24044145e73b49833d99c53c9479d2089b939b2bb0463d50c",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/launcher.log",
+        "uncompressed_sha256": "d0c9665a070e4079a1b8d2b558c34cc392e41d1c94e5b561ba7892aa74faccc2"
+      },
+      "results/chat.jsonl": {
+        "path": "verification/dragon-combat-v1/client/results/chat.jsonl.gz",
+        "bytes": 2490,
+        "sha256": "38d4f3738c5742290e1e5f184ea23cc66fcf09cab3b3a1bfef6098e498cf1aa3",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/results/chat.jsonl",
+        "uncompressed_sha256": "09510884950923a35239f25dafb4fd44f595f8d4d01a692718cacbdb6907c4f3"
+      },
+      "results/model.json": {
+        "path": "verification/dragon-combat-v1/client/results/model.json",
+        "bytes": 121,
+        "sha256": "ce788ceaa6d7405cd6d8b2a0dff36ef1fa6aa68cdaf1330479b0500775711862",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/results/model.json"
+      },
+      "results/progress.json": {
+        "path": "verification/dragon-combat-v1/client/results/progress.json",
+        "bytes": 80885,
+        "sha256": "87b0d2d3cea686febd45138f773c09db62cda0a510a7ab787b2ac88d9c88c34e",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/results/progress.json"
+      },
+      "results/result.json": {
+        "path": "verification/dragon-combat-v1/client/results/result.json",
+        "bytes": 80885,
+        "sha256": "87b0d2d3cea686febd45138f773c09db62cda0a510a7ab787b2ac88d9c88c34e",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/results/result.json"
+      },
+      "results/trace.json": {
+        "path": "verification/dragon-combat-v1/client/results/trace.json.gz",
+        "bytes": 10349,
+        "sha256": "4be9b0246094c34a68804b6cdb698b2775fd1a84f142ce88522929983630217b",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/results/trace.json",
+        "uncompressed_sha256": "dead5b66c4f55a6fde30829096a53cd19e823c7c194ab6f654a114b03c97c96c"
+      },
+      "results/trace.jsonl": {
+        "path": "verification/dragon-combat-v1/client/results/trace.jsonl.gz",
+        "bytes": 5354,
+        "sha256": "1d2bb1612591c0a7f62ec57f9f63bf8c2d089ba10f63839cc6f5aa695785cb74",
+        "source_path": "build/evals/live-v1/calibration-df66b593c77942eca294fcd1175bbc7d/results/trace.jsonl",
+        "uncompressed_sha256": "8b7dcca000f6850bab2cbaee58450b9dbc1136b9c3ad21534504d35b5f12ddbb"
+      }
+    },
+    "snapshots": {
+      "path": "verification/dragon-combat-v1/localhost-snapshots.json",
+      "bytes": 76078,
+      "sha256": "fc8683326b4286f16e0891c700b526f960997fe5d80f061243650c7243a9286a",
+      "source_path": "build/evals/dragon-combat-v1/localhost-snapshots.json"
+    },
+    "limit": "Idle replies verify fresh End initialization and absence of false success; they do not verify autonomous combat"
+  },
+  "native_positive_calibration": {
+    "status": "passed",
+    "fixtures": 4,
+    "positive_native_chains": 3,
+    "raw_evidence": {
+      "path": "verification/dragon-combat-v1/native-dragon-calibration.json",
+      "bytes": 274920,
+      "sha256": "075242660a22dfa5fd6b124fbefc13663a91b6c9800077fca8ab022cc9f9b49b",
+      "source_path": "build/evals/dragon-combat-v1/native-dragon-calibration.json"
+    },
+    "python_raw_validation": {
+      "path": "verification/dragon-combat-v1/raw-python-validation.json",
+      "bytes": 4921,
+      "sha256": "96097667e5ab4747829adcee554835a72c4303f7a10ee5b06222d2cc271bea7c",
+      "source_path": "build/evals/dragon-combat-v1/raw-python-validation.json"
+    },
+    "native_damage_death_credit_statistic_animation_chain": true,
+    "post_fight_200_tick_fixture": true,
+    "direct_success_fields_written": false,
+    "formal_success": false,
+    "fixture_disclosure": "Local native EndDragonFight in the GameTest overworld, native createNewDragon, AI disabled, selected phase, some reduced health, manually advanced native death animation; this is separate from the formal fresh End scene",
+    "bed_route": "Native attribution ambiguous, source actor null and no matching ENTITY_KILLED increment; rejected as evidence limitation",
+    "limit": "Fixtures calibrate native evidence and observers, not normal autonomous dragon battle"
+  },
+  "capability_boundaries": {
+    "implemented_generic": [
+      "entity scanning",
+      "melee",
+      "bow/crossbow aiming",
+      "navigation/climbing",
+      "block placement",
+      "water bucket MLG",
+      "food/safety instincts"
+    ],
+    "unverified": [
+      "dragon part ID selection",
+      "reliable airborne ranged hits",
+      "perch melee",
+      "entry platform to island",
+      "tower ascent",
+      "dragon knockback/void survival",
+      "full autonomous battle"
+    ],
+    "missing": [
+      "dragon part-to-parent normalization and named body parts",
+      "dragon-phase-specific tracking"
+    ],
+    "not_measured": [
+      "retreat decisions",
+      "memory",
+      "replanning"
+    ],
+    "indirect_damage_limit": "Crystal nearest-player fallback and bed/no-player-source routes cannot reliably establish formal companion attribution"
+  },
+  "native_mechanism_sources": {
+    "origin": "Local matching Minecraft 1.21.1/NeoForge cached source archive; no web or real provider access",
+    "cached_archive": "C:/Users/21036/.gradle/caches/neoformruntime/intermediate_results/sourcesWithNeoForge_ca4e0f45f9db286788922a967b628b8c5f1e6aa7_output.zip",
+    "files": [
+      {
+        "path": "E:\\mineAI\\build\\evals\\dragon-combat-v1\\native-source\\EndDragonFight.java",
+        "sha256": "447e768d322bad6f1d3f5a28e74474c2586700cc97be5cbd3b26ef0b0d11327a"
+      },
+      {
+        "path": "E:\\mineAI\\build\\evals\\dragon-combat-v1\\native-source\\EnderDragon.java",
+        "sha256": "9c38ef4d5996e00a7b78d2e128e807370f22ad9db2822807f6ba1b23389ee4dd"
+      },
+      {
+        "path": "E:\\mineAI\\build\\evals\\dragon-combat-v1\\native-source\\LivingEntity.java",
+        "sha256": "1bbe1b37d6f73eadefdcdfe6f5822106e410fbc80d20c163a4eb5feefb317731"
+      },
+      {
+        "path": "E:\\mineAI\\build\\evals\\dragon-combat-v1\\native-source\\ServerPlayer.java",
+        "sha256": "8e0aef1d589ae453b70ff98d6c8be37fd80c4f9480a68c468a0876c25f2ca969"
+      }
+    ]
+  },
+  "workspace_preservation": {
+    "path": "verification/dragon-combat-v1/workspace-preservation.json",
+    "bytes": 3720,
+    "sha256": "654921e3e58743c51c6e851aae89a93dc61449db395712a8a6bed812e9d6680f",
+    "source_path": "build/evals/dragon-combat-v1/workspace-preservation.json"
+  },
+  "all_attempt_logs": {
+    "build-final.log": {
+      "path": "verification/dragon-combat-v1/build-final.log.gz",
+      "bytes": 2465,
+      "sha256": "379e3775a6d5964f8af078bbc3c519f0dc9d389d0282907f53cb1fc2a87f15e0",
+      "source_path": "build/evals/dragon-combat-v1/build-final.log",
+      "uncompressed_sha256": "e4f27bcef9aa206f31030bafbae3a3f007112499c05471e4918b7985b3eacb8b"
+    },
+    "build-native-death.log": {
+      "path": "verification/dragon-combat-v1/build-native-death.log.gz",
+      "bytes": 2453,
+      "sha256": "a21f4ee0a82275a56f625b3935059c928b22e5165340d0de2c2d0758c4ec81f9",
+      "source_path": "build/evals/dragon-combat-v1/build-native-death.log",
+      "uncompressed_sha256": "2b101754935521811257b5b02d76b7239149ba438083da1f0876b81feaab541e"
+    },
+    "build.log": {
+      "path": "verification/dragon-combat-v1/build.log.gz",
+      "bytes": 2466,
+      "sha256": "99d5d3cd34a58098312fc3da81643b17de7d7b88eec4009e367dda8281544212",
+      "source_path": "build/evals/dragon-combat-v1/build.log",
+      "uncompressed_sha256": "2cf1e09dce738ee59589394eebb72ec46934bd98a03d4dd50bb5fbd1e3131087"
+    },
+    "core-jvm-native-death.log": {
+      "path": "verification/dragon-combat-v1/core-jvm-native-death.log.gz",
+      "bytes": 846,
+      "sha256": "2f8494b128295057d9dec14759eb32b3157af91ab9dd24b69e286aaef7e493de",
+      "source_path": "build/evals/dragon-combat-v1/core-jvm-native-death.log",
+      "uncompressed_sha256": "64442294bca0fd1ec72276ab6c649bf80e448c4eb044696966c1fca77a62923f"
+    },
+    "core-jvm.log": {
+      "path": "verification/dragon-combat-v1/core-jvm.log.gz",
+      "bytes": 849,
+      "sha256": "c64a96d7dd36d785f52dc618764036f8136ae6043303d416b6f8162fd2381ead",
+      "source_path": "build/evals/dragon-combat-v1/core-jvm.log",
+      "uncompressed_sha256": "cab0e3780d6df7669777a404059806b18df5ad7b7a5b3ee695849387c329b766"
+    },
+    "gametest-final.log": {
+      "path": "verification/dragon-combat-v1/gametest-final.log.gz",
+      "bytes": 44133,
+      "sha256": "71d86c06c2ec44028e319e0a4734c5974be6e811f90524142dad29ee689c1f48",
+      "source_path": "build/evals/dragon-combat-v1/gametest-final.log",
+      "uncompressed_sha256": "5c83db0c160deae91bf7599105e35acfdaf017c7c05e347e5b1e328c8856c075"
+    },
+    "gametest.log": {
+      "path": "verification/dragon-combat-v1/gametest.log.gz",
+      "bytes": 45081,
+      "sha256": "044c706ea1f34b05f19cdbc19adb6f4fbf3ddf3fd72b2364d892bab562c9dddf",
+      "source_path": "build/evals/dragon-combat-v1/gametest.log",
+      "uncompressed_sha256": "fff2d433b227cc86533718ac2114fda1cd2cfcf8afadb17c6e55613805a13a55"
+    },
+    "jvm-final.log": {
+      "path": "verification/dragon-combat-v1/jvm-final.log.gz",
+      "bytes": 1363,
+      "sha256": "d7a03d70b4f5163efab002779a1e1113b40e0753c076f1c00507076d05c62bd4",
+      "source_path": "build/evals/dragon-combat-v1/jvm-final.log",
+      "uncompressed_sha256": "6677d773e15a3aafb58b405b82679979522470780535cbd486b40ea681b9cfbf"
+    },
+    "jvm-native-death.log": {
+      "path": "verification/dragon-combat-v1/jvm-native-death.log.gz",
+      "bytes": 1360,
+      "sha256": "ce96fbaf6a68ed2397feb56988d9fccfc682c91c0613d552071e6d6bc7d3ce6d",
+      "source_path": "build/evals/dragon-combat-v1/jvm-native-death.log",
+      "uncompressed_sha256": "1b32eabc63f6a0a0af79fedda10d7b15e6ca35e60a9b09aa71177a201afe760d"
+    },
+    "jvm-retry.log": {
+      "path": "verification/dragon-combat-v1/jvm-retry.log.gz",
+      "bytes": 1363,
+      "sha256": "caa2c2985e9550dfc5200091e8fa8257f5f45eab19aafe54dacb4b676b76457d",
+      "source_path": "build/evals/dragon-combat-v1/jvm-retry.log",
+      "uncompressed_sha256": "128e2e0d6839d16fa99690ae507e7b4f6f1edd20cb4e0d384b36068964f520cc"
+    },
+    "jvm.log": {
+      "path": "verification/dragon-combat-v1/jvm.log.gz",
+      "bytes": 1021,
+      "sha256": "a50a22f35c3594d483bb6aef2fcb8a23e5849d8622a3d1f7626aead8a12a2658",
+      "source_path": "build/evals/dragon-combat-v1/jvm.log",
+      "uncompressed_sha256": "3847f957500601fbdcda9a63ac3441a47c5b48468753be6f232b5ba76311d258"
+    },
+    "localhost.log": {
+      "path": "verification/dragon-combat-v1/localhost.log.gz",
+      "bytes": 227,
+      "sha256": "571420b94fa697fa8d822b9e56fc04e23b1478d6b136a418893715cc32ebe148",
+      "source_path": "build/evals/dragon-combat-v1/localhost.log",
+      "uncompressed_sha256": "19bb65830a5d9049a79f1660cce63336b706bc8d5b56d2382105eee4b32a2e92"
+    },
+    "prepare-final.log": {
+      "path": "verification/dragon-combat-v1/prepare-final.log.gz",
+      "bytes": 145,
+      "sha256": "25f0c784ed4f4f03aa688f36643399e49d18c30e9b4c916ccb5807ec4f6e2349",
+      "source_path": "build/evals/dragon-combat-v1/prepare-final.log",
+      "uncompressed_sha256": "b2a6fb01f63cf0e022c85dcdb7cd6671a81c99847b9ea2598f5322e49ffef68c"
+    },
+    "prepare-initial.log": {
+      "path": "verification/dragon-combat-v1/prepare-initial.log.gz",
+      "bytes": 144,
+      "sha256": "ec4b4115c4f7fa8d8c199bc657a7942fb0b1295b18df63670b3ee3b83be521e4",
+      "source_path": "build/evals/dragon-combat-v1/prepare-initial.log",
+      "uncompressed_sha256": "330b663587b943b3e59169dc27841a7623d30f476a96a751c1d8dd37ae50cc30"
+    },
+    "prepare.log": {
+      "path": "verification/dragon-combat-v1/prepare.log.gz",
+      "bytes": 146,
+      "sha256": "16e3b5706516a73b66902a647ecee254272a87840c051be606e1a0afcab3faac",
+      "source_path": "build/evals/dragon-combat-v1/prepare.log",
+      "uncompressed_sha256": "0d26b3590ea7df7f9ee86c1b4407448df6358427728a26b2945ef9f95b11aa4d"
+    },
+    "python-final.log": {
+      "path": "verification/dragon-combat-v1/python-final.log.gz",
+      "bytes": 61,
+      "sha256": "0898f2f41b5acfabe05ea17e208a5fa9b42b0f8ca68f102f4780d93c47430caa",
+      "source_path": "build/evals/dragon-combat-v1/python-final.log",
+      "uncompressed_sha256": "ab47c2a053a78ba2b843ceb17af0a60c7efb0367ec361ce99b16a47f0b1c6805"
+    },
+    "python.log": {
+      "path": "verification/dragon-combat-v1/python.log.gz",
+      "bytes": 61,
+      "sha256": "e1aa706ca95a97780602279b797409d81721f36385d6ec9225ecb9769aec9a9b",
+      "source_path": "build/evals/dragon-combat-v1/python.log",
+      "uncompressed_sha256": "b515483b8ec39000c8f7d526947a8caaed842a0b579ec5bb8cb9942ead09ed2a"
+    }
+  },
+  "raw_fact_files": {
+    "jvm-counts.json": {
+      "path": "verification/dragon-combat-v1/jvm-counts.json",
+      "bytes": 336,
+      "sha256": "d9ca77d65660053ae710b26200d01382e5da8388f81cfd0f070e2840aa6be788",
+      "source_path": "build/evals/dragon-combat-v1/jvm-counts.json"
+    },
+    "native-dragon-calibration-initial.json": {
+      "path": "verification/dragon-combat-v1/native-dragon-calibration-initial.json",
+      "bytes": 274490,
+      "sha256": "ced2588b1e58f10f833d80f87a288cd2074df8e950a7cf7e5a80f0b5b15aa1ca",
+      "source_path": "build/evals/dragon-combat-v1/native-dragon-calibration-initial.json"
+    },
+    "native-dragon-calibration.json": {
+      "path": "verification/dragon-combat-v1/native-dragon-calibration.json",
+      "bytes": 274920,
+      "sha256": "075242660a22dfa5fd6b124fbefc13663a91b6c9800077fca8ab022cc9f9b49b",
+      "source_path": "build/evals/dragon-combat-v1/native-dragon-calibration.json"
+    },
+    "preexisting-files.json": {
+      "path": "verification/dragon-combat-v1/preexisting-files.json",
+      "bytes": 1377,
+      "sha256": "71b2d628192097b51c23252e0afe48b66d35067e45a6c1ce01bd700b2303f0b1",
+      "source_path": "build/evals/dragon-combat-v1/preexisting-files.json"
+    },
+    "raw-python-validation-initial.json": {
+      "path": "verification/dragon-combat-v1/raw-python-validation-initial.json",
+      "bytes": 3706,
+      "sha256": "571ccde3a4403522f02546894e385299ad75e7ce83b3d141096b964d4720e52d",
+      "source_path": "build/evals/dragon-combat-v1/raw-python-validation-initial.json"
+    },
+    "raw-python-validation.json": {
+      "path": "verification/dragon-combat-v1/raw-python-validation.json",
+      "bytes": 4921,
+      "sha256": "96097667e5ab4747829adcee554835a72c4303f7a10ee5b06222d2cc271bea7c",
+      "source_path": "build/evals/dragon-combat-v1/raw-python-validation.json"
+    },
+    "workspace-preservation.json": {
+      "path": "verification/dragon-combat-v1/workspace-preservation.json",
+      "bytes": 3720,
+      "sha256": "654921e3e58743c51c6e851aae89a93dc61449db395712a8a6bed812e9d6680f",
+      "source_path": "build/evals/dragon-combat-v1/workspace-preservation.json"
+    },
+    "jvm-testcases.json": {
+      "path": "verification/dragon-combat-v1/jvm-testcases.json.gz",
+      "bytes": 20482,
+      "sha256": "b4cb5e556b4cffa28dade9b3e4f15c49fc898f168bcc0806b1c2a82ba4eec3c0",
+      "source_path": "build/evals/dragon-combat-v1/jvm-testcases.json",
+      "uncompressed_sha256": "443a7282b78f11edeebf02420de8c0a85ec6f782084164fa6eba95d0a2bac387"
+    },
+    "LiveEvalRunTest.xml": {
+      "path": "verification/dragon-combat-v1/LiveEvalRunTest.xml",
+      "bytes": 10990,
+      "sha256": "d0d7ce8d84d8c56a44270cabdb7c7186173be97871efb3af0bd61b29ac36e819",
+      "source_path": "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.LiveEvalRunTest.xml"
+    },
+    "localhost-snapshots.json": {
+      "path": "verification/dragon-combat-v1/localhost-snapshots.json",
+      "bytes": 76078,
+      "sha256": "fc8683326b4286f16e0891c700b526f960997fe5d80f061243650c7243a9286a",
+      "source_path": "build/evals/dragon-combat-v1/localhost-snapshots.json"
+    }
+  },
+  "real_model": {
+    "status": "尚未运行",
+    "requests": 0,
+    "real_key_read_or_used": false,
+    "hillclimb_loop": false
+  },
+  "complete_from_zero_clear": false,
+  "independent_stage_scores_combined": false
+}

@@ -1,0 +1,216 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :buildSrc:extractPluginRequests UP-TO-DATE
+> Task :buildSrc:generatePluginAdapters UP-TO-DATE
+> Task :buildSrc:compileJava UP-TO-DATE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:compileGroovyPlugins UP-TO-DATE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources UP-TO-DATE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :api:fabric
+Fabric Loom: 1.14.10
+
+> Configure project :core:fabric
+Fabric Loom: 1.14.10
+
+> Task :ai:compileJava UP-TO-DATE
+> Task :agent:compileJava UP-TO-DATE
+> Task :agent:processResources NO-SOURCE
+> Task :agent:classes UP-TO-DATE
+> Task :agent:jar UP-TO-DATE
+> Task :ai:processResources UP-TO-DATE
+> Task :ai:classes UP-TO-DATE
+> Task :ai:jar UP-TO-DATE
+> Task :ui:compileJava UP-TO-DATE
+> Task :ui:processResources NO-SOURCE
+> Task :ui:classes UP-TO-DATE
+> Task :ui:jar UP-TO-DATE
+> Task :api:common:createMinecraftArtifacts UP-TO-DATE
+> Task :api:common:compileJava UP-TO-DATE
+> Task :api:neoforge:createMinecraftArtifacts UP-TO-DATE
+> Task :api:neoforge:compileJava UP-TO-DATE
+> Task :api:neoforge:processResources UP-TO-DATE
+> Task :api:neoforge:classes UP-TO-DATE
+> Task :api:neoforge:jarJar NO-SOURCE
+> Task :api:neoforge:jar UP-TO-DATE
+> Task :core:common:createMinecraftArtifacts UP-TO-DATE
+> Task :core:common:compileJava UP-TO-DATE
+> Task :core:neoforge:createMinecraftArtifacts UP-TO-DATE
+> Task :api:neoforge:apiJar UP-TO-DATE
+> Task :plugins:curios:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:curios:compileJava UP-TO-DATE
+> Task :plugins:ftbquests:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:ftbquests:compileJava UP-TO-DATE
+> Task :plugins:jei:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:jei:compileJava UP-TO-DATE
+> Task :plugins:kaleidoscope:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:kaleidoscope:compileJava UP-TO-DATE
+> Task :plugins:mekanism:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:mekanism:compileJava UP-TO-DATE
+> Task :plugins:tlm:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:tlm:compileJava UP-TO-DATE
+> Task :api:common:processResources UP-TO-DATE
+> Task :api:common:classes UP-TO-DATE
+> Task :api:common:compileClientJava UP-TO-DATE
+> Task :api:common:processClientResources NO-SOURCE
+> Task :api:common:clientClasses UP-TO-DATE
+> Task :api:common:jarJar NO-SOURCE
+> Task :api:common:jar UP-TO-DATE
+> Task :api:common:apiJar UP-TO-DATE
+> Task :plugins:ysm:createMinecraftArtifacts UP-TO-DATE
+> Task :plugins:ysm:compileJava UP-TO-DATE
+> Task :core:neoforge:compileJava UP-TO-DATE
+> Task :core:neoforge:processResources UP-TO-DATE
+> Task :plugins:jei:processResources NO-SOURCE
+> Task :plugins:jei:classes UP-TO-DATE
+> Task :plugins:mekanism:processResources UP-TO-DATE
+> Task :plugins:mekanism:classes UP-TO-DATE
+> Task :core:neoforge:classes UP-TO-DATE
+> Task :core:neoforge:downloadAssets UP-TO-DATE
+> Task :core:neoforge:writeClientLegacyClasspath UP-TO-DATE
+> Task :core:neoforge:prepareClientRun
+
+> Task :core:neoforge:runClient
+WARN StatusConsoleListener Advanced terminal features are not available in this environment
+[02:08:46] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeclientdev, --version, 21.1.233, --assetIndex, 17, --assetsDir, C:\\Users\\21036\\.gradle\\caches\\neoformruntime\\assets, --gameDir, ., --fml.fmlVersion, 4.0.42, --fml.mcVersion, 1.21.1, --fml.neoForgeVersion, 21.1.233, --fml.neoFormVersion, 20240808.144430]
+[02:08:46] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: JVM identified as Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.12.1+1-LTS
+[02:08:46] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher 11.0.5+main.901c6ea8 starting: java version 21.0.12.1 by Eclipse Adoptium; OS Windows 11 arch amd64 version 10.0
+[02:08:46] [main/INFO] [ne.ne.fm.lo.ImmediateWindowHandler/]: Loading ImmediateWindowProvider fmlearlywindow
+[02:08:46] [main/INFO] [EARLYDISPLAY/]: Trying GL version 4.6
+[02:08:46] [main/INFO] [EARLYDISPLAY/]: Requested GL version 4.6 got version 4.6
+[02:08:46] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=union:/C:/Users/21036/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.15.2+mixin.0.8.7/2af2f021d8e02a0220dc27a7a72b4666d66d44ca/sponge-mixin-0.15.2+mixin.0.8.7.jar%23138!/ Service=ModLauncher Env=CLIENT
+[02:08:46] [pool-2-thread-1/INFO] [EARLYDISPLAY/]: GL info: Intel(R) Graphics GL version 4.6.0 - Build 32.0.101.8332, Intel
+[02:08:46] [main/INFO] [ne.ne.fm.lo.mo.lo.JarInJarDependencyLocator/]: Found 2 dependencies adding them to mods collection
+[02:08:46] [main/INFO] [ne.ne.fm.lo.mo.ModDiscoverer/]: 
+     Mod List:
+		Name Version (Mod Id)
+
+		Minecraft 1.21.1 (minecraft)
+		NeoForge 21.1.233 (neoforge)
+		Numen 0.1.3 (numen_api)
+		Numen 0.1.3 (numen)
+[02:08:47] [main/INFO] [mixin/]: Compatibility level set to JAVA_21
+[02:08:47] [main/INFO] [cp.mo.mo.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeclientdev' with arguments [--version, 21.1.233, --gameDir, ., --assetsDir, C:\Users\21036\.gradle\caches\neoformruntime\assets, --assetIndex, 17]
+[02:08:47] [main/WARN] [mixin/]: Error loading class: dev/architectury/hooks/level/entity/PlayerHooks (java.lang.ClassNotFoundException: dev.architectury.hooks.level.entity.PlayerHooks)
+[02:08:49] [Datafixer Bootstrap/INFO] [mojang/DataFixerBuilder]: 229 Datafixer optimizations took 176 milliseconds
+[02:08:49] [pool-8-thread-1/INFO] [MixinExtras|Service/]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.3).
+[02:08:53] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[02:08:53] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, location] and [teleport, targets] with inputs: [0.1 -0.5 .9, 0 0 0]
+[02:08:53] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, destination] and [teleport, targets] with inputs: [Player, 0123, @e, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[02:08:53] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets] and [teleport, destination] with inputs: [Player, 0123, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[02:08:53] [main/WARN] [minecraft/Commands]: Ambiguity between arguments [teleport, targets, location] and [teleport, targets, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[02:08:53] [Render thread/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/E:/mineAI/core/neoforge/build/moddev/artifacts/neoforge-21.1.233.jar%23189!/assets/.mcassetsroot' uses unexpected schema
+[02:08:53] [Render thread/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/E:/mineAI/core/neoforge/build/moddev/artifacts/neoforge-21.1.233.jar%23189!/data/.mcassetsroot' uses unexpected schema
+[02:08:53] [Render thread/INFO] [mojang/YggdrasilAuthenticationService]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[02:08:53] [Render thread/INFO] [minecraft/Minecraft]: Setting user: Dev
+[02:08:53] [Render thread/INFO] [minecraft/Minecraft]: Backend library: LWJGL version 3.3.3+5
+[02:08:53] [modloading-worker-0/INFO] [ne.ne.ne.co.NeoForgeMod/NEOFORGE-MOD]: NeoForge mod loading, version 21.1.233, for MC 1.21.1
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen] common init on NeoForge (development)
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] reload E:\mineAI\build\evals\live-v1\20261002T180836171174Z-63e29f32\game\config\numen\adapters: 0 loaded, 0 failed, 3 skipped (added=[], updated=[], removed=[])
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'beyonddimensions': mod 'beyonddimensions' not loaded
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'curios': mod 'curios' not loaded
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-adapter] skipped 'tacz': mod 'tacz' not loaded
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen] registered 1 tool(s)
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: Numen mod initialised on NeoForge.
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-mcp-client] wrote default config E:\mineAI\build\evals\live-v1\20261002T180836171174Z-63e29f32\game\config\numen\mcp_clients.json
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-mcp-client] 2 server(s) configured, 0 connecting
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-mcp] wrote default config E:\mineAI\build\evals\live-v1\20261002T180836171174Z-63e29f32\game\config\numen\mcp_server.json
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-mcp] 外接大脑模式关闭(config/numen/mcp_server.json)
+[02:08:53] [modloading-worker-0/INFO] [NumenCore/]: [numen-core] registered 42 tool(s), 16 task type(s); survival chains enabled
+[02:08:53] [modloading-worker-0/INFO] [Numen/]: [numen-skill] declared bundled skills root skills
+[02:08:53] [modloading-worker-0/INFO] [NumenCore/]: numen-core initialised on NeoForge.
+[02:08:54] [Render thread/INFO] [ne.ne.ne.ga.GameTestHooks/]: Enabled Gametest Namespaces: [numen]
+[02:08:54] [Render thread/INFO] [minecraft/ReloadableResourceManager]: Reloading ResourceManager: vanilla, mod_resources, mod/numen_api, mod/numen, mod/neoforge
+[02:08:54] [Worker-Main-6/INFO] [minecraft/UnihexProvider]: Found unifont_all_no_pua-15.1.05.hex, loading
+[02:08:54] [Worker-Main-10/INFO] [minecraft/UnihexProvider]: Found unifont_jp_patch-15.1.05.hex, loading
+[02:08:55] [Render thread/WARN] [minecraft/SoundEngine]: Missing sound for event: minecraft:item.goat_horn.play
+[02:08:55] [Render thread/WARN] [minecraft/SoundEngine]: Missing sound for event: minecraft:entity.goat.screaming.horn_break
+[02:08:56] [Render thread/INFO] [mojang/Library]: OpenAL initialized on device OpenAL Soft on 扬声器 (Realtek(R) Audio)
+[02:08:56] [Render thread/INFO] [minecraft/SoundEngine]: Sound engine started
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x512x4 minecraft:textures/atlas/blocks.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x256x4 minecraft:textures/atlas/signs.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x512x4 minecraft:textures/atlas/shield_patterns.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x512x4 minecraft:textures/atlas/banner_patterns.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x1024x4 minecraft:textures/atlas/armor_trims.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x256x4 minecraft:textures/atlas/chest.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 128x64x4 minecraft:textures/atlas/decorated_pot.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x4 minecraft:textures/atlas/shulker_boxes.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x4 minecraft:textures/atlas/beds.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 256x128x0 minecraft:textures/atlas/mob_effects.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 64x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[02:08:56] [Render thread/INFO] [minecraft/TextureAtlas]: Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[02:08:56] [Render thread/WARN] [minecraft/ShaderInstance]: Shader rendertype_entity_translucent_emissive could not find sampler named Sampler2 in the specified shader program.
+[02:08:56] [Render thread/INFO] [Numen/]: [numen-skill] loaded 11 skill(s) (1 bundled root(s), userRoot=.\config\numen\skills)
+[02:08:56] [Render thread/INFO] [ne.ne.ne.cl.en.an.js.AnimationLoader/]: Loaded 0 entity animations
+[02:08:59] [Render thread/INFO] [minecraft/RecipeManager]: Loaded 1290 recipes
+[02:09:00] [Render thread/INFO] [minecraft/AdvancementTree]: Loaded 1399 advancements
+[02:09:00] [Server thread/INFO] [minecraft/IntegratedServer]: Starting integrated minecraft server version 1.21.1
+[02:09:00] [Server thread/INFO] [minecraft/MinecraftServer]: Generating keypair
+[02:09:00] [Server thread/INFO] [minecraft/MinecraftServer]: Preparing start region for dimension minecraft:overworld
+[02:09:00] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[02:09:00] [progressListener/INFO] [minecraft/LoggerChunkProgressListener]: Time elapsed: 108 ms
+[02:09:00] [Server thread/INFO] [ne.ne.ne.se.pe.PermissionAPI/]: Successfully initialized permission handler neoforge:default_handler
+[02:09:00] [Server thread/INFO] [Numen/]: [numen-task] scheduler heartbeat online (first server tick)
+[02:09:00] [Server thread/INFO] [minecraft/IntegratedServer]: Changing view distance to 12, from 10
+[02:09:00] [Server thread/INFO] [minecraft/IntegratedServer]: Changing simulation distance to 12, from 0
+[02:09:01] [Server thread/INFO] [minecraft/PlayerList]: Dev[local:E:f64fa23f] logged in with entity id 1 at (4.5, -60.0, 4.5)
+[02:09:01] [Server thread/INFO] [minecraft/MinecraftServer]: Dev joined the game
+[02:09:01] [Render thread/INFO] [minecraft/AdvancementTree]: Loaded 2 advancements
+[02:09:01] [Server thread/INFO] [minecraft/PlayerList]: EvalBot[embedded] logged in with entity id 5 at (1.5, -60.0, -5.5)
+[02:09:02] [Server thread/INFO] [minecraft/MinecraftServer]: EvalBot joined the game
+[02:09:02] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] EvalBot joined the game
+[02:09:02] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 1 种物品 / 1 格, 主手 oak_log, 副手 空手, 效果 0, 插件片段 64 字符 (首次)
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] queued query URGENT: <query>/goal 把背包里的 2 个橡木原木合成为 8 个橡木木板，留在你的背包中。完成后告诉我。</query>
+<goal>
+The text inside <objective> is provided by the owne...
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-queue#a8239247-7306-4aa9-a183-87fdfac72aef] 主动开轮:有急件(攒了 1 条/阈值 3,最老 0s/上限 180s,档位 3)
+[02:09:03] [Render thread/WARN] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] can't reach the model: This companion has no model config bound — pick or create one in Settings → Model Configs
+[02:09:03] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] ⚠ EvalBot:This companion has no model config bound — pick or create one in Settings → Model Configs
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] provider entry set to eval-model
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] BINDING_CHANGED 解开停牌 BLOCKED
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-queue#a8239247-7306-4aa9-a183-87fdfac72aef] 主动开轮:有急件(攒了 1 条/阈值 3,最老 0s/上限 180s,档位 3)
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-inv] 背包块进请求:353 字符,这份快照 1220ms 前收到
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] turn 1: convo=2 msgs, tools=43
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-http] routing LLM calls through proxy 127.0.0.1:7897
+[02:09:03] [Render thread/INFO] [Numen/]: [numen-llm] client initialised: provider=deepseek, model=deepseek-v4.1-flash, url=https://api.b.ai/v1/chat/completions, streaming=true
+[02:09:08] [ForkJoinPool.commonPool-worker-8/INFO] [Numen/]: [numen-llm] chat done in 4682ms, chunks=94, tokens=18479/268 (total 18747), finish=tool_calls, tool_calls=[craft], content="<no text>"
+[02:09:08] [Render thread/INFO] [Numen/]: [numen-dispatch#a8239247-7306-4aa9-a183-87fdfac72aef] dispatch tool=craft id=call_00_w2ib99kxfkk7o4oy0xf0osr6 args={"item_id": "minecraft:oak_planks", "count": 8}
+[02:09:08] [Server thread/INFO] [Numen/]: [numen-state] EvalBot → 1 种物品 / 1 格, 主手 空手, 副手 空手, 效果 0, 插件片段 64 字符
+[02:09:08] [Render thread/INFO] [Numen/]: [numen-dispatch#a8239247-7306-4aa9-a183-87fdfac72aef] tool_result id=call_00_w2ib99kxfkk7o4oy0xf0osr6 tool=craft (queued=0) → {"success":true,"message":"crafted 8x oak_planks — used 2x oak_log. Used your own 2x2 grid. Now carrying 8x oak_planks.","data":{"carrying":8,"crafted":8}}
+[02:09:08] [Render thread/INFO] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] turn 2: convo=4 msgs, tools=43
+[02:09:08] [ForkJoinPool.commonPool-worker-8/INFO] [Numen/]: [numen-http][lr-2] cancelled by caller in 253ms (0 chunks)
+[02:09:08] [Server thread/INFO] [Numen/]: [numen-net] ✓ cancel_tasks on entity a8239247-7306-4aa9-a183-87fdfac72aef for Dev
+[02:09:08] [Render thread/INFO] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] halt OWNER_STOP (phase=MODEL, abandoned calls=0, cleared queued=0, left=0)
+[02:09:08] [Render thread/INFO] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] 目标收工(1 轮,按停止收工了:把背包里的 2 个橡木原木合成为 8 个橡木木板，留在你的背包中。完成后告诉我。):把背包里的 2 个橡木原木合成为 8 个橡木木板，留在你的背包中。完成后告诉我。
+[02:09:08] [Render thread/INFO] [minecraft/Minecraft]: Stopping!
+[02:09:08] [Render thread/INFO] [Numen/]: [numen-entity#a8239247-7306-4aa9-a183-87fdfac72aef] halt DISCONNECT (phase=idle, abandoned calls=0, cleared queued=0, left=0)
+[02:09:08] [Server thread/INFO] [minecraft/ServerGamePacketListenerImpl]: Dev lost connection: Disconnected
+[02:09:08] [Server thread/INFO] [minecraft/MinecraftServer]: Dev left the game
+[02:09:08] [Server thread/INFO] [minecraft/ServerCommonPacketListenerImpl]: Stopping singleplayer server as player logged out
+[02:09:08] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping server
+[02:09:08] [Server thread/INFO] [minecraft/MinecraftServer]: Saving players
+[02:09:08] [Server thread/INFO] [minecraft/MinecraftServer]: Saving worlds
+[02:09:08] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-b2d35564841a4a64b38da1a29cc492e4]'/minecraft:overworld
+[02:09:09] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-b2d35564841a4a64b38da1a29cc492e4]'/minecraft:the_end
+[02:09:09] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[numen-eval-b2d35564841a4a64b38da1a29cc492e4]'/minecraft:the_nether
+[02:09:09] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (numen-eval-b2d35564841a4a64b38da1a29cc492e4): All chunks are saved
+[02:09:09] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[02:09:09] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[02:09:09] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
+
+[Incubating] Problems report is available at: file:///E:/mineAI/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 33s
+49 actionable tasks: 2 executed, 47 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.2.0/userguide/configuration_cache_enabling.html

@@ -1,0 +1,668 @@
+[
+  {
+    "type": "started",
+    "elapsed_ms": 0.0,
+    "data": {
+      "alive": true,
+      "game_tick": 47,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 0.0,
+    "data": {
+      "alive": true,
+      "game_tick": 47,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "fixture",
+    "elapsed_ms": 0.0,
+    "data": {
+      "setup": {
+        "spawn": [
+          8,
+          65,
+          8
+        ],
+        "floor": {
+          "from": [
+            0,
+            64,
+            0
+          ],
+          "to": [
+            20,
+            64,
+            20
+          ],
+          "block": "minecraft:stone"
+        },
+        "inventory": {
+          "minecraft:oak_log": 2
+        }
+      },
+      "goal_max_turns": 30,
+      "goal_stuck_limit": 2,
+      "owner_mode": "spectator",
+      "owner_follows_companion": false,
+      "client_tracking_limit": "Owner remains at spawn; local perception tools may lose the body beyond tracking distance or after dimension travel"
+    }
+  },
+  {
+    "type": "owner_goal",
+    "elapsed_ms": 17.3805,
+    "data": {
+      "text": "把背包里的 2 个橡木原木合成为 8 个橡木木板，留在你的背包中。完成后告诉我。"
+    }
+  },
+  {
+    "type": "model_call",
+    "elapsed_ms": 173.9068,
+    "data": {
+      "attempt": 1
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 285.5843,
+    "data": {
+      "alive": true,
+      "game_tick": 53,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 484.4501,
+    "data": {
+      "alive": true,
+      "game_tick": 57,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 685.3041,
+    "data": {
+      "alive": true,
+      "game_tick": 61,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 886.3784,
+    "data": {
+      "alive": true,
+      "game_tick": 65,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 1132.8859,
+    "data": {
+      "alive": true,
+      "game_tick": 70,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 1380.2476,
+    "data": {
+      "alive": true,
+      "game_tick": 75,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 1582.1954,
+    "data": {
+      "alive": true,
+      "game_tick": 79,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 1783.1309,
+    "data": {
+      "alive": true,
+      "game_tick": 83,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 1987.6282,
+    "data": {
+      "alive": true,
+      "game_tick": 87,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 2231.7117,
+    "data": {
+      "alive": true,
+      "game_tick": 92,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 2433.2029,
+    "data": {
+      "alive": true,
+      "game_tick": 96,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 2637.4822,
+    "data": {
+      "alive": true,
+      "game_tick": 100,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 2883.1169,
+    "data": {
+      "alive": true,
+      "game_tick": 105,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 3087.1961,
+    "data": {
+      "alive": true,
+      "game_tick": 109,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 3333.107,
+    "data": {
+      "alive": true,
+      "game_tick": 114,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 3535.148,
+    "data": {
+      "alive": true,
+      "game_tick": 118,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 3739.5058,
+    "data": {
+      "alive": true,
+      "game_tick": 122,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 3985.5936,
+    "data": {
+      "alive": true,
+      "game_tick": 127,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 4188.0002,
+    "data": {
+      "alive": true,
+      "game_tick": 131,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 4433.362,
+    "data": {
+      "alive": true,
+      "game_tick": 136,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 4634.7969,
+    "data": {
+      "alive": true,
+      "game_tick": 140,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 4837.9292,
+    "data": {
+      "alive": true,
+      "game_tick": 144,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "model_usage",
+    "elapsed_ms": 4862.4406,
+    "data": {
+      "purpose": "TURN"
+    }
+  },
+  {
+    "type": "assistant",
+    "elapsed_ms": 4863.3977,
+    "data": {
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_00_w2ib99kxfkk7o4oy0xf0osr6",
+          "type": "function",
+          "function": {
+            "name": "craft",
+            "arguments": "{\"item_id\": \"minecraft:oak_planks\", \"count\": 8}"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_started",
+    "elapsed_ms": 4863.8821,
+    "data": {
+      "call": {
+        "id": "call_00_w2ib99kxfkk7o4oy0xf0osr6",
+        "type": "function",
+        "function": {
+          "name": "craft",
+          "arguments": "{\"item_id\": \"minecraft:oak_planks\", \"count\": 8}"
+        }
+      }
+    }
+  },
+  {
+    "type": "tool_finished",
+    "elapsed_ms": 4878.5209,
+    "data": {
+      "call": {
+        "id": "call_00_w2ib99kxfkk7o4oy0xf0osr6",
+        "type": "function",
+        "function": {
+          "name": "craft",
+          "arguments": "{\"item_id\": \"minecraft:oak_planks\", \"count\": 8}"
+        }
+      },
+      "result": "{\"success\":true,\"message\":\"crafted 8x oak_planks — used 2x oak_log. Used your own 2x2 grid. Now carrying 8x oak_planks.\",\"data\":{\"carrying\":8,\"crafted\":8}}"
+    }
+  },
+  {
+    "type": "model_call",
+    "elapsed_ms": 4880.0997,
+    "data": {
+      "attempt": 2
+    }
+  },
+  {
+    "type": "snapshot",
+    "elapsed_ms": 5081.8688,
+    "data": {
+      "alive": true,
+      "game_tick": 149,
+      "dragon_kills": 0,
+      "deaths": 0,
+      "inventory": {
+        "minecraft:oak_planks": 8
+      },
+      "health": 20.0,
+      "food": 20,
+      "dimension": "minecraft:overworld",
+      "position": [
+        8.0,
+        65.0,
+        8.0
+      ],
+      "current_task": null
+    }
+  },
+  {
+    "type": "finished",
+    "elapsed_ms": 5081.8688,
+    "data": {
+      "status": "success",
+      "reason": "authoritative_success_criterion_met"
+    }
+  }
+]

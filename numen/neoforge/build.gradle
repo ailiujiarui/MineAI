@@ -31,6 +31,8 @@ dependencies {
     compileOnly project(':plugins:ae2')
     compileOnly project(':plugins:mekanism')
     compileOnly project(':plugins:jei')
+    // 评测 GameTest(在本模块 src/main,不进发行 jar):用 Numen 的 GameTestKit 夹具
+    compileOnly project(':numen:common').sourceSets.testFixtures.output
     // Bundle it into Numen's jar (Jar-in-Jar) so players install one file and get both mods.
     jarJar(project(':numen-api:neoforge'))
 }
@@ -72,7 +74,15 @@ neoForge {
         client {
             client()
             systemProperties.put('numen.gametest.suites', gameTestSelection)
-            gameDirectory = this.mkdir(this.file("runs/client"))
+            if (providers.gradleProperty('numenLiveEval').isPresent()) {
+                if (!providers.gradleProperty('numenLiveEvalGameDir').isPresent()) {
+                    throw new GradleException('numenLiveEval requires an isolated numenLiveEvalGameDir')
+                }
+                systemProperty('numen.eval.live', providers.gradleProperty('numenLiveEval').get())
+                gameDirectory = this.mkdir(this.file(providers.gradleProperty('numenLiveEvalGameDir').get()))
+            } else {
+                gameDirectory = this.mkdir(this.file("runs/client"))
+            }
         }
         data {
             data() // NeoForge 21.1 (1.21.1) has no clientData() run type — the combined data() run + --all covers it
@@ -95,6 +105,9 @@ neoForge {
             }
             rootProject.ext.numenTerrainProperties().each { key, value -> systemProperties.put(key, value) }
             gameDirectory = this.mkdir(this.file("runs/gametestserver"))
+            if (providers.gradleProperty('numenEvalOutput').isPresent()) {
+                systemProperty('numen.eval.output', providers.gradleProperty('numenEvalOutput').get())
+            }
         }
         if (project.hasProperty('pairedExperiment')) {
             pairedExperiment {
@@ -143,6 +156,13 @@ tasks.matching { it.name ==~ /run[A-Z].*/ }.configureEach {
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+// NeoForge discovers and initializes GameTest classes in every development client.
+// Their static fixture registration must not become part of the real-model tool set.
+// Normal development and runGameTestServer still compile and discover every test.
+if (providers.gradleProperty('numenLiveEval').isPresent()) {
+    sourceSets.main.java.exclude('com/dwinovo/numen/core/gametest/**')
+}
 
 // Implement mcgradleconventions loader attribute
 def loaderAttribute = Attribute.of('io.github.mcgradleconventions.loader', String)

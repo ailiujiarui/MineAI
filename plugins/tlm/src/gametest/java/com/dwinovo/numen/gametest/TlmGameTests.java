@@ -35,7 +35,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.dwinovo.numen.api.gametest.GameTestKit.*;
+import static com.dwinovo.numen.gametest.GameTestKit.*;
 
 /**
  * 车万女仆在场时她养女仆:驯服、名下清单、切工作模式、改日程、开背包页放东西、够不着、别人的女仆、女仆死了、女仆喂她。

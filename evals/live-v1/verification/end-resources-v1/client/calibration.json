@@ -1,0 +1,23 @@
+{
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false,
+  "scenario": "end-resources",
+  "launcher_exit_code": 0,
+  "purpose": "Reject the prepared expedition inventory as end-resource success with idle localhost replies",
+  "expected_outcome": "budget_exhausted",
+  "scripted_request_budget_reached": true,
+  "starter_inventory_matches": true,
+  "initial_resources_zero": true,
+  "final_resources_zero": true,
+  "initial_worn_armor_matches": true,
+  "initial_offhand_shield_matches": true,
+  "initial_equipment_ready": true,
+  "initial_food_nutrition": 128,
+  "no_milestones": true,
+  "absent_travel_uncovered": true,
+  "event_coverage_consistent": true,
+  "replanning_not_measured": true,
+  "passed": true
+}

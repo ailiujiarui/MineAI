@@ -1,0 +1,115 @@
+{
+  "recorded_at_utc": "2026-10-04T09:37:14.472569+00:00",
+  "environment": {
+    "minecraft": "1.21.1",
+    "neoforge_override": "21.1.233",
+    "gradle_offline": true,
+    "all_gradle_commands_no_daemon": true,
+    "gradle_commands_serial": true
+  },
+  "build": {
+    "status": "passed",
+    "tasks": [
+      ":core:fabric:build",
+      ":core:neoforge:build"
+    ],
+    "log": "verification/verification-build.log.gz"
+  },
+  "python_tests": {
+    "status": "passed",
+    "tests": 53,
+    "bot": 13,
+    "live": 40,
+    "logs": [
+      "verification/verification-python-bot.log.gz",
+      "verification/verification-python-live.log.gz"
+    ]
+  },
+  "jvm_tests": {
+    "status": "partial_failure",
+    "blocked_module": "api/common",
+    "tests_run_in_blocked_module": false,
+    "source": "api/common/src/test/java/com/dwinovo/numen/api/adapter/AdapterHandlersTest.java:72",
+    "reason": "Container adapter lambda returns JsonObject; API expects String",
+    "same_blocker_recorded_in_previous_verification": true,
+    "logs": [
+      "verification/verification-unit.log.gz",
+      "verification/verification-core-unit.log.gz"
+    ],
+    "passed_modules": [
+      {
+        "module": "ai",
+        "tests": 148,
+        "execution": "up_to_date"
+      },
+      {
+        "module": "agent",
+        "tests": 307,
+        "execution": "up_to_date"
+      },
+      {
+        "module": "core/common",
+        "tests": 381,
+        "execution": "executed"
+      }
+    ]
+  },
+  "game_tests": {
+    "status": "failed",
+    "total": 265,
+    "passed": 264,
+    "required_failures": [
+      "build_japanese_cottage"
+    ],
+    "reason": "1 cell blocked by an entity; built 5856/5857",
+    "log": "verification/verification-gametest.log.gz",
+    "attempts": 1
+  },
+  "chat_export": {
+    "status": "passed",
+    "mode": "post_run_export_after_runner_enhancement",
+    "real_saved_transcript_hash_matches_archive": true,
+    "original_run_metadata_unchanged": true,
+    "evidence": "verification/companion-chat-export.json"
+  },
+  "post_run_change_scope": [
+    "tools/run_live_eval.py",
+    "tools/test_run_live_eval.py",
+    "evals/README.md",
+    "evals/live-v1/README.md"
+  ],
+  "post_run_source_change": "Only the runner changed within the frozen source manifest; gameplay and scorer sources remain identical",
+  "post_run_runner_sha256": "b3fcdca91a3eb1f7047c63c12178d093ddbfe26b437f93b148ec61d27c713f9a",
+  "post_run_runner_tests_sha256": "163c5a4f0a3bcefe4b943f08af2c6201f761f08483a819267d41598ab053ff2b",
+  "archive_integrity": {
+    "verification/verification-build.log.gz": {
+      "original_sha256": "e470e64a0309fd250f001ad39fd17b5143266698833f18a6ccba00678c663e40",
+      "archive_sha256": "09b26c32644805914fee9cf7abc2388315ea1ec772edc1a95a5177a19e7bd013"
+    },
+    "verification/verification-unit.log.gz": {
+      "original_sha256": "7496d171b6a071cf314d97ae102b64b0b5210c6dafc4133d5bc0edeebcb19592",
+      "archive_sha256": "d843a9c4f1e4e18586389a78259ebfc02cd34bcc7c04bfa7babce3eaaa2ae937"
+    },
+    "verification/verification-core-unit.log.gz": {
+      "original_sha256": "12f28733ae3cb6b056e91c4f7f458e8ea6325c055238742bf7a3e5b0ccc55a82",
+      "archive_sha256": "48e4e47e236bf59da2828ef92020fe4bc13c41b5fb3c166040a75d9a16dbebb5"
+    },
+    "verification/verification-gametest.log.gz": {
+      "original_sha256": "cf59235107540ab70ca65064e42ea2914f7ea58bc0d283b2e6b7b8dec1f51f8d",
+      "archive_sha256": "3ac446b915198bea578bdd55e6168cc5dd930bc4d50be1fb83c5d9bda0a5dac8"
+    },
+    "verification/verification-python-bot.log.gz": {
+      "original_sha256": "5e257e238583d1dad7870f148eab2690298a684095adc77a30cc10bdaf4aa58e",
+      "archive_sha256": "be0419c74375be7720ec94b226a784224021a48f98e791c2c930daa5a5bb2a9d"
+    },
+    "verification/verification-python-live.log.gz": {
+      "original_sha256": "db2162002de151a1f0f31929b3be651bd94aecf9cfb4823c274520b2e55b2cf6",
+      "archive_sha256": "51d8445390901c489553275d6c190a1e81e39a9aca9ca8a196e6ea5009940e40"
+    },
+    "verification/companion-chat-export.json": {
+      "original_sha256": "894b9f91294625feb2c15c5768d4f01d94224f52b3139484abebce94b811e80b",
+      "archive_sha256": "894b9f91294625feb2c15c5768d4f01d94224f52b3139484abebce94b811e80b"
+    }
+  },
+  "credential_review": "Selected verification artifacts scanned against actual run key and its escaped spelling; no match"
+}

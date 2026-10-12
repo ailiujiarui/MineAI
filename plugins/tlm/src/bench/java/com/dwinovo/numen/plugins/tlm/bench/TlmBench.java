@@ -1,7 +1,7 @@
 package com.dwinovo.numen.plugins.tlm.bench;
 
 import com.dwinovo.numen.api.gametest.GameTestSuite;
-import com.dwinovo.numen.api.bench.Bench;
+import com.dwinovo.numen.bench.Bench;
 import net.minecraft.gametest.framework.GameTestGenerator;
 import net.minecraft.gametest.framework.TestFunction;
 

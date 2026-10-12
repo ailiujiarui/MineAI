@@ -1,0 +1,15 @@
+{
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false,
+  "scenario": "expedition-preparation",
+  "launcher_exit_code": 0,
+  "purpose": "Reject the real starter inventory as an expedition success with idle localhost replies",
+  "expected_outcome": "budget_exhausted",
+  "starter_inventory_matches": true,
+  "no_milestones": true,
+  "observer_rejected_incomplete_gear": true,
+  "initial_food_nutrition": 20,
+  "passed": true
+}

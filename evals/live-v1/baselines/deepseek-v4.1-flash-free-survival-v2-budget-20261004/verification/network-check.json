@@ -1,0 +1,366 @@
+{
+  "recorded_at_utc": "2026-10-04T13:58:07.080451+00:00",
+  "run": "build/evals/live-v1/free-survival-v2-budget-20261004",
+  "audit_status": "needs_review",
+  "issues": [
+    "Transport/LLM fault or retry evidence is present; inspect pattern counts."
+  ],
+  "crosschecks": {
+    "trace_json_equals_jsonl": true,
+    "trace_calls_match_report": true,
+    "trace_usage_match_report": true,
+    "attempts_sequential": true,
+    "usage_complete_flag_matches_report_formula": true,
+    "token_categories_sum_to_report_total": true,
+    "logged_total_matches_recorded_usage": true,
+    "logged_output_matches_recorded_usage": true,
+    "logged_prompt_matches_recorded_usage": true,
+    "logged_usage_positive_consistent": true,
+    "trace_terminal_status_matches_report": true
+  },
+  "source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+  "model": {
+    "provider": "deepseek",
+    "model": "deepseek-v4.1-flash",
+    "reasoning_effort": ""
+  },
+  "started_at_utc": "2026-10-04T13:30:52.525996+00:00",
+  "finished_at_utc": "2026-10-04T13:52:36.536067+00:00",
+  "result_status": "success",
+  "result_reason": "authoritative_success_criterion_met",
+  "elapsed_ms": 1260287.7338,
+  "launcher_exit_code": 0,
+  "launcher_timeout": false,
+  "counts": {
+    "model_calls": 186,
+    "model_usage": 183,
+    "assistant": 183,
+    "response_headers": 183,
+    "completed_streams_chat_done": 183,
+    "caller_cancellations": 1,
+    "observed_distinct_http_ids": 186,
+    "denied_model_calls": 0,
+    "tool_started": 207,
+    "tool_finished": 207,
+    "assistant_tool_calls": 207,
+    "trace_event_types": {
+      "started": 1,
+      "snapshot": 5748,
+      "fixture": 1,
+      "owner_goal": 1,
+      "model_call": 186,
+      "model_usage": 183,
+      "assistant": 183,
+      "tool_started": 207,
+      "tool_finished": 207,
+      "first_text_delta": 1,
+      "finished": 1
+    }
+  },
+  "canonical_log": "launcher.log; duplicate latest/debug logs are crosschecks and never summed as extra attempts",
+  "network": {
+    "fault_pattern_counts": {
+      "sse_idle_watchdog_lines": 0,
+      "transport_retry_lines": 2,
+      "http_connect_timeout_mentions": 0,
+      "http_timeout_mentions": 0,
+      "tls_handshake_error_mentions": 1,
+      "header_parser_no_bytes_mentions": 1,
+      "sse_subscriber_error_lines": 0,
+      "caller_cancel_inflight_lines": 1,
+      "transport_rejection_or_error_lines": 0,
+      "accumulator_error_lines": 0
+    },
+    "fault_count_meaning": "Timeout/TLS mentions can repeat within one failed exchange; idle watchdog/retry/cancel fields count their explicit log entries.",
+    "http_statuses": {
+      "200": 183
+    },
+    "content_types": {
+      "text/event-stream": 183
+    },
+    "headers_unique_ids": true,
+    "retry_entries": [
+      {
+        "request_id": "lr-121",
+        "delay_ms": 421,
+        "next_retry_number": 1,
+        "max_retries": 2
+      },
+      {
+        "request_id": "lr-122r1",
+        "delay_ms": 962,
+        "next_retry_number": 2,
+        "max_retries": 2
+      }
+    ],
+    "idle_timeout_request_ids": [],
+    "cancellations": [
+      {
+        "request_id": "lr-186",
+        "elapsed_ms": 539,
+        "json_chunks_received": 0,
+        "had_response_headers": false,
+        "header_latency_ms": null,
+        "logged_after_owner_stop": false
+      }
+    ],
+    "all_observed_response_headers_http_200": true,
+    "all_observed_response_headers_sse": true
+  },
+  "usage": {
+    "complete": false,
+    "unknown_reports": 0,
+    "admitted_attempts_without_usage": 3,
+    "request_number_mapping_complete": true,
+    "gap_attempts": [
+      {
+        "attempt": 121,
+        "elapsed_ms": 905926.006,
+        "classification": "pre_response_header_failure_retried",
+        "had_response_headers": false,
+        "next_attempt_elapsed_ms": 908627.7504
+      },
+      {
+        "attempt": 122,
+        "elapsed_ms": 908627.7504,
+        "classification": "pre_response_header_failure_retried",
+        "had_response_headers": false,
+        "next_attempt_elapsed_ms": 917138.757499
+      },
+      {
+        "attempt": 186,
+        "elapsed_ms": 1259799.4111,
+        "classification": "terminal_success_cancellation",
+        "had_response_headers": false,
+        "next_attempt_elapsed_ms": null
+      }
+    ],
+    "gap_classification_counts": {
+      "pre_response_header_failure_retried": 2,
+      "terminal_success_cancellation": 1
+    },
+    "all_gaps_classified": true,
+    "purpose_reports": {
+      "TURN": 183
+    },
+    "normalized_tokens": {
+      "input": 251554,
+      "output": 74648,
+      "cache_read": 13159808,
+      "cache_write": 0,
+      "total": 13486010
+    },
+    "logged_prompt_including_cache": 13411362,
+    "logged_output": 74648,
+    "logged_total": 13486010,
+    "fresh_input_plus_output": 326202,
+    "prompt_cache_hit_fraction": 0.98124321750468,
+    "cost": null,
+    "explanation": "3 admitted physical attempts have no final usage: 2 pre-response-header failures retried; 1 request cancelled when authoritative success closed the run. Usage is reported once for each completed logical chat, not once for every retried physical attempt. usage_complete=false is accurate; reported tokens cover the completed chats, and unreported work/cost is not assumed zero.",
+    "accounting": "input/cache_read/cache_write are disjoint prompt categories; output is completion. max_tokens counts all four, including cached prompt. Missing usage is not treated as zero tokens/cost."
+  },
+  "latencies_ms": {
+    "response_headers_all_observed": {
+      "count": 183,
+      "min": 1663,
+      "median": 2784,
+      "p90": 3866.000000000001,
+      "p95": 4125.3,
+      "max": 4914,
+      "sum": 524632
+    },
+    "completed_chat_only": {
+      "count": 183,
+      "min": 2218,
+      "median": 4129,
+      "p90": 10401.0,
+      "p95": 14595.2,
+      "max": 53082,
+      "sum": 1075077
+    },
+    "trace_call_to_usage_when_unambiguous": {
+      "count": 0,
+      "min": null,
+      "median": null,
+      "p90": null,
+      "p95": null,
+      "max": null,
+      "sum": 0
+    },
+    "caller_cancellation_elapsed": {
+      "count": 1,
+      "min": 539,
+      "median": 539,
+      "p90": 539.0,
+      "p95": 539.0,
+      "max": 539,
+      "sum": 539
+    }
+  },
+  "trace_roundtrip_pairing_enabled": false,
+  "stream_json_chunks_completed_chats_only": {
+    "count": 183,
+    "min": 9,
+    "median": 37,
+    "p90": 338.4000000000001,
+    "p95": 598.4000000000001,
+    "max": 2052,
+    "sum": 25740
+  },
+  "finish_reasons_completed_chats": {
+    "tool_calls": 180,
+    "stop": 3
+  },
+  "waiting_fractions": {
+    "headers_sum_ms": 524632,
+    "headers_fraction_of_eval": 0.41627954151242724,
+    "completed_roundtrip_sum_ms": 1075077,
+    "completed_roundtrip_fraction_of_eval": 0.8530409137272522,
+    "logged_idle_watchdog_count": 0,
+    "interpretation": "Healthy generation/stream transfer are included, cancelled/failed response time is excluded from completed_chat totals, and body tasks can progress concurrently. These are not silent-wait fractions."
+  },
+  "termination": {
+    "budget": {
+      "max_model_calls": 400,
+      "max_seconds": 1700,
+      "max_tokens": 30000000
+    },
+    "explanation": "The authoritative success criterion and continuous hold ended the run; shutdown may cancel an in-flight model request. Success does not imply complete accounting for cancelled work.",
+    "reported_overshoot_tokens": 0,
+    "reported_overshoot_fraction": 0.0,
+    "last_completed_chat_tokens": {
+      "prompt": 122364,
+      "output": 123,
+      "total": 122487
+    },
+    "reported_tokens_before_last_completed_chat": 13363523,
+    "last_usage_elapsed_ms": 1259790.1891,
+    "last_assistant_elapsed_ms": 1259790.5227,
+    "finished_elapsed_ms": 1260287.7338,
+    "last_assistant_undispatched_tool_names": [],
+    "last_assistant_started_but_unfinished_tool_names": [],
+    "event_types_after_last_assistant": {
+      "tool_started": 1,
+      "tool_finished": 1,
+      "model_call": 1,
+      "snapshot": 3,
+      "finished": 1
+    },
+    "calls_after_finished_event": 0,
+    "success_held_ticks": 1202,
+    "owner_stop_halt_lines": 1,
+    "disconnect_halt_lines": 1
+  },
+  "logs": [
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/launcher.log",
+      "bytes": 440396,
+      "sha256": "ba469846ac3e477a5d18ba5b45a6fbfe124ce421c423d23bc291ae237fdfe105",
+      "lines": 2683,
+      "response_headers": 183,
+      "completed_chat_lines": 183,
+      "pattern_counts": {
+        "sse_idle_watchdog_lines": 0,
+        "transport_retry_lines": 2,
+        "http_connect_timeout_mentions": 0,
+        "http_timeout_mentions": 0,
+        "tls_handshake_error_mentions": 1,
+        "header_parser_no_bytes_mentions": 1,
+        "sse_subscriber_error_lines": 0,
+        "caller_cancel_inflight_lines": 1,
+        "transport_rejection_or_error_lines": 0,
+        "accumulator_error_lines": 0
+      },
+      "transport_or_llm_warn_error_lines": 2
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/game/logs/latest.log",
+      "bytes": 478795,
+      "sha256": "85a90ad92c84b54f5f605241f77c1fda49fe16ffcca43c95c7300baf9be5063d",
+      "lines": 2594,
+      "response_headers": 183,
+      "completed_chat_lines": 183,
+      "pattern_counts": {
+        "sse_idle_watchdog_lines": 0,
+        "transport_retry_lines": 2,
+        "http_connect_timeout_mentions": 0,
+        "http_timeout_mentions": 0,
+        "tls_handshake_error_mentions": 1,
+        "header_parser_no_bytes_mentions": 1,
+        "sse_subscriber_error_lines": 0,
+        "caller_cancel_inflight_lines": 1,
+        "transport_rejection_or_error_lines": 0,
+        "accumulator_error_lines": 0
+      },
+      "transport_or_llm_warn_error_lines": 2
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/game/logs/debug.log",
+      "bytes": 478795,
+      "sha256": "85a90ad92c84b54f5f605241f77c1fda49fe16ffcca43c95c7300baf9be5063d",
+      "lines": 2594,
+      "response_headers": 183,
+      "completed_chat_lines": 183,
+      "pattern_counts": {
+        "sse_idle_watchdog_lines": 0,
+        "transport_retry_lines": 2,
+        "http_connect_timeout_mentions": 0,
+        "http_timeout_mentions": 0,
+        "tls_handshake_error_mentions": 1,
+        "header_parser_no_bytes_mentions": 1,
+        "sse_subscriber_error_lines": 0,
+        "caller_cancel_inflight_lines": 1,
+        "transport_rejection_or_error_lines": 0,
+        "accumulator_error_lines": 0
+      },
+      "transport_or_llm_warn_error_lines": 2
+    }
+  ],
+  "evidence": [
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/run.json",
+      "bytes": 4522,
+      "sha256": "60ad852d319de610e06e906ec242bb53e71163e038d64640ac221ab0189a6c75"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/source-hashes.json",
+      "bytes": 184943,
+      "sha256": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/results/model.json",
+      "bytes": 117,
+      "sha256": "b90d2b3e001816dc8389fedeb4636ddc0e500da88ef5c06c89a2e53cb44372f9"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/results/result.json",
+      "bytes": 17623,
+      "sha256": "0c1f5340357b5c4b2adc420fe641b854d5a7d648e4b8b629e22549d33722b7ef"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/results/trace.json",
+      "bytes": 11716861,
+      "sha256": "98c3a1b7344465452772c79fbf8b4a5fcad82edb0ba88697a9fde3e619e7ac50"
+    },
+    {
+      "path": "build/evals/live-v1/free-survival-v2-budget-20261004/results/trace.jsonl",
+      "bytes": 7210042,
+      "sha256": "44f961dd265b8d2cb182d2ded56d257c53e771ebc4398ae9d6bf96a27c8cd314"
+    }
+  ],
+  "conclusion": "All completed chats have recorded usage and no SSE idle timeout was logged. 2 pre-header failures were retried and 1 trailing requests were cancelled at successful shutdown. World success and incomplete physical-attempt accounting remain separate facts.",
+  "limitations": [
+    "Completed requests are identified by chat done after postSse completion; no raw per-request SSE DONE/EOF, first byte/line, line endings or inter-byte gaps are preserved.",
+    "Runtime model_usage trace has purpose but no numeric per-request categories. Log prompt/output/total sums check the normalized aggregate; exact per-call cache categories and gateway billing are not independently verified.",
+    "Cancellation can consume paid tokens without delivering final usage. Successful world scoring does not make those unknown tokens/cost zero; reported totals may be lower than actual gateway totals.",
+    "Usage can race with run closure. A chat completed after authoritative finish may be logged but ignored by the closed run; mismatches are surfaced instead of forced equal.",
+    "No request id is attached to chat done. Per-request header-to-chat pairing is not inferred when retries/errors or overlapping trace calls make it ambiguous.",
+    "The artifact shows this run only, does not guarantee future gateway behavior, and does not identify the external cause of historical SSE timeouts."
+  ],
+  "read_only_review": {
+    "no_gradle": true,
+    "no_external_requests": true,
+    "no_private_provider_read_or_copy": true,
+    "no_source_config_readme_or_old_archive_edits": true
+  }
+}

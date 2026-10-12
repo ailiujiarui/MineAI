@@ -1,0 +1,368 @@
+{
+  "evaluation_version": "expedition-v1",
+  "case_id": "live.expedition-preparation",
+  "spec": {
+    "evaluation_version": "expedition-v1",
+    "case_id": "live.expedition-preparation",
+    "split": "dev",
+    "source": "Scripted localhost transport calibration; no model inference or capability score",
+    "prompt": "为后续探索准备一套可以随身带走的远征物资。这是独立的第二阶段专项：普通生存新世界，初始20点生命、20点饱食度、5点饱和度，背包给你各1把全新石镐、石斧、石剑，1个工作台、1个熔炉、4块面包和8个火把。这些是公开的固定起始物资，不是上一阶段存档；没有预先给铁、护甲、盾牌或水桶，任务中也不会再给物资或操作帮助。你自行选择探索、采集、合成、冶炼与补给顺序。\n\n公开成功标准：首次死亡即失败。你需要在头、胸、腿、脚四个位置实际穿戴全套铁甲，允许对应部位的钻石甲或下界合金甲替代、允许混穿；放在背包里不算穿戴。背包或副手还须有至少一把铁镐（允许钻石镐或下界合金镐替代）和一个盾牌。四件护甲、合格的镐和盾牌，每件剩余耐久都必须至少为最大耐久的80%，不能用平均值代替。盾牌可以收在背包或副手，不要求一直举盾。\n\n最终还要同时携带至少1个装满水的水桶、32个普通火把、1个工作台、1个熔炉；附近地上或箱子里的物品、空桶、未取出的炉内产物和用于制作这些物品的原料均不算随身成品。安全食物的饱食恢复值乘数量合计至少80，允许自由选择不同食物组合；带有任何可能触发的负面效果的食物不计储备，包括腐肉、河豚、毒马铃薯和带有害效果的可疑炖菜。你也需要维持至少16点生命、16点饱食度。\n\n上述物资、穿戴、耐久、生命和饱食条件必须同时满足，并在现场安全状态连续保持200个游戏tick（正常20TPS约10秒）。现场安全指没有着火、处于岩浆、完全冰冻、在水下且剩余空气不超过40，或持续有害状态；16格内没有能直视你且正以你为攻击目标的生物。你可以通过战斗、避让、睡觉或地形满足这些条件。所有条件都是观察实际游戏状态判定，声称完成不算；完成准备后告诉我。此阶段不要求前往下界、找到要塞或击杀末影龙。",
+    "seed": 73004,
+    "world_preset": "normal",
+    "world_observer": "expedition-v1",
+    "success_hold_ticks": 200,
+    "setup": {
+      "inventory": {
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:stone_axe": 1,
+        "minecraft:stone_sword": 1,
+        "minecraft:crafting_table": 1,
+        "minecraft:furnace": 1,
+        "minecraft:bread": 4,
+        "minecraft:torch": 8
+      }
+    },
+    "success": {
+      "items": {
+        "minecraft:water_bucket": 1,
+        "minecraft:torch": 32,
+        "minecraft:crafting_table": 1,
+        "minecraft:furnace": 1
+      },
+      "min_health": 16,
+      "min_food": 16,
+      "world": {
+        "mining_tool_ready": true,
+        "shield_ready": true,
+        "armor_ready": true,
+        "food_nutrition": 80,
+        "safe_state": true
+      }
+    },
+    "milestones": [
+      {
+        "id": "mining-upgrade",
+        "condition": {
+          "world": {
+            "mining_tool_ready": true
+          }
+        }
+      },
+      {
+        "id": "worn-armor-set",
+        "condition": {
+          "world": {
+            "armor_ready": true
+          }
+        }
+      },
+      {
+        "id": "shield-and-water",
+        "condition": {
+          "items": {
+            "minecraft:water_bucket": 1
+          },
+          "world": {
+            "shield_ready": true
+          }
+        }
+      },
+      {
+        "id": "food-and-light",
+        "condition": {
+          "items": {
+            "minecraft:torch": 32
+          },
+          "world": {
+            "food_nutrition": 80
+          }
+        }
+      },
+      {
+        "id": "departure-ready",
+        "condition": {
+          "items": {
+            "minecraft:water_bucket": 1,
+            "minecraft:torch": 32,
+            "minecraft:crafting_table": 1,
+            "minecraft:furnace": 1
+          },
+          "min_health": 16,
+          "min_food": 16,
+          "world": {
+            "mining_tool_ready": true,
+            "shield_ready": true,
+            "armor_ready": true,
+            "food_nutrition": 80,
+            "safe_state": true
+          }
+        }
+      }
+    ],
+    "budget": {
+      "max_model_calls": 4,
+      "max_seconds": 45,
+      "max_tokens": 1000
+    }
+  },
+  "status": "budget_exhausted",
+  "reason": "max_model_calls",
+  "elapsed_ms": 731.0914,
+  "success_held_ticks": 0,
+  "model_calls": 4,
+  "denied_model_calls": 1,
+  "usage_reports": 4,
+  "unknown_usage_reports": 0,
+  "usage_complete": true,
+  "tokens": {
+    "input": 4,
+    "output": 4,
+    "cache_read": 0,
+    "cache_write": 0,
+    "total": 8
+  },
+  "cost": null,
+  "first_token_ms": 356.0771,
+  "first_reply_ms": 428.303,
+  "correct_response_ms": null,
+  "response_correctness": "not_measured",
+  "milestones": [],
+  "initial_snapshot": {
+    "alive": true,
+    "game_tick": 48,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:bread": 4,
+      "minecraft:crafting_table": 1,
+      "minecraft:furnace": 1,
+      "minecraft:stone_axe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_sword": 1,
+      "minecraft:torch": 8
+    },
+    "health": 20.0,
+    "food": 20,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "mining_tool_ready": false,
+      "shield_ready": false,
+      "armor_ready": false,
+      "food_nutrition": 20,
+      "safe_state": true,
+      "evidence": {
+        "scanned_game_tick": 48,
+        "dimension": "minecraft:overworld",
+        "inventory": [
+          {
+            "id": "minecraft:stone_pickaxe",
+            "count": 1,
+            "remaining_durability": 131,
+            "max_durability": 131,
+            "slot": 0,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:stone_axe",
+            "count": 1,
+            "remaining_durability": 131,
+            "max_durability": 131,
+            "slot": 1,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:stone_sword",
+            "count": 1,
+            "remaining_durability": 131,
+            "max_durability": 131,
+            "slot": 2,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:crafting_table",
+            "count": 1,
+            "slot": 3,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:furnace",
+            "count": 1,
+            "slot": 4,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:bread",
+            "count": 4,
+            "slot": 5,
+            "safe_nutrition": 20
+          },
+          {
+            "id": "minecraft:torch",
+            "count": 8,
+            "slot": 6,
+            "safe_nutrition": 0
+          }
+        ],
+        "armor": {
+          "head": {
+            "id": "minecraft:air",
+            "count": 0,
+            "ready": false
+          },
+          "chest": {
+            "id": "minecraft:air",
+            "count": 0,
+            "ready": false
+          },
+          "legs": {
+            "id": "minecraft:air",
+            "count": 0,
+            "ready": false
+          },
+          "feet": {
+            "id": "minecraft:air",
+            "count": 0,
+            "ready": false
+          }
+        },
+        "safety": {
+          "valid": true,
+          "on_fire": false,
+          "in_lava": false,
+          "drowning": false,
+          "air_supply": 300,
+          "fully_frozen": false,
+          "harmful_effects": [],
+          "visible_attackers_within_16": []
+        }
+      }
+    },
+    "position": [
+      0.5,
+      84.0,
+      32.5
+    ],
+    "current_task": null
+  },
+  "final_snapshot": {
+    "alive": true,
+    "game_tick": 63,
+    "dragon_kills": 0,
+    "deaths": 0,
+    "inventory": {
+      "minecraft:bread": 4,
+      "minecraft:crafting_table": 1,
+      "minecraft:furnace": 1,
+      "minecraft:stone_axe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:stone_sword": 1,
+      "minecraft:torch": 8
+    },
+    "health": 20.0,
+    "food": 20,
+    "dimension": "minecraft:overworld",
+    "world": {
+      "mining_tool_ready": false,
+      "shield_ready": false,
+      "armor_ready": false,
+      "food_nutrition": 20,
+      "safe_state": true,
+      "evidence": {
+        "scanned_game_tick": 63,
+        "dimension": "minecraft:overworld",
+        "inventory": [
+          {
+            "id": "minecraft:stone_pickaxe",
+            "count": 1,
+            "remaining_durability": 131,
+            "max_durability": 131,
+            "slot": 0,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:stone_axe",
+            "count": 1,
+            "remaining_durability": 131,
+            "max_durability": 131,
+            "slot": 1,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:stone_sword",
+            "count": 1,
+            "remaining_durability": 131,
+            "max_durability": 131,
+            "slot": 2,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:crafting_table",
+            "count": 1,
+            "slot": 3,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:furnace",
+            "count": 1,
+            "slot": 4,
+            "safe_nutrition": 0
+          },
+          {
+            "id": "minecraft:bread",
+            "count": 4,
+            "slot": 5,
+            "safe_nutrition": 20
+          },
+          {
+            "id": "minecraft:torch",
+            "count": 8,
+            "slot": 6,
+            "safe_nutrition": 0
+          }
+        ],
+        "armor": {
+          "head": {
+            "id": "minecraft:air",
+            "count": 0,
+            "ready": false
+          },
+          "chest": {
+            "id": "minecraft:air",
+            "count": 0,
+            "ready": false
+          },
+          "legs": {
+            "id": "minecraft:air",
+            "count": 0,
+            "ready": false
+          },
+          "feet": {
+            "id": "minecraft:air",
+            "count": 0,
+            "ready": false
+          }
+        },
+        "safety": {
+          "valid": true,
+          "on_fire": false,
+          "in_lava": false,
+          "drowning": false,
+          "air_supply": 300,
+          "fully_frozen": false,
+          "harmful_effects": [],
+          "visible_attackers_within_16": []
+        }
+      }
+    },
+    "position": [
+      0.5,
+      84.0,
+      32.5
+    ],
+    "current_task": null
+  },
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false
+}

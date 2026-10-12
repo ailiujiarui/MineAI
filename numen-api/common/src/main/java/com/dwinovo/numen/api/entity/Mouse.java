@@ -277,6 +277,7 @@ public class Mouse {
             cooldown(true, true);
             body.swing(InteractionHand.MAIN_HAND);
             send(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face);
+            notifyBroken(pos, state);
             return landed(level, pos, state);
         }
         if (destroying == null || !destroying.equals(pos)
@@ -297,12 +298,20 @@ public class Mouse {
         cooldown(false, false);
         send(ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, pos, face);
         if (level.getBlockState(pos) != state) {
+            notifyBroken(pos, state);
             return new Strike.Broke(pos, state);
         }
         stopped = pos;
         stoppedState = state;
         stopDeadline = now() + STOP_GRACE;
         return Strike.SWINGING;
+    }
+
+    /** 碎掉一格时通知世界观察者(评测用);不是同伴就没有观察者。 */
+    private void notifyBroken(BlockPos pos, BlockState before) {
+        if (body instanceof NumenPlayer companion) {
+            com.dwinovo.numen.api.eval.WorldEvalObservers.blockBroken(companion, pos, before);
+        }
     }
 
     /** 碎掉一格之后缓手:缓的那几刻里不挖,下一刻才挖下一格。 */
@@ -317,6 +326,7 @@ public class Mouse {
         boolean instant = !state.isAir() && state.getDestroyProgress(body, level, pos) >= 1.0F;
         send(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face);
         if (instant) {
+            notifyBroken(pos, state);
             return landed(level, pos, state);
         }
         destroying = pos;

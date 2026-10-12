@@ -1,0 +1,74 @@
+{
+  "evaluation_version": "expedition-v1",
+  "run_id": "20261004T152509662587Z-540a323d",
+  "split": "dev",
+  "rep": 0,
+  "started_at_utc": "2026-10-04T15:25:09.664861+00:00",
+  "status": "budget_exhausted",
+  "success": false,
+  "model_cost": null,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.2",
+  "offline_gradle": true,
+  "neoforge_version_override": "21.1.233",
+  "command": {
+    "argv": [
+      "E:\\mineAI\\gradlew.bat",
+      ":core:neoforge:runClient",
+      "--no-daemon",
+      "--console=plain",
+      "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\calibration-a4d08e73c347450fa6205e4e3f3bb502\\request.json",
+      "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\calibration-a4d08e73c347450fa6205e4e3f3bb502\\game",
+      "--offline",
+      "-Pneoforge_version=21.1.233"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "interrupted": false,
+    "duration_ms": 45253,
+    "log": "launcher.log"
+  },
+  "provider": {
+    "id": "fixture",
+    "provider": "openai",
+    "model": "scripted-loopback-fixture",
+    "reasoning_effort": null,
+    "ctx": 64000
+  },
+  "case_id": "live.expedition-preparation",
+  "budget": {
+    "max_model_calls": 4,
+    "max_seconds": 45,
+    "max_tokens": 1000
+  },
+  "blockers": [],
+  "candidate": "f39ee4d9bfa0+24c65d6aa536",
+  "source_sha256": "24c65d6aa5365c82630c8448fb6bbeaf714382f9fc3606d87541730fdbc8aa67",
+  "git_status": "M agent/build.gradle\n M agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java\n M agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java\n M agent/src/main/java/com/dwinovo/numen/agent/loop/AgentLoop.java\n M ai/src/main/java/com/dwinovo/numen/agent/http/CancelToken.java\n M ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java\n M ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java\n M api/common/src/client/java/com/dwinovo/numen/client/agent/AgentLoopRegistry.java\n M api/common/src/client/java/com/dwinovo/numen/client/agent/EntityAgentLoop.java\n M api/common/src/client/java/com/dwinovo/numen/client/agent/ToolDispatcher.java\n M api/common/src/main/java/com/dwinovo/numen/entity/NumenPlayer.java\n M core/common/src/main/java/com/dwinovo/numen/core/NumenCore.java\n M core/common/src/main/java/com/dwinovo/numen/core/act/BlockDigger.java\n M core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java\n M core/neoforge/build.gradle\n M core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java\n M docs/architecture-mind-model.md\n?? agent/src/main/java/com/dwinovo/numen/agent/acceptance/LiveEvalRun.java\n?? agent/src/test/java/com/dwinovo/numen/agent/acceptance/LiveEvalRunTest.java\n?? agent/src/test/java/com/dwinovo/numen/agent/loop/ResponseBenchmark.java\n?? agent/src/test/java/com/dwinovo/numen/agent/plan/PlanningBenchmark.java\n?? api/common/src/client/java/com/dwinovo/numen/client/eval/\n?? api/common/src/main/java/com/dwinovo/numen/eval/\n?? core/common/src/main/java/com/dwinovo/numen/core/eval/\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/BenchmarkGameTests.java\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ExpeditionEvalGameTests.java\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/FreeSurvivalEvalGameTests.java\n?? core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/SurvivalEvalGameTests.java\n?? evals/\n?? tools/__pycache__/\n?? tools/calibrate_live_eval.py\n?? tools/run_bot_eval.py\n?? tools/run_live_eval.py\n?? tools/test_run_bot_eval.py\n?? tools/test_run_live_eval.py",
+  "scenario_sha256": "1c67092b6f61fafe682251818a1283c9e4c70920f27f02e3517ce91da42db8e1",
+  "startup_seconds": 600,
+  "planned_command": [
+    "E:\\mineAI\\gradlew.bat",
+    ":core:neoforge:runClient",
+    "--no-daemon",
+    "--console=plain",
+    "-PnumenLiveEval=E:\\mineAI\\build\\evals\\live-v1\\calibration-a4d08e73c347450fa6205e4e3f3bb502\\request.json",
+    "-PnumenLiveEvalGameDir=E:\\mineAI\\build\\evals\\live-v1\\calibration-a4d08e73c347450fa6205e4e3f3bb502\\game",
+    "--offline",
+    "-Pneoforge_version=21.1.233"
+  ],
+  "companion_chat": {
+    "status": "captured",
+    "companion_uuid": "2dd27208-7051-4e00-b5c9-c9428b56633e",
+    "source_ref": "game/config/numen/companions/2dd27208-7051-4e00-b5c9-c9428b56633e/chat.jsonl",
+    "file_ref": "results/chat.jsonl",
+    "sha256": "88ceadfde4671e121ac0cd4010f25f544ee6bd4364d6ea3b1799e8800f09a36d"
+  },
+  "reason": "max_model_calls",
+  "result_ref": "results/result.json",
+  "finished_at_utc": "2026-10-04T15:25:55.893061+00:00",
+  "calibration_only": true,
+  "real_model": false,
+  "usage_is_synthetic": true,
+  "capability_baseline": false
+}

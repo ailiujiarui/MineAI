@@ -1,6 +1,7 @@
 package com.dwinovo.numen.api.entity;
 
 import com.dwinovo.numen.api.CompanionEvent;
+import com.dwinovo.numen.api.eval.WorldEvalObservers;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.BlockPos;
@@ -11,10 +12,12 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 import java.util.UUID;
@@ -112,6 +115,22 @@ public final class NumenPlayer extends ServerPlayer {
     public NumenPlayer(MinecraftServer server, ServerLevel level, GameProfile profile,
                         ClientInformation clientInformation) {
         super(server, level, profile, clientInformation);
+    }
+
+    /** 评测只记录原生进食实际扣掉的那一口,不以饥饿涨幅或容器返还推断。 */
+    @Override
+    public ItemStack eat(Level level, ItemStack stack, FoodProperties food) {
+        if (!WorldEvalObservers.isActive(this)) return super.eat(level, stack, food);
+        ItemStack meal = stack.copyWithCount(1);
+        int beforeCount = stack.getCount();
+        int foodBefore = getFoodData().getFoodLevel();
+        float saturationBefore = getFoodData().getSaturationLevel();
+        ItemStack result = super.eat(level, stack, food);
+        // 返回值可能是一只碗;实际扣掉食物的是传入的 stack。
+        if (stack.getCount() < beforeCount) {
+            WorldEvalObservers.foodConsumed(this, meal, foodBefore, saturationBefore);
+        }
+        return result;
     }
 
     /**
@@ -410,7 +429,14 @@ public final class NumenPlayer extends ServerPlayer {
     @Override
     public void die(net.minecraft.world.damagesource.DamageSource cause) {
         this.deathMessage = getCombatTracker().getDeathMessage().getString();
+        var deathStat = net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.DEATHS);
+        int deathsBefore = getStats().getValue(deathStat);
         super.die(cause);
+        // 原生死亡统计提交时锁存;等下次身体 tick 会漏掉同 tick 恢复生命的死亡。
+        // 加载器取消原生死亡时统计不增加,因此不能发出已死亡事实。
+        if (getStats().getValue(deathStat) > deathsBefore) {
+            com.dwinovo.numen.api.eval.WorldEvalObservers.died(this);
+        }
     }
 
     /** 上一次的死因(原版死亡消息原文);还没死过则 null。 */

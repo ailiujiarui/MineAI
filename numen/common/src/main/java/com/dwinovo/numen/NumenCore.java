@@ -57,6 +57,19 @@ public final class NumenCore {
         initialised = true;
         registerTools();
         registerTaskRunners();
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("sustainable-survival-v1",
+                com.dwinovo.numen.eval.SurvivalWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("free-survival-v2",
+                com.dwinovo.numen.eval.FreeSurvivalWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("expedition-v1",
+                com.dwinovo.numen.eval.ExpeditionWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("end-resources-v1",
+                com.dwinovo.numen.eval.EndResourcesWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("dragon-combat-v1",
+                com.dwinovo.numen.eval.DragonCombatWorldObserver::new);
+        com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen ->
+                numen.on(com.dwinovo.numen.api.CompanionEvent.HURT, hurt ->
+                        com.dwinovo.numen.api.eval.WorldEvalObservers.hurt(hurt.companion(), hurt.source(), hurt.amount())));
         // 原版四件甲是第一处穿戴来源,和模组的饰品栏走同一扇门;内嵌联动在这之后才开闸,所以原版排在最前
         com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen -> {
             numen.registerGear(new com.dwinovo.numen.gear.VanillaArmor());

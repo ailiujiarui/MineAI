@@ -1,0 +1,209 @@
+{
+  "recorded_at_utc": "2026-10-04T12:50:29.333902+00:00",
+  "scope": "Free-survival v2 scenario, authoritative consumption observation, world grading and runner verification",
+  "status": "partial_failure",
+  "reason": "API test compilation remains blocked by an already recorded unrelated adapter return-type mismatch",
+  "source_hash_verification": {
+    "formal_run_current_snapshot": {
+      "run_directory": "build/evals/live-v1/free-survival-v2-20261004",
+      "manifest": {
+        "path": "build/evals/live-v1/free-survival-v2-20261004/source-hashes.json",
+        "bytes": 184943,
+        "sha256": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53"
+      },
+      "files": 1246,
+      "missing": [],
+      "changed": [],
+      "recorded_source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+      "current_source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+      "matches_recorded_source": true,
+      "expected_files": 1246,
+      "manifest_missing_expected": [],
+      "manifest_unexpected": [],
+      "manifest_complete": true
+    },
+    "local_client_completed_run": {
+      "run_directory": "build/evals/live-v1/free-survival-v2-local-5f622e615cbd4935abab6d7750731a9b",
+      "manifest": {
+        "path": "build/evals/live-v1/free-survival-v2-local-5f622e615cbd4935abab6d7750731a9b/source-hashes.json",
+        "bytes": 184943,
+        "sha256": "0314567b017e1870284a021cd1beaa9147cd2bd6dad2cb3b5c50020d28d6bd53"
+      },
+      "files": 1246,
+      "missing": [],
+      "changed": [],
+      "recorded_source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+      "current_source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+      "matches_recorded_source": true
+    },
+    "formal_and_local_same_source": true,
+    "formal_run_status_when_read": "launching",
+    "note": "Checked existing manifests against every current file and the launcher's complete source selection; ongoing formal-run final validation is not claimed here."
+  },
+  "build": {
+    "status": "passed",
+    "tasks": [
+      ":core:fabric:build",
+      ":core:neoforge:build"
+    ],
+    "evidence": {
+      "path": "verification/verify-final-build.log.gz",
+      "bytes": 22231,
+      "sha256": "e8b907524ed9c33dd444789479fa5622ffd10abe76e4d33c2c8f3c48af61a805",
+      "source_path": "build/evals/free-survival-v2/verify-final-build.log"
+    }
+  },
+  "jvm_tests": {
+    "status": "partial_failure",
+    "passed_modules": [
+      {
+        "module": "ai",
+        "status": "passed",
+        "xml_suites": 21,
+        "tests": 152,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_directory": "ai/build/test-results/test",
+        "xml_aggregate_sha256": "b3df67e6ab3c7b1c88dc37ae073b352add75d438d715b3352432093e3f46d6f8",
+        "execution": "up_to_date"
+      },
+      {
+        "module": "agent",
+        "status": "passed",
+        "xml_suites": 43,
+        "tests": 313,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_directory": "agent/build/test-results/test",
+        "xml_aggregate_sha256": "7a5a11833e821911be7b8f6b61d75917a4f1d89047c2cf963fe7a536c8779478",
+        "execution": "executed"
+      },
+      {
+        "module": "core/common",
+        "status": "passed",
+        "xml_suites": 50,
+        "tests": 381,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_directory": "core/common/build/test-results/test",
+        "xml_aggregate_sha256": "b2716ffc2d5c7448e686857b53fc963ab5e218ca380b124fbdf2e88d83eb6bec",
+        "execution": "executed"
+      }
+    ],
+    "evidence": [
+      {
+        "path": "verification/verify-jvm.log.gz",
+        "bytes": 3726,
+        "sha256": "c9973249293d40503330baedfde42a1718f212b361cff54c75ef138facace8da",
+        "source_path": "build/evals/free-survival-v2/verify-jvm.log"
+      },
+      {
+        "path": "verification/verify-core-jvm.log.gz",
+        "bytes": 2522,
+        "sha256": "5dd54a3bcccc9d1fbf613c03faceb90960ba83ebbf15b0a497fa38b7f15a1d8f",
+        "source_path": "build/evals/free-survival-v2/verify-core-jvm.log"
+      }
+    ],
+    "blocked_module": "api/common",
+    "failed_task": ":api:common:compileTestJava",
+    "tests_run_in_blocked_module": false,
+    "compiler_errors": 1,
+    "source": "api/common/src/test/java/com/dwinovo/numen/api/adapter/AdapterHandlersTest.java:72",
+    "error": "Container adapter lambda returns JsonObject while API expects String",
+    "preexisting": true,
+    "preexisting_evidence": {
+      "path": "evals/live-v1/baselines/deepseek-v4.1-flash-survival-20261004/verification.json",
+      "bytes": 4465,
+      "sha256": "efe516a66fbacfed98cc94666311e3c24bba47a9866c2295855a3745fb94d52a"
+    }
+  },
+  "game_tests": {
+    "status": "passed",
+    "required_tests": 273,
+    "pass_marker": "All 273 required tests passed",
+    "evidence": {
+      "path": "verification/verify-gametest.log.gz",
+      "bytes": 454662,
+      "sha256": "80586a098cb01b38bcc37dbd09cc9af6ea1c2972ec57a13f4563aa5c533e27de",
+      "source_path": "build/evals/free-survival-v2/verify-gametest.log"
+    }
+  },
+  "python_tests": {
+    "status": "passed",
+    "live": 46,
+    "bot": 13,
+    "total": 59,
+    "evidence": [
+      {
+        "path": "verification/verify-python-live.log.gz",
+        "bytes": 150,
+        "sha256": "7af7427431c969022e76f68d32599ff9fada2e8513bee4515dfdf3cac2a18bfd",
+        "source_path": "build/evals/free-survival-v2/verify-python-live.log"
+      },
+      {
+        "path": "verification/verify-python-bot.log.gz",
+        "bytes": 117,
+        "sha256": "475f6194e740d014f8ce87e85001cf49f62f0d6ba15c43ca024f79aa61e0e3f1",
+        "source_path": "build/evals/free-survival-v2/verify-python-bot.log"
+      }
+    ]
+  },
+  "local_client_calibration": {
+    "status": "passed",
+    "calibration_only": true,
+    "real_model": false,
+    "usage_is_synthetic": true,
+    "capability_baseline": false,
+    "result_status": "budget_exhausted",
+    "result_reason": "max_model_calls",
+    "model_calls": 2,
+    "local_fixture_requests": 2,
+    "usage_reports": 2,
+    "unknown_usage_reports": 0,
+    "registered_game_tests": 0,
+    "registered_tool_count": 42,
+    "initial_health": 20.0,
+    "initial_food": 14,
+    "initial_inventory_empty": true,
+    "initial_safe_meals": 0,
+    "initial_food_nutrition": 0,
+    "final_safe_meals": 0,
+    "final_food_nutrition": 0,
+    "source_frozen": true,
+    "negative_control": "Idle body with no safe meal/reserve is rejected; two synthetic requests exhaust max_model_calls rather than producing success",
+    "evidence": {
+      "path": "verification/local-client-check.json",
+      "bytes": 2652,
+      "sha256": "d8c84e75ab345f726d65ab8800bba640e741b6270f181dac7c349c30b7cf18d2",
+      "source_path": "build/evals/free-survival-v2/local-client-check.json"
+    }
+  },
+  "summary_generation": {
+    "read_only_inputs": true,
+    "gradle_runs": 0,
+    "external_model_requests": 0,
+    "private_provider_values_read_or_copied": false,
+    "existing_baseline_and_readme_modified": false
+  },
+  "verification_reused_for_identical_source": {
+    "previous_archive": "evals/live-v1/baselines/deepseek-v4.1-flash-free-survival-v2-20261004",
+    "source_sha256": "3dbcf9f4192e8909b6d90d989d1177ea37d0059d008a97ce6e510b19b27e0166",
+    "current_source_frozen": true,
+    "build_and_test_suites_rerun": false,
+    "reason": "The source, scenario and grading are unchanged; only the explicit runtime budget differs."
+  },
+  "live_run": {
+    "status": "success",
+    "reason": "authoritative_success_criterion_met",
+    "launcher_exit_code": 0,
+    "result": "results/result.json",
+    "source_frozen": true,
+    "chat_export_sha256_matches": true,
+    "protocol_evidence": "verification/protocol-check.json",
+    "action_evidence": "verification/action-review.json",
+    "transport_evidence": "verification/network-check.json"
+  }
+}

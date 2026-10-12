@@ -182,6 +182,7 @@ public final class CompanionTickDispatcher {
                     TaskPersistence.replay(ap, left);
                 }
                 brain.tick(ap);
+                com.dwinovo.numen.api.eval.WorldEvalObservers.tick(ap);
                 com.dwinovo.numen.api.spectator.SpectatorMenuBridge.tick(ap);
             }
         }

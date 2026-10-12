@@ -1,0 +1,70 @@
+{
+  "recorded_at_utc": "2026-10-04T11:51:08.544143+00:00",
+  "environment": {
+    "minecraft": "1.21.1",
+    "neoforge_override": "21.1.233",
+    "gradle_offline": true,
+    "all_gradle_commands_no_daemon": true,
+    "gradle_commands_serial": true
+  },
+  "build": {
+    "status": "passed",
+    "tasks": [
+      ":core:fabric:build",
+      ":core:neoforge:build"
+    ],
+    "log": "verification/verify-gui-build.log.gz"
+  },
+  "jvm_tests": {
+    "status": "partial_failure",
+    "passed_tests": 840,
+    "passed_modules": [
+      {
+        "module": "ai",
+        "tests": 152
+      },
+      {
+        "module": "agent",
+        "tests": 307
+      },
+      {
+        "module": "core/common",
+        "tests": 381
+      }
+    ],
+    "blocked_module": "api/common",
+    "tests_run_in_blocked_module": false,
+    "source": "api/common/src/test/java/com/dwinovo/numen/api/adapter/AdapterHandlersTest.java:72",
+    "reason": "Container adapter lambda returns JsonObject; API expects String",
+    "logs": [
+      "verification/verify-gui-jvm-tests.log.gz",
+      "verification/verify-gui-core-tests.log.gz"
+    ]
+  },
+  "game_tests": {
+    "status": "passed",
+    "required_tests": 266,
+    "log": "verification/verify-gui-gametest.log.gz"
+  },
+  "regression_evidence": {
+    "before_fix": [
+      "verification/red-transport-tests.log.gz",
+      "verification/red-inventory-gametest.log.gz"
+    ],
+    "after_fix": "Final complete suite logs above"
+  },
+  "live_run": {
+    "launcher_exit_code": 0,
+    "status": "budget_exhausted",
+    "reason": "max_tokens",
+    "result": "results/result.json",
+    "launcher_log": "launcher.log.gz",
+    "source_frozen": true,
+    "chat_export_sha256_matches": true
+  },
+  "credential_review": {
+    "selected_artifact_exact_key_scan": "passed",
+    "game_directory_copied": false,
+    "companion_transcript_only": true
+  }
+}
