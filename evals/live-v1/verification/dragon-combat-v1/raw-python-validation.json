@@ -1,0 +1,146 @@
+{
+  "status": "passed",
+  "calibration_only": true,
+  "real_model": false,
+  "capability_baseline": false,
+  "strict_fixture_validation": true,
+  "formal_protocol_fixture_acceptance": false,
+  "source_log": "build/evals/dragon-combat-v1/gametest-final.log",
+  "source_log_sha256": "5c83db0c160deae91bf7599105e35acfdaf017c7c05e347e5b1e328c8856c075",
+  "raw_evidence": "build/evals/dragon-combat-v1/native-dragon-calibration.json",
+  "raw_evidence_sha256": "075242660a22dfa5fd6b124fbefc13663a91b6c9800077fca8ab022cc9f9b49b",
+  "python_validator": "tools/run_live_eval.py",
+  "python_validator_sha256": "4dd0e230be0507c7f79871e5c3b2d6b1b7424aa63ff52580c01caac05a11772b",
+  "game_tests_pass_marker": "All 320 required tests passed",
+  "fixtures": [
+    {
+      "kind": "bed_source_statistic_limit",
+      "calibration_fixture": true,
+      "real_model": false,
+      "capability_baseline": false,
+      "strict_fixture_validation": true,
+      "expected_ambiguous_route": true,
+      "snapshots": [
+        {
+          "snapshot": "initial_snapshot",
+          "status": "passed",
+          "strict_fixture_validation": true,
+          "game_tick": 551,
+          "post_kill_alive_ticks": 0,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "formal_protocol_rejected_fixture": true
+        },
+        {
+          "snapshot": "final_snapshot",
+          "status": "rejected",
+          "strict_fixture_validation": true,
+          "reason": "final_snapshot cannot score ambiguous native damage attribution as a combat outcome",
+          "formal_protocol_rejected_fixture": true
+        }
+      ],
+      "native_limitation": {
+        "attribution_ambiguous": true,
+        "lethal_source_actor_uuid": null,
+        "companion_dragon_kills": 0,
+        "native_kill_statistic": null,
+        "fight_end": null,
+        "native_dragon_kill": false
+      },
+      "passed": true
+    },
+    {
+      "kind": "airborne_native_chain",
+      "calibration_fixture": true,
+      "real_model": false,
+      "capability_baseline": false,
+      "strict_fixture_validation": true,
+      "expected_ambiguous_route": false,
+      "snapshots": [
+        {
+          "snapshot": "initial_snapshot",
+          "status": "passed",
+          "strict_fixture_validation": true,
+          "game_tick": 564,
+          "post_kill_alive_ticks": 0,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "formal_protocol_rejected_fixture": true
+        },
+        {
+          "snapshot": "final_snapshot",
+          "status": "passed",
+          "strict_fixture_validation": true,
+          "game_tick": 565,
+          "post_kill_alive_ticks": 1,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "formal_protocol_rejected_fixture": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "kind": "native_chain",
+      "calibration_fixture": true,
+      "real_model": false,
+      "capability_baseline": false,
+      "strict_fixture_validation": true,
+      "expected_ambiguous_route": false,
+      "snapshots": [
+        {
+          "snapshot": "initial_snapshot",
+          "status": "passed",
+          "strict_fixture_validation": true,
+          "game_tick": 571,
+          "post_kill_alive_ticks": 0,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "formal_protocol_rejected_fixture": true
+        },
+        {
+          "snapshot": "final_snapshot",
+          "status": "passed",
+          "strict_fixture_validation": true,
+          "game_tick": 572,
+          "post_kill_alive_ticks": 1,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "formal_protocol_rejected_fixture": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "kind": "native_chain_with_200_tick_survival",
+      "calibration_fixture": true,
+      "real_model": false,
+      "capability_baseline": false,
+      "strict_fixture_validation": true,
+      "expected_ambiguous_route": false,
+      "snapshots": [
+        {
+          "snapshot": "initial_snapshot",
+          "status": "passed",
+          "strict_fixture_validation": true,
+          "game_tick": 551,
+          "post_kill_alive_ticks": 0,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "formal_protocol_rejected_fixture": true
+        },
+        {
+          "snapshot": "final_snapshot",
+          "status": "passed",
+          "strict_fixture_validation": true,
+          "game_tick": 751,
+          "post_kill_alive_ticks": 200,
+          "native_dragon_kill": false,
+          "dragon_combat_ready": false,
+          "formal_protocol_rejected_fixture": true
+        }
+      ],
+      "passed": true
+    }
+  ]
+}

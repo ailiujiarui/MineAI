@@ -1,0 +1,79 @@
+{
+  "scenario": {
+    "evaluation_version": "dragon-combat-v1",
+    "case_id": "live.dragon-combat",
+    "split": "dev",
+    "source": "Scripted localhost transport calibration; no model inference or capability score",
+    "prompt": "击杀本轮末地的原生末影龙，并在原生龙战结束后继续存活200个服务端游戏tick（正常20TPS约10秒）。这是独立第五阶段战斗专项，起点代表已经进入末地，不是从零通关，也不是第四阶段存档续跑。种子73005、普通世界生成、普通难度、结构生成开启和原版默认规则；你从末地原版入口黑曜石平台(100.5,49,0.5)出发，生命20、饱食20、饱和度5。你穿戴全新铁头盔、铁胸甲、铁护腿、铁靴，副手全新盾牌；背包有全新铁剑、铁镐、铁斧、弓各1，水桶1、熟牛肉32、圆石128、箭128。所有可损耗装备初始损耗0，没有附魔；不提供床或药水。主人以旁观者停在入口上方。\n\n公开人工初始化只在任务计时前放位和发物资，使用原版入口平台生成器；等待本次新世界的真实原生龙战初始化完成，确认目标龙满血200、AI正常、没有无敌、10颗自然生成的末影水晶均完整且可破坏后才开始。没有预先打残龙、清水晶、禁AI或运行中的补给、传送、人工救场；不恢复前阶段记忆和目标。你须自行接近主岛、选择合法战术和使用现有产品工具。允许近战、投射物以及可可靠归因的合法伤害，不要求固定武器、顺序或先破坏全部水晶。通用attack和弓箭接口的存在不代表已经验证末影龙多部位、飞行和栖停阶段的实战能力。\n\n成功由服务端绑定你的UUID、本轮目标龙UUID和原生末地龙战，确认真实伤害导致原生死亡、原生击杀归属与ENTITY_KILLED统计从0增加到1，以及原版死亡动画结束后的龙战结束事实相互一致。血条消失、实体暂时不可见、模型宣称完成、其他龙或其他主体的击杀、指令删除或直接设置死亡状态都不算。水晶原版可能把无明确来源的伤害归给最近玩家，不能因站得近算作本人击杀；床等无玩家来源且缺少匹配统计的间接伤害目前不能可靠自动评分，记证据异常而非成功或能力失败。\n\n首次死亡永久判失败，包括身体自动恢复生命以及同tick互杀；关键主体、目标或原生证据缺失记基础设施异常。原生龙战结束后，同一身体必须连续存活200个服务端tick，重复读取状态不能增加时间；生命、饱食、装备耐久及补给只记录事实，不设置最终保留门槛。不要求返回主世界，保持期可留在末地，也可按正常游戏方式自主换维；不要求龙蛋、经验、出口使用或播放结局。完成后告诉我。",
+    "seed": 73005,
+    "world_preset": "normal",
+    "world_observer": "dragon-combat-v1",
+    "success_hold_ticks": 200,
+    "setup": {
+      "dimension": "minecraft:the_end",
+      "native_dragon_battle": true,
+      "spawn": [
+        100.5,
+        49.0,
+        0.5
+      ],
+      "inventory": {
+        "minecraft:iron_sword": 1,
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:iron_axe": 1,
+        "minecraft:bow": 1,
+        "minecraft:water_bucket": 1,
+        "minecraft:cooked_beef": 32,
+        "minecraft:cobblestone": 128,
+        "minecraft:arrow": 128
+      },
+      "equipment": {
+        "head": "minecraft:iron_helmet",
+        "chest": "minecraft:iron_chestplate",
+        "legs": "minecraft:iron_leggings",
+        "feet": "minecraft:iron_boots",
+        "offhand": "minecraft:shield"
+      }
+    },
+    "success": {
+      "world": {
+        "native_dragon_kill": true,
+        "dragon_post_kill_alive_ticks": 200
+      }
+    },
+    "milestones": [
+      {
+        "id": "dragon-damaged",
+        "condition": {
+          "world": {
+            "dragon_damaged": true
+          }
+        }
+      },
+      {
+        "id": "dragon-death-started",
+        "condition": {
+          "world": {
+            "dragon_death_started": true
+          }
+        }
+      },
+      {
+        "id": "dragon-defeated",
+        "condition": {
+          "world": {
+            "native_dragon_kill": true
+          }
+        }
+      }
+    ],
+    "budget": {
+      "max_model_calls": 4,
+      "max_seconds": 45,
+      "max_tokens": 1000
+    }
+  },
+  "provider_id": "fixture",
+  "output_dir": "E:\\mineAI\\build\\evals\\live-v1\\calibration-df66b593c77942eca294fcd1175bbc7d\\results",
+  "world_name": "numen-eval-59634a58586f427096225a889feccbe6"
+}

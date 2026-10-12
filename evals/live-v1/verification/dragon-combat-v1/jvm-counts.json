@@ -1,0 +1,23 @@
+[
+  {
+    "module": "ai",
+    "suites": 21,
+    "tests": 152,
+    "failures": 0,
+    "errors": 0
+  },
+  {
+    "module": "agent",
+    "suites": 43,
+    "tests": 341,
+    "failures": 0,
+    "errors": 0
+  },
+  {
+    "module": "core/common",
+    "suites": 50,
+    "tests": 381,
+    "failures": 0,
+    "errors": 0
+  }
+]
