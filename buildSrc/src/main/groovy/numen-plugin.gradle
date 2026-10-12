@@ -32,6 +32,12 @@ group = 'com.dwinovo.numen'
 base { archivesName = "numen-plugin-${project.name}-${minecraft_version}" }
 java { toolchain.languageVersion = JavaLanguageVersion.of(java_version) }
 
+// 联动测试要 JUnit(见下方 testImplementation);目标模组的仓库各自在 build.gradle 里声明,
+// 这里补上 mavenCentral 以便解析 JUnit 的坐标。
+repositories {
+    mavenCentral()
+}
+
 dependencies {
     // 复现第三方插件的类路径:ai / agent / ui 是他们经 POM 传递依赖拿到的模块
     // (NumenTool 继承的 IToolSpec 在 ai 里)。瘦 api jar 由联动按平台自己挑,见上。

@@ -1,8 +1,8 @@
 package com.dwinovo.numen.plugins.tlm;
 
 import com.dwinovo.numen.api.NumenPlugins;
-import com.dwinovo.numen.api.ApiLintReport;
-import com.dwinovo.numen.api.NumenApiFixture;
+import com.dwinovo.numen.ApiLintReport;
+import com.dwinovo.numen.NumenApiFixture;
 import com.dwinovo.numen.api.sdk.ApiTester;
 import org.junit.jupiter.api.Test;
 
