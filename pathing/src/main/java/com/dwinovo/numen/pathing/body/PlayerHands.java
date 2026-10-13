@@ -103,7 +103,7 @@ public final class PlayerHands implements Effector {
         BlockState state = level.getBlockState(pos);
         if (body.gameMode.isCreative()) {
             cooldown(true, true);
-            body.swing(InteractionHand.MAIN_HAND);
+            body.swing(InteractionHand.MAIN_HAND, false);
             send(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face);
             return landed(level, pos, state);
         }
@@ -116,7 +116,7 @@ public final class PlayerHands implements Effector {
             return Strike.SWINGING;
         }
         progress += state.getDestroyProgress(body, level, pos);
-        body.swing(InteractionHand.MAIN_HAND);
+        body.swing(InteractionHand.MAIN_HAND, false);
         if (progress < 1.0F) {
             return Strike.SWINGING;
         }
@@ -141,7 +141,8 @@ public final class PlayerHands implements Effector {
     /** 第一下:原版客户端换了目标就先放下旧的,再送 START;秒破的当场碎,否则开始累加进度。 */
     private Strike start(ServerLevel level, BlockPos pos, Direction face, BlockState state) {
         release();
-        body.swing(InteractionHand.MAIN_HAND);
+        // ServerPlayer 的单参 swing 会重置攻击充能;挖掘只播动画,否则观看端的镐子会一直沉在画面下。
+        body.swing(InteractionHand.MAIN_HAND, false);
         boolean instant = !state.isAir() && state.getDestroyProgress(body, level, pos) >= 1.0F;
         send(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face);
         if (instant) {
