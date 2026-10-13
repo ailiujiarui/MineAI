@@ -189,8 +189,8 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord>
             digger.cancel();
             digTarget = null;
         }
-        if (!player.onGround()) {
-            // 脚下那一格刚挖掉、正往下落:落定了再从新的站处看
+        if (!player.onGround() && !player.isInWater()) {
+            // 自由下落时等落定再看;水里不会落地,仍要判断当前够得着哪些格。
             return TaskState.RUNNING;
         }
         BlockPos target = next();

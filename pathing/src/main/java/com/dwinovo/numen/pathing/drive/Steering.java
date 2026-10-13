@@ -16,7 +16,7 @@ import net.minecraft.world.phys.Vec3;
  * <p>推算用原版的量:地上每刻的加速度是移动速度属性乘 {@code 0.216 / 方块摩擦³},速度每刻乘方块摩擦乘 0.91;空中加速度
  * 0.02(疾跑 0.026),速度每刻乘 0.91。
  *
- * <p>只在脚踏实地时转身;腾空时不回身,按身体此刻朝着的方向前进或后退来修正——空中转过身去,落地就是背对着路。
+ * <p>脚踏实地或在水里时可以转身;腾空时不回身,按身体此刻朝着的方向前进或后退来修正——空中转过身去,落地就是背对着路。
  */
 final class Steering {
 
@@ -34,7 +34,7 @@ final class Steering {
 
     /** 不减速地朝 {@code (x, z)} 走。 */
     static void pass(ServerPlayer body, Controls keys, double x, double z) {
-        if (body.onGround()) {
+        if (body.onGround() || body.isInWater()) {
             Aim.faceToward(body, x, z);
         }
         keys.press(Key.FORWARD);
@@ -78,8 +78,8 @@ final class Steering {
         if (distance < AT && speed < REST * 10) {
             return true;
         }
-        // 只在地上转身;腾空时不回身,沿身体此刻朝着的方向按前进后退修正
-        if (distance >= AT && body.onGround()) {
+        // 水里也能主动转向;真正腾空时才沿原朝向前后修正落点。
+        if (distance >= AT && (body.onGround() || body.isInWater())) {
             Aim.faceToward(body, x, z);
         }
         double yaw = Math.toRadians(body.getYRot());
