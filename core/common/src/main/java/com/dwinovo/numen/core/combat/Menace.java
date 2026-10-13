@@ -60,6 +60,9 @@ public final class Menace {
      */
     private static final double CELL_SLACK = Math.sqrt(2.0) / 2.0;
 
+    /** 自卫、攻击与逃跑同看这圈追兵:覆盖原版骷髅弓箭 AI 的十五格攻击范围。 */
+    public static final double ENGAGEMENT_RADIUS = 16.0;
+
     /**
      * 逃跑要拉开多远才算甩掉。
      *

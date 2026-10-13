@@ -11,6 +11,7 @@ import com.dwinovo.numen.task.reflex.Reflex;
 
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ProjectileWeaponItem;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,25 +34,13 @@ import java.util.List;
  * 重派等于从头挖一遍。
  *
  * <h2>什么算危险</h2>
- * 看的是<b>它已经逼到多近</b>:还远就有时间(模型看得见它,该由模型决定),近了就没有提前量,
- * 当场接管。这条线按威胁类型取自 {@link Menace}——爬行者 7.5(引信开始倒退的距离)、
- * 末影水晶 12(爆炸威力的两倍)、寻常怪 {@link #MELEE_DANGER}。
+ * 近身威胁按 {@link Menace} 的危险半径判断;正在针对她、视线畅通且持有可用弓弩的攻击者也当场接管。
+ * 远程敌人已经能出手,不能等它走进近战距离;开战后的站位仍由同一份战斗判据负责。
  */
 public final class MobDefenseChain implements Task, Reflex {
 
     /** 本能名册里的 id。别处按住这条本能时用它,见 {@code NumenPlayer.pauseReflex}。 */
     public static final String ID = "mob_defense";
-
-    /** 看多远。超出这个半径的不算"身边"。 */
-    private static final double SCAN_RADIUS = 12.0;
-
-    /**
-     * 寻常近战怪逼到这么近就算危险。
-     *
-     * <p>爬行者与末影水晶那两条线是从原版推出来的(引信倒退距离、爆炸威力两倍),这一条不是
-     * ——它是"它下一步就能打到我"的经验值。要更硬该去读每种怪自己的攻击距离。
-     */
-    private static final double MELEE_DANGER = 4.0;
 
     /**
      * 危险离开后还盯这么久才算真的没事。
@@ -178,15 +167,15 @@ public final class MobDefenseChain implements Task, Reflex {
     /**
      * 身边<b>已经近到没有提前量</b>的威胁。
      *
-     * <p>只算正在针对她的——防守不是挑衅,一只路过的僵尸猪灵不该被"防御"链招惹。还没逼近的
-     * 那些也不进来:模型看得见它们,该由它决定要不要动手。
+     * <p>只算正在针对她的——防守不是挑衅,一只路过的僵尸猪灵不该被"防御"链招惹。
+     * 近战怪还没逼近时不抢身体;持弓弩的怪若已有直视她的射线,就不能继续当作远处的旁观者。
      *
      * <p>模型自己派的 {@code attack} 已经认领的目标同样不算:那场仗有人管了。
      */
     private List<Mob> dangersNear(NumenPlayer companion) {
         LivingEntity attacker = companion.getLastHurtByMob();
         List<Mob> near = new ArrayList<>();
-        for (Mob m : Menace.hostilesAround(companion, SCAN_RADIUS)) {
+        for (Mob m : Menace.hostilesAround(companion, Menace.ENGAGEMENT_RADIUS)) {
             if (m != attacker && m.getTarget() != companion) {
                 continue;
             }
@@ -197,9 +186,10 @@ public final class MobDefenseChain implements Task, Reflex {
                 continue;
             }
 
-            // "够危险了没有"与站位、退避问的是<b>同一个函数</b>:它自己的危险半径。
-            // 用一条固定的线时每种怪都判错——爬行者要七格,僵尸两格就够。
-            if (Menace.tooClose(m, companion)) {
+            // 远程开火不要求进入近战危险圈;只改变接管时机,不扩大近战走位的退避半径。
+            if (Menace.tooClose(m, companion)
+                    || m.hasLineOfSight(companion) && m.isHolding(stack ->
+                            stack.getItem() instanceof ProjectileWeaponItem weapon && m.canFireProjectileWeapon(weapon))) {
                 near.add(m);
             }
         }
