@@ -114,7 +114,8 @@ class CoreGroupsTest {
                 + "and to = target, then numen.move.go.\n"), "库函数的说明是它注释的第一句: " + moveHelp);
         String workHelp = help("numen.work");
         assertTrue(functions(workHelp, "work").contains("mine") && workHelp.contains("\n---@field mine fun(cluster: "
-                + "Cluster|Cells): integer Dig out one cluster, walking first"), "挖完一团是内置模块 work 里的 Lua 函数: " + workHelp);
+                + "Cluster|Cells, opts?: {count?: integer}): integer Dig out one cluster, walking first"),
+                "分批或挖完一团是内置模块 work 里的 Lua 函数: " + workHelp);
     }
 
     /**
