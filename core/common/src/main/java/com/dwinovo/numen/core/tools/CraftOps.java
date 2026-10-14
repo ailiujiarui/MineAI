@@ -134,7 +134,7 @@ public final class CraftOps {
             SpectatorMenuBridge.captureRecipe(self, menu);
             int have0 = PlayerInv.count(self.getInventory(), target);
             menu.clicked(grid.result(), 0, ClickType.QUICK_MOVE, self);   // vanilla mass-craft + onTake
-            self.swing(InteractionHand.MAIN_HAND);
+            self.swing(InteractionHand.MAIN_HAND, false);
             sweepGrid(menu, self, grid);
             int crafted = PlayerInv.count(self.getInventory(), target) - have0;
             if (crafted <= 0) {

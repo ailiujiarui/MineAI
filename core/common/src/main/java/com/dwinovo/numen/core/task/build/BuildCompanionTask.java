@@ -667,7 +667,7 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
                     new net.minecraft.world.phys.BlockHitResult(
                             Vec3.atCenterOf(pos), net.minecraft.core.Direction.UP, pos, false));
             if (result.consumesAction()) {
-                player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+                player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, false);
             }
         } finally {
             if (restore != null) {

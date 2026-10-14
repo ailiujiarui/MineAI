@@ -22,6 +22,7 @@ import com.dwinovo.numen.pathing.search.Route;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
@@ -41,6 +42,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
@@ -134,6 +136,36 @@ public class DigGameTests {
                 }
             }
             vanillaTimed(watch, body);
+        });
+    }
+
+    /** 挖掘只挥手,不重置攻击充能;观看端据此抬起镐子,中断挖掘仍按原版重置。 */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 80)
+    public static void stone_pickaxe_mining_keeps_the_first_person_hand_raised(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.set(5, 2, 5, Blocks.STONE);
+        TestBody body = t.body(4, 1, 5);
+        body.getInventory().setItem(0, new ItemStack(Items.STONE_PICKAXE));
+        PlayerHands hands = new PlayerHands(body);
+        BlockPos target = t.at(5, 2, 5);
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(target), Direction.WEST, target, false);
+        helper.runAtTickTime(25, () -> {
+            helper.assertTrue(body.getAttackStrengthScale(0F) == 1F, "场景未等到石镐充能完成");
+            hands.dig(hit);
+            helper.assertTrue(body.getAttackStrengthScale(0F) == 1F, "开挖把石镐压到了第一视角画面外");
+        });
+        helper.runAtTickTime(26, () -> {
+            hands.dig(hit);
+            helper.assertTrue(body.getAttackStrengthScale(0F) == 1F, "持续挖掘重置了抬手所需的充能");
+            hands.release();
+            helper.assertTrue(body.getAttackStrengthScale(0F) == 0F, "中断挖掘没有按原版重置充能");
+        });
+        helper.runAtTickTime(50, () -> {
+            body.setGameMode(GameType.CREATIVE);
+            hands.dig(hit);
+            helper.assertTrue(body.getAttackStrengthScale(0F) == 1F, "创造模式挖掘重置了抬手所需的充能");
+            body.leave();
+            helper.succeed();
         });
     }
 
