@@ -3,6 +3,7 @@ package com.dwinovo.numen.core.gametest;
 import com.dwinovo.numen.core.Constants;
 import com.dwinovo.numen.core.combat.Menace;
 import com.dwinovo.numen.core.combat.Swing;
+import com.dwinovo.numen.core.task.chain.MobDefenseChain;
 import com.dwinovo.numen.core.task.combat.AttackTaskRecord;
 import com.dwinovo.numen.core.task.combat.Fought;
 import com.dwinovo.numen.entity.CompanionFactory;
@@ -17,8 +18,12 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -33,6 +38,101 @@ public class CombatGameTests {
     @BeforeBatch(batch = "numen_combat")
     public static void prepareCombatBatch(ServerLevel level) {
         settleWorld(level, Difficulty.NORMAL, MIDNIGHT);
+    }
+
+    /** 远程攻击已经够得着她时就要自卫;没瞄准她或被墙挡住的远怪不抢身体。 */
+    @GameTest(template = "floor16", timeoutTicks = 40, batch = "numen_combat")
+    public static void defense_reacts_to_a_visible_ranged_attacker_beyond_melee_reach(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 8));
+        var skeleton = helper.spawn(EntityType.SKELETON, new BlockPos(11, 2, 8));
+        skeleton.setNoAi(true);
+        skeleton.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        try {
+            helper.assertTrue(companion.distanceTo(skeleton) < 12.0 && !Menace.tooClose(skeleton, companion)
+                            && skeleton.hasLineOfSight(companion),
+                    "the fixture must be a visible ranged threat inside the scan, outside melee danger");
+            helper.assertTrue(!new MobDefenseChain().canRun(companion),
+                    "a distant skeleton that is not targeting her must not trigger defense");
+
+            skeleton.setTarget(companion);
+            helper.setBlock(new BlockPos(7, 2, 8), Blocks.STONE);
+            helper.setBlock(new BlockPos(7, 3, 8), Blocks.STONE);
+            helper.assertTrue(!skeleton.hasLineOfSight(companion), "the wall did not block the skeleton's sight");
+            helper.assertTrue(!new MobDefenseChain().canRun(companion),
+                    "an occluded distant skeleton must not trigger defense");
+
+            helper.setBlock(new BlockPos(7, 2, 8), Blocks.AIR);
+            helper.setBlock(new BlockPos(7, 3, 8), Blocks.AIR);
+            helper.assertTrue(skeleton.hasLineOfSight(companion), "removing the wall did not restore sight");
+            skeleton.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
+            helper.assertTrue(!new MobDefenseChain().canRun(companion),
+                    "a skeleton holding a melee weapon must not trigger distant ranged defense");
+            skeleton.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+            helper.assertTrue(new MobDefenseChain().canRun(companion),
+                    "defense ignored a visible bow-equipped skeleton targeting her beyond melee reach");
+            helper.succeed();
+        } finally {
+            skeleton.discard();
+            CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+        }
+    }
+
+    /** 她正在挖矿时远处骷髅开火:自卫接管身体,原挖掘任务留在槽里等待归还。 */
+    @GameTest(template = "floor20", timeoutTicks = 200, batch = "numen_combat")
+    public static void ranged_defense_preempts_an_active_dig(GameTestHelper helper) {
+        NumenPlayer companion = armedCompanion(helper, new BlockPos(3, 2, 8));
+        companion.getInventory().add(new ItemStack(Items.DIAMOND_PICKAXE));
+        BlockPos ore = helper.absolutePos(new BlockPos(5, 2, 8));
+        helper.getLevel().setBlockAndUpdate(ore, Blocks.OBSIDIAN.defaultBlockState());
+        var skeleton = helper.spawn(EntityType.SKELETON, new BlockPos(17, 2, 8));
+        skeleton.setNoAi(true);
+        skeleton.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        ToolRun[] dig = new ToolRun[1];
+        helper.testInfo.addListener(new net.minecraft.gametest.framework.GameTestListener() {
+            @Override public void testStructureLoaded(net.minecraft.gametest.framework.GameTestInfo info) {}
+            @Override public void testPassed(net.minecraft.gametest.framework.GameTestInfo info,
+                    net.minecraft.gametest.framework.GameTestRunner runner) { cleanup(); }
+            @Override public void testFailed(net.minecraft.gametest.framework.GameTestInfo info,
+                    net.minecraft.gametest.framework.GameTestRunner runner) { cleanup(); }
+            @Override public void testAddedForRerun(net.minecraft.gametest.framework.GameTestInfo oldInfo,
+                    net.minecraft.gametest.framework.GameTestInfo newInfo,
+                    net.minecraft.gametest.framework.GameTestRunner runner) {}
+            private void cleanup() {
+                skeleton.discard();
+                CompanionFactory.despawn(helper.getLevel().getServer(), companion);
+            }
+        });
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(companion.onGround(), "the miner has not landed"))
+                .thenExecute(() -> dig[0] = lua(companion, "numen.work.dig(" + xyz(ore) + ")"))
+                .thenWaitUntil(() -> helper.assertTrue(dig[0].accepted()
+                                && companion.getMainHandItem().is(Items.DIAMOND_PICKAXE),
+                        "the original dig has not started"))
+                .thenExecute(() -> {
+                    helper.assertTrue(!dig[0].done() && helper.getLevel().getBlockState(ore).is(Blocks.OBSIDIAN),
+                            "the original dig finished before the ranged threat arrived");
+                    helper.assertTrue(!companion.reflexPaused(MobDefenseChain.ID)
+                                    && !Menace.tooClose(skeleton, companion)
+                                    && companion.distanceTo(skeleton) > 12.0f
+                                    && skeleton.hasLineOfSight(companion),
+                            "the ranged threat fixture is not outside melee danger with an idle defense");
+                    skeleton.setTarget(companion);
+                    skeleton.performRangedAttack(companion, 1.0f);
+                })
+                .thenIdle(5)
+                .thenExecute(() -> {
+                    helper.assertTrue(companion.reflexPaused(MobDefenseChain.ID),
+                            "ranged defense did not start while the mining task owned the body");
+                    helper.assertTrue(companion.isAlive() && companion.getHealth() > 8.0f,
+                            "defense waited until the miner was critically hurt");
+                    helper.assertTrue(com.dwinovo.numen.task.CompanionTickDispatcher.currentTaskFor(companion.getUUID())
+                                    == dig[0].task() && !dig[0].ended()
+                                    && helper.getLevel().getBlockState(ore).is(Blocks.OBSIDIAN),
+                            "defense replaced or continued the mining task instead of preempting it");
+                })
+                .thenWaitUntil(() -> helper.assertTrue(skeleton.getLastHurtByMob() == companion,
+                        "defense started but never struck the ranged attacker"))
+                .thenSucceed();
     }
 
     /**

@@ -72,8 +72,6 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
     private static final int MAX_MISFIRES = 2;
     /** 射击时与目标保持的最小距离——太近了弹道压得太平,而且白白挨打。 */
     private static final double RANGED_MIN_DISTANCE = 5.0;
-    /** 组装局面看多远:势场要绕开谁、无差别模式打谁,都取这个半径。 */
-    private static final double FIELD_RADIUS = 12.0;
 
     /**
      * 弓战斗的环内沿:比这更近就拉不开弓 —— 弹道压得平,而且白白挨打。
@@ -96,7 +94,7 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
     private Entity target;
     private Vec3 lastTargetPosition;
     /**
-     * 这一刻 {@link #FIELD_RADIUS} 内活着的敌对生物——<b>一刻只扫一次</b>,在 {@link #surveyField}
+     * 这一刻 {@link Menace#ENGAGEMENT_RADIUS} 内活着的敌对生物——<b>一刻只扫一次</b>,在 {@link #surveyField}
      * 里;举盾、走位的躲避场都读这一份。"场上有哪些怪"各算各的,就会出现判据说打、腿说没人的局面。
      */
     private List<Mob> hostiles = List.of();
@@ -232,7 +230,7 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
      * 为什么。自卫换目标时新冒出来的要问的,同样再问。
      */
     private Battlefield surveyField() {
-        hostiles = Menace.hostilesAround(player, FIELD_RADIUS);
+        hostiles = Menace.hostilesAround(player, Menace.ENGAGEMENT_RADIUS);
         List<Entity> candidates = new ArrayList<>();
         for (var mob : hostiles) {
             boolean engaging = mob.getTarget() == player || mob == player.getLastHurtByMob();
