@@ -43,6 +43,11 @@ final class Work {
         this.move = move;
     }
 
+    /** 正在做的那一件;还没动手为 null。 */
+    Edit current() {
+        return current;
+    }
+
     /** 这件改动做完了:挖的那一格原来的方块没了,放的那一格已经是那种方块,门已经翻过来,接坠落的水倒了又收回了。 */
     boolean done(Edit edit) {
         BlockState now = rig.world().getBlockState(edit.pos());

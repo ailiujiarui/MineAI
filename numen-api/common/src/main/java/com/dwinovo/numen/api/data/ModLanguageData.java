@@ -316,8 +316,6 @@ public final class ModLanguageData {
         public static final String COMMAND_CONSENT_NOT_PENDING = "numen.command.consent_not_pending";
         public static final String DEBUG_ON          = "numen.debug.on";
         public static final String DEBUG_OFF         = "numen.debug.off";
-        public static final String DEBUG_PAD_ON      = "numen.debug.pad_on";
-        public static final String DEBUG_PAD_OFF     = "numen.debug.pad_off";
 
         // 主人客户端界面上的话:对话流、轮盘与快捷语音、面板里的斜杠命令、设置页、MCP 授权页
         public static final String LOOP_GONE = "numen.loop.gone";
@@ -850,8 +848,6 @@ public final class ModLanguageData {
         adder.add(Keys.COMMAND_CONSENT_NOT_PENDING, "No pending consent request #%s (already answered, expired or replaced)");
         adder.add(Keys.DEBUG_ON,          "Debug mode on: UI text shown unfiltered");
         adder.add(Keys.DEBUG_OFF,         "Debug mode off");
-        adder.add(Keys.DEBUG_PAD_ON,      "Companion loading pad on (the default)");
-        adder.add(Keys.DEBUG_PAD_OFF,     "Companion loading pad off: companions only act in chunks that players keep loaded (for diagnosis)");
         adder.add(Keys.LOOP_GONE, "She is gone");
         adder.add(Keys.LOOP_EXTERNAL_COMPACT, "An external model is driving her; compacting waits until the built-in brain has her back");
         adder.add(Keys.LOOP_COMPACTING, "Already compacting");
@@ -1371,8 +1367,6 @@ public final class ModLanguageData {
         adder.add(Keys.COMMAND_CONSENT_NOT_PENDING, "没有待答复的征询 #%s(已答复、过期或被顶掉)");
         adder.add(Keys.DEBUG_ON,          "调试模式已开:UI 文本不过滤直出");
         adder.add(Keys.DEBUG_OFF,         "调试模式已关");
-        adder.add(Keys.DEBUG_PAD_ON,      "同伴加载 pad 已开(默认状态)");
-        adder.add(Keys.DEBUG_PAD_OFF,     "同伴加载 pad 已关:同伴仅在玩家加载的区块内活动(诊断用)");
         adder.add(Keys.LOOP_GONE, "她已经不在了");
         adder.add(Keys.LOOP_EXTERNAL_COMPACT, "外接模型正在驾驶她,整理记忆要等交还给内置大脑之后");
         adder.add(Keys.LOOP_COMPACTING, "已经在整理了");

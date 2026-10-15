@@ -22,8 +22,8 @@ import java.util.Map;
  *
  * <h2>What gets stored</h2>
  * <ul>
- *   <li>{@link #content} — concatenation of every {@code delta.content}
- *       fragment</li>
+ *   <li>{@link #content} — concatenation of the {@code delta.content}
+ *       fragments, minus any {@code <think>} span (see {@link #appendContent})</li>
  *   <li>{@link #toolCalls} — partial tool calls indexed by their stream
  *       position (the {@code index} field in each delta tool_call entry)</li>
  *   <li>{@link #extraBuffers} — per-field accumulator for non-standard
@@ -40,6 +40,7 @@ import java.util.Map;
  */
 public final class StreamAccumulator {
 
+    /** 正文:不含 {@code <think>} 包着的思考(那部分归 {@link #reasoning})。 */
     public final StringBuilder content = new StringBuilder();
     public final Map<Integer, ToolCallBuilder> toolCalls = new LinkedHashMap<>();
     public final Map<String, StringBuilder> extraBuffers = new LinkedHashMap<>();
@@ -57,6 +58,18 @@ public final class StreamAccumulator {
     public JsonObject usage;
 
     public int chunkCount;
+
+    private final ThinkTagSplitter thinkTags = new ThinkTagSplitter();
+
+    /** 收一段 content 增量:正文进 {@link #content},content 里的 {@code <think>} 思考进 {@link #reasoning}。 */
+    public void appendContent(String fragment) {
+        thinkTags.feed(fragment, content, reasoning);
+    }
+
+    /** 流结束:放出 {@link #appendContent} 扣下的、没能成为标签的尾巴。 */
+    public void endContent() {
+        thinkTags.flush(content, reasoning);
+    }
 
     /** Look up (or create) the tool-call builder for the given stream index. */
     public ToolCallBuilder toolCallAt(int index) {

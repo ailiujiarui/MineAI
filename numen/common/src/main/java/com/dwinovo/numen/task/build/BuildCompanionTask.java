@@ -2,6 +2,8 @@ package com.dwinovo.numen.task.build;
 
 import com.dwinovo.numen.api.sdk.Call;
 import com.dwinovo.numen.api.sdk.LuaCodecs;
+import com.dwinovo.numen.api.task.TaskResult;
+import com.dwinovo.numen.task.move.Arrival;
 import com.dwinovo.numen.FailureType;
 import com.dwinovo.numen.WorkProfile;
 import com.dwinovo.numen.build.Built;
@@ -29,11 +31,11 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 多格建造任务:站在原地,把施工图里手够得着的格一批一批落进世界,每一格轮到一次就收场。
+ * 多格建造任务:把施工图里手够得着的格一批一批落进世界,每一格轮到一次;够不着的格先走到够得着的地方,再放。
  *
- * <p><b>只放够得着的</b>——每一格够不够得着与 {@code numen.move.to(…, {arrive = "place"})} 走到的地方同一个判据({@link BuildSurvey}):
- * 她不走动,够不着的格留给下一次,回执说还剩几格、最低最近的一格在哪。走到够得着的地方、挖开挡着的、再放,是脚本的事
- * (库里的 {@code numen.build.raise})。受理之前看一眼:够得着的一格都没有就当场拒绝,说清该先去哪儿。
+ * <p><b>够不着就走过去</b>——每一格够不够得着与走过去的到达目标 {@link Arrival#place} 是同一个判据({@link BuildSurvey}):一遍把
+ * 站在这里够得着的格放完,还有够不着的就走到够得着最低一层剩下的格的地方({@link #walkTo}),再放一遍,到放完或真到不了。挖开挡着的
+ * 是 {@code numen.work.dig} 的事。受理之前看一眼:够得着的与走得过去的格一个都没有就当场拒绝,说清还差什么。
  *
  * <p><b>不挖</b>——生存模式下图纸要的格里立着别的方块,那一格由 {@code numen.work.dig} 挖开(挖的判据、工具、掉落、权限都是它的),
  * 这里不碰,回执里算进"要先挖开的";创造模式照原版一下就碎:图纸直接写上去顶掉原来的。
@@ -72,8 +74,8 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
             net.minecraft.world.level.block.Block.UPDATE_CLIENTS
                     | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE;
 
-    /** CONSENT:开工前整批问主人;WORK:施工。 */
-    private enum Phase { CONSENT, WORK }
+    /** CONSENT:开工前整批问主人;WALK:走到够得着剩下的格的地方;WORK:施工。 */
+    private enum Phase { CONSENT, WALK, WORK }
 
     /** 干不下去时的结论:失败的理由与类型。 */
     private record Ending(String why, FailureType type) {}
@@ -135,6 +137,11 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
 
     private String note = "done";
 
+    /** 正在走去放的那些格(够不着的最低一层);没在走是 null。 */
+    private List<BlockPos> walkingTo;
+    /** 这一遍是走完一趟之后开的:一遍下来什么也没放成,就不再走了。 */
+    private boolean passFollowedWalk;
+
     /** 开工前要问主人的清单(这一次够得着的格里裁决为要问的)。 */
     private List<com.dwinovo.numen.api.permission.ConsentItem> consentItems = List.of();
 
@@ -164,12 +171,12 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
     }
 
     /**
-     * 还有没了结的格,却一格都够不着:当场拒绝,说清还剩什么、先去哪儿。全都对上了不拒:这一趟照常收尾(落定、挂件),
-     * 回执说什么都没变。
+     * 还有没了结的格,却既够不着也走不到(都得先挖开、缺料、立不住):当场拒绝,说清还剩什么、先做什么。够得着的与够不着的(走过去再放)
+     * 都受理。全都对上了不拒:这一趟照常收尾(落定、挂件),回执说什么都没变。
      */
     private Precondition.Failure checkReach() {
         BuildSurvey.Tally tally = survey().tally();
-        if (tally.count(BuildSurvey.State.REACH) > 0 || tally.left() == 0) {
+        if (tally.count(BuildSurvey.State.REACH) > 0 || !tally.far().isEmpty() || tally.left() == 0) {
             return null;
         }
         int unheld = tally.count(BuildSurvey.State.UNHELD);
@@ -178,11 +185,9 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
             return new Precondition.Failure(unheld + " cell(s) would not stay where the design puts them: nothing "
                     + "holds them there.", FailureType.NO_SUPPORT);
         }
-        String hint = !tally.far().isEmpty()
-                ? Call.of("numen.move.to", tally.far().get(0), Map.of("arrive", "place"))
-                : !tally.dig().isEmpty() ? Call.of("numen.work.dig", tally.dig().get(0)) : null;
-        return new Precondition.Failure("nothing of it to place within reach of where you stand. " + remaining(tally),
-                FailureType.OUT_OF_REACH, hint);
+        String hint = !tally.dig().isEmpty() ? Call.of("numen.work.dig", tally.dig().get(0)) : null;
+        return new Precondition.Failure("nothing of it to place yet. " + remaining(tally), FailureType.OUT_OF_REACH,
+                hint);
     }
 
     /**
@@ -193,18 +198,18 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
         List<String> parts = new ArrayList<>();
         int reach = tally.count(BuildSurvey.State.REACH);
         if (reach > 0) {
-            // 每格轮到一次就收场:撑着它们的这一次才立起来、或这一次没放进去的,下一次放
+            // 每格轮到一次:撑着它们的这一次才立起来、或这一次没放进去的,下一次放
             parts.add(reach + " cell(s) within reach go in on the next numen.build.place");
         }
         if (!tally.far().isEmpty()) {
             BlockPos next = tally.far().get(0);
             parts.add(tally.far().size() + " cell(s) out of reach — the lowest nearest is " + xyz(next)
-                    + ": numen.move.to(" + lua(next) + ", {arrive = \"place\"}) gets you within reach of it");
+                    + ", which numen.build.place walks up to");
         }
         if (!tally.dig().isEmpty()) {
             BlockPos next = tally.dig().get(0);
             parts.add(tally.dig().size() + " cell(s) hold another block that must be dug out first — the nearest is "
-                    + xyz(next) + ": numen.move.to(" + lua(next) + ", {arrive = \"dig\"}) then numen.work.dig(" + lua(next) + ")");
+                    + xyz(next) + ": numen.work.dig(" + lua(next) + ")");
         }
         int shortCells = tally.count(BuildSurvey.State.SHORT);
         if (shortCells > 0) {
@@ -266,11 +271,23 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
     protected void onStart() {
         observedCompleted = new LongOpenHashSet();
         skippedPos = new LongOpenHashSet();
+        computePace();
+        beginPass();
+    }
+
+    /**
+     * 开一遍:在她此刻站的地方重扫、重排够得着的格,问主人要问的。开工时与每次走到新的地方之后各开一遍;手边一格都够不着
+     * 就是一遍空的,收遍时接着走。
+     */
+    private void beginPass() {
         rescanAll();
         rebuildOrder();
-        computePace();
         passStartCompleted = r.completed();
         passStartActions = r.placed() + r.broken();
+        passMissing.clear();
+        // 每一遍有自己的一份期限:一次调用本来只放一遍,现在一次调用走几遍(走路的时间不算,子活跑时这件活的期限冻着)
+        r.extendDeadlineTo(player.level().getGameTime()
+                + BuildOrder.deadlineTicks(r.targets.size(), r.consumeMaterials));
         collectConsent();
         phase = consentItems.isEmpty() ? Phase.WORK : Phase.CONSENT;
         placeCredit = 0;
@@ -328,6 +345,9 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
         if (phase == Phase.CONSENT) {
             return tickConsent();
         }
+        if (phase == Phase.WALK) {
+            return tickWalk();
+        }
         updateCompleted();
 
         // 每刻只轮扫一片,所以这个判定可能用着一轮之前的旧数据。收工是不可回头的
@@ -340,6 +360,24 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
             }
         }
         return tickWork();
+    }
+
+    /**
+     * 走到够得着剩下的格的地方:走完了在新的地方开一遍;走不到(没路、被拒、超时)就带着那一趟的原因收场,放下的照实交代。
+     */
+    private TaskState tickWalk() {
+        TaskResult walked = walkTo(Arrival.place(walkingTo));
+        if (walked == null) {
+            return TaskState.RUNNING;
+        }
+        walkingTo = null;
+        if (!walked.success()) {
+            return conclude(new Ending(walked.message() + "; built " + r.completed() + "/" + r.targets.size(),
+                    lastFailure()));
+        }
+        passFollowedWalk = true;
+        beginPass();
+        return TaskState.RUNNING;
     }
 
     // ------------------------------------------------------------------
@@ -715,6 +753,22 @@ public final class BuildCompanionTask extends AbstractCompanionTask<BuildTaskRec
         if (passStarved || (!progressed && !passMissing.isEmpty())) {
             return conclude(new Ending("built " + r.completed() + "/" + r.targets.size()
                     + " and ran out — " + ledger.missingReason(passMissing), FailureType.NO_MATERIAL));
+        }
+        // 手边的放完了(或一格也够不着)而还有够不着的:走到够得着最低一层剩下的格的地方再放一遍。走完一趟之后一遍下来什么也没放成,
+        // 再走也是原地,不走了
+        BuildSurvey.Tally tally = survey().tally();
+        boolean stalled = passFollowedWalk && !progressed;
+        passFollowedWalk = false;
+        // 这一遍放下了东西,撑着别的格的那一块立起来了(原来立不住的格现在够得着了):就地再来一遍
+        if (progressed && tally.count(BuildSurvey.State.REACH) > 0) {
+            beginPass();
+            return TaskState.RUNNING;
+        }
+        if (!tally.far().isEmpty() && !stalled) {
+            int lowest = tally.far().get(0).getY();
+            walkingTo = tally.far().stream().filter(p -> p.getY() == lowest).toList();
+            phase = Phase.WALK;
+            return TaskState.RUNNING;
         }
         if (!progressed) {
             // 够得着却一格都放不下:走一遍这些格,留案再交代,失败的类型跟主导病因走。放不下就是放不下,不粉饰成成功。

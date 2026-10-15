@@ -10,9 +10,10 @@ import com.dwinovo.numen.act.Interaction;
 import com.dwinovo.numen.act.PressReceipt;
 import com.dwinovo.numen.nav.NavText;
 import com.dwinovo.numen.nav.Terrain;
-import com.dwinovo.numen.task.move.GotoReminders;
 import com.dwinovo.numen.task.base.InReachTask;
 import com.dwinovo.numen.task.base.Precondition;
+import com.dwinovo.numen.task.move.Arrival;
+import com.dwinovo.numen.task.move.Where;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -20,14 +21,15 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * {@code numen.use.block} / {@code use item} on the player body — the point-aimed native interaction (BLOCK + AIR).
- * It does not travel: the body must already be within reach of the aim (if one is given).
+ * {@code numen.use.block} / {@code numen.use.hit} / {@code use item} on the player body — the point-aimed native interaction
+ * (BLOCK + AIR). Out of reach of the aim (if one is given) it first walks to where the click can be made ({@link #approach}),
+ * then presses.
  *
  * <p>左键是一次纯按键:朝那一格的中心看过去,准星落在谁就按谁({@link NumenPlayer#mouse}),手上是什么就用什么,点一下就松手
  * (一下就碎的方块碎了,别的只是开了个头)——不换工具、不清挡着的、不挪步。准星落在别的格(高草、树叶)或实体上,按的就是它,回执照实说。
  * 挖东西(挑工具、清开视线、捡掉落)是 {@code numen.work.dig} 的事。
  *
- * <p>右键同样是一次纯按键:可点的目标看向它看得见的一面({@link com.dwinovo.numen.api.entity.Look#use},与 {@code numen.move.to(…, {arrive = "use"})} 同一个视线函数),
+ * <p>右键同样是一次纯按键:可点的目标看向它看得见的一面({@link com.dwinovo.numen.api.entity.Look#use},与走过去的到达目标 {@link Arrival#use} 同一个视线函数),
  * 准星落在谁就点谁({@link Interaction#forHit}):激活方块,或——对着空气——用手里的东西(扔、吃、拉弓)。视线上挡着的(箱子前的
  * 高草)不清,点到的就是它,回执照实说,下一步写出 {@code numen.work.dig} 挖掉它或从另一面点。The mouse model is the two record fields
  * {@code button} (left/right) × {@code holdTicks} (tap/hold).
@@ -66,9 +68,11 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
                         FailureType.NO_MATERIAL));
     }
 
+    /** 有可点轮廓的方块走到看得见它一面的地方({@link Arrival#use}),空气、流体走到它旁边。 */
     @Override
-    protected net.minecraft.core.BlockPos target() {
-        return r.aim;
+    protected Arrival approach() {
+        return Terrain.of(player).clickable(r.aim) ? Arrival.use(r.aim)
+                : Arrival.to(new Where.Cell(r.aim, null), Arrival.BESIDE);
     }
 
     @Override
@@ -107,7 +111,7 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
             if (r.item != null) {
                 player.hotbar().grip(r.item);
             }
-            // 右键点可点的目标:看向它看得见的那一面(与 numen.move.to 的 arrive = "use" 同一个视线函数),哪一面都看不见就看格心。
+            // 右键点可点的目标:看向它看得见的那一面(与走过去的到达目标 Arrival.use 同一个视线函数),哪一面都看不见就看格心。
             // 左键、空气与流体都看格心;对水面右键的原版含义正是"射线穿过去,物品自己找水"(桶、船),落点不另说。
             // 两个键都是纯按键:准星落在谁就按谁,挡在前面的不清,回执照实说
             boolean clickable = r.aim != null && Terrain.of(player).clickable(r.aim);
@@ -288,8 +292,20 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
                 ? Interaction.Button.ATTACK : Interaction.Button.USE;
     }
 
+    /**
+     * 站在能点的地方:可点的方块是它哪一面此刻用得上({@link com.dwinovo.numen.api.entity.Look#use}:朝着眼睛、在交互距离内、视线上没有硬
+     * 遮挡——走过去时的到达目标 {@link Arrival#use} 到达复核问的是同一个视线函数);空气与流体没有轮廓,够得着(距离)就行。一旦按下去就不再问
+     * (按住的几刻里身体可能挪动)。
+     */
     private boolean withinReach() {
-        return bodySettled() && player.canInteractWithBlock(r.aim, 0.0);
+        if (interaction != null) {
+            return true;
+        }
+        if (!bodySettled()) {
+            return false;
+        }
+        return Terrain.of(player).clickable(r.aim) ? player.look().use(r.aim) != null
+                : player.canInteractWithBlock(r.aim, 0.0);
     }
 
     private String aimLabel() {
@@ -318,9 +334,7 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
                     + "," + pos.getZ() + " — the crosshair landed there, not on " + aimLabel();
             return button() == Interaction.Button.ATTACK ? landed
                     : landed + ". To click " + aimLabel() + ": `numen.work.dig(" + com.dwinovo.numen.api.sdk.LuaCodecs.literal(pos)
-                            + ")` clears it out of the way, or "
-                            + GotoReminders.call(r.aim, "arrive = \"use\"")
-                            + " stands where another face of it is in sight";
+                            + ")` clears it out of the way, or click it from another side";
         }
         if (hit instanceof net.minecraft.world.phys.EntityHitResult eh) {
             return eh.getEntity().getName().getString() + " (entity " + eh.getEntity().getId()

@@ -5,9 +5,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.dwinovo.numen.api.entity.Controls;
+import com.dwinovo.numen.api.entity.Mouse;
+import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.MoveKind;
+import com.dwinovo.numen.pathing.search.Pending;
 import com.dwinovo.numen.pathing.search.Route;
+import com.dwinovo.numen.pathing.search.Searches;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
 import org.slf4j.Logger;
@@ -15,8 +20,13 @@ import org.slf4j.LoggerFactory;
 
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -41,7 +51,7 @@ public final class PathLog {
     /**
      * 主线程上一次导航一刻里寻路做的活(拷快照、组成本模型、复核前提、按键与转头)超过这么多纳秒,就记 WARN。
      * 依据:原版每刻 50 毫秒,这是它的十分之一,一刻里别的实体与区块还要用剩下的;实测拷一次快照 0.1–1 毫秒,复核一步只判
-     * 一次前提(搜索展开一个节点要判二十来次、共 15–76 微秒,docs/pathing.md 第十三节),平常远在它之下。按墙钟计,不随 {@code /tick rate} 变:刻速调高时一刻的预算变小,
+     * 一次前提(搜索展开一个节点要判二十来次、共十来到二十来微秒,docs/pathing-015.md 第 8 步第三批),平常远在它之下。按墙钟计,不随 {@code /tick rate} 变:刻速调高时一刻的预算变小,
      * 服务器跟不上是刻速的事;这里只标出寻路自己在主线程上做了重活的那几刻。
      */
     static final long MAIN_THREAD_WARN_NANOS = 5_000_000L;
@@ -99,6 +109,19 @@ public final class PathLog {
     /** 纳秒写成毫秒,一位小数。 */
     public static String ms(long nanos) {
         return String.format(Locale.ROOT, "%.1fms", nanos / 1.0e6);
+    }
+
+    /**
+     * 一次搜索慢在哪的几个读数,分得清是谁:线程 CPU 时间与墙钟之比(远小于 100% 是抢 CPU 或等锁)、跑的期间 JIT 编译与回收停顿的毫秒
+     * (JIT 大是冷启动)、每节点微秒;两者都正常而每节点仍慢,是地形或实现。池线程数与机器核数一并写出。
+     */
+    public static String load(Pending<?> done, int expanded) {
+        String cpu = done.cpuNanos() < 0 ? "不可用"
+                : String.format(Locale.ROOT, "%.0f%%", 100.0 * done.cpuNanos() / Math.max(1, done.ranNanos()));
+        String jit = done.jitMillis() < 0 ? "不可用" : "+" + done.jitMillis() + "ms";
+        String perNode = expanded <= 0 ? "-" : String.format(Locale.ROOT, "%.0fμs", done.ranNanos() / 1.0e3 / expanded);
+        return String.format(Locale.ROOT, "CPU/墙钟 %s JIT %s GC +%dms 每节点 %s 池 %d 线程/%d 核", cpu, jit, done.gcMillis(), perNode,
+                Searches.poolSize(), Runtime.getRuntime().availableProcessors());
     }
 
     /** 纳秒写成秒,一位小数。 */
@@ -182,5 +205,45 @@ public final class PathLog {
         return "身体 " + at(body.position()) + (body.onGround() ? " 地上" : " 空中") + (body.isInWater() ? " 水里" : "")
                 + (body.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) ? " 眼在水里" : "")
                 + " 氧气 " + body.getAirSupply() + "/" + body.getMaxAirSupply() + " 血 " + num(body.getHealth());
+    }
+
+    /**
+     * 身体的手此刻的样子:按着的键、主手拿的、准星落着的东西、鼠标正在挖哪一格与进度、控制器正在做哪件改动
+     * ({@code working},没有为 null)。"不在推进"时她手上在干什么,看这一段。
+     */
+    public static String hands(ServerPlayer body, Controls keys, Mouse mouse, Edit working) {
+        StringBuilder pressed = new StringBuilder();
+        for (Controls.Key key : Controls.Key.values()) {
+            if (keys.held(key)) {
+                pressed.append(pressed.isEmpty() ? "" : "+").append(key);
+            }
+        }
+        BlockPos digging = mouse.pressing();
+        return "按键 " + (pressed.isEmpty() ? "-" : pressed) + " 主手 " + stack(body.getMainHandItem()) + " 准星 " + crosshair(body, mouse.pick())
+                + " 鼠标 " + (digging == null ? "没在挖" : "挖 " + pos(digging) + " 进度 " + num(mouse.progress()))
+                + " 在做 " + (working == null ? "-" : edit(working));
+    }
+
+    private static String stack(ItemStack stack) {
+        return stack.isEmpty() ? "空手" : BuiltInRegistries.ITEM.getKey(stack.getItem()) + "×" + stack.getCount();
+    }
+
+    private static String crosshair(ServerPlayer body, HitResult hit) {
+        return switch (hit) {
+            case BlockHitResult block when block.getType() == HitResult.Type.BLOCK -> "方块 " + pos(block.getBlockPos()) + " "
+                    + block(body.serverLevel().getBlockState(block.getBlockPos())) + " 面 " + block.getDirection();
+            case EntityHitResult entity -> "实体 " + BuiltInRegistries.ENTITY_TYPE.getKey(entity.getEntity().getType());
+            default -> "空";
+        };
+    }
+
+    /** 一件改动:做什么、哪一格、原来是什么。 */
+    private static String edit(Edit edit) {
+        return switch (edit) {
+            case Edit.Dig dig -> "挖 " + pos(dig.pos()) + " " + block(dig.state());
+            case Edit.Place place -> "放 " + pos(place.pos()) + " " + BuiltInRegistries.BLOCK.getKey(place.block());
+            case Edit.Door door -> "开关 " + pos(door.pos()) + " " + block(door.state());
+            case Edit.Catch caught -> "倒水 " + pos(caught.pos());
+        };
     }
 }

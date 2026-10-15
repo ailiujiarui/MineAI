@@ -2,9 +2,6 @@ package com.dwinovo.numen.api.client.voice;
 
 import com.dwinovo.numen.api.Constants;
 import com.dwinovo.numen.api.client.agent.ClientNumenLookup;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 
@@ -240,26 +237,6 @@ public final class VoicePipeline {
         }
         queue.clear();
         divider.reset();
-    }
-
-    /**
-     * 从 OpenAI 协议的流式 chunk 里取出 content 文本增量,
-     * 与 provider 侧 {@code accumulateChunk} 对 content 的解析保持一致：
-     * {@code choices[0].delta.content} 且必须是字符串原语。
-     * 没有 content（reasoning/tool_call/usage 帧）返回 null。
-     */
-    public static String extractContentDelta(JsonObject chunk) {
-        if (chunk == null || !chunk.has("choices")) return null;
-        JsonElement choicesEl = chunk.get("choices");
-        if (!choicesEl.isJsonArray()) return null;
-        JsonArray choices = choicesEl.getAsJsonArray();
-        if (choices.isEmpty() || !choices.get(0).isJsonObject()) return null;
-        JsonObject choice = choices.get(0).getAsJsonObject();
-        if (!choice.has("delta") || !choice.get("delta").isJsonObject()) return null;
-        JsonObject delta = choice.getAsJsonObject("delta");
-        if (!delta.has("content") || !delta.get("content").isJsonPrimitive()
-                || !delta.get("content").getAsJsonPrimitive().isString()) return null;
-        return delta.get("content").getAsString();
     }
 
     private static String truncate(String s) {

@@ -19,14 +19,12 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.block.Blocks;
 
 /**
- * 路线的描述收一串格:{@code numen.move.to} 给一串格(Cells),走进其中任意一格、用其中的箱子之一、停在离它们不远处;{@code avoid}
- * 收一串格或一个盒子(两个对角)就绕开那片地;{@code avoid_break} 收一串格或一个盒子就不挖那几格、改从别处挖出去;她自己盖的房子不用
+ * 去一串格:{@code numen.move.to} 给一串格(Cells)走进其中任意一格,给一串方块走到其中之一旁边,给距离停在离它们不远处;她自己盖的房子不用
  * 点名也不挖。格子由程序写出来,和她拿扫描结果原样交过去一样;都从脚本入口进。
  */
 public class CellRouteGameTests {
 
     private static final String BATCH = "numen_cell_route";
-    private static final String CHANGES = "costs = {dig = true, place = true, consent = false}";
 
     @BeforeBatch(batch = BATCH)
     public static void prepare(ServerLevel level) {
@@ -47,9 +45,9 @@ public class CellRouteGameTests {
         return "{" + String.join(", ", cells.stream().map(GameTestKit::xyz).toList()) + "}";
     }
 
-    /** 一个盒子写成脚本里的两个对角。 */
-    private static String corners(GameTestHelper helper, BlockPos from, BlockPos to) {
-        return "{" + at(helper, from) + ", " + at(helper, to) + "}";
+    /** 一口箱子写成查询交回的那种 Block。 */
+    private static String block(BlockPos chest) {
+        return "{name = \"minecraft:chest\", pos = " + xyz(chest) + "}";
     }
 
     private static double nearest(List<BlockPos> cells, BlockPos at) {
@@ -75,26 +73,25 @@ public class CellRouteGameTests {
     }
 
     /**
-     * 用几格里的箱子之一:两格各是一口箱子,一口在她跟前、一口在场地对角。她去用近的那一口:停在看得见、够得着它的地方,
-     * 回执点名是哪一口。
+     * 几个方块走到其中之一旁边:两格各是一口箱子(写成带 name 的 Block),一口在她跟前、一口在场地对角。没说距离,她走到近的那一口旁边,
+     * 不走进去。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
-    public static void goto_use_several_cells_uses_one_of_their_chests(GameTestHelper helper) {
+    public static void goto_several_blocks_goes_beside_the_nearest(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos near = helper.absolutePos(new BlockPos(7, 2, 2));
         BlockPos far = helper.absolutePos(new BlockPos(13, 2, 13));
         level.setBlockAndUpdate(near, Blocks.CHEST.defaultBlockState());
         level.setBlockAndUpdate(far, Blocks.CHEST.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_chestuser", new BlockPos(2, 2, 2), false);
-        ToolRun walk = lua(companion, "numen.move.to(" + cells(List.of(near, far)) + ", {arrive = \"use\"})");
+        ToolRun walk = lua(companion, "numen.move.to({" + block(near) + ", " + block(far) + "})");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(walk.done(), "numen.move.to has not finished");
-            helper.assertTrue(walk.succeeded() && walk.outcome().contains("chest at " + near.getX() + ","
-                            + near.getY() + "," + near.getZ()),
-                    "she did not go to use the near chest: " + walk.outcome());
-            helper.assertTrue(companion.getEyePosition().distanceTo(net.minecraft.world.phys.Vec3.atCenterOf(near))
-                    <= companion.blockInteractionRange() + 1, "the chest is out of her reach");
+            helper.assertTrue(walk.succeeded() && walk.outcome().contains("within 2 blocks"),
+                    "she did not go beside the near chest: " + walk.outcome());
+            helper.assertTrue(Math.sqrt(companion.blockPosition().distSqr(near)) <= 2
+                    && !companion.blockPosition().equals(near), "she is not beside the near chest");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
@@ -105,7 +102,7 @@ public class CellRouteGameTests {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = spawnAt(helper, "gametest_hoverer", new BlockPos(2, 2, 2), false);
         List<BlockPos> pen = box(helper, new BlockPos(10, 2, 10), new BlockPos(13, 2, 13));
-        ToolRun walk = lua(companion, "numen.move.to(" + cells(pen) + ", {arrive = \"near\", range = 3})");
+        ToolRun walk = lua(companion, "numen.move.to(" + cells(pen) + ", 3)");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(walk.done(), "numen.move.to has not finished");
@@ -120,92 +117,8 @@ public class CellRouteGameTests {
     }
 
     /**
-     * 绕开一片地:农田横在她与终点之间,只在场地一边留出一条路。{@code avoid} 给农田的每一格(一串格),这一趟一路没进农田
-     * (身子不在里面、脚下不踩它),照样走到。
-     */
-    @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
-    public static void avoiding_cells_walks_around_them(GameTestHelper helper) {
-        List<BlockPos> farm = box(helper, new BlockPos(5, 1, 0), new BlockPos(10, 3, 11));
-        walkAround(helper, "gametest_skirter", farm, "avoid = " + cells(farm));
-    }
-
-    /** 绕开一块地,同上;{@code avoid} 收那块地的两个对角(一个盒子)。 */
-    @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
-    public static void avoiding_a_box_walks_around_it(GameTestHelper helper) {
-        BlockPos lo = new BlockPos(5, 1, 0);
-        BlockPos hi = new BlockPos(10, 3, 11);
-        walkAround(helper, "gametest_boxskirter", box(helper, lo, hi), "avoid = {" + corners(helper, lo, hi) + "}");
-    }
-
-    /** 从 (2, 2, 6) 走到 (13, 2, 6),描述里写着 {@code avoid}:一路没进 {@code farm},照样走到。 */
-    private static void walkAround(GameTestHelper helper, String name, List<BlockPos> farm, String avoid) {
-        ServerLevel level = helper.getLevel();
-        NumenPlayer companion = spawnAt(helper, name, new BlockPos(2, 2, 6), false);
-        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 6));
-        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ", {" + avoid + "})");
-        boolean[] entered = new boolean[1];
-        helper.onEachTick(() -> {
-            BlockPos feet = companion.blockPosition();
-            entered[0] |= farm.contains(feet) || farm.contains(feet.above())
-                    || companion.onGround() && farm.contains(feet.below());
-        });
-
-        succeedWhen(helper, () -> {
-            helper.assertTrue(walk.done(), "numen.move.to has not finished");
-            helper.assertTrue(walk.succeeded() && companion.blockPosition().equals(target),
-                    "she did not arrive: " + walk.outcome());
-            helper.assertTrue(!entered[0], "she walked into the farm");
-            CompanionFactory.despawn(level.getServer(), companion);
-        });
-    }
-
-    /**
-     * 不挖房子的那一面:关在木板屋里,终点在屋东边。许挖许放、{@code avoid_break} 给东墙那几格(一串格)的一趟挖开别的墙绕出去,
-     * 东墙一块不少,回执照实记下挖了哪几块木板。
-     */
-    @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
-    public static void avoid_break_on_cells_digs_out_elsewhere(GameTestHelper helper) {
-        BlockPos lo = new BlockPos(9, 2, 5);
-        BlockPos hi = new BlockPos(9, 4, 9);
-        digOutElsewhere(helper, "gametest_sparer", box(helper, lo, hi), "avoid_break = " + cells(box(helper, lo, hi)));
-    }
-
-    /** 不挖房子的那一面,同上;{@code avoid_break} 收东墙的两个对角(一个盒子)。 */
-    @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
-    public static void avoid_break_a_box_digs_out_elsewhere(GameTestHelper helper) {
-        BlockPos lo = new BlockPos(9, 2, 5);
-        BlockPos hi = new BlockPos(9, 4, 9);
-        digOutElsewhere(helper, "gametest_boxsparer", box(helper, lo, hi),
-                "avoid_break = {" + corners(helper, lo, hi) + "}");
-    }
-
-    /** 关在 (7, 7) 的木板屋里,走到屋东边 (13, 2, 7),描述里写着 {@code avoidBreak}:{@code eastWall} 一块不少。 */
-    private static void digOutElsewhere(GameTestHelper helper, String name, List<BlockPos> eastWall, String avoidBreak) {
-        ServerLevel level = helper.getLevel();
-        plankRoomAround(helper, 7, 7);
-        int planksBefore = plankCount(helper, 7, 7);
-        NumenPlayer companion = spawnAt(helper, name, new BlockPos(7, 2, 7), false);
-        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 7));
-        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ", {" + CHANGES + ", " + avoidBreak + "})");
-
-        succeedWhen(helper, () -> {
-            helper.assertTrue(walk.done(), "numen.move.to has not finished");
-            helper.assertTrue(walk.succeeded() && companion.blockPosition().distSqr(target) <= 2,
-                    "she did not get out: " + walk.outcome());
-            for (BlockPos cell : eastWall) {
-                helper.assertTrue(level.getBlockState(cell).is(Blocks.OAK_PLANKS),
-                        "a plank of the house was broken at " + cell.toShortString());
-            }
-            helper.assertTrue(plankCount(helper, 7, 7) < planksBefore, "she got out without breaking any plank?");
-            helper.assertTrue(walk.outcome().contains("oak_planks"), "the reply does not say what was broken: "
-                    + walk.outcome());
-            CompanionFactory.despawn(level.getServer(), companion);
-        });
-    }
-
-    /**
      * 路上不挖她盖的房子:关在木板屋里,终点在屋东边;东墙是她照蓝图盖的一栋({@link Built} 记着这几格,放置记号也是她自己)。
-     * 许挖许放的一趟不点名任何禁区,也挖开别的墙绕出去,东墙一块不少——日式小屋卡在底层来回挖自己刚放下的格,
+     * 不点名任何禁区,她也挖开别的墙绕出去,东墙一块不少——日式小屋卡在底层来回挖自己刚放下的格,
      * 就是路线把房子的格当成了能挖的地形。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
@@ -227,7 +140,7 @@ public class CellRouteGameTests {
             }
         }
         BlockPos target = helper.absolutePos(new BlockPos(13, 2, 7));
-        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ", {" + CHANGES + "})");
+        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ")");
 
         succeedWhen(helper, () -> {
             helper.assertTrue(walk.done(), "numen.move.to has not finished");

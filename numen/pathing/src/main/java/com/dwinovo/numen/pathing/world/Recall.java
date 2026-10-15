@@ -12,8 +12,9 @@ import net.minecraft.world.level.BlockGetter;
  * 要被反复问到,每格算一次记下来。
  *
  * <ul>
- *   <li><b>只记没叠改动的世界</b>:记事本挂在搜索读的快照上({@link Source}),叠了改动的视图交不出它,照常现算——
- *       挖开一格、垫下一块之后,那一格与它周围的结论都变了;</li>
+ *   <li><b>叠了改动的世界</b>:记事本挂在搜索读的快照上({@link Source}),记的是快照的结论。叠了改动的视图也交得出它,但每种结论
+ *       说明自己读哪几格({@link Reach}):改动落在那一列那一段之内的,结论变了,照常现算、不记;落在之外的,结论与快照上的一模一样,
+ *       照用记事本——挖开一格、垫下一块只影响它自己那一列;</li>
  *   <li><b>读到了没加载的列</b>:搜索要知道一步的前提读没读到快照之外的列({@link #unloaded}),算一个结论时读到了,
  *       这一位随结论记下,取回时照样记上,与现算一模一样;</li>
  *   <li><b>一具身体</b>:结论随身体尺寸而变,记事本只答建它时那一具身体的问;</li>
@@ -32,10 +33,19 @@ public final class Recall {
     private static final byte UNLOADED = 2;
     private static final AtomicInteger FACTS = new AtomicInteger();
 
-    /** 带着这次搜索的记事本的视图;叠了改动时交出 null。 */
+    /** 带着这次搜索的记事本的视图;没有记事本(活世界)为 null。 */
     public interface Source {
         Recall recall();
+
+        /** 这份视图相对记事本记的快照,在 {@code (x, z)} 这一列 {@code yMin} 到 {@code yMax} 之间改过格子。 */
+        boolean changed(int x, int yMin, int yMax, int z);
     }
+
+    /**
+     * 一种结论读哪几格:{@code (x, y, z)} 的结论只由 {@code (x, z)} 这一列、从 {@code y - below} 到 {@code y + above} 之间的格子决定。
+     * 说少了,叠了改动的视图上会用到过时的结论;说多了只是少用几次记事本。
+     */
+    public record Reach(int below, int above) {}
 
     /** 一种按格的结论怎么算。 */
     @FunctionalInterface
@@ -53,15 +63,17 @@ public final class Recall {
     public static final class Fact<T> {
         private final int index = FACTS.getAndIncrement();
         private final Measure<T> measure;
+        private final Reach reach;
 
-        public Fact(Measure<T> measure) {
+        public Fact(Measure<T> measure, Reach reach) {
             this.measure = measure;
+            this.reach = reach;
         }
 
-        /** 这一格的结论:{@code level} 带着记事本且没叠改动时每格只算一次,否则现算。 */
+        /** 这一格的结论:{@code level} 带着记事本、改动又没落在这一结论读的格子里时每格只算一次,否则现算。 */
         @SuppressWarnings("unchecked")
         public T at(BlockGetter level, BodyStats body, int x, int y, int z) {
-            Recall recall = in(level, body);
+            Recall recall = in(level, body, x, y, z, reach);
             if (recall == null) {
                 return measure.at(level, body, x, y, z);
             }
@@ -84,14 +96,16 @@ public final class Recall {
     public static final class HeightFact {
         private final int index = FACTS.getAndIncrement();
         private final Height measure;
+        private final Reach reach;
 
-        public HeightFact(Height measure) {
+        public HeightFact(Height measure, Reach reach) {
             this.measure = measure;
+            this.reach = reach;
         }
 
         /** 同 {@link Fact#at}。 */
         public double at(BlockGetter level, BodyStats body, int x, int y, int z) {
-            Recall recall = in(level, body);
+            Recall recall = in(level, body, x, y, z, reach);
             if (recall == null) {
                 return measure.at(level, body, x, y, z);
             }
@@ -134,10 +148,10 @@ public final class Recall {
         unloaded = false;
     }
 
-    private static Recall in(BlockGetter level, BodyStats body) {
+    private static Recall in(BlockGetter level, BodyStats body, int x, int y, int z, Reach reach) {
         if (level instanceof Source source) {
             Recall recall = source.recall();
-            return recall != null && recall.body == body ? recall : null;
+            return recall != null && recall.body == body && !source.changed(x, y - reach.below, y + reach.above, z) ? recall : null;
         }
         return null;
     }

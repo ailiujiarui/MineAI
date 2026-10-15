@@ -155,6 +155,9 @@ public final class NumenLlmClient {
         }
     }
 
+    /** 一个 chunk 带来的正文与思考增量(任一可空串,不会两者皆空)。 */
+    public record Delta(String content, String reasoning) {}
+
     /**
      * Streaming chat completion. Returns a future of the final
      * {@link ChatResult} — the {@link AssistantTurn} built up from all SSE
@@ -166,17 +169,19 @@ public final class NumenLlmClient {
      * @param tools          tool list (provider serialises to wire shape;
      *                       empty = no tools field, e.g. for summarization calls)
      * @param systemPrompt   prepended automatically — pass empty / null to skip
-     * @param cancel         cancelling it closes the stream: {@code onChunk} is not called again,
+     * @param cancel         cancelling it closes the stream: {@code onDelta} is not called again,
      *                       nothing is retried, and the future fails with
      *                       {@link java.util.concurrent.CancellationException}
-     * @param onChunk        optional per-chunk callback (e.g. for live UI).
-     *                       Receives the raw provider chunk JSON. May be null.
+     * @param onDelta        optional live-UI callback, called once per chunk that grew the reply.
+     *                       The increments are read off the accumulator, so they are exactly what
+     *                       the final {@link AssistantTurn} will contain (dialect fields, {@code <think>}
+     *                       spans and all). May be null.
      */
     public CompletableFuture<ChatResult> chatStreaming(List<ConvoState.Msg> messages,
                                                        Collection<? extends IToolSpec> tools,
                                                        String systemPrompt,
                                                        CancelToken cancel,
-                                                       Consumer<JsonObject> onChunk) {
+                                                       Consumer<Delta> onDelta) {
         // -- 1. Build wire-format messages and tool list via provider. The recorded history goes
         //        through ProtocolView first — this is the only place a history becomes a request,
         //        so tool-call pairing, cut-off turns and adjacent user messages are settled here once.
@@ -221,8 +226,16 @@ public final class NumenLlmClient {
         StreamAccumulator acc = new StreamAccumulator();
         return transport.postSse(fullUrl, apiKey, body, chunk -> {
             try {
+                int contentFrom = acc.content.length();
+                int reasoningFrom = acc.reasoning.length();
                 provider.accumulateChunk(chunk, acc);
-                if (onChunk != null) onChunk.accept(chunk);
+                if (onDelta != null) {
+                    String content = acc.content.substring(contentFrom);
+                    String reasoning = acc.reasoning.substring(reasoningFrom);
+                    if (!content.isEmpty() || !reasoning.isEmpty()) {
+                        onDelta.accept(new Delta(content, reasoning));
+                    }
+                }
             } catch (RuntimeException ex) {
                 AiLog.LOG.warn("[numen-llm] accumulator failed on chunk: {}", ex.getMessage());
             }

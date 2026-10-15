@@ -161,7 +161,7 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 // Their static fixture registration must not become part of the real-model tool set.
 // Normal development and runGameTestServer still compile and discover every test.
 if (providers.gradleProperty('numenLiveEval').isPresent()) {
-    sourceSets.main.java.exclude('com/dwinovo/numen/core/gametest/**')
+    sourceSets.main.java.exclude('com/dwinovo/numen/gametest/**')
 }
 
 // Implement mcgradleconventions loader attribute

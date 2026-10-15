@@ -7,12 +7,10 @@ import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.pathing.world.BodyStats;
 import com.dwinovo.numen.pathing.world.Clearance;
 import com.dwinovo.numen.pathing.world.Footing;
-import com.dwinovo.numen.pathing.world.Recall;
 import com.dwinovo.numen.pathing.world.Semantics;
 import com.dwinovo.numen.pathing.world.Semantics.Kind;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -75,18 +73,10 @@ final class Contact {
         return exposure;
     }
 
-    /** 这一格碰了伤身,一次搜索里按格记住({@link Recall})。 */
-    private static final Recall.Fact<Boolean> HARM = new Recall.Fact<>(Contact::measureHarm);
-
+    /** 这一格碰了伤身:岩浆、危险方块;托得住身体的细雪不算。只看这一格的方块状态,读一次。 */
     private boolean harmful(Draft draft, BlockPos pos) {
-        return HARM.at(draft, body, pos.getX(), pos.getY(), pos.getZ());
-    }
-
-    /** 这一格碰了伤身:岩浆、危险方块;托得住身体的细雪不算。 */
-    private static Boolean measureHarm(BlockGetter level, BodyStats body, int x, int y, int z) {
-        BlockPos pos = new BlockPos(x, y, z);
-        return (Semantics.mask(level, pos) & HARMFUL) != 0
-                && !(body.walksOnPowderSnow() && level.getBlockState(pos).is(Blocks.POWDER_SNOW));
+        BlockState state = draft.getBlockState(pos);
+        return (Semantics.stateMask(state) & HARMFUL) != 0 && !(body.walksOnPowderSnow() && state.is(Blocks.POWDER_SNOW));
     }
 
     /**
@@ -149,7 +139,7 @@ final class Contact {
 
     /** 一步里数出来的格,{@link BlockPos#asLong} 编码,不重复:只有十来个,逐个比对比建哈希表快。 */
     private static final class Cells {
-        private long[] items = new long[8];
+        private long[] items = new long[4];
         private int size;
 
         boolean contains(long cell) {

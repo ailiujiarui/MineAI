@@ -6,6 +6,7 @@ import java.util.Map;
 import com.dwinovo.numen.FailureType;
 import com.dwinovo.numen.pathing.api.Outcome;
 import com.dwinovo.numen.api.entity.BodyAction;
+import com.dwinovo.numen.api.permission.Verdict;
 import com.dwinovo.numen.pathing.drive.Blockage;
 import com.dwinovo.numen.pathing.drive.DiveLog;
 import com.dwinovo.numen.pathing.drive.EditLedger;
@@ -14,7 +15,6 @@ import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.plan.Permit;
 import com.dwinovo.numen.pathing.plan.Reason;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
-import com.dwinovo.numen.api.permission.Verdict;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
@@ -65,14 +65,14 @@ class NavTextTest {
                 new EditLedger.Dug(B, planks()),
                 new EditLedger.Placed(C, Blocks.AIR.defaultBlockState(), Blocks.COBBLESTONE.defaultBlockState()),
                 new EditLedger.Toggled(C.above(), Blocks.OAK_DOOR.defaultBlockState(), Blocks.OAK_DOOR.defaultBlockState()));
-        List<BodyAction> actions = List.of(new BodyAction.Dismounted(EntityType.BOAT),
-                new BodyAction.Held(Items.COBBLESTONE, 3, 3), new BodyAction.Held(Items.COBBLESTONE, 3, 3));
+        List<BodyAction> actions = List.of(new BodyAction.Held(Items.COBBLESTONE, 3, 3),
+                new BodyAction.Held(Items.COBBLESTONE, 3, 3));
         assertEquals("En route I had to break 2 oak_planks (120,64,-33; 120,65,-33) and place 1 cobblestone"
-                + " (121,64,-33). I also stepped off the boat and switched to cobblestone in my hotbar (2 times).",
-                NavText.journey(entries, actions, List.of()));
-        assertEquals("", NavText.journey(List.of(), List.of(), List.of()), "什么都没做就什么都不说");
+                + " (121,64,-33). I also switched to cobblestone in my hotbar (2 times).",
+                NavText.journey(entries, actions, List.of(), List.of()));
+        assertEquals("", NavText.journey(List.of(), List.of(), List.of(), List.of()), "什么都没做就什么都不说");
         assertEquals("En route I took a stack of dirt from the creative inventory.",
-                NavText.journey(List.of(), List.of(new BodyAction.Conjured(Items.DIRT, 0)), List.of()), "只有身体动作也要说");
+                NavText.journey(List.of(), List.of(new BodyAction.Conjured(Items.DIRT, 0)), List.of(), List.of()), "只有身体动作也要说");
     }
 
     @Test
@@ -80,7 +80,7 @@ class NavTextTest {
         BlockState water = Blocks.WATER.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
         String said = NavText.journey(List.of(new EditLedger.Placed(C, air, water),
-                new EditLedger.Placed(C, water, air)), List.of(), List.of());
+                new EditLedger.Placed(C, water, air)), List.of(), List.of(), List.of());
         assertTrue(said.contains("pour 1 water (121,64,-33) to break a fall")
                 && said.contains("scoop 1 water (121,64,-33) back"), said);
     }
@@ -117,22 +117,29 @@ class NavTextTest {
     }
 
     /**
-     * 许的改动不够:下一步写成描述里要加的那几项(要挖的许挖、要放的许放、要问主人的把要问的格算能走),规划时用的那条路要改的格
-     * 照实点名;要问主人的格说清走到时才问。超出改动上限说 max_changes 要多少。
+     * 不改地形走不到、改了才有路(只有不改地形的活会这样收场):那条路要改的格照实点名,下一步是 numen.move.to;要问主人的格说清走到时才问。
      */
     @Test
-    void notEnoughChangesNameTheKnobsToTurn() {
+    void notEnoughChangesNameTheCellsTheWayWouldChange() {
         RouteSpec none = RouteSpec.defaults();
         String digs = NavText.failure(new Outcome.NeedsChanges(digs(2)), null, A, C, none, List.of());
-        assertTrue(digs.contains("plan it again with costs = {dig = true, place = true}")
+        assertTrue(digs.contains("`numen.move.to` takes such a way")
                 && digs.contains("changes 2 block(s) — break 2 oak_planks (120,64,-33; 120,65,-33)"), digs);
-        RouteSpec walls = none.edit().changes(true).consent(false).build();
-        String asks = NavText.failure(new Outcome.NeedsChanges(digs(3, Permit.ask("x"))), null, A, C, walls, List.of());
-        assertTrue(asks.contains("without touching what needs the owner's consent")
-                && asks.contains("costs = {consent = 10}") && asks.contains("asks your owner when I get to each"), asks);
+        String asks = NavText.failure(new Outcome.NeedsChanges(digs(3, Permit.ask("x"))), null, A, C, none, List.of());
+        assertTrue(asks.contains("asks your owner when I get to each"), asks);
         String budget = NavText.failure(new Outcome.OverAlterBudget(5), null, A, C,
-                walls.edit().alterBudget(1).build(), List.of());
-        assertTrue(budget.contains("costs = {max_changes = 5}"), budget);
+                none.edit().alterBudget(1).build(), List.of());
+        assertTrue(budget.contains("no route within a budget of 1 changed blocks"), budget);
+    }
+
+    /** 路上被拒的格照实说:改什么、在哪、谁怎么说的;答应了的不在这一句里。 */
+    @Test
+    void whatWasRefusedOnTheWayIsToldWithWhoSaidIt() {
+        java.util.List<Ruling> rulings = java.util.List.of(
+                Ruling.refusedByRules(A, "oak_planks", "placed by a player"),
+                new Ruling(B, "break stone", true, "your owner"));
+        assertEquals("Refused on the way: change oak_planks at 120,64,-33 (the rules: placed by a player).",
+                NavText.journey(List.of(), List.of(), List.of(), rulings));
     }
 
     @Test
@@ -155,7 +162,7 @@ class NavTextTest {
     @Test
     void puttingAwayWhatWasInHandIsToldAsSuch() {
         assertEquals("En route I put away what was in my hand.",
-                NavText.journey(List.of(), List.of(new BodyAction.Held(Items.AIR, 8, 8)), List.of()));
+                NavText.journey(List.of(), List.of(new BodyAction.Held(Items.AIR, 8, 8)), List.of(), List.of()));
     }
 
     /** 路上潜过的水照实说:几段,憋得最久的那一段从哪儿到哪儿、憋了几秒、氧气最低到多少;跟在改动与身体动作后面。 */
@@ -163,9 +170,9 @@ class NavTextTest {
     void theDivesOnTheWayAreToldWithTheLongestHold() {
         List<DiveLog.Dive> dives = List.of(new DiveLog.Dive(A, B, 30, 270, 300), new DiveLog.Dive(B, C, 245, 55, 300));
         assertEquals("I went under water 2 times; the longest: 12 s without a breath from 120,65,-33 to 121,64,-33,"
-                + " air down to 55/300.", NavText.journey(List.of(), List.of(), dives));
+                + " air down to 55/300.", NavText.journey(List.of(), List.of(), dives, List.of()));
         String both = NavText.journey(List.of(new EditLedger.Dug(A, planks())), List.of(),
-                List.of(new DiveLog.Dive(A, C, 10, 290, 300)));
+                List.of(new DiveLog.Dive(A, C, 10, 290, 300)), List.of());
         assertEquals("En route I had to break 1 oak_planks (120,64,-33). I went under water once: under 1 s without a"
                 + " breath from 120,64,-33 to 121,64,-33, air down to 290/300.", both);
     }
@@ -205,21 +212,20 @@ class NavTextTest {
                 null)), null, A, C, spec, List.of());
         String sight = NavText.failure(new Outcome.NoLineOfSight(B), null, A, C, spec, List.of());
         assertTrue(none.contains("pick another destination"), none);
-        assertTrue(budget.contains("not proof there is none") && budget.contains("a nearer stop"), budget);
+        assertTrue(budget.contains("not proof there is none") && budget.contains("a nearer place"), budget);
         assertTrue(unloaded.contains("not loaded") && unloaded.contains("walk toward it and try again"), unloaded);
-        assertTrue(alter.contains("plan it again with costs = {dig = true, place = true}"), alter);
+        assertTrue(alter.contains("`numen.move.to` takes such a way"), alter);
         assertTrue(denied.contains("120,65,-33 is refused") && denied.contains("ask your owner")
-                && denied.contains("avoid = {{x = 120, y = 65, z = -33}}"), denied);
+                && denied.contains("no way around it was found"), denied);
         assertTrue(stranded.contains("can't stand where I am") && stranded.contains("free me first"), stranded);
         assertTrue(blocked.contains("no room for my body there") && blocked.contains("try again"), blocked);
-        assertTrue(sight.contains("went out of sight")
-                && sight.contains("`numen.move.to({x = 120, y = 65, z = -33}, {arrive = \"use\"})`"), sight);
+        assertTrue(sight.contains("went out of sight") && sight.contains("numen.work.dig"), sight);
         assertEquals(8, java.util.Set.of(none, budget, unloaded, alter, denied, stranded, blocked, sight).size());
     }
 
     @Test
     void anOverBudgetWalkSaysWhatTheCheapestRouteWouldChange() {
-        assertEquals("no route within max_changes = 1 (the cheapest found would change 3 blocks)",
+        assertEquals("no route within a budget of 1 changed blocks (the cheapest found would change 3)",
                 NavText.overBudget(1, 3));
     }
 }

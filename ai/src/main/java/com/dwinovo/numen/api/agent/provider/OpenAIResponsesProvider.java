@@ -258,13 +258,6 @@ public final class OpenAIResponsesProvider implements LlmProvider {
         return new AssistantTurn(acc.content.toString(), calls, extras, acc.reasoning.toString());
     }
 
-    @Override
-    public String extractReasoningDelta(JsonObject chunk) {
-        String type = str(chunk, "type");
-        return "response.reasoning_text.delta".equals(type)
-                || "response.reasoning_summary_text.delta".equals(type) ? str(chunk, "delta") : "";
-    }
-
     /**
      * 用量字段名与 chat/completions 不同:{@code input_tokens}/{@code output_tokens},缓存在
      * {@code input_tokens_details} 里。四元的口径照旧(input 是"这轮真正新处理的",缓存单列),

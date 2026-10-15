@@ -19,10 +19,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 垫路料:描述里写的料怎么读、出厂那一份,以及下一次垫路放什么。需要 MC 注册表;出厂标签由测试自己绑上。 */
+/** 垫路料:出厂那一份,以及下一次垫路放什么。需要 MC 注册表;出厂标签由测试自己绑上。 */
 @Tag("mc")
 class ThrowawayBlocksTest {
 
@@ -36,37 +35,6 @@ class ThrowawayBlocksTest {
         player = allocatePlayer();
     }
 
-    // ==================== 描述里写的料 ====================
-
-    @Test
-    void aBareNameMeansTheVanillaBlock() {
-        assertEquals(List.of(Items.COBBLESTONE), ThrowawayBlocks.of(List.of("cobblestone")));
-        assertEquals(List.of(Items.COBBLESTONE), ThrowawayBlocks.of(List.of("minecraft:cobblestone")));
-    }
-
-    @Test
-    void surroundingSpaceAndCaseAreForgiven() {
-        assertEquals(List.of(Items.DEEPSLATE), ThrowawayBlocks.of(List.of("  Minecraft:DeepSlate  ")));
-    }
-
-    /** 顺序就是选料优先级,所以不重排;重复的只留第一次出现的位置。 */
-    @Test
-    void theGivenOrderIsKeptAndARepeatIsListedOnce() {
-        assertEquals(List.of(Items.STONE, Items.DIRT, Items.COBBLESTONE),
-                ThrowawayBlocks.of(List.of("stone", "dirt", "cobblestone")));
-        assertEquals(List.of(Items.DIRT, Items.STONE),
-                ThrowawayBlocks.of(List.of("dirt", "minecraft:stone", "dirt", "minecraft:dirt")));
-    }
-
-    /** 认不出的、不是能放下的方块是描述写错了:说是哪一项,不悄悄丢掉。 */
-    @Test
-    void somethingThatIsNotABlockToPlaceIsRefusedRatherThanDropped() {
-        assertThrows(IllegalArgumentException.class, () -> ThrowawayBlocks.of(List.of("definitely_not_a_block")));
-        assertThrows(IllegalArgumentException.class, () -> ThrowawayBlocks.of(List.of("not a resource location")));
-        assertThrows(IllegalArgumentException.class, () -> ThrowawayBlocks.of(List.of("minecraft:diamond")));
-        assertThrows(IllegalArgumentException.class, () -> ThrowawayBlocks.of(List.of("#minecraft:no_such_tag")));
-    }
-
     // ==================== 出厂那一份 ====================
 
     /** 出厂那一份是标签 numen:throwaway 此刻的成员:整合包改标签就改掉所有同伴的出厂料;标签要真的解析得开。 */
@@ -74,7 +42,6 @@ class ThrowawayBlocksTest {
     void theFactoryListIsTheThrowawayTag() {
         assertTrue(ThrowawayBlocks.factory().containsAll(List.of(Items.DIRT, Items.COBBLESTONE)),
                 "" + ThrowawayBlocks.factory());
-        assertEquals(ThrowawayBlocks.factory(), ThrowawayBlocks.of(List.of("#numen:throwaway")));
     }
 
     // ==================== 下一次垫什么(端口 Materials 的答案) ====================

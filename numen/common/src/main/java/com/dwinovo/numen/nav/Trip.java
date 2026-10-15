@@ -2,6 +2,7 @@ package com.dwinovo.numen.nav;
 
 import com.dwinovo.numen.api.entity.Mouse;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 import com.dwinovo.numen.FailureType;
@@ -17,8 +18,11 @@ import com.dwinovo.numen.pathing.plan.Permit;
 import com.dwinovo.numen.pathing.plan.Threats;
 import com.dwinovo.numen.pathing.search.Goal;
 import com.dwinovo.numen.pathing.search.Route;
+import com.dwinovo.numen.pathing.spec.PositionCosts;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
+import com.dwinovo.numen.api.permission.Action;
 import com.dwinovo.numen.api.permission.ConsentItem;
+import com.dwinovo.numen.api.permission.Listing;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.Item;
@@ -27,11 +31,12 @@ import net.minecraft.world.item.Item;
  * 执行:同伴的一趟路,从这里走到一个目标,经寻路的门面({@link Navigator#drive})完成,路上边走边细算。规划是另一件事
  * ({@link Survey})。交进来一条规划好的路就先照它走({@link #following}),走不下去按同样的目标与规格重搜。
  *
- * <h2>越过边界才问</h2>
+ * <h2>越过边界才问,被拒的格这一趟里当墙</h2>
  * 规格把要问主人的格算能走时({@link RouteSpec#consent}),那几格在路上照常规划;权限的拍板在动手那一刻:她的鼠标({@link com.dwinovo.numen.api.entity.Mouse})
  * 走到那一格要挖、要放时问权限层,还没得到主人点头就停下、交回要问的那一条。这一趟就扣在那里({@link #consentNeeded}),由任务发起征询;
- * 主人答应了,授权进了权限快照,照没走完的那截路接着走;不答应,任务以被拒收场。开走之前不整条问一遍:要问的格可能根本走不到,
- * 走到之前世界也可能变了。
+ * 主人答应了,授权进了权限快照,照没走完的那截路接着走;不答应({@link #consentRefused}),那一格在这一趟里当墙,从她此刻的位置
+ * 重新规划绕开。动手那一刻权限层或服务端当场不许的格同样当墙、同样重新规划。重新规划之后还是撞上同一堵墙,或绕不开,这一趟才
+ * 以被拒收场。开走之前不整条问一遍:要问的格可能根本走不到,走到之前世界也可能变了。
  *
  * <p>另外几件:端口每开一次导航按此刻组一份({@link CompanionPorts},权限快照里有主人刚答应的);结局渲染成给模型的英文、归到
  * 哪一种失败,只在 {@link NavText};这一趟开过的每一次导航交出的实际账({@link #reports}),停下时交给任务并进旅程账;
@@ -59,7 +64,8 @@ public final class Trip {
     }
 
     private final NumenPlayer player;
-    private final RouteSpec spec;
+    /** 这一趟的规格;被拒的格当墙之后换成加了墙的那一份。 */
+    private RouteSpec spec;
     private Goal goal;
     private BlockPos toward;
     private Threats threats;
@@ -71,18 +77,15 @@ public final class Trip {
 
     private Phase phase = Phase.IDLE;
     private List<ConsentItem> consent = List.of();
-    private it.unimi.dsi.fastutil.longs.LongSet promisedAsks;
-
-    /** 照计划走时,征询同样不能超出她看过的格;其他导航不附带计划承诺。 */
-    public Trip askingOnly(it.unimi.dsi.fastutil.longs.LongSet cells) {
-        promisedAsks = new it.unimi.dsi.fastutil.longs.LongOpenHashSet(cells);
-        return this;
-    }
     private Navigation navigation;
     /** 这一趟没走到时的结局;还在走或到了为 null。 */
     private Outcome outcome;
     /** 这一趟里已经停下的几次导航交出的实际账。 */
     private final List<Report> done = new ArrayList<>();
+    /** 路上权限层与主人对哪几格怎么裁的;被拒的格已经当了墙。 */
+    private final List<Ruling> rulings = new ArrayList<>();
+    /** 主人不答应过的征询:同一行规则问出来的同一种东西({@link ConsentItem#covers})不再问第二遍,直接当墙。 */
+    private final List<ConsentItem> refused = new ArrayList<>();
 
     private Status status = Status.RUNNING;
     private String failReason = "";
@@ -191,44 +194,85 @@ public final class Trip {
     }
 
     /**
-     * 一次导航没走到:手走到一格要问主人的地方停下了,就扣住没走完的那截路、交出要问的那一条,等主人答复;其余照实收场。
+     * 一次导航没走到:手走到一格要问主人的地方停下了,就扣住没走完的那截路、交出要问的那一条,等主人答复;动手那一刻被拒了(权限层
+     * 当场不许,或服务端退回),那一格当墙、重新规划;其余照实收场。
      */
     private void conclude(Outcome outcome) {
-        if (outcome instanceof Outcome.Denied denied && denied.reason() instanceof Mouse.Refusal.Asks unasked) {
-            List<Route.Leg> rest = navigation.remaining();
-            retire();
-            seed = rest.isEmpty() ? null
-                    : new Route(rest.get(0).maneuver().from(), rest.get(0).maneuver().start(), rest);
-            consent = covered(unasked.item(), rest);
-            if (promisedAsks != null) {
-                var more = consent.stream().filter(c -> !promisedAsks.contains(c.pos().asLong()))
-                        .map(c -> new com.dwinovo.numen.route.Plan.Ask(c.pos(), c.cause())).toList();
-                if (!more.isEmpty()) {
-                    fail("the way on needs cells outside the plan: it would "
-                            + com.dwinovo.numen.route.RouteText.beyond(
-                            new com.dwinovo.numen.route.Plan.Difference(List.of(), List.of(), more)),
-                            FailureType.TERRAIN_BLOCKED);
-                    return;
-                }
+        if (outcome instanceof Outcome.Denied denied && denied.reason() instanceof Mouse.Refusal refusal) {
+            if (refusal instanceof Mouse.Refusal.Asks unasked && refused.stream().noneMatch(r -> r.covers(unasked.item()))) {
+                List<Route.Leg> rest = navigation.remaining();
+                retire();
+                seed = rest.isEmpty() ? null
+                        : new Route(rest.get(0).maneuver().from(), rest.get(0).maneuver().start(), rest);
+                consent = covered(unasked.item(), rest);
+                phase = Phase.CONSENT;
+                com.dwinovo.numen.Constants.LOG.info("[numen-task] 走到 {} 要问主人({}),停下等答复",
+                        denied.cell().toShortString(), unasked.verdict().reason());
+                return;
             }
-            phase = Phase.CONSENT;
-            com.dwinovo.numen.Constants.LOG.info("[numen-task] 走到 {} 要问主人({}),停下等答复",
-                    denied.cell().toShortString(), unasked.verdict().reason());
-            return;
-        }
-        if (outcome instanceof Outcome.Denied denied && denied.reason() instanceof CompanionHands.Withheld withheld) {
-            // 悬而未决(主人不在、到点没答复):不与主人硬顶、不进 CONSENT 死等。收起这一趟,把这一格搁下,
-            // 由任务决定接着做什么——它没有把整件活判死,只是这一趟没走到。
             retire();
-            this.outcome = outcome;
-            com.dwinovo.numen.Constants.LOG.info("[numen-task] 走到 {} 悬而未决({}),这一格搁下",
-                    denied.cell().toShortString(), withheld.verdict().reason());
-            finish(Status.FAILED);
-            return;
+            EnumSet<PositionCosts.Use> uses;
+            if (refusal instanceof Mouse.Refusal.Asks unasked) {
+                // 主人对这一种东西已经说过不:不再问,这一格也当墙
+                rulings.addAll(Ruling.refusedByOwner(List.of(unasked.item()), "refused earlier on this walk"));
+                uses = wallsFor(unasked.item());
+            } else {
+                rulings.add(Ruling.refusedByRules(denied.cell(), NavText.name(player.level().getBlockState(denied.cell())),
+                        NavText.reason(refusal)));
+                uses = EnumSet.of(PositionCosts.Use.DIG, PositionCosts.Use.PLACE);
+            }
+            if (wall(denied.cell(), uses)) {
+                com.dwinovo.numen.Constants.LOG.info("[numen-task] {} 动手被拒,这一趟里当墙,重新规划",
+                        denied.cell().toShortString());
+                seed = null;
+                drive();
+                return;
+            }
         }
         retire();
         this.outcome = outcome;
-        fail(NavText.failure(outcome, player, Feet.cell(player), toward, spec, materials), NavText.type(outcome));
+        fail(NavText.failure(outcome, player, Feet.cell(player), toward, spec, materials) + aroundWhatWasRefused(outcome),
+                refusedAround(outcome) ? FailureType.REFUSED : NavText.type(outcome));
+    }
+
+    /**
+     * 这一格在这一趟里当墙({@code uses} 那几样都不许动它),从没有路可走的位置重新规划才会绕开。这些样子它已经全是墙了(规划绕不
+     * 开它)返回 false。
+     */
+    private boolean wall(BlockPos cell, EnumSet<PositionCosts.Use> uses) {
+        PositionCosts.Builder walls = PositionCosts.builder();
+        boolean added = false;
+        for (PositionCosts.Use use : uses) {
+            if (!spec.positions().forbids(use, cell.asLong())) {
+                walls.forbid(use, cell.asLong());
+                added = true;
+            }
+        }
+        if (added) {
+            spec = spec.edit().positions(spec.positions().plus(walls.build())).build();
+        }
+        return added;
+    }
+
+    /** 主人不答应的这一条,在这一趟里不许动哪样:放就不许放,挖或别的就不许挖也不许放。 */
+    private static EnumSet<PositionCosts.Use> wallsFor(ConsentItem item) {
+        return item.kind() == Action.Kind.PLACE ? EnumSet.of(PositionCosts.Use.PLACE)
+                : EnumSet.of(PositionCosts.Use.DIG, PositionCosts.Use.PLACE);
+    }
+
+    /** 路上有被拒的格,而这一趟现在是因为没有别的路才没走到的:被拒的格就是没走成的原因,按被拒收场。 */
+    private boolean refusedAround(Outcome outcome) {
+        return rulings.stream().anyMatch(r -> !r.allowed())
+                && (outcome instanceof Outcome.NoRoute || outcome instanceof Outcome.NeedsChanges
+                        || outcome instanceof Outcome.NoMaterials);
+    }
+
+    /** 绕不开被拒的格时,在没走到的那句话后补上缘由与下一步;不是这样收场的是空串。 */
+    private String aroundWhatWasRefused(Outcome outcome) {
+        return refusedAround(outcome)
+                ? "; the cells refused on the way were kept out of this walk and no other way was found: ask your owner"
+                        + " to allow them, or pick another destination"
+                : "";
     }
 
     private void finish(Status end) {
@@ -284,6 +328,11 @@ public final class Trip {
         return List.copyOf(done);
     }
 
+    /** 路上权限层与主人对哪几格怎么裁的,按先后。 */
+    public List<Ruling> rulings() {
+        return List.copyOf(rulings);
+    }
+
     /** 到此刻为止这一趟的实际账:停下的几次,加上还在走的这一次。 */
     public List<Report> reports() {
         List<Report> out = new ArrayList<>(done);
@@ -318,9 +367,65 @@ public final class Trip {
     /** 主人答应了:权限快照按此刻重取(答应下来的那一格从此放行),照没走完的那截路接着走。 */
     public void consentGranted() {
         if (phase == Phase.CONSENT) {
+            rulings.addAll(Ruling.allowed(consent));
             consent = List.of();
             drive();
         }
+    }
+
+    /**
+     * 主人不答应({@code words} 是他的原话):问的那几格在这一趟里当墙,没走完的那截路作废,从她此刻的位置重新规划绕开。问的
+     * 那几格在规格里已经全是墙了(规划还是绕不开它们),这一趟以被拒收场。
+     */
+    public void consentRefused(String words) {
+        if (phase != Phase.CONSENT) {
+            return;
+        }
+        rulings.addAll(Ruling.refusedByOwner(consent, words));
+        refused.addAll(consent);
+        boolean walled = false;
+        for (ConsentItem item : consent) {
+            if (item.pos() != null) {
+                walled |= wall(item.pos(), wallsFor(item));
+            }
+        }
+        consent = List.of();
+        seed = null;
+        if (walled) {
+            drive();
+            return;
+        }
+        fail("changing " + Listing.coords(rulings.get(rulings.size() - 1).pos()) + " is refused by your owner: " + words
+                + " and no way around it was found; pick another destination, or ask your owner to allow it",
+                FailureType.REFUSED);
+    }
+
+    /**
+     * 悬而未决({@code words} 是登记处替这次结局说的那句):主人没说不行,只是怎么都问不到。问的那几格这一趟里当墙(主人没说不行,
+     * 下一趟还会问),没走完的那截路作废,从她此刻的位置重新规划绕开;问的那几格在规格里已经全是墙了(规划绕不开它们),这一趟
+     * 按悬而未决收场——不是被拒。
+     */
+    public void consentWithheld(String words) {
+        if (phase != Phase.CONSENT) {
+            return;
+        }
+        rulings.addAll(Ruling.withheld(consent, words));
+        refused.addAll(consent);
+        boolean walled = false;
+        for (ConsentItem item : consent) {
+            if (item.pos() != null) {
+                walled |= wall(item.pos(), wallsFor(item));
+            }
+        }
+        consent = List.of();
+        seed = null;
+        if (walled) {
+            drive();
+            return;
+        }
+        fail("changing " + Listing.coords(rulings.get(rulings.size() - 1).pos()) + " is unresolved: " + words
+                + " and no way around it was found; try again, or ask your owner to allow it",
+                FailureType.PENDING);
     }
 
     /** 身体此刻站着等搜索的结论(诊断为什么没路、等搜索回来),不在走。 */

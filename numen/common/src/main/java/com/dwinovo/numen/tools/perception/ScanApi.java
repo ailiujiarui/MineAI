@@ -112,9 +112,9 @@ public final class ScanApi {
     @Example("numen.scan.blocks(\"#minecraft:beds\")")
     @Note("Read-only; it returns when the search is done. Name every variant you want.")
     @Note("A cluster is matching blocks that touch (diagonals count): every block of it nearest first (a Block: name "
-            + "and pos), the nearest one, and how many. Hand a cluster on as it is: `numen.move.to` with arrive \"dig\" "
-            + "walks within reach of it, `numen.work.dig` digs what still stands within reach, `numen.work.mine` walks "
-            + "and digs until it is gone.")
+            + "and pos), the nearest one, and how many. Hand a cluster on as it is: `numen.move.to` "
+            + "goes beside it, `numen.work.dig` walks up to it and digs it, `numen.work.mine` digs and picks up until "
+            + "it is gone.")
     @Note("Nothing is kept: to use what it found again, keep the result in the program, or scan again.")
     @Note("Only loaded terrain is read: anything further out is UNKNOWN, not empty; an empty result there is not proof "
             + "that none is there — walk that way and scan again. When it could not read all of the radius, the "

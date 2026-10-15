@@ -1,6 +1,8 @@
 package com.dwinovo.numen.pathing.gametest;
 
 import java.util.List;
+import com.dwinovo.numen.pathing.search.Goal;
+import com.dwinovo.numen.pathing.search.Goals;
 import net.minecraft.core.BlockPos;
 
 /**
@@ -10,6 +12,9 @@ import net.minecraft.core.BlockPos;
  * <p>类型:平地直行、上坡、下坡、陡坎(中途有一级 5 格以上的落差)、穿树林、树林里上坡、绕障碍(直线中间隔着 30 格以上的断崖)、
  * 起伏、长距离(160 格)。时限是够从容走完的刻数,超过就算没走到。
  *
+ * <p>最后两条是地下的目标:从地面到封闭石头里的一格(像主人开了观察模式钻进石头),和到地下一个空腔(开跑前在那里挖出一间 3×3×3 的空房)。
+ * 每条路线跑完,开跑前挖的和导航动过的格子都还原,挖出来的不会留给后面的路线。走路默认可挖可搭、只看价钱,这两条量的是往下挖着去的账。
+ *
  * <p>后一批是难路线,全是地形里天然存在的:峡谷(30 格深的裂缝)底、跨峡谷、被高地或山脊挡住要绕远、掉进盆地、300 格以上的长路、
  * 破碎地形、密林。起终点按勘测表挑,没有照寻路能不能走通来挑;走不通的原样记着,是后面分析的素材。
  */
@@ -17,8 +22,26 @@ final class TerrainRoutes {
 
     private TerrainRoutes() {}
 
-    /** 一条固定路线。 */
-    record Route(String name, String kind, BlockPos from, BlockPos to, int limit) {
+    /** 开跑前挖成空气的一个盒子,两个对角都含在内。 */
+    record Box(BlockPos min, BlockPos max) {}
+
+    /**
+     * 一条固定路线。
+     *
+     * @param carve  开跑前挖成空气的盒子(空房、通道);没有为空表
+     * @param buried 终点那一格得是封闭的实心(六面都是实心方块):核对存档里那一格还是石头
+     * @param reach  目标是"离终点这么近以内"({@code within(at(终点), 0, reach)},与模型调 move.to(主人, reach) 同口径);0 是走到终点那一格
+     */
+    record Route(String name, String kind, BlockPos from, BlockPos to, int limit, List<Box> carve, boolean buried, int reach) {
+
+        Route(String name, String kind, BlockPos from, BlockPos to, int limit) {
+            this(name, kind, from, to, limit, List.of(), false, 0);
+        }
+
+        /** 这条路线的目标。 */
+        Goal goal() {
+            return reach == 0 ? Goals.at(to) : Goals.within(Goals.at(to), 0, reach);
+        }
 
         /** 起终点的水平直线距离。 */
         double distance() {
@@ -57,7 +80,38 @@ final class TerrainRoutes {
     static final Route LAKE_CROSS = new Route("lake_cross", "横渡深湖", new BlockPos(156, 63, 183), new BlockPos(217, 63, 183), 1200);
     static final Route LAKE_SHALLOWS = new Route("lake_shallows", "深浅交错的湖", new BlockPos(217, 63, 138), new BlockPos(250, 63, 138), 1200);
 
+    /** 地下的两条:从平地出发,往下挖着去封闭石头里的一格 / 一间挖出来的空房。 */
+    static final Route BURIED_CELL = new Route("buried_cell", "到封闭石头里的一格", new BlockPos(343, 67, 212), new BlockPos(343, 60, 212),
+            1500, List.of(), true, 0);
+    static final Route BURIED_CAVITY = new Route("buried_cavity", "到地下一个空腔", new BlockPos(311, 65, 174), new BlockPos(311, 56, 174),
+            1500, List.of(new Box(new BlockPos(310, 56, 173), new BlockPos(312, 58, 175))), false, 0);
+
+    /**
+     * 远处的地下三条(第 9 步粗层估价的尺子):终点都在起点几十到一百格外的地下,量"估价看不见远处的挖与走"。选址依据是对存档做过的
+     * 一次扫描(不进仓库):
+     * <ul>
+     *   <li>rock_far:起点在峡谷底(井底),斜向八十多格、落差 30 格,终点在实心岩石里,开跑前在终点挖出一格能站的(脚与头两格)。
+     *       起点到终点的整条直线(身高两格)上没有一格空气或流体,终点周围 7×8×7 全是实心,终点离它头顶的地表一百多格,中间没有现成的通道。
+     *       目标是离终点两格以内,与模型调 move.to(主人, 2) 同口径;</li>
+     *   <li>cave_far:终点是存档里 x 251..379、z 148..266 的一座大洞穴(26631 格)底部的落脚点,起点在地面,水平九十多格、落差 52 格。
+     *       按"空气一步、实心一千步"的最短路,起点到终点只需挖 2 格,但要在洞里绕 300 步;</li>
+     *   <li>tunnel_end:起点在中央山丘的坡脚,开跑前沿水平挖出一条隧道(向 +z 28 格、向 +x 22 格、再向 +z 16 格,共 66 格,两个拐弯,
+     *       宽一格高两格),终点在隧道尽头;隧道离地面至少三格岩,看她顺着隧道走还是另挖。</li>
+     * </ul>
+     */
+    static final Route ROCK_FAR = new Route("rock_far", "从峡谷底穿实心岩到远处", new BlockPos(276, 31, 240), new BlockPos(205, 1, 295), 12000,
+            List.of(new Box(new BlockPos(205, 1, 295), new BlockPos(205, 2, 295))), false, 2);
+    static final Route CAVE_FAR = new Route("cave_far", "到远处洞穴底", new BlockPos(327, 67, 232), new BlockPos(362, 15, 148), 12000);
+    static final Route TUNNEL_END = new Route("tunnel_end", "到隧道尽头", new BlockPos(256, 80, 252), new BlockPos(278, 80, 296), 1000,
+            List.of(new Box(new BlockPos(256, 80, 253), new BlockPos(256, 81, 280)),
+                    new Box(new BlockPos(257, 80, 280), new BlockPos(278, 81, 280)),
+                    new Box(new BlockPos(278, 80, 281), new BlockPos(278, 81, 296))), false, 0);
+
+    /** 连续台阶与连续下坡:存档里一道笔直的十二级台阶(沿 +x 每格高一级),和一段每隔几格落一级的下坡,量上坡、下坡时身体的步态。 */
+    static final Route STAIRS_UP = new Route("stairs_up", "连续台阶上", new BlockPos(419, 74, 105), new BlockPos(432, 86, 105), 600);
+    static final Route SLOPE_DOWN = new Route("slope_down", "连续下坡", new BlockPos(283, 91, 274), new BlockPos(312, 70, 272), 600);
+
     static final List<Route> ALL = List.of(FLAT, UPHILL, DOWNHILL, STEP, FOREST, FOREST_UPHILL, WALL, LONG_A, LONG_B, ROLLING,
             RAVINE_FLOOR, RAVINE_CROSS, RIDGE_DETOUR, HILL_DETOUR, BASIN_DESCENT, LONG_300, BROKEN, DENSE_FOREST,
-            LAKE_CROSS, LAKE_SHALLOWS);
+            LAKE_CROSS, LAKE_SHALLOWS, BURIED_CELL, BURIED_CAVITY, STAIRS_UP, SLOPE_DOWN, ROCK_FAR, CAVE_FAR, TUNNEL_END);
 }

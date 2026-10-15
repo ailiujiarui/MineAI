@@ -69,9 +69,26 @@ public final class NumenContent {
         initialised = true;
         registerTools();
         registerTaskRunners();
-        // 原版四件甲是第一处穿戴来源,和模组的饰品栏走同一扇门;内嵌联动在这之后才开闸,所以原版排在最前
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("sustainable-survival-v1",
+                com.dwinovo.numen.eval.SurvivalWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("free-survival-v2",
+                com.dwinovo.numen.eval.FreeSurvivalWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("expedition-v1",
+                com.dwinovo.numen.eval.ExpeditionWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("end-resources-v1",
+                com.dwinovo.numen.eval.EndResourcesWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("dragon-combat-v1",
+                com.dwinovo.numen.eval.DragonCombatWorldObserver::new);
         com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen ->
-                numen.registerGear(new com.dwinovo.numen.gear.VanillaArmor()));
+                numen.on(com.dwinovo.numen.api.CompanionEvent.HURT, hurt ->
+                        com.dwinovo.numen.api.eval.WorldEvalObservers.hurt(hurt.companion(), hurt.source(), hurt.amount())));
+        // 原版四件甲是第一处穿戴来源,和模组的饰品栏走同一扇门;内嵌联动在这之后才开闸,所以原版排在最前
+        com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen -> {
+            numen.registerGear(new com.dwinovo.numen.gear.VanillaArmor());
+            numen.registerGear(new com.dwinovo.numen.api.adapter.AdapterGearSource());
+            numen.api("adapter", "Reload adapter files and explain which mappings are active or blocked.",
+                    com.dwinovo.numen.api.adapter.AdapterApi.class);
+        });
         registerReflexes();
         enlistReflexRoster();
         // 寻路调试开关挂在 /numen 下
@@ -111,8 +128,7 @@ public final class NumenContent {
     }
 
     /**
-     * Numen API 自己的 API 组,和插件走同一扇门({@code NumenPlugins.register})。{@code route} 在 {@code move} 之前:路线描述里的几种值与
-     * {@code numen.move.go} 收的计划在它那里登记。
+     * Numen 自己的 API 组,和插件走同一扇门({@code NumenPlugins.register})。
      */
     private static void registerTools() {
         com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen -> {
@@ -120,7 +136,6 @@ public final class NumenContent {
             com.dwinovo.numen.tools.perception.StatusApi.install(numen);
             com.dwinovo.numen.tools.perception.ScanApi.install(numen);
             com.dwinovo.numen.tools.locate.LocateApi.install(numen);
-            com.dwinovo.numen.tools.work.RouteApi.install(numen);
             com.dwinovo.numen.tools.work.MoveApi.install(numen);
             com.dwinovo.numen.tools.work.WorkApi.install(numen);
             com.dwinovo.numen.tools.work.BuildApi.install(numen);
@@ -130,7 +145,9 @@ public final class NumenContent {
             com.dwinovo.numen.tools.inventory.InvApi.install(numen);
             com.dwinovo.numen.tools.inventory.GearApi.install(numen);
             com.dwinovo.numen.tools.inventory.CreativeApi.install(numen);
+            com.dwinovo.numen.tools.kb.KbApi.install(numen);
             com.dwinovo.numen.tools.time.TimeApi.install(numen);
+            com.dwinovo.numen.tools.verify.VerifyApi.install(numen);
         });
     }
 

@@ -182,6 +182,54 @@ public class AlterGameTests {
     }
 
     /**
+     * 站着的那一格里长着一株草(没有碰撞、有轮廓):准星从眼睛往下看先碰上它,要挖的脚下那一格点不中。向下挖之前先把这株草打掉,
+     * 再挖下面的泥土,一路落到底。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 700)
+    public static void digs_down_through_the_grass_underfoot(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.fill(2, 1, 2, 10, 4, 10, Blocks.DIRT);
+        t.set(5, 5, 5, Blocks.SHORT_GRASS);
+        TestBody body = t.body(5, 5, 5);
+        t.go(body, Goals.at(t.at(5, 1, 5)), NATURAL).within(600).arrives().then(r -> {
+            if (dug(r).size() < 5 || !dug(r).get(0).pos().equals(t.at(5, 5, 5))) {
+                throw new GameTestAssertException("应当先打掉脚下那株草再往下挖四格:" + dug(r));
+            }
+            if (r.report.journal().stuck() > 0 || r.report.journal().blockages() > 0) {
+                throw new GameTestAssertException("被脚下的草挡着卡住了:" + r.report.journal().stuck() + " 次卡住,"
+                        + r.report.journal().blockages() + " 次走不下去");
+            }
+        });
+    }
+
+    /**
+     * 两座高台隔着一道深坑(深到跳不下去),身上只有圆石,快捷栏塞满、主手拿着圆石:先在坑上垫一块走过去,紧接着在对面往下挖三格,
+     * 落进藏在泥土里的空腔。没有空手可换,就握着圆石挖泥土;往下挖的头一格不为此卡住。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 900)
+    public static void digs_down_right_after_bridging_a_gap(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.fill(2, 1, 3, 4, 7, 7, Blocks.STONE);
+        t.fill(6, 1, 3, 9, 7, 7, Blocks.DIRT);
+        t.fill(8, 3, 5, 8, 4, 5, Blocks.AIR);
+        TestBody body = t.body(3, 8, 5);
+        Trial.give(body, new ItemStack(Items.COBBLESTONE, 16), new ItemStack(Items.STICK), new ItemStack(Items.APPLE),
+                new ItemStack(Items.BREAD), new ItemStack(Items.COAL), new ItemStack(Items.CLAY_BALL), new ItemStack(Items.FEATHER),
+                new ItemStack(Items.FLINT), new ItemStack(Items.STRING));
+        t.materials = Trial.carried(body, Blocks.COBBLESTONE);
+        t.go(body, Goals.at(t.at(8, 3, 5)), NATURAL).within(800).arrives().then(r -> {
+            if (placed(r).isEmpty() || dug(r).size() < 3) {
+                throw new GameTestAssertException("应当先垫后挖:放 " + placed(r) + ",挖 " + dug(r));
+            }
+            if (r.report.journal().stuck() > 0 || r.report.journal().blockages() > 0) {
+                throw new GameTestAssertException("垫完紧接着往下挖卡住了:" + r.report.journal().stuck() + " 次卡住,"
+                        + r.report.journal().blockages() + " 次走不下去");
+            }
+        });
+    }
+
+
+    /**
      * 泥土墙横贯场地,正对着的那一段是玩家砌的(许可拒绝),墙里还嵌着一只箱子(许可拒绝):绕到许可放行的那一段去挖,
      * 拒绝的格一格不碰。
      */

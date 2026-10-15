@@ -140,7 +140,7 @@ final class Trial {
     /** 在 {@code (x, y, z)} 这一格的中心拉起一具身体,吃饱、满血。 */
     TestBody body(int x, int y, int z) {
         BlockPos pos = at(x, y, z);
-        TestBody body = TestBody.spawn(level, "pathing_" + helper.getTick() + "_" + x + "_" + z,
+        TestBody body = TestBody.spawn(level, "body_" + x + "_" + z,
                 pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
         body.getFoodData().setFoodLevel(20);
         return body;

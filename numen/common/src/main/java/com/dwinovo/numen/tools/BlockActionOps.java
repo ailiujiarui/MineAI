@@ -78,7 +78,7 @@ public final class BlockActionOps {
                     + "or fluid — so I did not start", null);
         }
         int until = count == null ? DigTaskRecord.ALL : Math.clamp(count, 1, MAX_DIG_COUNT);
-        return new DigTaskRecord(src, level.getGameTime(), cells, targets, kinds, until, labelFor(kinds), what);
+        return new DigTaskRecord(src, level.getGameTime(), cells, kinds, until, labelFor(kinds), what);
     }
 
     /** 方块 id。 */

@@ -242,6 +242,11 @@ public class Mouse {
         return pressing() != null;
     }
 
+    /** 正挖着的那一格已经挖了多少,满 1 碎掉;没在挖是 0。 */
+    public float progress() {
+        return progress;
+    }
+
     /** 左键正按在哪一格上(包括送了 STOP 在等服务端落地的那一格);没按为 null。 */
     public BlockPos pressing() {
         return stopped != null ? stopped : destroying;

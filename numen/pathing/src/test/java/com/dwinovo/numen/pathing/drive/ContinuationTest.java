@@ -2,6 +2,8 @@ package com.dwinovo.numen.pathing.drive;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dwinovo.numen.pathing.Fixtures;
@@ -9,6 +11,7 @@ import com.dwinovo.numen.pathing.TestWorld;
 import com.dwinovo.numen.pathing.Vanilla;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.search.Route;
+import com.dwinovo.numen.pathing.search.SearchResult;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.pathing.plan.Stance;
 import net.minecraft.core.BlockPos;
@@ -151,5 +154,25 @@ class ContinuationTest {
         assertTrue(continuation.failed());
         continuation.reset();
         assertFalse(continuation.failed(), "换了新路线重新开始");
+    }
+
+    @Test
+    void aNextSegmentThatFoundNoRouteIsTheConclusionOfTheWholeTrip() {
+        // 走到终点后从脚下再搜,起点、目标、规格、世界都一样,结果必然相同:不再派第二次
+        Continuation continuation = new Continuation();
+        SearchResult budget = new SearchResult(SearchResult.Stop.BUDGET, null, 40_000, false, Double.NaN);
+        assertNull(continuation.unfound());
+        continuation.unfound(budget, null);
+        assertSame(budget, continuation.unfound().result());
+        continuation.reset();
+        assertNull(continuation.unfound(), "换了新路线重新开始");
+    }
+
+    @Test
+    void aNextSegmentThatRanIntoUnloadedChunksIsSearchedAgainOnceTheBodyIsThere() {
+        // 走近了区块会加载,那时再搜的结果不一样
+        Continuation continuation = new Continuation();
+        continuation.unfound(new SearchResult(SearchResult.Stop.UNLOADED, null, 900, false, Double.NaN), null);
+        assertNull(continuation.unfound());
     }
 }

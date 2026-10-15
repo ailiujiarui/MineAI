@@ -11,7 +11,7 @@ import java.util.Map;
  * ({@link LuaCodecs})写成字面量,不手拼字符串。
  *
  * <pre>{@code
- * throw new ApiError(ErrorKind.OUT_OF_REACH, "too far", Call.of("numen.move.to", pos, Map.of("arrive", "dig")));
+ * throw new ApiError(ErrorKind.OUT_OF_REACH, "too far", Call.of("numen.work.dig", pos, Map.of("count", 1)));
  * }</pre>
  */
 public final class Call {

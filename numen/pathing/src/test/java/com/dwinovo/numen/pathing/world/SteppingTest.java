@@ -415,14 +415,15 @@ class SteppingTest {
         BlockPos from = new BlockPos(0, Y, 0);
         BlockPos to = new BlockPos(1, Y, 0);
         TestWorld wide = new TestWorld().floor(-4, -4, 6, 4, Y - 1);
-        assertTrue(Stepping.flanked(wide, SURVIVAL, from, Y, to, Y, 1, 0));
+        assertTrue(Stepping.flanked(wide, SURVIVAL, from, Y, to, Y, 1, 0, false));
         TestWorld ledge = new TestWorld().floor(-4, 0, 6, 0, Y - 1);
-        assertFalse(Stepping.flanked(ledge, SURVIVAL, from, Y, to, Y, 1, 0), "两侧都是落坑");
+        assertFalse(Stepping.flanked(ledge, SURVIVAL, from, Y, to, Y, 1, 0, false), "两侧都是落坑");
+        assertTrue(Stepping.flanked(ledge, SURVIVAL, from, Y, to, Y, 1, 0, true), "沿直线走,身体不会歪出中心线");
         TestWorld walled = new TestWorld().floor(-4, 0, 6, 0, Y - 1).fill(-4, Y, -1, 6, Y + 1, -1, Blocks.STONE.defaultBlockState())
                 .fill(-4, Y, 1, 6, Y + 1, 1, Blocks.STONE.defaultBlockState());
-        assertTrue(Stepping.flanked(walled, SURVIVAL, from, Y, to, Y, 1, 0), "两侧是墙,不会踩空");
+        assertTrue(Stepping.flanked(walled, SURVIVAL, from, Y, to, Y, 1, 0, false), "两侧是墙,不会踩空");
         TestWorld corner = new TestWorld().floor(0, 0, 1, 0, Y - 1).floor(1, -1, 1, 0, Y - 1);
-        assertFalse(Stepping.flanked(corner, SURVIVAL, from, Y, new BlockPos(1, Y, -1), Y, 1, -1), "斜走的拐角列空着");
+        assertFalse(Stepping.flanked(corner, SURVIVAL, from, Y, new BlockPos(1, Y, -1), Y, 1, -1, true), "斜走的拐角列空着,斜着走不算直线");
     }
 
     @Test

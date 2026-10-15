@@ -64,6 +64,12 @@ public final class DigQuote {
         return admission.ok() || admission.refused() == Reason.DENIED;
     }
 
+    /** 挖这一格要先问主人(规格把要问的格算能走,价钱已经乘了倍数)。 */
+    public boolean asks(BlockPos pos, BlockState state) {
+        CostModel.Admission admission = model.admitDig(world, pos, state);
+        return admission.ok() && admission.permit() instanceof com.dwinovo.numen.pathing.plan.Permit.Ask;
+    }
+
     /**
      * 挡着视线的格清不清得掉:按这份规格挖它能不能进路线({@link CostModel#admitDig})——规格的禁令、物理上挖不挖得了、许可
      * 怎么答(要问主人的只在规格把它们算能走时进,不许的永远不进)。交给挖一格的目标给站位定价({@code Goals.dig}),也交给

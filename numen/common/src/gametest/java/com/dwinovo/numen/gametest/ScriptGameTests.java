@@ -97,9 +97,8 @@ public class ScriptGameTests {
     }
 
     /**
-     * 第一行当场失败(走去用一格空气):库里的 {@code numen.move.to} 规划出一份走不通的计划,{@code numen.move.go} 照它走就抛 no_path,脚本接住、
-     * 不往下走,第二行的那一格还在;
-     * 回执说停在哪一行、为什么,失败的那次调用记在调库函数的那一行上。
+     * 第一行当场失败(走去一只不存在的实体):{@code numen.move.to} 受理就拒绝,抛 not_found,脚本接住、不往下走,第二行的那一格还在;
+     * 回执说停在哪一行、为什么,失败的那次调用记在 stderr 里。
      */
     @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_scripts")
     public static void a_failed_call_stops_the_lines_that_depend_on_it(GameTestHelper helper) {
@@ -109,21 +108,21 @@ public class ScriptGameTests {
         BlockPos kept = helper.absolutePos(new BlockPos(4, 2, 2));
         level.setBlockAndUpdate(kept, Blocks.STONE.defaultBlockState());
         LlmToolCall script = programCall("""
-                local walked, why = pcall(numen.move.to, %s, {arrive = "use"})
+                local walked, why = pcall(numen.move.to, %s)
                 if not walked then error("could not get there: " .. why, 0) end
                 numen.build.place({{name = "air", pos = %s}})
-                """.formatted(xyz(air), xyz(kept)));
+                """.formatted(999999, xyz(kept)));
         Round round = round(helper, her, script);
 
         succeedWhen(helper, () -> {
             helper.assertTrue(round.hasSettled(), "the script has not finished");
             String msg = message(round, script);
             helper.assertTrue(!receipt(round, script).get("success").getAsBoolean(), "the script succeeded: " + msg);
-            // 库函数 numen.move.to 里 numen.move.go 抛出的错误值原样到了脚本:拼进字符串是"函数: 种类 — 原因";规划本身不抛
-            helper.assertTrue(msg.startsWith("The script stopped at line 2 after 2 calls: could not get there: "
-                    + "numen.move.go: no_path — "), msg);
-            helper.assertTrue(msg.contains("\nstderr:\nline 1 numen.move.go: no_path — ") && !msg.contains("line 1 numen.route.plan"),
-                    "the failed call is in stderr, the plan that only returned data is not: " + msg);
+            // numen.move.to 抛出的错误值原样到了脚本:拼进字符串是"函数: 种类 — 原因"
+            helper.assertTrue(msg.startsWith("The script stopped at line 2 after 1 call: could not get there: "
+                    + "numen.move.to: not_found — "), msg);
+            helper.assertTrue(msg.contains("\nstderr:\nline 1 numen.move.to: not_found — "),
+                    "the failed call is in stderr: " + msg);
             helper.assertTrue(level.getBlockState(kept).is(Blocks.STONE), "the line after the failure ran: " + msg);
             CompanionFactory.despawn(level.getServer(), her);
         });
@@ -160,7 +159,7 @@ public class ScriptGameTests {
                     helper.assertTrue(round.result(script) == null, "the cut-off turn was handed a result");
                     String msg = JsonParser.parseString(round.programReceipt()).getAsJsonObject().get("message")
                             .getAsString();
-                    helper.assertTrue(msg.matches("(?s)The script stopped at line 1 \\(numen\\.move\\.go\\) after 2 calls: "
+                    helper.assertTrue(msg.matches("(?s)The script stopped at line 1 \\(numen\\.move\\.to\\) after 1 call: "
                             + "this turn was cut off; t\\d+ was stopped too\\. Nothing after that ran\\..*"), msg);
                     helper.assertTrue(level.getBlockState(kept).is(Blocks.STONE), "the line after the stop ran");
                     outbox.forget(her.getUUID());
@@ -189,10 +188,10 @@ public class ScriptGameTests {
                 .thenWaitUntil(() -> helper.assertTrue(round.hasSettled(), "the script did not stop when the owner spoke"))
                 .thenExecute(() -> {
                     String msg = message(round, script);
-                    helper.assertTrue(msg.matches("(?s)The script stopped at line 1 \\(numen\\.move\\.go\\) after 2 calls: "
+                    helper.assertTrue(msg.matches("(?s)The script stopped at line 1 \\(numen\\.move\\.to\\) after 1 call: "
                             + "your owner spoke; t\\d+ keeps running\\..*"), msg);
                     TaskRecord<?> now = CompanionTickDispatcher.currentTaskFor(her.getUUID());
-                    helper.assertTrue(now != null && now.getToolName().equals("numen.move.go"),
+                    helper.assertTrue(now != null && now.getToolName().equals("numen.move.to"),
                             "the walk is no longer running: " + now);
                     outbox.forget(her.getUUID());
                     CompanionFactory.despawn(level.getServer(), her);
@@ -216,7 +215,6 @@ public class ScriptGameTests {
         LlmToolCall script = programCall("""
                 for _, c in ipairs(numen.scan.blocks("minecraft:iron_ore", {radius = 14})) do
                   print(c.nearest.pos.x, c.nearest.pos.z)
-                  numen.move.to(c, {arrive = "dig"})
                   numen.work.dig(c)
                 end
                 """);
@@ -433,6 +431,24 @@ public class ScriptGameTests {
     }
 
     /**
+     * 点号调用方法({@code a.dist(b)},该写 {@code a:dist(b)}):报错落在库内部用到缺的那个参数的一行,可回执说清方法要用冒号调用;
+     * 冒号调用照常。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_scripts")
+    public static void a_method_called_with_a_dot_says_to_use_a_colon(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer her = spawnAt(helper, "gametest_lua_colon", new BlockPos(2, 2, 2), false);
+        ToolRun dot = lua(her, "local a = numen.shape.pos(1, 2, 3); return a.dist(numen.shape.pos(4, 5, 6))");
+        helper.assertTrue(!dot.ranToTheEnd() && dot.receipt().contains("attempt to index")
+                        && dot.receipt().contains("call it as obj:name(args), not obj.name(args)"),
+                "the dot call does not say to use a colon: " + dot.receipt());
+        ToolRun colon = lua(her, "local a = numen.shape.pos(1, 2, 3); return a:dist(numen.shape.pos(4, 5, 6))");
+        helper.assertTrue(colon.ranToTheEnd(), "the colon call failed: " + colon.receipt());
+        CompanionFactory.despawn(level.getServer(), her);
+        helper.succeed();
+    }
+
+    /**
      * 查到的东西原样交给动作:{@code numen.scan.blocks} 一团的最近一格、{@code numen.scan.block} 读到的一块,都直接进 {@code numen.work.dig};两格都挖掉,
      * 程序拿到的是两份数据({@code dug} 各一格),不是话。
      */
@@ -478,7 +494,7 @@ public class ScriptGameTests {
         level.addFreshEntity(cow);
         LlmToolCall script = programCall("""
                 local cow = numen.scan.entities("passive", {radius = 20})[1]
-                numen.move.to(cow, {arrive = "near"})
+                numen.move.to(cow)
                 return cow.id
                 """);
         Round round = round(helper, her, script);
@@ -497,25 +513,21 @@ public class ScriptGameTests {
     }
 
     /**
-     * 失败是一个值:{@code pcall} 接住的错误有种类与能照抄的下一行,拼进字符串是"函数: 种类 — 原因"。够不着的一格是
-     * {@code out_of_reach},下一行是走过去再挖;旧写法(三个数的列表、一串字)是 {@code bad_argument},下一行是改写好的那一次调用。
-     * 哪一次都没挖。
+     * 失败是一个值:{@code pcall} 接住的错误有种类与能照抄的下一行,拼进字符串是"函数: 种类 — 原因"。旧写法(三个数的列表、一串字)是
+     * {@code bad_argument},下一行是改写好的那一次调用。哪一次都没挖。
      */
     @GameTest(template = "floor16", timeoutTicks = 400, batch = "numen_scripts")
     public static void a_failed_call_is_a_value_with_its_kind_and_next_line(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         NumenPlayer her = spawnAt(helper, "gametest_lua_catcher", new BlockPos(1, 2, 1), true);
-        BlockPos far = helper.absolutePos(new BlockPos(14, 2, 14));
         BlockPos near = helper.absolutePos(new BlockPos(3, 2, 1));
-        level.setBlockAndUpdate(far, Blocks.OCHRE_FROGLIGHT.defaultBlockState());
         level.setBlockAndUpdate(near, Blocks.OCHRE_FROGLIGHT.defaultBlockState());
         LlmToolCall script = programCall("""
-                local _, far = pcall(numen.work.dig, %s)
                 local _, list = pcall(numen.work.dig, {%d, %d, %d})
                 local _, text = pcall(numen.work.dig, "%d %d %d")
-                print("caught: " .. far)
-                return {far = {far.kind, far.hint}, list = {list.kind, list.hint}, text = {text.kind, text.hint}}
-                """.formatted(xyz(far), near.getX(), near.getY(), near.getZ(), near.getX(), near.getY(), near.getZ()));
+                print("caught: " .. list)
+                return {list = {list.kind, list.hint}, text = {text.kind, text.hint}}
+                """.formatted(near.getX(), near.getY(), near.getZ(), near.getX(), near.getY(), near.getZ()));
         Round round = round(helper, her, script);
 
         succeedWhen(helper, () -> {
@@ -523,11 +535,6 @@ public class ScriptGameTests {
             JsonObject receipt = receipt(round, script);
             helper.assertTrue(receipt.get("success").getAsBoolean(), "the script did not catch the errors: " + receipt);
             JsonObject got = round.data().getAsJsonObject("returned");
-            var farErr = got.getAsJsonArray("far");
-            helper.assertTrue("out_of_reach".equals(farErr.get(0).getAsString())
-                            && farErr.get(1).getAsString().equals("numen.move.to(" + xyz(far) + ", {arrive = \"dig\"})\n"
-                                    + "numen.work.dig(" + xyz(far) + ")"),
-                    "out of reach is not its own kind with the walk as the next line: " + got);
             String rewritten = "numen.work.dig(" + xyz(near) + ")";
             for (String shape : List.of("list", "text")) {
                 var err = got.getAsJsonArray(shape);
@@ -535,10 +542,9 @@ public class ScriptGameTests {
                                 && rewritten.equals(err.get(1).getAsString()),
                         "the old " + shape + " shape is not refused with the call rewritten: " + got);
             }
-            helper.assertTrue(receipt.get("message").getAsString().contains("caught: numen.work.dig: out_of_reach — "),
+            helper.assertTrue(receipt.get("message").getAsString().contains("caught: numen.work.dig: bad_argument — "),
                     "an error joined into a string does not read as function, kind and why: " + receipt);
-            helper.assertTrue(level.getBlockState(far).is(Blocks.OCHRE_FROGLIGHT)
-                    && level.getBlockState(near).is(Blocks.OCHRE_FROGLIGHT), "a refused call dug a block");
+            helper.assertTrue(level.getBlockState(near).is(Blocks.OCHRE_FROGLIGHT), "a refused call dug a block");
             CompanionFactory.despawn(level.getServer(), her);
         });
     }

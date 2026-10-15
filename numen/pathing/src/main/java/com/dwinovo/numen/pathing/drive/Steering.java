@@ -36,18 +36,23 @@ final class Steering {
     }
 
     /**
-     * 朝 {@code (x, z)} 走,沿那个方向的速度不超过 {@code speed}(格每刻):低于它就按前进,否则松开。走出边沿时用它压住
-     * 冲出去的速度,离地之后再由 {@link #stop} 在空中修正落点。
+     * 朝 {@code (x, z)} 走向支撑的边沿、走出去落下 {@code drop} 格:前进键按到"再按这一刻、之后松着滑出去"就会落过 {@code reach} 为止
+     * ({@link Kinematics#dropLanding},滑出去后空中不按键),之后松开,借着惯性滑出边沿。不是压一个固定的慢速——能多快走出去就多快,只要落点还在
+     * 落点那一列里。离地之后再由 {@link #stop} 在空中修正落点。
+     *
+     * @param toEdge 身体中心离"身子整个离开支撑"那一点沿前进方向还有多远
+     * @param reach  落点最远允许落在身体中心沿前进方向多远
      */
-    static void approach(Rig rig, double x, double z, double speed) {
+    static void approach(Rig rig, double x, double z, double toEdge, double reach, double drop) {
         ServerPlayer body = rig.entity;
         Controls keys = rig.keys;
         rig.look.faceToward(x, z);
         double yaw = Math.toRadians(body.getYRot());
         Vec3 motion = body.getDeltaMovement();
         double along = motion.x * -Math.sin(yaw) + motion.z * Math.cos(yaw);
+        double landing = Kinematics.dropLanding(body.getGravity(), toEdge, along + groundAccel(body), 0, 0, drop);
         keys.release(Key.BACK);
-        keys.set(Key.FORWARD, along < speed);
+        keys.set(Key.FORWARD, Double.isNaN(landing) || landing <= reach);
     }
 
     /** 按住前进的下一刻,身体沿它此刻朝着的方向会挪多远:原版先把这一刻的输入加速度加进速度,再移动。 */
@@ -64,6 +69,19 @@ final class Steering {
      * @return 已经停在那一点上
      */
     static boolean stop(Rig rig, double x, double z, double landingY) {
+        return stop(rig, x, z, landingY, 0, 0);
+    }
+
+    /**
+     * 停在 {@code (x, z)} 附近;身体在空中时落在脚高 {@code landingY}。照这一刻松开键推算停在哪,只要停在那一点沿前进方向
+     * 往后不超过 {@code behind}、往前不超过 {@code beyond} 以内就松着,不为了更靠近那一点再拉回去:落在一列里、停住就行的地方
+     * (落点那一列),冲劲带着身子偏到另一侧也不回头走到中心。
+     *
+     * @param behind 离那一点还没走到时容许差多远(落点比起步低时,身子要整个离开起步那块的边沿,差不能超过半格减半个身宽)
+     * @param beyond 已经走过了那一点时容许超过多远
+     * @return 已经停在那一点的容许范围内
+     */
+    static boolean stop(Rig rig, double x, double z, double landingY, double behind, double beyond) {
         ServerPlayer body = rig.entity;
         Controls keys = rig.keys;
         double dx = x - body.getX();
@@ -73,14 +91,17 @@ final class Steering {
         double speed = Math.sqrt(motion.x * motion.x + motion.z * motion.z);
         keys.release(Key.FORWARD);
         keys.release(Key.BACK);
-        if (distance < AT && speed < Kinematics.REST * 10) {
+        if (distance < Math.max(AT, Math.min(behind, beyond)) && speed < Kinematics.REST * 10) {
             return true;
         }
-        // 只在地上转身;腾空时不回身,沿身体此刻朝着的方向按前进后退修正
-        if (distance >= AT && body.onGround()) {
-            rig.look.faceToward(x, z);
-        }
+        // 只在地上转身;腾空时不回身,沿身体此刻朝着的方向按前进后退修正。容许范围非零时,那一点已经在身后(冲劲带过了头)就不转身
+        // 回头去够它,松着、或按后退键刹就是
         double yaw = Math.toRadians(body.getYRot());
+        boolean lenient = behind > 0 || beyond > 0;
+        if (distance >= AT && body.onGround() && (!lenient || dx * -Math.sin(yaw) + dz * Math.cos(yaw) > 0)) {
+            rig.look.faceToward(x, z);
+            yaw = Math.toRadians(body.getYRot());
+        }
         double fx = -Math.sin(yaw);
         double fz = Math.cos(yaw);
         double ahead = dx * fx + dz * fz;
@@ -89,14 +110,17 @@ final class Steering {
         double groundAccel = groundAccel(body);
         double groundFriction = Kinematics.groundDrag(friction(body));
         double airAccel = Kinematics.airAcceleration(body.isSprinting());
-        double best = Double.POSITIVE_INFINITY;
+        // 松着停在容许范围内就不动;否则挑停得离那一点最近的
         int choice = 0;
-        for (int action : new int[] {1, 0, -1}) {
-            double rest = simulate(along, airLeft, action, groundAccel, groundFriction, airAccel);
-            double miss = Math.abs(rest - ahead);
-            if (miss < best - 1.0E-4) {
-                best = miss;
-                choice = action;
+        double idle = simulate(along, airLeft, 0, groundAccel, groundFriction, airAccel) - ahead;
+        if (idle < -behind || idle > beyond) {
+            double best = Double.POSITIVE_INFINITY;
+            for (int action : new int[] {1, 0, -1}) {
+                double miss = Math.abs(simulate(along, airLeft, action, groundAccel, groundFriction, airAccel) - ahead);
+                if (miss < best - 1.0E-4) {
+                    best = miss;
+                    choice = action;
+                }
             }
         }
         if (choice > 0) {

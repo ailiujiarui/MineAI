@@ -170,9 +170,16 @@ public final class Stepping {
      * 这一步走过的路径两侧站得稳:平走、上一级是起点和终点两端旁边的列,斜走是两个拐角列;每一列要么脚下有东西托着(落差在
      * 一格以内),要么在这个高度被墙挡着、放不下身体。空着的一侧是落坑,疾跑时歪一点、冲出去一点就踩空。
      * 检查的是节点所在高度往下一格,和执行时身体偏离中心线的那一点点距离相称,不是整条路线两边都要有路。
+     *
+     * <p>{@code inLine}:前后两步和这一步朝同一个方向(平走、上一级、下一级接成的直线),不看两侧。直线上身体每刻朝落点中心走,
+     * 横向的偏差只会缩小;实测一格宽、两侧悬空的台阶(每级进深两格、升或降一格)疾跑上行与下行,偏离中心线最大 0.000 格,
+     * 远小于身子离列边的余量 0.2 格(半格减半个身宽)。转弯、斜走、起跳落地处身体带着横向的速度,照旧要两侧站得稳。
      */
     public static boolean flanked(BlockGetter level, BodyStats body, BlockPos from, double fromFeetY, BlockPos to, double toFeetY,
-                                  int dx, int dz) {
+                                  int dx, int dz, boolean inLine) {
+        if (inLine && (dx == 0 || dz == 0)) {
+            return true;
+        }
         int y = Footing.cellOf(Math.max(fromFeetY, toFeetY));
         if (dx != 0 && dz != 0) {
             return footed(level, body, from.getX() + dx, y, from.getZ()) && footed(level, body, from.getX(), y, from.getZ() + dz);
@@ -303,9 +310,9 @@ public final class Stepping {
      * 碰撞箱不变,每段取中点;终点单独取。
      */
     private static double[] samplePoints(Obstacles obstacles, double half, double sx, double sz, int dx, int dz) {
-        double[] cuts = obstacles.cuts(half, sx, sz, dx, dz);
-        int n = cuts.length;
-        Arrays.sort(cuts);
+        double[] cuts = new double[obstacles.maxCuts()];
+        int n = obstacles.cuts(cuts, half, sx, sz, dx, dz);
+        Arrays.sort(cuts, 0, n);
         int distinct = 0;
         for (int i = 0; i < n; i++) {
             if (distinct == 0 || cuts[i] != cuts[distinct - 1]) {
@@ -344,8 +351,11 @@ public final class Stepping {
     /** 迈步推导要问碰撞箱的三件事。 */
     abstract static sealed class Obstacles permits Pieces, Columns {
 
-        /** 取样的切点:0、1,加上每个碰撞箱的竖边在路上切出的位置;可以有重复,未排序。 */
-        abstract double[] cuts(double half, double sx, double sz, int dx, int dz);
+        /** 取样的切点最多有几个。 */
+        abstract int maxCuts();
+
+        /** 取样的切点:0、1,加上每个碰撞箱的竖边在路上切出的位置,写进 {@code into} 的开头,交回写了几个;可以有重复,未排序。 */
+        abstract int cuts(double[] into, double half, double sx, double sz, int dx, int dz);
 
         /** 脚底中心在 {@code (cx, cz)}、脚在 {@code feet} 时身体撞上的碰撞箱里最高的顶面;没撞上是 NaN。 */
         abstract double highestHit(double cx, double cz, double half, double feet, double height);
@@ -367,15 +377,19 @@ public final class Stepping {
         }
 
         @Override
-        double[] cuts(double half, double sx, double sz, int dx, int dz) {
-            double[] cuts = new double[2 + 4 * boxes.size()];
+        int maxCuts() {
+            return 2 + 4 * boxes.size();
+        }
+
+        @Override
+        int cuts(double[] into, double half, double sx, double sz, int dx, int dz) {
             int n = 0;
-            cuts[n++] = 0.0;
-            cuts[n++] = 1.0;
+            into[n++] = 0.0;
+            into[n++] = 1.0;
             for (AABB box : boxes) {
-                n = addCuts(cuts, n, box.minX, box.minZ, box.maxX, box.maxZ, half, sx, sz, dx, dz);
+                n = addCuts(into, n, box.minX, box.minZ, box.maxX, box.maxZ, half, sx, sz, dx, dz);
             }
-            return Arrays.copyOf(cuts, n);
+            return n;
         }
 
         @Override
@@ -457,19 +471,29 @@ public final class Stepping {
         }
 
         @Override
-        double[] cuts(double half, double sx, double sz, int dx, int dz) {
-            double[] cuts = new double[2 + 4 * whole.length];
+        int maxCuts() {
+            int occupied = 0;
+            for (long bits : whole) {
+                if (bits != 0) {
+                    occupied++;
+                }
+            }
+            return 2 + 4 * occupied;
+        }
+
+        @Override
+        int cuts(double[] into, double half, double sx, double sz, int dx, int dz) {
             int n = 0;
-            cuts[n++] = 0.0;
-            cuts[n++] = 1.0;
+            into[n++] = 0.0;
+            into[n++] = 1.0;
             for (int i = 0; i < whole.length; i++) {
                 if (whole[i] != 0) {
                     int cx = x0 + i / nz;
                     int cz = z0 + i % nz;
-                    n = addCuts(cuts, n, cx, cz, cx + 1, cz + 1, half, sx, sz, dx, dz);
+                    n = addCuts(into, n, cx, cz, cx + 1, cz + 1, half, sx, sz, dx, dz);
                 }
             }
-            return Arrays.copyOf(cuts, n);
+            return n;
         }
 
         @Override

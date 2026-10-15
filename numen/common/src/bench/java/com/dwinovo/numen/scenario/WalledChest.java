@@ -84,7 +84,6 @@ public final class WalledChest implements Scenario {
         BlockPos chest = scene.pos(CHEST);
         String cell = "{x = " + chest.getX() + ", y = " + chest.getY() + ", z = " + chest.getZ() + "}";
         return """
-                numen.move.to(%1$s, {arrive = "use"})
                 numen.use.block(%1$s)
                 numen.gui.quick(0)
                 numen.gui.close()""".formatted(cell);

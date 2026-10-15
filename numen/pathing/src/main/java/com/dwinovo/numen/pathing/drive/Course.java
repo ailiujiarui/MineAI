@@ -135,6 +135,11 @@ final class Course {
         return left;
     }
 
+    /** 第 {@code index} 步几何上最短要几刻。 */
+    double minimumAt(int index) {
+        return minimum.get(index);
+    }
+
     /** 还没走完的步子,按先后。 */
     List<Route.Leg> remaining() {
         return legs.isEmpty() ? List.of() : List.copyOf(legs.subList(Math.min(cur, legs.size()), legs.size()));

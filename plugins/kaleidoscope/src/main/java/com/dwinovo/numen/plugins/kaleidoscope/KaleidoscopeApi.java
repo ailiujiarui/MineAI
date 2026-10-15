@@ -205,8 +205,8 @@ public final class KaleidoscopeApi {
         return call.sync(new PotActRecord(call, args.cell(), PotAct.PLATE, args.recipe()));
     }
 
-    private static final String STAND = "It does not walk: stand within reach of the cookware first (`numen.move.to` "
-            + "it with arrive = \"use\"); out of reach, no pot or stockpot there, or an unknown recipe fails at once "
+    private static final String STAND = "It does not walk: stand within reach of the cookware first (`numen.move.to(pot, "
+            + "2)`); out of reach, no pot or stockpot there, or an unknown recipe fails at once "
             + "with the reason.";
     private static final String ASKS = "Uses what you carry. Asks your owner first when their rules say so, for using "
             + "the cookware and for taking the dish.";

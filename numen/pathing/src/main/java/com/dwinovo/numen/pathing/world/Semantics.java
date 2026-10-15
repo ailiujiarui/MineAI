@@ -2,7 +2,6 @@ package com.dwinovo.numen.pathing.world;
 
 import java.util.EnumSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
@@ -66,7 +65,7 @@ public final class Semantics {
     }
 
     /** 只由方块状态决定的那几种,按状态缓存成位掩码。流水与活板门梯子要看邻格,不在其中。 */
-    private static final ConcurrentHashMap<BlockState, Integer> STATE_KINDS = new ConcurrentHashMap<>();
+    private static final StateTable<Integer> STATE_KINDS = new StateTable<>(Semantics::stateKinds);
 
     private Semantics() {}
 
@@ -86,22 +85,42 @@ public final class Semantics {
      */
     public static int mask(BlockGetter level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        int bits = STATE_KINDS.computeIfAbsent(state, Semantics::stateKinds);
-        FluidState fluid = state.getFluidState();
-        if (fluid.is(FluidTags.WATER)) {
+        if (state.isAir()) {
+            return 0;
+        }
+        int bits = STATE_KINDS.of(state);
+        if ((bits & WATERLOGGED) != 0) {
             // 身体被不被推走,以原版对这一格算出的水流为准:池边的源头也在流;气泡柱的水是源头,却竖着推人
-            boolean flowing = state.is(Blocks.BUBBLE_COLUMN) || fluid.getFlow(level, pos).lengthSqr() > 0;
+            boolean flowing = state.is(Blocks.BUBBLE_COLUMN) || state.getFluidState().getFlow(level, pos).lengthSqr() > 0;
             bits |= bit(flowing ? Kind.FLOWING_WATER : Kind.WATER);
         }
-        if (state.getBlock() instanceof TrapDoorBlock && ladderTrapdoor(level, pos, state)) {
+        if ((bits & TRAPDOOR) != 0 && ladderTrapdoor(level, pos, state)) {
             bits |= bit(Kind.CLIMBABLE);
         }
-        return bits;
+        return bits & ~(WATERLOGGED | TRAPDOOR);
     }
+
+    /**
+     * 只由方块状态决定的那几种(流水与"开着的活板门接在梯子上"要看邻格,不在其中)。岩浆、危险、机关、易碎、会塌这些种类都在里面,
+     * 只问它们的地方不必读邻格。
+     */
+    public static int stateMask(BlockState state) {
+        return state.isAir() ? 0 : STATE_KINDS.of(state) & ~(WATERLOGGED | TRAPDOOR);
+    }
+
+    /** 缓存位掩码里种类之外的两位,只用来省掉每次问的标签与类型检查:含着水(流不流要看这一格的水流),是活板门(接没接梯子要看下面一格)。 */
+    private static final int WATERLOGGED = 1 << 30;
+    private static final int TRAPDOOR = 1 << 29;
 
     private static int stateKinds(BlockState state) {
         Block block = state.getBlock();
         int bits = 0;
+        if (state.getFluidState().is(FluidTags.WATER)) {
+            bits |= WATERLOGGED;
+        }
+        if (block instanceof TrapDoorBlock) {
+            bits |= TRAPDOOR;
+        }
         if (state.getFluidState().is(FluidTags.LAVA)) {
             bits |= bit(Kind.LAVA);
         }
@@ -206,11 +225,12 @@ public final class Semantics {
      * 它不改起跳才看脚下半格处的方块。蜂蜜块是 0.5,其余原版方块是 1。
      */
     public static double jumpFactor(BlockGetter level, int x, double feetY, int z) {
-        float here = level.getBlockState(new BlockPos(x, Mth.floor(feetY), z)).getBlock().getJumpFactor();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, Mth.floor(feetY), z);
+        float here = level.getBlockState(pos).getBlock().getJumpFactor();
         if (here != 1.0F) {
             return here;
         }
-        return level.getBlockState(new BlockPos(x, Mth.floor(feetY - 0.500001), z)).getBlock().getJumpFactor();
+        return level.getBlockState(pos.setY(Mth.floor(feetY - 0.500001))).getBlock().getJumpFactor();
     }
 
     /**
@@ -218,12 +238,13 @@ public final class Semantics {
      * 否则它不改步速才看脚下半格处的方块。灵魂沙、蜂蜜块是 0.4,其余原版方块是 1。
      */
     public static double speedFactor(BlockGetter level, int x, double feetY, int z) {
-        BlockState here = level.getBlockState(new BlockPos(x, Mth.floor(feetY), z));
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, Mth.floor(feetY), z);
+        BlockState here = level.getBlockState(pos);
         float factor = here.getBlock().getSpeedFactor();
         if (here.is(Blocks.WATER) || here.is(Blocks.BUBBLE_COLUMN) || factor != 1.0F) {
             return factor;
         }
-        return level.getBlockState(new BlockPos(x, Mth.floor(feetY - 0.500001), z)).getBlock().getSpeedFactor();
+        return level.getBlockState(pos.setY(Mth.floor(feetY - 0.500001))).getBlock().getSpeedFactor();
     }
 
     // ==================== 眼睛 ====================

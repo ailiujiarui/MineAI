@@ -162,13 +162,4 @@ class OpenAIResponsesProviderTest {
         assertEquals(20, usage.input());
         assertEquals(20, usage.output());
     }
-
-    /** 思考增量要能喂给面板的思考块,和 chat/completions 那条同一个出口。 */
-    @Test
-    void reasoningDeltasAreVisibleToTheUi() {
-        assertEquals("先看", p.extractReasoningDelta(
-                json("{\"type\":\"response.reasoning_text.delta\",\"delta\":\"先看\"}")));
-        assertEquals("", p.extractReasoningDelta(
-                json("{\"type\":\"response.output_text.delta\",\"delta\":\"这就去\"}")));
-    }
 }

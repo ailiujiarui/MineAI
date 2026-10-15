@@ -1,18 +1,20 @@
 package com.dwinovo.numen.task.dig;
 
+import com.dwinovo.numen.api.task.TaskResult;
+import com.dwinovo.numen.api.agent.script.ErrorKind;
+import com.dwinovo.numen.api.area.Cells;
 import com.dwinovo.numen.FailureType;
 import com.dwinovo.numen.WorkProfile;
 import com.dwinovo.numen.act.BlockDigger;
 import com.dwinovo.numen.act.Drops;
-import com.dwinovo.numen.api.agent.script.ErrorKind;
-import com.dwinovo.numen.api.area.Cells;
-import com.dwinovo.numen.api.entity.NumenPlayer;
 import com.dwinovo.numen.nav.DigQuote;
+import com.dwinovo.numen.nav.NavText;
 import com.dwinovo.numen.nav.Feet;
-import com.dwinovo.numen.api.task.TaskResult;
 import com.dwinovo.numen.task.base.AbstractCompanionTask;
 import com.dwinovo.numen.task.base.Precondition;
-import com.dwinovo.numen.pathing.api.Snapshots;
+import com.dwinovo.numen.task.move.Arrival;
+import com.dwinovo.numen.task.move.Destination;
+import com.dwinovo.numen.api.entity.NumenPlayer;
 import com.dwinovo.numen.pathing.api.Snapshots;
 import com.dwinovo.numen.pathing.drive.LiveWorld;
 import com.dwinovo.numen.pathing.search.Goal;
@@ -35,10 +37,11 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code numen.work.dig}:挖她<b>站在原地手够得着</b>的那些格。一条原子命令,对一个名词(点名的几处)做一种意图(挖):
+ * {@code numen.work.dig}:挖点名的那些格。一条原子命令,对一个名词(点名的几处)做一种意图(挖):
  * <ul>
- *   <li>只挖手够得着的——站位就是此刻脚下,够不够得着与挖一格的寻路目标是同一个判据({@link Goals#dig}:够得着、身体不占着它);
- *       够不着的不走过去,回执说还剩几格、最近一格在哪、能照抄的 {@code numen.move.to(…, {arrive = "dig"})};</li>
+ *   <li>挖手够得着的——够不够得着与挖一格的寻路目标是同一个判据({@link Goals#dig}:够得着、身体不占着它);手边一格都够不着就先
+ *       走到够得着剩下最多格的地方({@link #walkTo},到达目标是 {@link Arrival#dig}),挖完够得着的再走,到挖完或真到不了;
+ *       走到了仍够不着的,回执说还剩几格、最近一格在哪;</li>
  *   <li>挡在前面的格一并挖开:挖掘器朝隔着的格都清得掉、挡得最少的那一点看过去,准星落在的那一格先挖({@link BlockDigger})。清不清得掉
  *       按 {@link DigTaskRecord#SPEC} 问({@link DigQuote#clearing}):天然地形挖开,要主人同意的、规则不许的不挖,如实说是哪一格、
  *       为什么({@link DigQuote#walledIn});</li>
@@ -48,8 +51,8 @@ import java.util.Set;
  * 每一格都经她的手(原版挖掘循环外套权限层),用工具、有掉落、进实际账。点名的目标格本身要主人同意时,动手之前问({@link #permit}):
  * 要问就站着等主人点头,不许就带着理由收场。
  *
- * <p>受理 = 此刻真能开始:受理之前({@link #preparation})判有没有手够得着、挖得成、工具收得到、许挖的格;一格都没有就当场拒,说清楚
- * 够不着的在哪、下一步怎么写,没有任务编号。
+ * <p>受理 = 此刻真能开始:受理之前({@link #preparation})判有没有手够得着、挖得成、工具收得到、许挖的格,或者有没有能走去挖的;都没有
+ * 就当场拒,说清楚为什么,没有任务编号。
  */
 public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord, DigCompanionTask.Dug> {
 
@@ -79,6 +82,11 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
     private final Set<BlockPos> unworkable = new HashSet<>();
     /** 许可不许挖目标时说的理由(最近一格的);没有为 null。 */
     private String deniedWhy;
+
+    /** 正在走去挖的那些格(够不着的);没在走是 null。 */
+    private List<BlockPos> walkingTo;
+    /** 刚走到:这一趟走完还是挑不出手边的格,就不再走了(走到了够得着剩下最多格的地方,还是挖不了)。 */
+    private boolean justWalked;
 
     /** 正在挖的目标;挖掘器这一刻可能在挖挡在它前面的那一格,锁的是目标。没有为 null。 */
     private BlockPos digTarget;
@@ -113,8 +121,8 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
     }
 
     /**
-     * 受理之前:按此刻的身体与权限定价,看手够得着的格里有没有挖得成、工具收得到、许挖、挡着的都清得掉的。有就受理,回执说够得着几格、
-     * 够不着几格;一格都没有就当场拒,说的是开工后收工时同一句话。
+     * 受理之前:按此刻的身体与权限定价,看手够得着的格里有没有挖得成、工具收得到、许挖、挡着的都清得掉的;没有就看够不着的格里有没有
+     * 能走去挖的(走路的到达目标编得成)。有就受理;都没有就当场拒,说的是开工后收工时同一句话。
      */
     @Override
     protected Preparation preparation() {
@@ -122,9 +130,17 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
         if (next() != null) {
             return Preparation.READY;
         }
-        BlockPos near = nearestBeyond();
-        return Preparation.refused(TaskResult.fail(nothingHereFailure().kind(), nothingHere(true), near == null ? null
-                : DigTaskRecord.reachLine(r.named, near), value()));
+        List<BlockPos> beyond = beyondReach();
+        if (!beyond.isEmpty()) {
+            try {
+                Destination.of(player, Arrival.dig(beyond), Feet.cell(player));
+                return Preparation.READY;
+            } catch (IllegalArgumentException cannot) {
+                return Preparation.refused(TaskResult.fail(ErrorKind.FAILED, nothingHere(true) + " " + cannot.getMessage(),
+                        null, value()));
+            }
+        }
+        return Preparation.refused(TaskResult.fail(nothingHereFailure().kind(), nothingHere(true), null, value()));
     }
 
     /** 没有可挖的格时按实际缘由收场:硬拒与工具、物理失败优先;问不到主人是 PENDING,其余是够不着。 */
@@ -153,15 +169,38 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
         return FailureType.OUT_OF_REACH;
     }
 
-    /** 还要挖、站在这儿够不着的格里离她最近的那一格;都够得着(或一格不剩)是 null。 */
-    private BlockPos nearestBeyond() {
+    /**
+     * 还要挖、站在这儿够不着、也没被判过挖不成(挖不动、工具收不到、拉不出射线)的格,由近及远:走过去挖的就是它们。
+     */
+    private List<BlockPos> beyondReach() {
         Feet here = Feet.of(player);
+        List<BlockPos> out = new ArrayList<>();
         for (BlockPos cell : wanted()) {
-            if (!reaches(here, cell)) {
-                return cell;
+            if (!workable(here, cell) && !ruledOut.contains(cell) && !unharvestable.contains(cell)
+                    && !unworkable.contains(cell)) {
+                out.add(cell);
+                if (out.size() == MAX_WALK_TARGETS) {
+                    break;
+                }
             }
         }
-        return null;
+        return out;
+    }
+
+    /** 一次走去挖最多点名几格(由近及远):寻路的目标也只取最近的这么多。 */
+    private static final int MAX_WALK_TARGETS = 64;
+
+    /** 够不着的格里挖了不用问主人的、挖得成的:手边这一格要问主人时,先走去挖它们。 */
+    private List<BlockPos> unaskedBeyond() {
+        List<BlockPos> out = new ArrayList<>();
+        for (BlockPos cell : beyondReach()) {
+            BlockState state = player.level().getBlockState(cell);
+            if (pricing.breakable(cell, state) && !pricing.asks(cell, state)
+                    && Double.isFinite(pricing.price(cell, state).cost())) {
+                out.add(cell);
+            }
+        }
+        return out;
     }
 
     @Override
@@ -182,6 +221,9 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
             return end(TaskState.SUCCESS, null);
         }
         quote();
+        if (walkingTo != null) {
+            return walking();
+        }
         Level level = player.level();
         // 接着挖正在挖的那一格,锁住它直到碎掉或她站的地方够不着了
         if (digTarget != null) {
@@ -196,16 +238,27 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
             return TaskState.RUNNING;
         }
         BlockPos target = next();
+        if (target != null && !justWalked) {
+            // 手边这一格要问主人(同一套定价里贵十倍)而别处有不用问的:先走去挖不用问的,不剔除要问的
+            List<BlockPos> unasked = pricing.asks(target, level.getBlockState(target)) ? unaskedBeyond() : List.of();
+            if (!unasked.isEmpty()) {
+                walkingTo = unasked;
+                return walking();
+            }
+        }
         if (target == null) {
+            List<BlockPos> beyond = justWalked ? List.of() : beyondReach();
+            if (!beyond.isEmpty()) {
+                walkingTo = beyond;
+                return walking();
+            }
             if (dug.isEmpty()) {
-                return end(TaskState.FAILED, () -> {
-                    BlockPos near = nearestBeyond();
-                    fail(nothingHere(false) + dropsLine(), nothingHereFailure(), near == null ? null
-                            : DigTaskRecord.reachLine(r.named, near));
-                });
+                return end(TaskState.FAILED, () ->
+                        fail(nothingHere(false) + dropsLine(), nothingHereFailure()));
             }
             return end(TaskState.SUCCESS, null);
         }
+        justWalked = false;
         // 动手之前:这一格交给权限层。要问就站着等主人,不许就带着理由收场
         Permit permit = permit(Action.breakBlock(target, level.getBlockState(target)));
         if (permit.state() == PermitState.WAITING) {
@@ -224,6 +277,26 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
             return TaskState.RUNNING;
         }
         return digProgress(target);
+    }
+
+    // ---- 走去挖 ----
+
+    /**
+     * 走到够得着剩下最多格的地方({@link Arrival#dig} 挑):走完了回来再挖手边够得着的。走不到(没路、被拒、超时)就带着那一趟的
+     * 原因收场,挖到的照实交代。
+     */
+    private TaskState walking() {
+        TaskResult walked = walkTo(Arrival.dig(walkingTo));
+        if (walked == null) {
+            return TaskState.RUNNING;
+        }
+        walkingTo = null;
+        if (!walked.success()) {
+            String why = walked.message();
+            return end(TaskState.FAILED, () -> fail(why + "; " + tally() + "." + dropsLine(), lastFailure()));
+        }
+        justWalked = true;
+        return TaskState.RUNNING;
     }
 
     // ---- 收工:等这一挖的掉落物落定 ----
@@ -415,12 +488,8 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
 
     // ---- 回执 ----
 
-    /**
-     * 够不着的那一截(以 {@code "; "} 起头):还剩几格够不着、最近一格在哪、能照抄的下一步;都够得着是空串。
-     *
-     * @param done 这件活收场时说(那时下一步写成"再挖");受理时说的是这一刻
-     */
-    private String outOfReach(boolean done) {
+    /** 够不着的那一截(以 {@code "; "} 起头):还剩几格够不着、最近一格在哪;都够得着是空串。 */
+    private String outOfReach() {
         Feet here = Feet.of(player);
         List<BlockPos> beyond = new ArrayList<>();
         for (BlockPos cell : wanted()) {
@@ -434,8 +503,7 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
         BlockPos near = beyond.get(0);
         long blocks = Math.round(Math.sqrt(player.blockPosition().distSqr(near)));
         return "; " + beyond.size() + " more cell(s) of " + r.what + " are out of my reach from here, the nearest at "
-                + Listing.coords(near) + " about " + blocks + " blocks away" + (done ? " — to dig them: "
-                + DigTaskRecord.reachThem(r.named, near) : "");
+                + Listing.coords(near) + " about " + blocks + " blocks away";
     }
 
     /**
@@ -464,8 +532,13 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
         } else if (!unharvestable.isEmpty()) {
             why = noTool();
         } else if (!ruledOut.isEmpty()) {
-            why = ruledOut.size() + " cell(s) of " + r.what + " within my reach can't be broken here (unbreakable, or "
-                    + "fluid or loose falling blocks beside them)";
+            BlockPos first = ruledOut.iterator().next();
+            String refused = pricing.uncleared(first);
+            why = refused != null
+                    ? com.dwinovo.numen.task.move.GotoReminders.cantDig(first, NavText.name(player.level().getBlockState(first)),
+                            refused) + (ruledOut.size() > 1 ? " (and " + (ruledOut.size() - 1) + " more)" : "")
+                    : ruledOut.size() + " cell(s) of " + r.what + " within my reach can't be broken here (unbreakable, or "
+                            + "fluid or loose falling blocks beside them)";
         } else if (!unworkable.isEmpty()) {
             why = "I found no clear shot at the " + unworkable.size() + " cell(s) of " + r.what + " within my reach";
         } else if (here == null) {
@@ -475,7 +548,7 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
         } else {
             why = "none of the cells of " + r.what + " still to dig is within my reach where I stand";
         }
-        return head + why + outOfReach(false) + leftovers() + ".";
+        return head + why + outOfReach() + leftovers() + ".";
     }
 
     /** 工具收不到掉落时说的那句:要什么、下一步。 */
@@ -564,12 +637,12 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
     protected String successMessage() {
         String stopped = r.count != DigTaskRecord.ALL && dug.size() >= r.count ? " (the count " + r.count
                 + " I was given)" : "";
-        return tally() + stopped + outOfReach(true) + leftovers() + "." + dropsLine();
+        return tally() + stopped + outOfReach() + leftovers() + "." + dropsLine();
     }
 
     @Override
     protected String timeoutMessage() {
-        return "timed out after I " + tally() + outOfReach(true) + "." + dropsLine();
+        return "timed out after I " + tally() + outOfReach() + "." + dropsLine();
     }
 
     @Override

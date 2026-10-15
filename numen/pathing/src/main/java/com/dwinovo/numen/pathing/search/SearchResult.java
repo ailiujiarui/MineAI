@@ -8,8 +8,10 @@ package com.dwinovo.numen.pathing.search;
  * @param expanded   展开了几个节点
  * @param breathless 有前提成立的步子因为走过去憋不住气({@link com.dwinovo.numen.pathing.plan.Breath#lasts})没走:没路时诊断
  *                   先问"憋得住的话有没有路"
+ * @param estimate   交出的路线终点离目标的估价(刻,与搜索用的是同一份);到了为 0,没有路线为 NaN。半程路线连着几段都没更近,
+ *                   执行层就认输
  */
-public record SearchResult(Stop stop, Route route, int expanded, boolean breathless) {
+public record SearchResult(Stop stop, Route route, int expanded, boolean breathless, double estimate) {
 
     /** 搜索为什么停。"没有路"只有 {@link #EXHAUSTED} 能说;预算用完、碰到没加载的区块只是没搜完。 */
     public enum Stop {

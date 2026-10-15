@@ -82,7 +82,7 @@ final class McpAccessPrompt {
                 the game stores none for you.
                 - Besides list_companions, create_companion, delete_companion, get_events and say there \
                 is one more tool, `%s`: a program whose functions are the companion's API. `numen.status.self()`, `numen.scan.blocks("iron_ore")`, \
-                `numen.move.to({x = 120, y = 12, z = -35}, {arrive = "dig"})`, `numen.work.dig({x = 120, y = 12, z = -35})`, \
+                `numen.move.to({x = 120, y = 12, z = -35})`, `numen.work.dig({x = 120, y = 12, z = -35})`, \
                 `numen.fight.attack(184)`, `numen.inv.craft(...)`, … `numen.api.help("numen.work")` lists a group's functions and \
                 `numen.api.help("numen.work.dig")` gives one function's full help. One call is a one-line program; \
                 when a next step depends on what a call returned, write the steps as one program \
@@ -100,10 +100,9 @@ final class McpAccessPrompt {
                 with its `blocks` (every Block, nearest first), its `nearest` Block and its `count`. Nothing is \
                 kept: the world is the state, so scan again to see what is left. `numen.work.dig` takes a \
                 cluster (or its blocks) as it is and digs the cells that still hold what the scan saw; cells ({x, y, z}) are dug \
-                whatever they hold. It digs only what the hand reaches from where the body stands, never walks and \
-                never picks up: `numen.move.to` the same cluster with arrive "dig" first (it stands where the hand \
-                reaches the most of it), then `numen.work.dig`, then `numen.work.collect()` for the drops. The \
-                built-in module function `numen.work.mine(cluster)` does all of that until the cluster is gone.
+                whatever they hold. It walks up to what is out of reach, standing where the hand reaches the most of \
+                what is left, and digs on, but never picks up: `numen.work.collect()` picks up the drops. The \
+                built-in module function `numen.work.mine(cluster)` does both until the cluster is gone.
                 - It's survival mode — the API does only what a real player can. No give, no setblock.
 
                 One more thing: talk to me in the language I'm writing to you in, even though these \

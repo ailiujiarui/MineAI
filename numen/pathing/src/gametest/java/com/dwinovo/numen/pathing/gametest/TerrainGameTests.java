@@ -12,7 +12,7 @@ public class TerrainGameTests {
 
     private static final String TEMPLATE = "numen_pathing:pathing_empty";
     /** GameTest 自己的时限:比最长的路线时限(见 TerrainRoutes)再多留加载与出生无敌的刻数;各路线的时限由 TerrainRun 自己判。 */
-    private static final int TIMEOUT = 6000;
+    private static final int TIMEOUT = 14000;
 
     @GameTest(template = TEMPLATE, batch = "terrain_flat", timeoutTicks = TIMEOUT)
     public static void flat(GameTestHelper helper) {
@@ -112,5 +112,40 @@ public class TerrainGameTests {
     @GameTest(template = TEMPLATE, batch = "terrain_lake_shallows", timeoutTicks = TIMEOUT)
     public static void lake_shallows(GameTestHelper helper) {
         TerrainRun.start(helper, TerrainRoutes.LAKE_SHALLOWS);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_buried_cell", timeoutTicks = TIMEOUT)
+    public static void buried_cell(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.BURIED_CELL);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_buried_cavity", timeoutTicks = TIMEOUT)
+    public static void buried_cavity(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.BURIED_CAVITY);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_stairs_up", timeoutTicks = TIMEOUT)
+    public static void stairs_up(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.STAIRS_UP);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_slope_down", timeoutTicks = TIMEOUT)
+    public static void slope_down(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.SLOPE_DOWN);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_rock_far", timeoutTicks = TIMEOUT)
+    public static void rock_far(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.ROCK_FAR);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_cave_far", timeoutTicks = TIMEOUT)
+    public static void cave_far(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.CAVE_FAR);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_tunnel_end", timeoutTicks = TIMEOUT)
+    public static void tunnel_end(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.TUNNEL_END);
     }
 }

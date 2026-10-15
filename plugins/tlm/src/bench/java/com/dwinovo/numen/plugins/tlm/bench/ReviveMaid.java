@@ -118,14 +118,13 @@ public final class ReviveMaid implements Scenario {
                     break
                   end
                 end
-                numen.move.to(tombstone, {arrive = "near", range = 2})
+                numen.move.to(tombstone, 2)
                 numen.use.entity(tombstone)
                 """);
         List<String> items = new ArrayList<>(List.of(FILM.toString()));
         MATERIALS.forEach(item -> items.add(BuiltInRegistries.ITEM.getKey(item).toString()));
         for (int i = 0; i < pillars.size(); i++) {
             String pillar = Positions.literal(pillars.get(i));
-            program.append("numen.move.to(").append(pillar).append(", {arrive = \"use\"})\n");
             program.append("numen.gear.hold(\"").append(items.get(i)).append("\")\n");
             program.append("numen.use.block(").append(pillar).append(")\n");
         }

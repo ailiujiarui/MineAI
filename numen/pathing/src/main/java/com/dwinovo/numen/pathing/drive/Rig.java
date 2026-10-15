@@ -99,11 +99,7 @@ final class Rig {
             return;
         }
         actions.add(action);
-        if (action instanceof BodyAction.Dismounted) {
-            PathLog.info("{} 下载具 {} {}", who, action, PathLog.body(entity));
-        } else {
-            PathLog.debug("{} 身体动作 {}", who, action);
-        }
+        PathLog.debug("{} 身体动作 {}", who, action);
     }
 
     List<BodyAction> actions() {

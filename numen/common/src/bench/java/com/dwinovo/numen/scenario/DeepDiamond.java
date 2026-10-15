@@ -93,7 +93,6 @@ public final class DeepDiamond implements Scenario {
         BlockPos ore = scene.pos(ORE);
         String cell = "{x = " + ore.getX() + ", y = " + ore.getY() + ", z = " + ore.getZ() + "}";
         return """
-                numen.move.to(%1$s, {arrive = "dig", costs = {dig = true, place = true, consent = false}})
                 numen.work.dig(%1$s)
                 numen.work.collect()""".formatted(cell);
     }

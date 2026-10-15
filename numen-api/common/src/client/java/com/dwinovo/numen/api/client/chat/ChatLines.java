@@ -5,13 +5,13 @@ import com.dwinovo.numen.api.client.screen.UiTheme;
 import com.dwinovo.numen.api.mixin.ChatComponentAccessor;
 
 import net.minecraft.client.GuiMessage;
+import net.minecraft.client.GuiMessageTag;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -30,7 +30,8 @@ import java.util.UUID;
  *
  * <p>流式实现:原版聊天行不可编辑,靠"摘掉旧行 → 补一条更长的新行"
  * 模拟打字机(经 {@link ChatComponentAccessor});每个同伴最多一条在飞行,
- * 完成后由定格行接替。客户端主线程专用。
+ * 完成后由定格行接替。在飞行不记日志,只有定格行经 {@code addMessage} 进一次日志。
+ * 客户端主线程专用。
  */
 public final class ChatLines {
 
@@ -84,11 +85,14 @@ public final class ChatLines {
             MutableComponent line = name(companionName)
                     .append(Component.literal(partial).withColor(TEXT))
                     .append(Component.literal("▌").withColor(OWN));
-            chat.addMessage(line);
-            List<GuiMessage> all = acc.numen$allMessages();
-            if (!all.isEmpty()) {
-                LIVE.put(companion, all.get(0));   // addMessage 把新行放在 0 位
-            }
+            // 同原版 addMessage(Component) 的标签与入栏顺序,只是不记日志:
+            // 日志里只留定格行,不留打字机的每一帧
+            Minecraft mc = Minecraft.getInstance();
+            GuiMessage message = new GuiMessage(mc.gui.getGuiTicks(), line, null,
+                    mc.isSingleplayer() ? GuiMessageTag.systemSinglePlayer() : GuiMessageTag.system());
+            acc.numen$addMessageToDisplayQueue(message);
+            acc.numen$addMessageToQueue(message);
+            LIVE.put(companion, message);
         });
     }
 

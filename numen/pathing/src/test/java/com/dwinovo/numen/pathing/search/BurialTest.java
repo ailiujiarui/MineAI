@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 埋深:埋在石头里的目标,从各处进去至少要挖开几格、按挖一格的最低价计;绕得开的不算;不许改地形时不算;沿搜出的路线,
- * 估价加埋深从不超过这条路剩下的价钱。地面在 {@code Y - 1}。
+ * 估价(水平底价加埋深加升降的额外代价)从不超过这条路剩下的价钱。地面在 {@code Y - 1}。
  */
 class BurialTest {
 
@@ -98,7 +98,7 @@ class BurialTest {
             SearchResult result = Fixtures.search(world, model, START, goal);
             assertTrue(result.arrived(), goal + " " + result.stop());
             Route route = result.route();
-            Burial burial = burial(world, model, goal);
+            Estimate estimate = Estimate.of(world, model, goal, START, Fixtures.BUDGET);
             List<BlockPos> nodes = route.nodes();
             BlockPos end = route.end();
             List<Route.Leg> legs = route.legs();
@@ -109,8 +109,7 @@ class BurialTest {
                     left += legs.get(i).cost();
                 }
                 BlockPos n = nodes.get(i);
-                double estimate = goal.estimate(n.getX(), n.getY(), n.getZ(), com.dwinovo.numen.pathing.Fixtures.PACE) + burial.floor(n.getX(), n.getY(), n.getZ());
-                assertTrue(estimate <= left + 1e-9, goal + " 在 " + n + " 估 " + estimate + ",还要付 " + left);
+                assertTrue(estimate.at(n) <= left + 1e-9, goal + " 在 " + n + " 估 " + estimate.at(n) + ",还要付 " + left);
             }
         }
     }

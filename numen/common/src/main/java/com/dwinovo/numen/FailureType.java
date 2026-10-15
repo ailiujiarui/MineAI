@@ -50,12 +50,9 @@ public enum FailureType {
     BOXED_IN,
     /** A* returned nothing to the target. In-ladder: try a looser goal (near/adjacent). */
     NO_PATH,
-    /** No route within what the walk may change: none without altering terrain while a digging /
-     *  bridging / pillaring one exists, or the way on needs cells beyond the plan she agreed to.
-     *  The reason says how many blocks it would take and what in the walk's description allows it
-     *  ({@code costs = {dig = true, place = true}}, then {@code numen.route.plan} again). Approach tasks
-     *  treat it in-ladder like NO_PATH (a looser stance may still avoid it); a route walk does not
-     *  loosen anything on it — whether to allow more is the LLM's call. */
+    /** No route without altering terrain while a digging / bridging / pillaring one exists. The reason says
+     *  how many blocks it would take. Only the jobs that walk without changing terrain (fleeing, chasing) end
+     *  with it; approach tasks treat it in-ladder like NO_PATH (a looser stance may still avoid it). */
     TERRAIN_BLOCKED,
     /** Never got within interaction reach of the target. In-ladder: reposition. */
     OUT_OF_REACH,
@@ -66,7 +63,7 @@ public enum FailureType {
     /** No more matching targets within the bounded scan radius. Kick to LLM (widen? stop?). */
     MINED_OUT,
     /** The permission layer refused the action (owner's rule, observe mode, or a consent that was
-     *  not given). Kick to LLM: the model must not route around it — the owner decides. */
+     *  not given), and a walk found no way around it. Kick to LLM: the owner decides. */
     REFUSED,
     /** 主人不在、到点没答复,这次没问到同意(悬而未决)。不是拒绝:原样再问一次是安全的,下一步由模型定。 */
     PENDING,

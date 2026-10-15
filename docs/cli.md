@@ -1499,11 +1499,11 @@ area has ores/g2                 成功:ores/g2 has 1 cell(s) left to dig, the n
 
 | 组 | 动作(原子) | 删掉或搬走的 | 组合它的库函数 |
 |---|---|---|---|
-| move | `go`(照一份计划走)、`follow`(跟一个实体,总有结束)、`dismount`(下坐骑) | `goto` 动作(规划+走) | `move.to` = `route.plan` + `move.go`;`move.flee`、`move.explore` |
-| route | `plan`(收一张描述,只规划不动,交回计划) | `new`、`via`、`drop`、`spec`、`show`、`list`、`delete`、`reverse`(10-03,路线不存) | — |
-| work | `dig`(手够得着的)、`fish` | `collect` 动作 | `work.collect` = `scan.entities("item")` + 一件件 `move.to` |
+| move | `to`(去一处,可带距离)、`away`(离开某物)、`follow`(跟一个实体,总有结束) | `goto` 动作、`go`、`route.plan`、`flee`(10-11 删,下坐骑挪到 `use.dismount`) | `move.explore` |
+| route | (整组删了,10-11) | `plan`、`new`、`via`、`drop`、`spec`、`show`、`list`、`delete`、`reverse` | — |
+| work | `dig`(够不着的自己走到够得着)、`fish` | `collect` 动作 | `work.collect` = `scan.entities("item")` + 一件件 `move.to` |
 | fight | `attack`(只收一只) | "打一片"(`--entity_ids` 一串) | `fight.clear` = `scan.entities("hostile")` + 一只只 `fight.attack` |
-| build | 原语 `set/place/line/layer/cylinder/sphere/copy`、设计 `new/show/drop/designs/delete`、`at`(只放手够得着的格)、`left`(查还差什么)、`built` | `at` 的走动、绕外圈、清场(`ClearSiteTask`)、垫块记账(`DropTracker`) | `build.raise` = `build.left` + `build.at` / `move.to … arrive "dig"` + `work.dig` / `move.to … arrive "place"` |
+| build | 原语 `set/place/line/layer/cylinder/sphere/copy`、设计 `new/show/drop/designs/delete`、`at`(只放手够得着的格)、`left`(查还差什么)、`built` | `at` 的走动、绕外圈、清场(`ClearSiteTask`)、垫块记账(`DropTracker`) | `build.raise` = `build.left` + `build.at` / `work.dig` / `build.place`(自己走到够得着) |
 | scan、area、locate、status、inv、use、gear、task、script、memory、skill、todo、mc、api | 本来就是原子的,不变 | `throwaway` 组(10-03,改成描述的 `materials`) | — |
 | 插件 tlm、kaleidoscope、ysm、ftbquests | 本来就是一种意图对一个名词(喂、开界面、换装、交任务……),只改了说明与例子 | — | — |
 

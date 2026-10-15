@@ -99,11 +99,10 @@ final class PotActTask implements Task {
         }
         if (!cook.canInteractWithBlock(r.pos, 0.0)) {
             double away = Math.sqrt(cook.distanceToSqr(r.pos.getX() + 0.5, r.pos.getY() + 0.5, r.pos.getZ() + 0.5));
-            // arrive = "use" 站到看得见、点得到锅的地方
             return TaskResult.fail(ErrorKind.OUT_OF_REACH, "the " + cooker.kind().id() + " at "
                     + Cooker.where(r.pos) + " is " + String.format("%.1f", away) + " blocks away — out of working "
                     + "reach; walk there first, then call " + r.getToolName() + " again",
-                    Call.of("numen.move.to", r.pos, Map.of("arrive", "use")), Map.of("pos", r.pos));
+                    Call.of("numen.move.to", r.pos, 2), Map.of("pos", r.pos));
         }
         return null;
     }

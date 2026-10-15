@@ -47,7 +47,6 @@ import java.util.function.Predicate;
  *   /numen settings                  open the settings GUI on the caller's client
  *   /numen reset                     clear the caller's conversation loops
  *   /numen debug                     toggle debug mode (the caller's chat UI shows text unfiltered)
- *   /numen pad                       toggle the companion chunk-loading pad (diagnosis A/B)
  *   /numen drive &lt;companion&gt; &lt;program&gt; (op) run a Lua program as her, through the same entry as her own;
  *                                    a name with spaces or non-ASCII letters goes in quotes
  *
@@ -107,7 +106,6 @@ public final class NumenCommands {
         graft(dispatcher, Commands.literal("reset")
                 .executes(ctx -> clientAction(ctx, ClientUiActionPayload.Action.RESET_LOOPS)));
         graft(dispatcher, Commands.literal("debug").executes(NumenCommands::toggleDebugText));
-        graft(dispatcher, Commands.literal("pad").executes(NumenCommands::togglePad));
         graft(dispatcher, Commands.literal("permission")
                 .then(modeCommand())
                 .then(Commands.literal("rules")
@@ -236,17 +234,6 @@ public final class NumenCommands {
                 ? ClientUiActionPayload.Action.DEBUG_TEXT_ON
                 : ClientUiActionPayload.Action.DEBUG_TEXT_OFF));
         ctx.getSource().sendSuccess(() -> Component.translatable(on ? Keys.DEBUG_ON : Keys.DEBUG_OFF), false);
-        return 1;
-    }
-
-    /**
-     * {@code /numen pad}:翻转同伴区块加载 pad(诊断 A/B 用):关掉后同伴不再自持加载票据,只能在别人(玩家)
-     * 保持加载的区块里活动;已有票据 40 tick 内自然过期。
-     */
-    private static int togglePad(CommandContext<CommandSourceStack> ctx) {
-        boolean on = !CompanionChunkLoader.enabled;
-        CompanionChunkLoader.enabled = on;
-        ctx.getSource().sendSuccess(() -> Component.translatable(on ? Keys.DEBUG_PAD_ON : Keys.DEBUG_PAD_OFF), false);
         return 1;
     }
 

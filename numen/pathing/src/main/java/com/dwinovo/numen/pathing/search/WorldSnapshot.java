@@ -1,5 +1,12 @@
 package com.dwinovo.numen.pathing.search;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.ObjIntConsumer;
+import java.util.function.Predicate;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
@@ -20,10 +27,23 @@ import net.minecraft.world.level.material.FluidState;
  *
  * <p>拷贝之后只读,不再变;多个线程同时读是安全的。方块实体不拷,读出来都是 null——一格有没有方块实体是方块状态的事,
  * 里面装着什么只在世界所在的线程上读。
+ *
+ * <p>读一格方块要经过调色板和位压缩的存储,一次搜索要读几亿次、而且反复读同一片格子,所以读到的那一层(一个区段里水平 16×16 格)
+ * 第一次被读时整层解开,放进 {@code 层表},之后读一格只是数组下标。只解读到的层,搜索没碰过的区段与层一格不解。几个线程同时第一次读到
+ * 同一层各解一份,内容一样,谁的先放进去都行(放进去用释放语义,读出来用获取语义,看到数组时数组里的内容一定写完了)。
  */
 public final class WorldSnapshot implements SearchView {
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+    /** 全是空气的一层,全空的区段的每一层共用。 */
+    private static final BlockState[] AIR_LAYER = airLayer();
+    private static final VarHandle LAYER = MethodHandles.arrayElementVarHandle(BlockState[][].class);
+
+    private static BlockState[] airLayer() {
+        BlockState[] layer = new BlockState[256];
+        java.util.Arrays.fill(layer, AIR);
+        return layer;
+    }
 
     /** 一个区块的方块段从哪来:给出那个区块的全部区段,没加载为 null。只在世界所在的线程上调用。 */
     @FunctionalInterface
@@ -36,6 +56,8 @@ public final class WorldSnapshot implements SearchView {
     private final int side;
     /** [区块][区段]:区块没加载为 null,区段全空为 null。 */
     private final PalettedContainer<BlockState>[][] chunks;
+    /** [区块][区段 × 16 + 区段内的层]:解开过的层,行优先 {@code z * 16 + x};还没解的为 null;区块没加载为 null。 */
+    private final BlockState[][][] layers;
     private final int minBuildHeight;
     private final int height;
     private final int minSection;
@@ -49,6 +71,7 @@ public final class WorldSnapshot implements SearchView {
         this.minChunkZ = centerZ - radius;
         this.side = 2 * radius + 1;
         this.chunks = new PalettedContainer[side * side][];
+        this.layers = new BlockState[side * side][][];
         this.minBuildHeight = heights.getMinBuildHeight();
         this.height = heights.getHeight();
         this.minSection = heights.getMinSection();
@@ -67,6 +90,7 @@ public final class WorldSnapshot implements SearchView {
                     }
                 }
                 chunks[i * side + j] = states;
+                layers[i * side + j] = new BlockState[states.length * 16][];
             }
         }
     }
@@ -122,17 +146,104 @@ public final class WorldSnapshot implements SearchView {
         return chunk(x, z) != null;
     }
 
+    /**
+     * 先问每个方块段的调色板里有没有 {@code wanted} 答是的状态,有的段才逐格找(段全空的不算,那是空气)。段里状态太多、用上了
+     * 全局调色板时调色板答"也许有",逐格找一遍。只看 {@code [fromY, toY)} 里的层。
+     */
+    @Override
+    public void forEachBlock(int fromY, int toY, Predicate<BlockState> wanted, ObjIntConsumer<BlockState> visitor) {
+        List<BlockState> hits = new ArrayList<>(4);
+        BlockState[] scratch = new BlockState[256];
+        int firstSection = Math.max(0, (fromY >> 4) - minSection);
+        for (int c = 0; c < chunks.length; c++) {
+            PalettedContainer<BlockState>[] states = chunks[c];
+            if (states == null) {
+                continue;
+            }
+            int lastSection = Math.min(states.length - 1, ((toY - 1) >> 4) - minSection);
+            for (int s = firstSection; s <= lastSection; s++) {
+                PalettedContainer<BlockState> section = states[s];
+                if (section == null) {
+                    continue;
+                }
+                // 调色板里要的状态逐个记下来(谓词一律答否,调色板就把每一种都问一遍);用上全局调色板时它不问、直接答"也许有",
+                // 就逐格问谓词
+                hits.clear();
+                boolean everything = section.maybeHas(state -> {
+                    if (wanted.test(state)) {
+                        hits.add(state);
+                    }
+                    return false;
+                });
+                if (!everything && hits.isEmpty()) {
+                    continue;
+                }
+                int bottom = (minSection + s) << 4;
+                for (int y = Math.max(0, fromY - bottom); y < Math.min(16, toY - bottom); y++) {
+                    // 搜索读过的层现成的就用;没读过的解到一块共用的缓冲里,扫完就丢(估价扫的段大多搜索一辈子也不会读)
+                    BlockState[] known = (BlockState[]) LAYER.getAcquire(layers[c], s << 4 | y);
+                    for (BlockState state : known != null ? known : decode(section, y, scratch)) {
+                        if (everything ? wanted.test(state) : hits.contains(state)) {
+                            visitor.accept(state, bottom + y);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @Override
     public BlockState getBlockState(BlockPos pos) {
-        PalettedContainer<BlockState>[] states = chunk(pos.getX(), pos.getZ());
-        if (states == null) {
+        BlockState state = loadedBlockState(pos);
+        return state != null ? state : AIR;
+    }
+
+    /** 没加载的区块读出来是 null;建筑高度之外、全空的区段是空气。 */
+    @Override
+    public BlockState loadedBlockState(BlockPos pos) {
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+        int i = (x >> 4) - minChunkX;
+        int j = (z >> 4) - minChunkZ;
+        if (i < 0 || j < 0 || i >= side || j >= side) {
+            return null;
+        }
+        BlockState[][] rows = layers[i * side + j];
+        if (rows == null) {
+            return null;
+        }
+        int row = ((y >> 4) - minSection) << 4 | (y & 15);
+        if (row < 0 || row >= rows.length) {
             return AIR;
         }
-        int index = SectionPos.blockToSectionCoord(pos.getY()) - minSection;
-        if (index < 0 || index >= states.length || states[index] == null) {
-            return AIR;
+        return layer(i * side + j, row)[(z & 15) << 4 | (x & 15)];
+    }
+
+    /** 区块 {@code chunk}(下标)的第 {@code row} 层(区段 × 16 + 区段内的层),没解过就解开。 */
+    private BlockState[] layer(int chunk, int row) {
+        BlockState[][] rows = layers[chunk];
+        BlockState[] layer = (BlockState[]) LAYER.getAcquire(rows, row);
+        if (layer == null) {
+            layer = decode(chunks[chunk][row >> 4], row & 15);
+            LAYER.setRelease(rows, row, layer);
         }
-        return states[index].get(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15);
+        return layer;
+    }
+
+    /** 一个区段里第 {@code y} 层(区段内的高度)的 16×16 格解出来;区段全空的是共用的空气层。 */
+    private static BlockState[] decode(PalettedContainer<BlockState> section, int y) {
+        return section == null ? AIR_LAYER : decode(section, y, new BlockState[256]);
+    }
+
+    /** 同上,解进 {@code into}(256 格,行优先 {@code z * 16 + x})。 */
+    private static BlockState[] decode(PalettedContainer<BlockState> section, int y, BlockState[] into) {
+        for (int z = 0; z < 16; z++) {
+            for (int x = 0; x < 16; x++) {
+                into[z << 4 | x] = section.get(x, y, z);
+            }
+        }
+        return into;
     }
 
     /** 没加载的区块、全空的区段(拷贝时记为空)、建筑高度之外,读出来都是空气。 */

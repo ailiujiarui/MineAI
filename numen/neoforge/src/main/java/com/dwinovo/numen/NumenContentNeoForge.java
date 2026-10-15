@@ -66,8 +66,6 @@ public class NumenContentNeoForge {
     private static void onServerTickPost(ServerTickEvent.Post event) {
         // 排程机器的心跳随机器归了 Numen API;Numen 只 tick 自己的工具配套。
         BlockSearch.tick(event.getServer());
-        // Route plans (route plan): poll finished searches and reply.
-        com.dwinovo.numen.nav.RouteQueries.serverTick(event.getServer());
         // 寻路调试:把在走的同伴的路发给开了调试的玩家。
         PathDebugRenderer.serverTick(event.getServer());
     }

@@ -26,7 +26,9 @@ public final class Clearance {
 
     /** 身体站在 {@code (x, z)} 这一列、脚在 {@code feetY} 时放不放得下。 */
     public static boolean fits(BlockGetter level, BodyStats body, int x, double feetY, int z) {
-        return free(level, body, box(body, x + 0.5, feetY, z + 0.5), feetY);
+        double half = body.width() / 2;
+        return !visit(level, body, x + 0.5 - half, feetY, z + 0.5 - half, x + 0.5 + half, feetY + body.height(), z + 0.5 + half, feetY,
+                pos -> false);
     }
 
     /**
@@ -44,9 +46,10 @@ public final class Clearance {
      */
     public static List<BlockPos> blockers(BlockGetter level, BodyStats body, int x, double feetY, int z,
                                           int dx, int dz) {
-        AABB swept = box(body, x + 0.5, feetY, z + 0.5).minmax(box(body, x + dx + 0.5, feetY, z + dz + 0.5));
-        List<BlockPos> out = new ArrayList<>();
-        visit(level, body, swept, feetY, pos -> {
+        double half = body.width() / 2;
+        List<BlockPos> out = new ArrayList<>(4);
+        visit(level, body, Math.min(x + 0.5, x + dx + 0.5) - half, feetY, Math.min(z + 0.5, z + dz + 0.5) - half,
+                Math.max(x + 0.5, x + dx + 0.5) + half, feetY + body.height(), Math.max(z + 0.5, z + dz + 0.5) + half, feetY, pos -> {
             out.add(pos.immutable());
             return true;
         });
@@ -75,37 +78,34 @@ public final class Clearance {
         return Boxes.whole(state);
     }
 
-    /** 身体脚底中心在 {@code (cx, feetY, cz)} 时的碰撞盒。 */
-    static AABB box(BodyStats body, double cx, double feetY, double cz) {
-        double half = body.width() / 2;
-        return new AABB(cx - half, feetY, cz - half, cx + half, feetY + body.height(), cz + half);
-    }
-
     /**
-     * 这个盒子与方块碰撞箱有没有交叠。{@code feetY} 是这具身体的脚高,碰撞箱随身体变化的方块按它回答。
+     * 盒子 {@code (minX..maxX, minY..maxY, minZ..maxZ)}(身体的碰撞盒,或它沿路扫过的包络)与方块碰撞箱交叠的格逐个交给 {@code hit};它答 false
+     * 就停下。有交叠返回 true。{@code feetY} 是这具身体的脚高,碰撞箱随身体变化的方块按它回答。
      */
-    static boolean free(BlockGetter level, BodyStats stats, AABB body, double feetY) {
-        return !visit(level, stats, body, feetY, pos -> false);
-    }
-
-    /** 与盒子交叠的格逐个交给 {@code hit};它答 false 就停下。有交叠返回 true。 */
-    private static boolean visit(BlockGetter level, BodyStats stats, AABB body, double feetY, Predicate<BlockPos> hit) {
-        AABB inner = body.deflate(DEFLATE);
-        int x0 = Mth.floor(inner.minX);
-        int x1 = Mth.floor(inner.maxX);
-        int z0 = Mth.floor(inner.minZ);
-        int z1 = Mth.floor(inner.maxZ);
+    private static boolean visit(BlockGetter level, BodyStats stats, double minX, double minY, double minZ, double maxX, double maxY,
+                                 double maxZ, double feetY, Predicate<BlockPos> hit) {
+        // 身体的盒向内收一点,贴着的面不算撞上
+        double innerMinX = minX + DEFLATE;
+        double innerMinY = minY + DEFLATE;
+        double innerMinZ = minZ + DEFLATE;
+        double innerMaxX = maxX - DEFLATE;
+        double innerMaxY = maxY - DEFLATE;
+        double innerMaxZ = maxZ - DEFLATE;
+        int x0 = Mth.floor(innerMinX);
+        int x1 = Mth.floor(innerMaxX);
+        int z0 = Mth.floor(innerMinZ);
+        int z1 = Mth.floor(innerMaxZ);
         // 下面一格的碰撞箱可能高出它自己(栅栏、墙到 1.5)
-        int y0 = Mth.floor(inner.minY) - 1;
-        int y1 = Mth.floor(inner.maxY);
+        int y0 = Mth.floor(innerMinY) - 1;
+        int y1 = Mth.floor(innerMaxY);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         boolean any = false;
         for (int x = x0; x <= x1; x++) {
             for (int z = z0; z <= z1; z++) {
                 for (int y = y0; y <= y1; y++) {
                     for (AABB box : Boxes.at(level, stats, x, y, z, level.getBlockState(pos.set(x, y, z)), feetY)) {
-                        if (inner.intersects(box.minX + x, box.minY + y, box.minZ + z,
-                                box.maxX + x, box.maxY + y, box.maxZ + z)) {
+                        if (intersects(innerMinX, innerMinY, innerMinZ, innerMaxX, innerMaxY, innerMaxZ, box.minX + x, box.minY + y,
+                                box.minZ + z, box.maxX + x, box.maxY + y, box.maxZ + z)) {
                             any = true;
                             if (!hit.test(pos)) {
                                 return true;
@@ -117,5 +117,11 @@ public final class Clearance {
             }
         }
         return any;
+    }
+
+    /** 与 {@code AABB.intersects} 同一个口径:贴边不算。 */
+    private static boolean intersects(double aMinX, double aMinY, double aMinZ, double aMaxX, double aMaxY, double aMaxZ,
+                                      double bMinX, double bMinY, double bMinZ, double bMaxX, double bMaxY, double bMaxZ) {
+        return aMinX < bMaxX && aMaxX > bMinX && aMinY < bMaxY && aMaxY > bMinY && aMinZ < bMaxZ && aMaxZ > bMinZ;
     }
 }

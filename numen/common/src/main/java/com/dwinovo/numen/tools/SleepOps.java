@@ -133,8 +133,8 @@ public final class SleepOps {
                 : "there is no bed within reach (you must be standing next to one)";
         String next = carried != null
                 ? " You are carrying " + carried + " — place it on flat ground and try again."
-                : " `numen.scan.blocks(\"#minecraft:beds\")` finds one; `numen.move.to(bed, {arrive = \"use\"})` with "
-                        + "its pos, then `numen.use.sleep()` again.";
+                : " `numen.scan.blocks(\"#minecraft:beds\")` finds one; `numen.move.to(bed.pos, 2)`, "
+                        + "then `numen.use.sleep()` again.";
         return new ApiError(ErrorKind.NOT_FOUND, base + "." + next, null);
     }
 

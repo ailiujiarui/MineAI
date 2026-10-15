@@ -3,21 +3,26 @@ package com.dwinovo.numen.pathing.drive;
 import com.dwinovo.numen.api.entity.Controls.Key;
 import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.Maneuver;
+import com.dwinovo.numen.pathing.plan.Stance;
 
 import net.minecraft.world.phys.Vec3;
 
 /**
- * 下一级、下落:走出边沿,落在相邻一列。在起步那一块上压着速度慢慢走出去——身子离开边沿之后还要在空中飘一段,冲得太快
- * 就落过了头;离地之后照原版空中那一点加速度往落点修正({@link Steering#stop} 连同落地前的那几刻一起推算)。下一步朝同一个
- * 方向接着走时不减速,落远了由段状态机认到后面那一步上。
+ * 下一级、下落:走出边沿,落在相邻一列。要在落点上收脚时,在起步那一块上走到再快就会落过落点那一列为止({@link Steering#approach}
+ * 按运动学预判落点),之后松开滑出去——身子离开边沿之后还要在空中飘一段;离地之后照原版空中那一点加速度修正,只保证落在
+ * 落点那一列里、停住({@link Steering#stop} 连同落地前的那几刻一起推算),不拉回列中心——到达一格是站在这一格上,不是站在它的中心,
+ * 下一步要原地动手时才回中心({@link Control#settle})。下一步朝同一个方向接着走时不减速(疾跑也一样,{@link Gait}),落远了
+ * 由段状态机认到后面那一步上。
  *
  * <p>规划要倒水接住的坠落({@link Edit.Catch}):走出去之前把水桶拿到手上——只有这样的坠落才备水桶;落到够得着落点脚下那块
  * 顶面时低头倒水,落进水里之后把水收回桶里,收回了这一步才算完。</p>
  */
 final class DropControl extends Control {
 
-    /** 走出边沿时的速度(格每刻):慢到落下去不冲过落点那一列,又快到走得出去。 */
-    private static final double EDGE_SPEED = 0.1;
+    /** 落点那一列里,身体中心最远落在沿前进方向离起步列中心多远:整列的外沿(一格半)往里收一点,预判有偏差也还在这一列里。 */
+    private static final double LANDING_END = 1.4;
+    /** 落在落点那一列里:身体中心走过列中心后最多再偏这么远(半格往里收一点,预判有偏差也还在这一列里)。 */
+    private static final double COLUMN = 0.4;
     /** 脚比落点高出这么多,就还没落下去。 */
     private static final double DROPPED = 0.3;
 
@@ -76,18 +81,33 @@ final class DropControl extends Control {
         keys().set(Key.SPRINT, stride.sprint());
         Vec3 target = landingSpot();
         if (stride.flows()) {
-            Steering.pass(rig, target.x, target.z);
+            if (passed(target)) {
+                // 冲劲把身子带过了落点中心:接着朝前冲,不回身去够中心,落在后面哪一步上由段状态机认
+                Steering.pass(rig, rig.entity.getX() + m.heading().dx(), rig.entity.getZ() + m.heading().dz());
+            } else {
+                Steering.pass(rig, target.x, target.z);
+            }
             return water;
         }
         if (rig.entity.onGround() && rig.entity.getY() > m.landing().feetY() + DROPPED) {
-            // 脚还在上面:压着速度往前走,直到脚下空了——冲出去太快就落过了头。托着脚的不一定只有起步那一块,
+            // 脚还在上面:往前走到再快就会落过落点那一列为止,之后滑出去。托着脚的不一定只有起步那一块,
             // 梯子顶也托得住,所以看的是离没离地,不是走没走过格边
-            Steering.approach(rig, target.x, target.z, EDGE_SPEED);
+            Steering.approach(rig, target.x, target.z, 0.5 + rig.entity.getBbWidth() / 2 - ahead(), LANDING_END - ahead(), m.drop());
             return water;
         }
-        // 离地了(或已经落下去了):照原版空中那一点加速度修正,停在落点上
-        Steering.stop(rig, target.x, target.z, m.landing().feetY());
+        // 离地了(或已经落下去了):照原版空中那一点加速度修正,落在落点那一列里停住;落点是攀着的(梯子)时要落在让开碰撞箱的那一点上
+        if (m.landing().kind() == Stance.Kind.CLIMBING) {
+            Steering.stop(rig, target.x, target.z, m.landing().feetY());
+        } else {
+            // 还没走到中心时,身子要整个离开起步那块的边沿(落点比起步低得不多时,压在边沿上就还没落下去)
+            Steering.stop(rig, target.x, target.z, m.landing().feetY(), 0.5 - rig.entity.getBbWidth() / 2, COLUMN);
+        }
         return water;
+    }
+
+    /** 身体沿这一步的方向已经走过了落点中心。 */
+    private boolean passed(Vec3 target) {
+        return (rig.entity.getX() - target.x) * m.heading().dx() + (rig.entity.getZ() - target.z) * m.heading().dz() > 0;
     }
 
     @Override

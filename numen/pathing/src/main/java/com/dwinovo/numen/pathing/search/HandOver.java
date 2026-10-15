@@ -22,8 +22,8 @@ public final class HandOver {
 
     /**
      * 每一段搜索展开到这么多个节点还没到目标、又已经有可交的半程路线,就先交出它:身体先走这一段,快走完时从它的终点接着搜。
-     * 依据是等多久,不是地形:许改地形的搜索每个节点 15 到 76 微秒(实测见 docs/pathing.md 第十三节),一万个节点在
-     * 0.15 到 0.76 秒之间,与 Baritone 先交路线的 primaryTimeoutMS(500 毫秒)同一量级;它是默认预算
+     * 依据是等多久,不是地形:不改地形的搜索每个节点十来微秒,许挖许放的二十来微秒(实测见 docs/pathing-015.md 第 8 步第三批),
+     * 一万个节点在 0.1 到 0.25 秒之间,与 Baritone 先交路线的 primaryTimeoutMS(500 毫秒)同一量级;它是默认预算
      * {@link com.dwinovo.numen.pathing.api.NavRequest#DEFAULT_BUDGET} 的四分之一,Baritone 的 primary 与 failure 两个时限也是一比四。
      * 靶场十八条固定路线共搜了 36 次(估价是运动学下界,搜到头的就是最优路线):一半自己搜到头,
      * 中位约两千个节点、最多 9965 个,另一半在这里交出半程;下到盆地、绕山、爬坡这类要绕的路一次搜不完。

@@ -29,7 +29,7 @@ public final class NumenGameTestSuite implements GameTestSuite {
                 PerceptionGameTests.class,
                 PermissionGameTests.class,
                 PluginGameTests.class,
-                RouteGameTests.class,
+                WalkGameTests.class,
                 ScriptGameTests.class,
                 SleepGameTests.class,
                 SpectatorMenuGameTests.class,

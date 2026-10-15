@@ -87,6 +87,17 @@ class SearchTest {
         assertEquals(goal, result.route().end());
     }
 
+    /**
+     * 平地上斜走十二格再直走十二格,与先直走再斜走、穿插着走,总价相同:估价是准的,最优路线上每个节点的总价都等于最优价。
+     * 总价平手时先展开离目标近的,展开的节点数跟路线上的步数同量级,不会把这一整片同总价的节点都展开。
+     */
+    @Test
+    void aFlatWalkExpandsAboutAsManyNodesAsItHasSteps() {
+        SearchResult result = search(field(), defaults(), START, Goals.at(new BlockPos(24, Y, 12)));
+        assertTrue(result.arrived());
+        assertTrue(result.expanded() <= result.route().legs().size() * 3 / 2, "展开了 " + result.expanded() + ",路线 " + result.route().legs().size() + " 步");
+    }
+
     @Test
     void aSealedRoomIsSearchedOutAndThatIsToldApartFromRunningOutOfBudget() {
         TestWorld room = field().fill(-2, Y, -2, 2, Y + 2, 2, STONE).fill(-1, Y, -1, 1, Y + 1, 1, Blocks.AIR.defaultBlockState());
@@ -106,6 +117,17 @@ class SearchTest {
         assertNotNull(result.route(), "朝目标推进到边上的半程路线照样交出");
         // 区块最东一列是 x = 15;走进它要看边外 x = 16 那一格伤不伤身(挨着走要加价),那一格不知道,这一步就不走
         assertEquals(14, result.route().end().getX(), "停在加载区块的边上");
+    }
+
+    /**
+     * 加载区块最东一列(x = 15)上有一格水:走到它旁边一列时看它伤不伤身,只看它是什么方块。水往哪流要读边外 x = 16 那一列,
+     * 那是没加载的,可水流与伤不伤身无关——这一步不能因为它就被当成"读到了未加载的列"。
+     */
+    @Test
+    void aHarmCheckBesideAWaterCellAtTheEdgeDoesNotReadPastTheEdge() {
+        TestWorld world = new TestWorld().floor(0, 0, 15, 3, Y - 1).set(15, Y, 1, Blocks.WATER.defaultBlockState()).loadedWithin(0);
+        SearchResult result = search(world, defaults(), new BlockPos(8, Y, 1), Goals.at(new BlockPos(14, Y, 1)));
+        assertEquals(SearchResult.Stop.ARRIVED, result.stop());
     }
 
     /**
@@ -148,6 +170,43 @@ class SearchTest {
         SearchResult result = search(ground, model, START, Goals.dig(new BlockPos(0, Y - 27, 0), SURVIVAL, Goals.Clearing.ANY),
                 NavRequest.DEFAULT_BUDGET);
         assertTrue(result.arrived(), result.stop() + ",展开了 " + result.expanded());
+        for (BlockPos node : result.route().nodes()) {
+            assertTrue(node.getX() == 0 && node.getZ() == 0, "没有直直往下挖:" + node);
+        }
+    }
+
+    /**
+     * 去离正下方二十格的一格两格以内("来我这儿"这类距离范围的目标):范围交出终点格与高度范围,估价才知道要往下挖,
+     * 搜索从脚下直直往下挖,不在地面上铺开。
+     */
+    @Test
+    void aRangeAroundACellDeepBelowIsDugStraightDownTo() {
+        TestWorld ground = new TestWorld().ground(Y - 1, STONE).loadedWithin(6);
+        CostModel model = CostModel.of(natural(), Fixtures.carrying(0, new ItemStack(Items.IRON_PICKAXE)),
+                Fixtures.ALLOW_ALL, Fixtures.NO_MATERIALS, Threats.NONE);
+        SearchResult result = search(ground, model, START, Goals.within(Goals.at(new BlockPos(0, Y - 20, 0)), 0, 2),
+                NavRequest.DEFAULT_BUDGET);
+        assertTrue(result.arrived(), result.stop() + ",展开了 " + result.expanded());
+        assertTrue(result.expanded() < 1000, "展开了 " + result.expanded());
+        for (BlockPos node : result.route().nodes()) {
+            assertTrue(node.getX() == 0 && node.getZ() == 0, "没有直直往下挖:" + node);
+        }
+    }
+
+    /**
+     * 打一只困在正下方十五格石头里的小空腔里的怪("走到够得着那只实体"):够着一个碰撞箱的目标也交出终点格与高度范围,
+     * 估价才知道要往下挖,搜索从脚下直直往下挖,不在地面上铺开。
+     */
+    @Test
+    void reachingAMobDeepBelowIsDugStraightDownTo() {
+        TestWorld ground = new TestWorld().ground(Y - 1, STONE).loadedWithin(6)
+                .fill(0, Y - 16, 0, 0, Y - 15, 0, Blocks.AIR.defaultBlockState());
+        CostModel model = CostModel.of(natural(), Fixtures.carrying(0, new ItemStack(Items.IRON_PICKAXE)),
+                Fixtures.ALLOW_ALL, Fixtures.NO_MATERIALS, Threats.NONE);
+        net.minecraft.world.phys.AABB mob = new net.minecraft.world.phys.AABB(0.2, Y - 16, 0.2, 0.8, Y - 14.2, 0.8);
+        SearchResult result = search(ground, model, START, Goals.touch(mob, SURVIVAL, 3), NavRequest.DEFAULT_BUDGET);
+        assertTrue(result.arrived(), result.stop() + ",展开了 " + result.expanded());
+        assertTrue(result.expanded() < 1000, "展开了 " + result.expanded());
         for (BlockPos node : result.route().nodes()) {
             assertTrue(node.getX() == 0 && node.getZ() == 0, "没有直直往下挖:" + node);
         }
@@ -578,6 +637,16 @@ class SearchTest {
             @Override
             public double estimate(int x, int y, int z, com.dwinovo.numen.pathing.world.Kinematics.Pace pace) {
                 return goal.estimate(x, y, z, pace);
+            }
+
+            @Override
+            public it.unimi.dsi.fastutil.longs.LongSet endCells() {
+                return goal.endCells();
+            }
+
+            @Override
+            public Heights heights() {
+                return goal.heights();
             }
         };
     }

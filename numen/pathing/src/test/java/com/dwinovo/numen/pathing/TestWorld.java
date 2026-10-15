@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.ObjIntConsumer;
+import java.util.function.Predicate;
 
 import com.dwinovo.numen.pathing.search.SearchView;
 
@@ -69,6 +71,20 @@ public final class TestWorld implements SearchView {
     public TestWorld loadedWithin(int chunks) {
         this.loadedRadius = chunks;
         return this;
+    }
+
+    @Override
+    public void forEachBlock(int fromY, int toY, Predicate<BlockState> wanted, ObjIntConsumer<BlockState> visitor) {
+        blocks.forEach((pos, state) -> {
+            if (pos.getY() >= fromY && pos.getY() < toY && wanted.test(state)) {
+                visitor.accept(state, pos.getY());
+            }
+        });
+        if (wanted.test(ground)) {
+            for (int y = Math.max(getMinBuildHeight(), fromY); y <= groundTop && y < toY; y++) {
+                visitor.accept(ground, y);
+            }
+        }
     }
 
     @Override

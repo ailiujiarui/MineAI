@@ -14,7 +14,7 @@ ToolRegistry 工具、ReflexRegistry 本能名册)。第三方内容包与 Numen
 她缺的那半个客户端——一副键盘 `Controls`、一个视角 `Look`、一个鼠标 `Mouse`(准星、左键挖、右键用,动手之前身体是同伴就过权限层)、
 一个快捷栏 `Hotbar` 与它留下的记录 `BodyAction`、每刻一次的物理步进 `Physics`,以及身体与寻路规划共用的原版公式与几何(`DigTime`、`Reach`、
 `Sight`、`Faces`、`Replaceable`)——是 Numen API 的公开部分(`com.dwinovo.numen.api.entity`),`NumenPlayer.controls()`、`look()`、`mouse()`、
-`hotbar()` 各给出一件,谁驱动她都用同一份;第三方想自己写一套寻路(还能挖、能放),按它们让她动。设计与取舍见 `docs/companion-input.md`。
+`hotbar()` 各给出一件,谁驱动她都用同一份;第三方想自己写一套寻路(还能挖、能放),按它们让她动。设计与取舍见 `docs/input-pipeline.md` §七。
 寻路模块的身体端口 `Body` 在寻路这一侧,Numen 的适配层 `numen/nav` 的 `CompanionBody` 把同伴接进去(无状态:寻路只经
 `entity()`、`controls()`、`look()`、`mouse()`、`hotbar()`、`snapshot()` 用身体,不按身体对象存状态);许可、垫路料、要避开的生物三个端口也由适配层实现。
 `CompanionBrain` 换驱动者时统一松开键盘与鼠标。

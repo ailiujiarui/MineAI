@@ -19,16 +19,15 @@ import net.minecraft.world.phys.Vec3;
 import static com.dwinovo.numen.gametest.GameTestKit.*;
 
 /**
- * 挖掘:{@code numen.work.dig} 只挖站在原地手够得着的格(扫描来的一团、框出来的坑、一格坐标),挡着的天然地形一并挖开,不走、不捡,
- * 够不着的如实报告并给能照抄的 {@code numen.move.to … arrive = "dig"};{@code arrive = "dig"} 走到一次够得着最多格、挖得成的地方;
- * {@code numen.work.collect} 只捡。挖一块区域的整件事是这三条原子命令一轮轮组合({@link GameTestKit#mine}):开门出屋、树林与埋矿、
- * 够不着时如实收场。
+ * 挖掘:{@code numen.work.dig} 挖点名的格(扫描来的一团、框出来的坑、一格坐标):手够得着的先挖,够不着的走到够得着剩下最多格的地方再挖,
+ * 挡着的天然地形一并挖开,不捡;{@code numen.work.collect} 只捡。挖一块区域的整件事是这两条原子命令一轮轮组合({@link GameTestKit#mine}):
+ * 开门出屋、树林与埋矿、走远处的矿。
  */
 public class DigGameTests {
 
     /**
      * 挖掘也走门:黑曜石屋(铁镐非正确工具,成本模型按不可破对待——拆墙不是廉价选项)关住她,矿在屋外,唯一通路是关着的橡木门。
-     * {@code arrive = "dig"} 的寻路复用同一条开门链;收工后墙体完好(确实没打洞)。
+     * 走去挖的寻路复用同一条开门链;收工后墙体完好(确实没打洞)。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_dig")
     public static void dig_through_closed_door(GameTestHelper helper) {
@@ -774,11 +773,11 @@ public class DigGameTests {
     }
 
     /**
-     * 只挖手够得着的:一排珠光蛙明灯从她跟前伸到十格外,一扫成一团,整团交给 {@code numen.work.dig}。它挖掉手够得着的那几块就收场,算成功;
-     * 她一步没动,回执说还剩几格够不着、最近那格在哪,以及能照抄的 {@code numen.move.to … arrive = "dig"};够不着的一块不少。
+     * 够不着就走过去:一排珠光蛙明灯从她跟前伸到十格外,一扫成一团,整团交给 {@code numen.work.dig}。她挖掉手够得着的那几块,
+     * 走到够得着剩下最多块的地方接着挖,全挖掉才收场,回执说挖了几格、没有剩下够不着的。
      */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_dig")
-    public static void dig_digs_only_what_her_hand_reaches_and_reports_the_rest(GameTestHelper helper) {
+    public static void dig_walks_up_to_what_is_out_of_reach_and_digs_it_all(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         NumenPlayer companion = spawnAt(helper, "gametest_vein_edge", new BlockPos(7, 2, 8), false);
         BlockPos stand = companion.blockPosition();
@@ -797,34 +796,24 @@ public class DigGameTests {
                 dig[0] = lua(companion, "numen.work.dig(" + blocksIn(scanned.reply()) + ")");
             }
             helper.assertTrue(dig[0].done(), "work dig has not finished");
-            List<BlockPos> dug = vein.stream().filter(c -> level.getBlockState(c).isAir()).toList();
-            List<BlockPos> left = vein.stream().filter(c -> !level.getBlockState(c).isAir()).toList();
-            helper.assertTrue(!dug.isEmpty() && !left.isEmpty(), "the vein was not split by her reach: " + dig[0].outcome());
-            for (BlockPos cell : dug) {
-                helper.assertTrue(companion.getEyePosition().distanceTo(Vec3.atCenterOf(cell))
-                                <= companion.blockInteractionRange() + 1,
-                        "a froglight beyond her reach was dug at " + cell.toShortString());
-            }
-            BlockPos nearest = left.stream().min(java.util.Comparator.comparingDouble(stand::distSqr)).orElseThrow();
             String said = dig[0].outcome();
-            helper.assertTrue(dig[0].succeeded() && said.startsWith("dug " + dug.size() + " cell(s) of pearlescent_froglight")
-                            && said.contains(left.size() + " more cell(s) of the " + vein.size()
-                                    + " given are out of my reach from here, the nearest at " + coords(nearest))
-                            && said.contains("to dig them: `numen.move.to(" + xyz(nearest) + ", {arrive = \"dig\"})`, "
-                                    + "then dig the same blocks again"),
-                    "the reply does not account for the cells beyond her reach: " + said);
-            helper.assertTrue(companion.blockPosition().equals(stand), "she moved while digging");
+            helper.assertTrue(dig[0].succeeded() && said.startsWith("dug " + vein.size() + " cell(s) of pearlescent_froglight")
+                            && !said.contains("out of my reach"),
+                    "the reply does not say the whole vein was dug: " + said);
+            for (BlockPos cell : vein) {
+                helper.assertTrue(level.getBlockState(cell).isAir(), "a froglight is left at " + cell.toShortString());
+            }
+            helper.assertTrue(companion.blockPosition().distSqr(stand) > 9, "she dug it all without walking along it");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
 
     /**
-     * {@code arrive = "dig"} 几格,停在一次够得着最多格的地方:一条两格高的石头走廊里,她站在当中;一头是一块孤零零的铁矿,
-     * 另一头一样远的地方并排两块。路一样长,她走到并排那两块跟前停下,站在那儿两块都够得着;接着 {@code numen.work.dig} 当场挖掉两块,
-     * 一步不挪。
+     * 先走到一次够得着最多格的地方:一条两格高的石头走廊里,她站在当中;一头是一块孤零零的铁矿,另一头一样远的地方并排两块。路一样长,
+     * 她先走到并排那两块跟前,站在那儿两块都挖了,再走去挖孤零零的那块。
      */
     @GameTest(template = "floor20", timeoutTicks = 100000, batch = "numen_dig")
-    public static void arrive_dig_stops_where_the_hand_reaches_the_most_cells(GameTestHelper helper) {
+    public static void dig_goes_first_where_the_hand_reaches_the_most_cells(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         // 走廊沿 x,宽一格(z=10)、高两格;两侧与顶上是石头,两头各封一块石头
         for (int x = 1; x <= 19; x++) {
@@ -845,28 +834,25 @@ public class DigGameTests {
         NumenPlayer companion = spawnAt(helper, "gametest_coverer", new BlockPos(10, 2, 10), false);
         companion.getInventory().add(new ItemStack(Items.IRON_PICKAXE));
         String irons = "{" + xyz(lone) + ", " + xyz(pairA) + ", " + xyz(pairB) + "}";
-        ToolRun[] walk = new ToolRun[1];
-        ToolRun[] dig = new ToolRun[1];
-        BlockPos[] stood = new BlockPos[1];
+        ToolRun dig = lua(companion, "numen.work.dig(" + irons + ")");
+        long[] pairGoneAt = {-1};
+        long[] loneGoneAt = {-1};
+        helper.onEachTick(() -> {
+            long now = level.getGameTime();
+            if (pairGoneAt[0] < 0 && level.getBlockState(pairA).isAir() && level.getBlockState(pairB).isAir()) {
+                pairGoneAt[0] = now;
+            }
+            if (loneGoneAt[0] < 0 && level.getBlockState(lone).isAir()) {
+                loneGoneAt[0] = now;
+            }
+        });
 
         succeedWhen(helper, () -> {
-            if (walk[0] == null) {
-                walk[0] = lua(companion, "numen.move.to(" + irons + ", {arrive = \"dig\"})");
-            }
-            helper.assertTrue(walk[0].done(), "move goto has not finished");
-            if (dig[0] == null) {
-                helper.assertTrue(walk[0].succeeded(), "the walk failed: " + walk[0].outcome());
-                stood[0] = companion.blockPosition();
-                helper.assertTrue(stood[0].getX() > helper.absolutePos(new BlockPos(10, 2, 10)).getX(),
-                        "she went to the lone ore rather than the pair: stopped at " + stood[0].toShortString());
-                dig[0] = lua(companion, "numen.work.dig(" + irons + ")");
-            }
-            helper.assertTrue(dig[0].done(), "work dig has not finished");
-            helper.assertTrue(dig[0].succeeded() && dig[0].outcome().startsWith("dug 2 cell(s) of iron_ore")
-                            && level.getBlockState(pairA).isAir() && level.getBlockState(pairB).isAir(),
-                    "standing where she stopped, she did not dig both ores of the pair: " + dig[0].outcome());
-            helper.assertTrue(level.getBlockState(lone).is(Blocks.IRON_ORE), "the lone ore was dug");
-            helper.assertTrue(companion.blockPosition().equals(stood[0]), "she moved while digging");
+            helper.assertTrue(dig.done(), "work dig has not finished");
+            helper.assertTrue(dig.succeeded() && dig.outcome().startsWith("dug 3 cell(s) of iron_ore"),
+                    "she did not dig all three ores: " + dig.outcome());
+            helper.assertTrue(pairGoneAt[0] >= 0 && loneGoneAt[0] >= 0 && pairGoneAt[0] < loneGoneAt[0],
+                    "she did not dig the pair first (pair at " + pairGoneAt[0] + ", lone at " + loneGoneAt[0] + ")");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
@@ -885,53 +871,39 @@ public class DigGameTests {
     }
 
     /**
-     * 够不着的不去:两块赭黄蛙明灯在场地另一角、六十多格外,扫到之后整团交给 {@code numen.work.dig},她手边一格都没有。派发当场拒收,
-     * 她不出发,回执说两格都
-     * 够不着、最近那格在哪,以及能照抄的 {@code numen.move.to … arrive = "dig"} 与之后再挖的那一行。
+     * 远处的也去挖:两块赭黄蛙明灯在场地另一角、六十多格外,扫到之后整团交给 {@code numen.work.dig},她走过去挖掉两块,回执说挖了两格。
      */
     @GameTest(template = "floor52", timeoutTicks = 100000, batch = "numen_dig_far")
-    public static void dig_stays_put_and_gives_the_way_when_the_blocks_lie_beyond_her_reach(GameTestHelper helper) {
+    public static void dig_walks_a_long_way_to_blocks_in_the_far_corner(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos nearer = helper.absolutePos(new BlockPos(50, 2, 50));
         BlockPos farther = helper.absolutePos(new BlockPos(51, 2, 50));
         level.setBlockAndUpdate(nearer, Blocks.OCHRE_FROGLIGHT.defaultBlockState());
         level.setBlockAndUpdate(farther, Blocks.OCHRE_FROGLIGHT.defaultBlockState());
-        BlockPos start = helper.absolutePos(new BlockPos(3, 2, 3));
-        NumenPlayer companion = spawnAt(helper, "gametest_stay_put", new BlockPos(3, 2, 3), false);
+        NumenPlayer companion = spawnAt(helper, "gametest_far_digger", new BlockPos(3, 2, 3), false);
         ToolRun scanned = scan(companion, 72, "minecraft:ochre_froglight");
         ToolRun[] dig = new ToolRun[1];
-        String[] blocks = new String[1];
 
         succeedWhen(helper, () -> {
             helper.assertTrue(scanned.done(), "the scan has not replied");
             if (dig[0] == null) {
-                blocks[0] = blocksIn(scanned.reply());
-                dig[0] = lua(companion, "numen.work.dig(" + blocks[0] + ")");
+                dig[0] = lua(companion, "numen.work.dig(" + blocksIn(scanned.reply()) + ")");
             }
             helper.assertTrue(dig[0].done(), "dig has not finished");
-            String said = dig[0].outcome();
-            helper.assertTrue(!dig[0].succeeded() && dig[0].task() == null && "out_of_reach".equals(dig[0].kind())
-                            && said.contains("I did not start: none of the cells of the 2 given still to dig is within my "
-                                    + "reach where I stand")
-                            && said.contains("2 more cell(s) of the 2 given are out of my reach from here, "
-                                    + "the nearest at " + coords(nearer))
-                            && ("numen.move.to(" + xyz(nearer) + ", {arrive = \"dig\"})\nnumen.work.dig("
-                                    + blocks[0].substring(1, blocks[0].length() - 1) + ")").equals(dig[0].hint()),
-                    "the reply does not say what lies beyond her reach and how to get there: " + said + " | "
-                            + dig[0].kind() + " | " + dig[0].hint());
-            helper.assertTrue(companion.blockPosition().distSqr(start) <= 4, "she set off for blocks beyond her reach");
-            helper.assertTrue(level.getBlockState(nearer).is(Blocks.OCHRE_FROGLIGHT)
-                    && level.getBlockState(farther).is(Blocks.OCHRE_FROGLIGHT), "a froglight beyond her reach was dug");
+            helper.assertTrue(dig[0].succeeded() && dig[0].outcome().startsWith("dug 2 cell(s) of ochre_froglight"),
+                    "the far froglights were not dug: " + dig[0].outcome());
+            helper.assertTrue(level.getBlockState(nearer).isAir() && level.getBlockState(farther).isAir(),
+                    "a froglight is left");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
 
     /**
-     * 点名的一团整个在手边以外:一次扫描找到远处一团与近处一团;把远处那一团交给 {@code numen.work.dig},派发当场拒收,说它在哪、
-     * 怎么过去,不派活,蛙明灯一块不少。
+     * 点名的一团整个在手边以外:一次扫描找到远处一团与近处一团;把远处那一团交给 {@code numen.work.dig},她走过去把它挖光,
+     * 近处那一块原样。
      */
-    @GameTest(template = "floor52", timeoutTicks = 4000, batch = "numen_dig_far")
-    public static void dig_a_cluster_beyond_her_reach_is_refused_at_once(GameTestHelper helper) {
+    @GameTest(template = "floor52", timeoutTicks = 100000, batch = "numen_dig_far")
+    public static void dig_a_cluster_beyond_her_reach_walks_to_it_and_leaves_the_near_one(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         List<BlockPos> far = List.of(new BlockPos(48, 2, 50), new BlockPos(49, 2, 50), new BlockPos(50, 2, 50));
         for (BlockPos rel : far) {
@@ -941,46 +913,37 @@ public class DigGameTests {
         level.setBlockAndUpdate(helper.absolutePos(nearRel), Blocks.VERDANT_FROGLIGHT.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_far_group", new BlockPos(3, 2, 3), false);
         ToolRun scanned = scan(companion, 80, "minecraft:verdant_froglight");
-        String[] refusal = new String[2];
+        ToolRun[] dig = new ToolRun[1];
 
         succeedWhen(helper, () -> {
-            if (refusal[0] == null) {
+            if (dig[0] == null) {
                 helper.assertTrue(scanned.reply() != null, "scan_blocks has not replied");
                 var clusters = clustersIn(scanned.reply());
                 var farCluster = clusterHolding(clusters, helper.absolutePos(far.get(0)));
                 var nearCluster = clusterHolding(clusters, helper.absolutePos(nearRel));
-                helper.assertTrue(farCluster != null && nearCluster != null && farCluster != nearCluster
-                                && clusters.get(0).getAsJsonObject() == nearCluster,
-                        "the scan did not return the near and the far froglights as two clusters, near first: "
-                                + scanned.reply());
-                String blocks = blocksOf(farCluster);
-                var nearest = farCluster.getAsJsonObject("nearest").getAsJsonObject("pos");
-                refusal[1] = "numen.move.to({x = " + nearest.get("x").getAsInt() + ", y = " + nearest.get("y").getAsInt()
-                        + ", z = " + nearest.get("z").getAsInt() + "}, {arrive = \"dig\"})\nnumen.work.dig("
-                        + blocks.substring(1, blocks.length() - 1) + ")";
-                ToolRun dig = lua(companion, "numen.work.dig(" + blocks + ")");
-                helper.assertTrue(dig.task() == null, "a cluster wholly beyond her reach was accepted");
-                refusal[0] = dig.kind() + " | " + dig.outcome() + " | " + dig.hint();
+                helper.assertTrue(farCluster != null && nearCluster != null && farCluster != nearCluster,
+                        "the scan did not return the near and the far froglights as two clusters: " + scanned.reply());
+                dig[0] = lua(companion, "numen.work.dig(" + blocksOf(farCluster) + ")");
             }
-            helper.assertTrue(refusal[0] != null && refusal[0].startsWith("out_of_reach | ")
-                            && refusal[0].contains("are out of my reach from here")
-                            && refusal[0].endsWith(" | " + refusal[1]),
-                    "the refusal does not say where the cluster is and how to get there: " + refusal[0]);
+            helper.assertTrue(dig[0].done(), "dig has not finished");
+            helper.assertTrue(dig[0].succeeded() && dig[0].outcome().startsWith("dug 3 cell(s) of verdant_froglight"),
+                    "the far cluster was not dug: " + dig[0].outcome());
             for (BlockPos rel : far) {
-                helper.assertTrue(level.getBlockState(helper.absolutePos(rel)).is(Blocks.VERDANT_FROGLIGHT),
-                        "a froglight of the refused cluster is gone at " + rel.toShortString());
+                helper.assertTrue(level.getBlockState(helper.absolutePos(rel)).isAir(),
+                        "a froglight of the far cluster is left at " + rel.toShortString());
             }
+            helper.assertTrue(level.getBlockState(helper.absolutePos(nearRel)).is(Blocks.VERDANT_FROGLIGHT),
+                    "the near froglight, which was not asked for, is gone");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }
 
     /**
-     * 开路再挖:一块远古残骸埋在二十多格外一座石头小丘的正中,四面都隔着两格石头。{@code numen.move.to … arrive = "dig"} 走到手够得着
-     * 它的地方就停,残骸原样(到达只管站位,那一格留给挖的一方);接着 {@code numen.work.dig} 挖开挡着的石头,把它挖出来,掉落物
-     * 留在原地;再走进残骸那一格({@code numen.move.to … costs = {dig = true, place = true, consent = false}}),捡到手。
+     * 开路再挖:一块远古残骸埋在二十多格外一座石头小丘的正中,四面都隔着两格石头。{@code numen.work.dig} 自己走到手够得着它的地方,
+     * 挖开挡着的石头、把它挖出来,掉落物留在原地;再 {@code numen.work.collect} 捡到手。
      */
     @GameTest(template = "floor52", timeoutTicks = 100000, batch = "numen_dig_far")
-    public static void arrive_dig_reaches_a_buried_block_and_work_dig_digs_it_out(GameTestHelper helper) {
+    public static void work_dig_walks_to_a_buried_block_digs_it_out_and_collect_picks_it_up(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         for (BlockPos rel : BlockPos.betweenClosed(new BlockPos(28, 2, 28), new BlockPos(32, 5, 32))) {
             level.setBlockAndUpdate(helper.absolutePos(rel), Blocks.STONE.defaultBlockState());
@@ -989,28 +952,16 @@ public class DigGameTests {
         level.setBlockAndUpdate(debris, Blocks.ANCIENT_DEBRIS.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_debris", new BlockPos(3, 2, 3), false);
         companion.getInventory().add(new ItemStack(Items.DIAMOND_PICKAXE));
-        ToolRun walk = lua(companion, "numen.move.to(" + xyz(debris) + ", {arrive = \"dig\", costs = {dig = true, place = true, consent = false}})");
-        ToolRun[] dig = new ToolRun[1];
+        ToolRun dig = lua(companion, "numen.work.dig(" + xyz(debris) + ")");
         ToolRun[] fetch = new ToolRun[1];
 
         succeedWhen(helper, () -> {
-            helper.assertTrue(walk.done(), "numen.move.to has not finished");
-            if (dig[0] == null) {
-                helper.assertTrue(walk.succeeded() && walk.outcome().contains("within reach")
-                                && walk.outcome().contains("`numen.work.dig(" + xyz(debris) + ")`"),
-                        "the walk did not end within reach of the buried block: " + walk.outcome());
-                helper.assertTrue(level.getBlockState(debris).is(Blocks.ANCIENT_DEBRIS),
-                        "the walk dug the block it was only meant to reach");
-                helper.assertTrue(companion.getEyePosition().distanceTo(Vec3.atCenterOf(debris))
-                                <= companion.blockInteractionRange() + 1,
-                        "she stopped out of reach of the buried block");
-                dig[0] = lua(companion, "numen.work.dig(" + xyz(debris) + ")");
-            }
-            helper.assertTrue(dig[0].done(), "work dig has not finished");
-            helper.assertTrue(dig[0].succeeded() && level.getBlockState(debris).isAir(),
-                    "the buried block was not dug out: " + dig[0].outcome());
+            helper.assertTrue(dig.done(), "work dig has not finished");
+            // 挖空只在发起 collect 之前判一次:succeedWhen 每刻重跑,而 collect 为够到隧道深处的物品可能在那一格垫柱
             if (fetch[0] == null) {
-                fetch[0] = lua(companion, "numen.move.to(" + xyz(debris) + ", {costs = {dig = true, place = true, consent = false}})");
+                helper.assertTrue(dig.succeeded() && level.getBlockState(debris).isAir(),
+                        "the buried block was not dug out: " + dig.outcome());
+                fetch[0] = lua(companion, "numen.work.collect()");
             }
             helper.assertTrue(fetch[0].done(), "the walk to the drop has not finished");
             helper.assertTrue(companion.getInventory().countItem(Items.ANCIENT_DEBRIS) == 1,
@@ -1026,7 +977,7 @@ public class DigGameTests {
 
     /**
      * 上千格的一团交给服务端的函数:一层 32 x 32 的蛙明灯,{@code numen.scan.blocks} 交回的几团(每团一百多格,合起来上千)先摊成一串格,
-     * 再整串作为 {@code avoid} 交给 {@code numen.route.plan}。程序跑在服务端,团不经网线,不受一个上行包的大小管(从前的 32 KB 上限
+     * 再整串作为要离开的东西交给 {@code numen.move.away}。程序跑在服务端,团不经网线,不受一个上行包的大小管(从前的 32 KB 上限
      * 一团就装不下)。
      */
     @GameTest(template = "floor52", timeoutTicks = 4000, batch = "numen_dig_far")
@@ -1041,7 +992,6 @@ public class DigGameTests {
             }
         }
         NumenPlayer companion = spawnAt(helper, "gametest_thousand", new BlockPos(3, 2, 3), false);
-        BlockPos to = helper.absolutePos(new BlockPos(3, 2, 20));
         ToolRun run = lua(companion, """
                 local all = {}
                 for _, group in ipairs(numen.scan.blocks("minecraft:verdant_froglight", {radius = 60})) do
@@ -1049,9 +999,9 @@ public class DigGameTests {
                     all[#all + 1] = block.pos
                   end
                 end
-                numen.route.plan({to = %s, avoid = all})
+                numen.move.away(all, 3)
                 return #all
-                """.formatted(xyz(to)));
+                """);
         int expected = cells;
 
         succeedWhen(helper, () -> {

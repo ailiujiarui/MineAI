@@ -212,9 +212,9 @@ public class InteractGameTests {
                 .thenSucceed();
     }
 
-    /** 目标在工作距离外:numen.use.hit 不自己走过去,当场失败,下一步是能照抄的 numen.move.to(…, {arrive = "use"}),那一格原样。 */
-    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_interact")
-    public static void interact_at_out_of_reach_says_goto_first(GameTestHelper helper) {
+    /** 目标在工作距离外:numen.use.hit 先自己走到看得见、够得着它的地方,再点一下;石头点一下碎不了,原样。 */
+    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_interact")
+    public static void interact_at_out_of_reach_walks_up_first(GameTestHelper helper) {
         BlockPos stone = helper.absolutePos(new BlockPos(13, 2, 13));
         helper.getLevel().setBlockAndUpdate(stone, Blocks.STONE.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_shortarmed", new BlockPos(2, 2, 2), false);
@@ -222,10 +222,10 @@ public class InteractGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(click.done(), "use hit has not finished");
-            helper.assertTrue(!click.succeeded() && click.outcome().contains("out of working reach")
-                            && click.outcome().contains("`numen.move.to(" + xyz(stone) + ", {arrive = \"use\"})`"),
-                    "the failure does not send her to goto first: " + click.outcome());
-            helper.assertTrue(helper.getLevel().getBlockState(stone).is(Blocks.STONE), "the stone was touched");
+            helper.assertTrue(click.succeeded() && click.outcome().startsWith("left-clicked"),
+                    "she did not walk up and hit it: " + click.outcome());
+            helper.assertTrue(companion.canInteractWithBlock(stone, 0.0), "she hit it from out of reach");
+            helper.assertTrue(helper.getLevel().getBlockState(stone).is(Blocks.STONE), "one hit broke the stone");
             CompanionFactory.despawn(helper.getLevel().getServer(), companion);
         });
     }

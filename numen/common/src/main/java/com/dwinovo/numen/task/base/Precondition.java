@@ -1,6 +1,9 @@
 package com.dwinovo.numen.task.base;
 
 import com.dwinovo.numen.FailureType;
+import com.dwinovo.numen.api.entity.NumenPlayer;
+
+import net.minecraft.core.registries.BuiltInRegistries;
 
 /**
  * A cheap, side-effect-free "can this task even begin?" gate, checked once before any body is driven: by
@@ -30,6 +33,23 @@ public interface Precondition {
      *         {@link Failure} to report as the task's terminal result.
      */
     Failure check();
+
+    /** 走路的一趟从脚下起走:坐着任何载具都先下来({@link #sitting})。 */
+    static Precondition onFoot(NumenPlayer player) {
+        return () -> player.getVehicle() == null ? null : sitting(player, null);
+    }
+
+    /**
+     * 坐着一件这一趟驾驭不了的载具:走路的一趟从不自己下车,下车是她的决定,下一步是 {@code numen.use.dismount()}。
+     *
+     * @param why 为什么驾驭不了,接在"我坐在 X 里"后面;null 是"走路驾驭不了它"
+     */
+    static Failure sitting(NumenPlayer player, String why) {
+        String what = BuiltInRegistries.ENTITY_TYPE.getKey(player.getVehicle().getType()).getPath();
+        return new Failure("I am sitting in the " + what + (why == null ? ", which a walk can't steer" : ", " + why)
+                + ": `numen.use.dismount()` steps off, then the walk goes on foot", FailureType.UNKNOWN,
+                "numen.use.dismount()");
+    }
 
     /**
      * A precondition's verdict when it is NOT satisfied.

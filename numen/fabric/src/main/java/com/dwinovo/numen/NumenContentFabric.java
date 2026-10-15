@@ -44,8 +44,6 @@ public class NumenContentFabric implements ModInitializer {
         // 排程机器的心跳随机器归了 Numen API;Numen 只 tick 自己的工具配套。
         // Advance budget-sliced block searches each tick (and sweep their shared index).
         ServerTickEvents.END_SERVER_TICK.register(BlockSearch::tick);
-        // Route plans (route plan): poll finished searches and reply.
-        ServerTickEvents.END_SERVER_TICK.register(com.dwinovo.numen.nav.RouteQueries::serverTick);
         // 寻路调试:把在走的同伴的路发给开了调试的玩家;下行包的类型在这里登记,处理体在客户端入口挂上
         ServerTickEvents.END_SERVER_TICK.register(PathDebugRenderer::serverTick);
         PayloadTypeRegistry.playS2C().register(PathDebugPayload.TYPE, PathDebugPayload.STREAM_CODEC);

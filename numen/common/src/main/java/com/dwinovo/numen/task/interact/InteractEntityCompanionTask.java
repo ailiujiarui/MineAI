@@ -7,9 +7,11 @@ import com.dwinovo.numen.api.task.TaskState;
 import com.dwinovo.numen.api.entity.NumenPlayer;
 import com.dwinovo.numen.FailureType;
 import com.dwinovo.numen.act.Interaction;
+import com.dwinovo.numen.api.sdk.EntityRef;
 import com.dwinovo.numen.task.base.InReachTask;
 import com.dwinovo.numen.task.base.Precondition;
-import net.minecraft.core.BlockPos;
+import com.dwinovo.numen.task.move.Arrival;
+import com.dwinovo.numen.task.move.Where;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -19,11 +21,10 @@ import net.minecraft.world.phys.HitResult;
 import java.util.List;
 
 /**
- * {@code numen.use.entity} on the player body: the entity-aimed native interaction. It does not travel: the entity must be within
- * reach and in sight of where she stands; then she aims at it and presses the requested mouse button only when the native
- * raytrace reaches that entity. Out of reach or behind a wall, the call fails with where it is and the
- * {@code numen.move.to} to copy. LEFT+hold repeats the native attack until the hold ends, the target dies, or the task
- * times out.
+ * {@code numen.use.entity} on the player body: the entity-aimed native interaction. The entity must be within reach and in
+ * sight of where she stands; out of reach she first walks up beside it ({@link #approach}). Then she aims at it and presses
+ * the requested mouse button only when the native raytrace reaches that entity. LEFT+hold repeats the native attack until
+ * the hold ends, the target dies, or the task times out.
  */
 public final class InteractEntityCompanionTask extends InReachTask<InteractEntityTaskRecord, com.dwinovo.numen.tools.Clicks.Pressed> {
 
@@ -58,14 +59,14 @@ public final class InteractEntityCompanionTask extends InReachTask<InteractEntit
                                 FailureType.NO_MATERIAL));
     }
 
-    /** 够不着时点名的那一格:它此刻所在的那一格。 */
+    /** 够不着时走到它旁边。 */
     @Override
-    protected BlockPos target() {
-        return entity.blockPosition();
+    protected Arrival approach() {
+        return Arrival.to(new Where.Mob(EntityRef.id(entity.getId())), Arrival.BESIDE);
     }
 
     /** Act this tick when the target is gone (report the outcome), a fixed hold has elapsed, or we're
-     *  in reach with a clear line of sight; otherwise the call fails without travelling. */
+     *  in reach with a clear line of sight; otherwise walk up to it first. */
     @Override
     protected boolean reached() {
         return entity == null || !entity.isAlive()
@@ -93,7 +94,7 @@ public final class InteractEntityCompanionTask extends InReachTask<InteractEntit
         if (entity == player.getVehicle()) {
             if (r.button == MouseButton.LEFT) {
                 fail("you are riding the " + targetName()
-                        + " — can't hit your own vehicle; numen.move.dismount() steps off first",
+                        + " — can't hit your own vehicle; numen.use.dismount() steps off first",
                         FailureType.UNKNOWN);
                 return TaskState.FAILED;
             }

@@ -1,5 +1,6 @@
 package com.dwinovo.numen.task.move;
 
+import com.dwinovo.numen.nav.Walked;
 import com.dwinovo.numen.api.permission.ConsentDesk;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import com.dwinovo.numen.api.task.TaskRecord;
@@ -15,10 +16,10 @@ import java.util.UUID;
  * 身体让给别人,目标一走远它自己就醒过来。这跟原版 {@code Goal.canUse()} 是同一
  * 个道理——休眠不是失败。
  *
- * <p>跟着走<b>从不改地形</b>(出厂路线规格,不挖不放,没有开关):跟不上时任务以失败收场,说要改几格才过得去,
- * 模型先 {@code numen.move.to} 一条开路再接着跟。
+ * <p>跟着走和 {@code numen.move.to} 是同一套走法:可挖可搭,只看价钱,权限层说不许的格是墙。真跟不上时任务以失败收场,说清原因,
+ * 回执里是这一路做到了哪。
  */
-public final class FollowTaskRecord extends TaskRecord<FollowCompanionTask.Followed> {
+public final class FollowTaskRecord extends TaskRecord<Walked> {
 
     /** 跟到这么近就算到位(米)。 */
     public final double keepWithin;

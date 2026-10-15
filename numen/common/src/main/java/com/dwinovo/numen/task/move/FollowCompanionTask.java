@@ -7,7 +7,11 @@ import com.dwinovo.numen.nav.Survey;
 import com.dwinovo.numen.nav.Terrain;
 import com.dwinovo.numen.nav.ThrowawayBlocks;
 import com.dwinovo.numen.nav.Trip;
+import com.dwinovo.numen.nav.Walked;
+import com.dwinovo.numen.nav.Walking;
 import com.dwinovo.numen.task.base.AbstractCompanionTask;
+import com.dwinovo.numen.task.base.Precondition;
+import com.dwinovo.numen.pathing.api.Outcome;
 import com.dwinovo.numen.pathing.search.Goal;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.search.Route;
@@ -36,11 +40,10 @@ import java.util.List;
  * 不腾槽、不惊动模型。到没到只看目标,这里不另拿距离判"差不多到了";离主人多远只决定要不要起步。
  *
  * <h2>够不着就报出去</h2>
- * 跟着走从不动世界(出厂路线规格,不挖不放,没有开关),于是"没有路"多半不是暂时的:隔着断崖、
- * 在屋里、差几格高——退避多少次都一样。那就以失败收场,把原因交给模型,它决定先
- * {@code numen.move.to} 一条开路、换个办法、或者告诉主人。一个明确的失败原因不能攥在手里
- * 站着空算。主人飞在半空时跟的是他脚下能站的地方({@link #anchor}),一般够得着;真够不着
- * 也照样报。派下来那一刻就够不着的,受理之前就判({@link #preparation}),当场回、不受理。
+ * 跟着走和 {@code numen.move.to} 是同一套走法({@link Walking#spec}):可挖可搭,只看价钱,权限层说不许的格是墙。真没有路
+ * (隔着权限层不许动的地方、主人拒了又绕不开)就不是暂时的——退避多少次都一样。那就以失败收场,把原因交给模型,它决定换个办法、
+ * 或者告诉主人。一个明确的失败原因不能攥在手里站着空算。主人飞在半空时跟的是他脚下能站的地方({@link #anchor}),一般够得着;
+ * 真够不着也照样报。派下来那一刻就够不着的,受理之前就判({@link #preparation}),当场回、不受理。
  *
  * <h2>目标没了,主人和别人不一样</h2>
  * <b>主人下线是暂时的</b>——他会回来,所以休眠等着,到点为止。而点名跟的
@@ -54,7 +57,7 @@ import java.util.List;
  * <p><b>目标跟着挪</b>:他走出上次定下的落脚点两格外,就把新目标交给在走的这一趟({@link Trip#retarget}),
  * 在走的路还算数就照走,不算数才重搜——挪多远才值得换在这里定。
  */
-public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskRecord, FollowCompanionTask.Followed> {
+public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskRecord, Walked> {
 
     /** 跟到之后,他比 {@code keepWithin} 多走出这么远才重新起步,免得在临界距离上抖着走走停停。 */
     private static final double RESUME_MARGIN = 2.0;
@@ -74,6 +77,12 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
 
     public FollowCompanionTask(NumenPlayer player, FollowTaskRecord record) {
         super(player, record);
+    }
+
+    /** 跟着走是走路:坐着任何载具都先下来。 */
+    @Override
+    protected List<Precondition> preconditions() {
+        return List.of(Precondition.onFoot(player));
     }
 
     @Override
@@ -96,8 +105,10 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
     }
 
     /**
-     * 受理之前:要跟的人此刻离她远到要起步时,一次只搜不走地规划过去的路——按同一份只走不改的规格走不到,就是开工后第一趟会
-     * 报的那句"跟不上",当场回,不受理;走得到的那条路是第一趟的开头({@link Trip#prepared})。就在身边、主人不在线,当场就绪。
+     * 受理之前:要跟的人此刻离她远到要起步时,一次只搜不走地规划过去的路——按同一份规格确证走不到(没有路、要的料没有、权限层
+     * 不许……),就是开工后第一趟会报的那句"跟不上",当场回,不受理。预算用完、路伸进没加载的区块只是没搜完,不能证明到不了
+     * ({@link Outcome.OutOfBudget}、{@link Outcome.Unloaded}),照样受理:搜出的那条路,或朝他推进的那一截,是第一趟的开头
+     * ({@link Trip#prepared})。就在身边、主人不在线,当场就绪。
      */
     @Override
     protected Preparation preparation() {
@@ -106,7 +117,8 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
             return Preparation.READY;
         }
         BlockPos anchor = anchor(target);
-        Survey survey = Survey.of(player, List.of(new Survey.Leg(goal(anchor), TERRAIN)), ThrowawayBlocks.factory());
+        RouteSpec spec = Walking.spec(player);
+        Survey survey = Survey.of(player, List.of(new Survey.Leg(goal(anchor), spec)), ThrowawayBlocks.factory());
         return new Preparation() {
             @Override
             public Preparation.Readiness poll() {
@@ -115,12 +127,12 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
                     return null;
                 }
                 Survey.Found leg = found.get(0);
-                if (leg.reached()) {
-                    seed = leg.route();
+                if (leg.reached() || unfinished(leg.outcome())) {
+                    seed = leg.reached() ? leg.route() : leg.partial();
                     return Preparation.Readiness.READY;
                 }
                 return Preparation.Readiness.refused(TaskResult.fail(com.dwinovo.numen.api.agent.script.ErrorKind.NO_PATH,
-                        "can't keep up: " + NavText.failure(leg.outcome(), player, Feet.cell(player), anchor, TERRAIN,
+                        "can't keep up: " + NavText.failure(leg.outcome(), player, Feet.cell(player), anchor, spec,
                                 ThrowawayBlocks.factory()),
                         null, value()));
             }
@@ -130,6 +142,11 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
                 survey.cancel();
             }
         };
+    }
+
+    /** 这次规划没搜完:预算用完、路伸进了没加载的区块,没有证据说走不到。 */
+    private static boolean unfinished(Outcome outcome) {
+        return outcome instanceof Outcome.OutOfBudget || outcome instanceof Outcome.Unloaded;
     }
 
     @Override
@@ -163,10 +180,9 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
         }
         BlockPos anchor = anchor(target);
         if (nav == null) {
-            // 只走不改;跟不上的时候回执照实说要改几格才过得去
             heading = anchor;
             // 受理之前规划好的那条只用在第一趟
-            nav = Trip.prepared(player, goal(anchor), TERRAIN, seed, anchor);
+            nav = Trip.prepared(player, goal(anchor), Walking.spec(player), seed, anchor);
             seed = null;
         } else if (anchor.distSqr(heading) > RETARGET_DISTANCE * RETARGET_DISTANCE) {
             heading = anchor;
@@ -212,9 +228,6 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
         return Goals.within(Goals.at(anchor), 0, r.keepWithin);
     }
 
-    /** 跟随的路线规格:只走不改,没有开关。 */
-    private static final RouteSpec TERRAIN = RouteSpec.defaults();
-
     /**
      * 跟到哪一格:他所在那一列里身体待得住的地方({@link Terrain#settle})——他站着就是他脚下,悬空(飞行、跳跃、本来就会飞)
      * 时是他下方的地面。那一列都待不住(悬在虚空上)就还是他那一格:那里够不着,于是照实报,而不是假装找到了。
@@ -234,14 +247,12 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
                 ? OwnerLocation.of(owner) : null;
     }
 
-    /** {@code numen.move.follow} 交回的值。 */
-    @com.dwinovo.numen.api.sdk.Doc("Where a follow ended.")
-    public record Followed(@com.dwinovo.numen.api.sdk.Doc("Where you stand at the end.") net.minecraft.world.phys.Vec3 pos) {}
-
-    /** 收尾时她站在哪。 */
+    /** 收尾时她在哪、离跟着的人还差多远(超出说好的距离多少)、这一路做了什么。 */
     @Override
-    protected Followed value() {
-        return new Followed(player.position());
+    protected Walked value() {
+        Entity target = target(player);
+        double left = target == null ? 0 : Math.max(0, player.position().distanceTo(target.position()) - r.keepWithin);
+        return walked(player.position(), Math.round(left * 10.0) / 10.0);
     }
 
     @Override

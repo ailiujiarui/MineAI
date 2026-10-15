@@ -6,9 +6,11 @@ import java.util.function.Predicate;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -113,6 +115,86 @@ public final class Sight {
             }
         }
         return out;
+    }
+
+    /**
+     * 从 {@code eye} 挖 {@code target} 时够得着(离眼睛不到 {@code range})的瞄点:它的轮廓中心,轮廓各个朝着眼睛的面的中心,
+     * 这些面上离眼睛最近的一点(离棱留 {@link Reach#EDGE}),先后如此,不管中间有没有东西挡着。执行转头看哪一点
+     * ({@code Look#point})与规划算挡着几格({@link #cover})用的是这同一份。
+     */
+    public static List<Vec3> digPoints(BlockGetter level, Vec3 eye, double range, BlockPos target) {
+        VoxelShape shape = level.getBlockState(target).getShape(level, target);
+        List<AABB> boxes = shape.isEmpty() ? List.of(new AABB(0, 0, 0, 1, 1, 1)) : shape.toAabbs();
+        List<Vec3> centers = new ArrayList<>();
+        AABB bounds = shape.isEmpty() ? boxes.get(0) : shape.bounds();
+        centers.add(bounds.getCenter().add(target.getX(), target.getY(), target.getZ()));
+        List<Vec3> nearest = new ArrayList<>();
+        for (AABB local : boxes) {
+            AABB box = local.move(target);
+            for (Direction side : Direction.values()) {
+                Vec3 center = faceCenter(box, side);
+                if (facing(eye, center, side)) {
+                    Vec3 inward = Vec3.atLowerCornerOf(side.getNormal()).scale(INSET);
+                    centers.add(center.subtract(inward));
+                    nearest.add(nearestOnFace(box, side, eye).subtract(inward));
+                }
+            }
+        }
+        centers.addAll(nearest);
+        List<Vec3> out = new ArrayList<>();
+        for (Vec3 candidate : centers) {
+            if (candidate.distanceTo(eye) < range) {
+                out.add(candidate);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 从 {@code eye} 挖 {@code target} 之前要先清掉哪几格:{@link #digPoints} 里只隔着软遮挡就看得见它的那几条视线中,隔得最少的
+     * 那条上的软遮挡,按先后(没有就是空表)。没有哪一条只隔软遮挡(都隔着硬遮挡,或够不着)为 null——要先挖开别的格,不是清得掉的事。
+     */
+    public static List<BlockPos> cover(BlockGetter level, Vec3 eye, double range, BlockPos target) {
+        List<BlockPos> best = null;
+        for (Vec3 point : digPoints(level, eye, range, target)) {
+            Trace trace = trace(level, eye, point, target);
+            if (trace.clearable(null) && (best == null || trace.soft().size() < best.size())) {
+                best = trace.soft();
+            }
+        }
+        return best;
+    }
+
+    private static Vec3 faceCenter(AABB box, Direction side) {
+        Vec3 c = box.getCenter();
+        return switch (side) {
+            case DOWN -> new Vec3(c.x, box.minY, c.z);
+            case UP -> new Vec3(c.x, box.maxY, c.z);
+            case NORTH -> new Vec3(c.x, c.y, box.minZ);
+            case SOUTH -> new Vec3(c.x, c.y, box.maxZ);
+            case WEST -> new Vec3(box.minX, c.y, c.z);
+            case EAST -> new Vec3(box.maxX, c.y, c.z);
+        };
+    }
+
+    /** {@code box} 的 {@code side} 面上离 {@code eye} 最近的一点,离面的四条棱各留 {@link Reach#EDGE}。 */
+    private static Vec3 nearestOnFace(AABB box, Direction side, Vec3 eye) {
+        double x = clampInside(eye.x, box.minX, box.maxX);
+        double y = clampInside(eye.y, box.minY, box.maxY);
+        double z = clampInside(eye.z, box.minZ, box.maxZ);
+        return switch (side) {
+            case DOWN -> new Vec3(x, box.minY, z);
+            case UP -> new Vec3(x, box.maxY, z);
+            case NORTH -> new Vec3(x, y, box.minZ);
+            case SOUTH -> new Vec3(x, y, box.maxZ);
+            case WEST -> new Vec3(box.minX, y, z);
+            case EAST -> new Vec3(box.maxX, y, z);
+        };
+    }
+
+    static double clampInside(double v, double min, double max) {
+        double margin = Math.min(Reach.EDGE, (max - min) / 2);
+        return Mth.clamp(v, min + margin, max - margin);
     }
 
     /** 用一格方块时点它 {@code side} 面的那一点:面上的瞄点({@link Faces#point})往面里收 {@link #INSET}。 */

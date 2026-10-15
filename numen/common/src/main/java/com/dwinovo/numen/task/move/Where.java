@@ -1,4 +1,4 @@
-package com.dwinovo.numen.route;
+package com.dwinovo.numen.task.move;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.dwinovo.numen.api.agent.script.ScriptType;
-import com.dwinovo.numen.tools.ScanOps;
 import com.dwinovo.numen.api.permission.Listing;
 import com.dwinovo.numen.api.sdk.BadValue;
 import com.dwinovo.numen.api.sdk.Codec;
@@ -14,17 +13,26 @@ import com.dwinovo.numen.api.sdk.EntityRef;
 import com.dwinovo.numen.api.sdk.LuaCodecs;
 import com.dwinovo.numen.api.sdk.Place;
 import com.dwinovo.numen.api.sdk.Positions;
+import com.dwinovo.numen.api.sdk.Target;
+import com.dwinovo.numen.tools.ScanOps;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Block;
 
 /**
- * 路线描述里一处去处的"哪儿":一格、一列、一个高度、一只实体,或一堆格子(扫描交回的一团 Cluster、一串格 Cells)。写法只在
- * {@link #CODEC} 认,格子、一串格、一处与实体的读法借 SDK 的那一份;怎样算到了是 {@link Stop} 的事。
+ * 去哪儿:一格、一列、一个高度、一只实体,或一堆格子(扫描交回的一团 Cluster、一串格 Cells)。写法只在 {@link #CODEC} 认,格子、
+ * 一串格、一处与实体的读法借 SDK 的那一份;怎样算到了是 {@link Arrival} 的事。
+ *
+ * <p>点名的是方块还是一处位置,决定了没说距离时走到哪儿({@link #beside}):位置能站进去就站进去,方块与实体站不进去,走到旁边。
  */
-public sealed interface Target {
+public sealed interface Where {
 
-    /** 一格:{@code {x, y, z}},或带 {@code pos} 的表(方块、掉落物)。 */
-    record Cell(BlockPos pos) implements Target {
+    /**
+     * 一格:{@code {x, y, z}},或带 {@code pos} 的表(方块、掉落物)。
+     *
+     * @param block 点名的是一个方块(带 {@code name} 的表)时是那种方块;只说了位置为 null。写回去时带着它,所以程序里读到的与再读一遍的是同一个意思
+     */
+    record Cell(BlockPos pos, Block block) implements Where {
 
         public Cell {
             pos = pos.immutable();
@@ -32,30 +40,56 @@ public sealed interface Target {
     }
 
     /** 一列 {@code {x, z}}:那一列上站得住的高度。 */
-    record Column(int x, int z) implements Target {}
+    record Column(int x, int z) implements Where {}
 
     /** 一个高度 {@code {y}}。 */
-    record Height(int y) implements Target {}
+    record Height(int y) implements Where {}
 
-    /** 一只实体(带 {@code id} 的表或编号):去处按规划那一刻它在的那一格。 */
-    record Mob(EntityRef ref) implements Target {}
+    /** 一只实体(带 {@code id} 的表或编号):去处按编目标那一刻它所在的那一格。 */
+    record Mob(EntityRef ref) implements Where {}
 
     /** 一堆格子(扫描交回的一团、一串格),至少一格。 */
-    record Cells(List<BlockPos> cells) implements Target {
+    record Cells(List<Cell> items) implements Where {
 
         public Cells {
-            if (cells.isEmpty()) {
+            if (items.isEmpty()) {
                 throw new IllegalArgumentException("cells is empty: there is no cell to go to");
             }
-            cells = cells.stream().map(BlockPos::immutable).toList();
+            items = List.copyOf(items);
         }
+
+        /** 只有位置的一串格。 */
+        public static Cells of(List<BlockPos> positions) {
+            return new Cells(positions.stream().map(p -> new Cell(p, null)).toList());
+        }
+
+        public List<BlockPos> cells() {
+            return items.stream().map(Cell::pos).toList();
+        }
+
+        /** 点名的都是方块(一团、或一串带 {@code name} 的表),不是一串位置。 */
+        public boolean blocks() {
+            return items.stream().allMatch(c -> c.block() != null);
+        }
+    }
+
+    /** 没说距离时走到旁边:点名的是方块或实体;位置、一列、一个高度能站进去就站进去。 */
+    default boolean beside() {
+        return switch (this) {
+            case Cell c -> c.block != null;
+            case Mob m -> true;
+            case Cells c -> c.blocks();
+            case Column c -> false;
+            case Height h -> false;
+        };
     }
 
     /** 一团、一串表是一堆格子;带 {@code id} 没有坐标的表或一个数是一只实体;别的是一处(一格、一列、一个高度)。写回去照原样。 */
     @SuppressWarnings("unchecked")
-    Codec<Target> CODEC = new Codec<>() {
+    Codec<Where> CODEC = new Codec<>() {
         private final Codec<EntityRef> entity = (Codec<EntityRef>) LuaCodecs.of(EntityRef.class, "numen");
         private final Codec<Place> place = (Codec<Place>) LuaCodecs.of(Place.class, "numen");
+        private final Codec<Target> target = (Codec<Target>) LuaCodecs.of(Target.class, "numen");
 
         @Override
         public ScriptType type() {
@@ -67,10 +101,15 @@ public sealed interface Target {
         }
 
         @Override
-        public Target decode(Object value) {
+        public Where decode(Object value) {
             if (Positions.clusterBlocks(value) != null
                     || value instanceof List<?> list && !list.isEmpty() && list.stream().allMatch(Map.class::isInstance)) {
-                return new Cells(Positions.cells(value));
+                List<Cell> items = new ArrayList<>();
+                for (Object item : Positions.items(value)) {
+                    Target one = target.decode(item);
+                    items.add(new Cell(one.cell(), one.block()));
+                }
+                return new Cells(items);
             }
             if (value instanceof Map<?, ?> t && t.containsKey("id") && !t.containsKey("x") || value instanceof Number) {
                 return new Mob(entity.decode(value));
@@ -81,15 +120,16 @@ public sealed interface Target {
             }
             Place p = place.decode(value);
             if (p.cell() != null) {
-                return new Cell(p.cell());
+                Target one = target.decode(value);
+                return new Cell(one.cell(), one.block());
             }
             return p.x() != null ? new Column(p.x(), p.z()) : new Height(p.y());
         }
 
         @Override
-        public Object encode(Target value) {
+        public Object encode(Where value) {
             return switch (value) {
-                case Cell c -> Positions.value(c.pos());
+                case Cell c -> target.encode(new Target(c.pos(), c.block()));
                 case Column c -> {
                     Map<String, Object> o = new LinkedHashMap<>();
                     o.put("x", (long) c.x());
@@ -100,7 +140,7 @@ public sealed interface Target {
                 case Mob m -> entity.encode(m.ref());
                 case Cells c -> {
                     List<Object> out = new ArrayList<>();
-                    c.cells().forEach(p -> out.add(Positions.value(p)));
+                    c.items().forEach(item -> out.add(target.encode(new Target(item.pos(), item.block()))));
                     yield out;
                 }
             };
@@ -114,7 +154,7 @@ public sealed interface Target {
             case Column c -> "x=" + c.x() + " z=" + c.z();
             case Height h -> "y=" + h.y();
             case Mob m -> "entity " + m.ref();
-            case Cells c -> c.cells().size() == 1 ? Listing.coords(c.cells().get(0)) : c.cells().size() + " cells";
+            case Cells c -> c.items().size() == 1 ? Listing.coords(c.items().get(0).pos()) : c.items().size() + " cells";
         };
     }
 }

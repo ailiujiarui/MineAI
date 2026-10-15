@@ -26,7 +26,6 @@ import com.dwinovo.numen.pathing.search.Searches;
 import com.dwinovo.numen.pathing.search.WorldSnapshot;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.pathing.world.BodyStats;
-import com.dwinovo.numen.pathing.world.Kinematics;
 import com.dwinovo.numen.api.entity.Sight;
 
 import net.minecraft.core.BlockPos;
@@ -210,10 +209,7 @@ public final class Driver {
 
     /** 叫停:在飞的搜索作废,松开所有键(包括潜行),手上正在挖的放下。 */
     public void stop() {
-        if (pending != null) {
-            pending.cancel();
-            pending = null;
-        }
+        abandon();
         rig.keys.releaseAll();
         rig.mouse.release();
         if (state == State.RUNNING) {
@@ -244,18 +240,6 @@ public final class Driver {
             PathLog.info("{} 出水 从 {} 到 {} 憋了 {} 刻 氧气最低 {}/{}", rig.who, PathLog.pos(surfaced.from()),
                     PathLog.pos(surfaced.to()), surfaced.ticks(), surfaced.lowestAir(), surfaced.maxAir());
         }
-        if (rig.entity.isPassenger()) {
-            // 原版按潜行就从载具上下来
-            rig.keys.releaseAll();
-            rig.keys.press(Key.SNEAK);
-            BodyAction.Dismounted dismount = new BodyAction.Dismounted(rig.entity.getVehicle().getType());
-            pendingDismount = dismount;
-            return state;
-        }
-        if (pendingDismount != null) {
-            rig.act(pendingDismount);
-            pendingDismount = null;
-        }
         poll();
         if (state != State.RUNNING) {
             return state;
@@ -274,13 +258,11 @@ public final class Driver {
         if (now) {
             PathLog.debug("{} 恢复推进 {}", rig.who, PathLog.at(rig.entity.position()));
         } else {
-            PathLog.info("{} 不在推进(一秒没挪也没干活) {} {}", rig.who,
-                    step != null ? PathLog.step(step.planned()) : "没有在走的步", PathLog.body(rig.entity));
+            PathLog.info("{} 不在推进(一秒没挪也没干活) {} {} {}", rig.who,
+                    step != null ? PathLog.step(step.planned()) : "没有在走的步", PathLog.body(rig.entity),
+                    PathLog.hands(rig.entity, rig.keys, rig.mouse, step == null ? null : step.working()));
         }
     }
-
-    /** 按了潜行、还没看到身体下来的那次下载具。 */
-    private BodyAction.Dismounted pendingDismount;
 
     private void drive() {
         ServerPlayer body = rig.entity;
@@ -289,6 +271,12 @@ public final class Driver {
             // 没有路,或路走完了还没到:等在飞的搜索,没有就从脚下搜
             hold();
             if (pending == null) {
+                Continuation.Unfound unfound = continuation.unfound();
+                if (unfound != null) {
+                    // 从这条路的终点接着搜过,没有路线:从脚下再搜是同一次搜索
+                    giveUp(unfound.result(), unfound.search());
+                    return;
+                }
                 if (node == null) {
                     // 脚下待不住:朝旁边待得住的节点挪,挪了一阵还不行就收场
                     if (++stranded > STRANDED_TICKS) {
@@ -331,7 +319,8 @@ public final class Driver {
             for (int i = course.cur() + 1; planned.submerged() && i < course.size() && course.at(i).submerged(); i++) {
                 diving.add(course.at(i));
             }
-            step = new Step(rig, planned, course.ahead(Continuation.TAIL - 1), diving, goal, spec, watchdog);
+            step = new Step(rig, course.cur() > 0 ? course.at(course.cur() - 1) : null, planned, course.ahead(Continuation.TAIL - 1), diving,
+                    goal, spec, watchdog);
         }
         Beat beat = step.tick();
         switch (beat) {
@@ -396,10 +385,18 @@ public final class Driver {
                 if (step != null) {
                     step.finish(node);
                 }
+                // 冲劲可能把身体带过了几步:这一路的刻数按各步几何最短耗时的比例分给走完的每一步
+                double shortest = 0;
+                for (int k = course.cur(); k < advanced.to(); k++) {
+                    shortest += course.minimumAt(k);
+                }
                 for (int k = course.cur(); k < advanced.to(); k++) {
                     Maneuver walked = course.at(k);
                     rig.ledger.stepped(walked.kind());
                     recovery.walked(walked);
+                    if (step != null) {
+                        rig.journal.timed(walked.kind(), watchdog.stepTicks() * course.minimumAt(k) / shortest, course.minimumAt(k));
+                    }
                 }
                 course.advanceTo(advanced.to());
                 step = null;
@@ -518,6 +515,15 @@ public final class Driver {
         pending = Searches.submit(search);
     }
 
+    /** 在飞的搜索不要了:叫停,连它的输入(快照、成本模型)一起放手。 */
+    private void abandon() {
+        if (pending != null) {
+            pending.cancel();
+            pending = null;
+            pendingSearch = null;
+        }
+    }
+
     private void poll() {
         if (pending == null) {
             return;
@@ -526,14 +532,19 @@ public final class Driver {
         if (result == null) {
             return;
         }
+        // 搜索交了结论,它的输入(快照、成本模型)不再由段状态机握着;收场要诊断、接续没搜出来要留的,各自带着
         Search search = pendingSearch;
+        pendingSearch = null;
         logSearch(search, result, pending);
         pending = null;
         if (purpose == Purpose.NEXT) {
             if (continuation.splice(course, result.route(), result.arrived(), minimum())) {
-                partial(result);
+                partial(result, search);
+            } else if (result.route() == null) {
+                continuation.unfound(result, search);
+                PathLog.info("{} 接续段没搜出路线,走到终点 {} 以它的结论收场", rig.who, PathLog.pos(course.end()));
             } else {
-                // 接续段没搜出来:走到终点后从脚下再搜
+                // 接续段的起点不是路线的终点:走到终点后从脚下再搜
                 PathLog.info("{} 接续段接不上,走到终点 {} 再从脚下搜", rig.who, PathLog.pos(course.end()));
             }
             return;
@@ -548,25 +559,30 @@ public final class Driver {
                 course.install(new Route(node, here, List.of()), true, minimum());
                 return;
             }
-            halt(recovery.lastBlockage() != null && result.stop() == SearchResult.Stop.EXHAUSTED
-                    ? new Halt.Blocked(recovery.lastBlockage())
-                    : new Halt.Searched(result.stop(), result.breathless(), search));
+            giveUp(result, search);
             return;
         }
         install(result.route(), result.arrived());
-        partial(result);
+        partial(result, search);
+    }
+
+    /** 一次搜索没交出路线,这一趟就此收场:走不下去之后重搜都走投无路的,是那一步的阻碍;其余是搜索自己的停因。 */
+    private void giveUp(SearchResult result, Search search) {
+        halt(recovery.lastBlockage() != null && result.stop() == SearchResult.Stop.EXHAUSTED
+                ? new Halt.Blocked(recovery.lastBlockage())
+                : new Halt.Searched(result.stop(), result.breathless(), search));
     }
 
     /**
-     * 一次搜索的结论记一行:谁、为什么搜、从哪到哪、规格要点、展开几个节点、在工作线程上跑了多久与排队多久、为什么停、
+     * 一次搜索的结论记一行:谁、为什么搜、从哪到哪、规格要点、展开几个节点、在工作线程上跑了多久(连同 CPU、JIT、回收、每节点的读数,见 {@link PathLog#load})与排队多久、为什么停、
      * 交出的路线;DEBUG 再记一行路线上的每一步。
      */
     private void logSearch(Search search, SearchResult result, Pending<SearchResult> done) {
         Route route = result.route();
         rig.journal.searched(result.stop() == SearchResult.Stop.BUDGET, result.expanded());
-        PathLog.info("{} 搜索 {} {} 去 {} {} 展开 {} 用时 {} 排队 {} 停因 {} {}", rig.who, purpose.label,
+        PathLog.info("{} 搜索 {} {} 去 {} {} 展开 {} 用时 {}({}) 排队 {} 停因 {} {}", rig.who, purpose.label,
                 PathLog.pos(search.start()), search.goal(), PathLog.spec(search.model().spec()), result.expanded(),
-                PathLog.ms(done.ranNanos()), PathLog.ms(done.queuedNanos()), result.stop(),
+                PathLog.ms(done.ranNanos()), PathLog.load(done, result.expanded()), PathLog.ms(done.queuedNanos()), result.stop(),
                 route == null ? "没交出路线" : (result.arrived() ? "到目标 " : "半程 ") + PathLog.route(route));
         if (route != null && PathLog.debugging()) {
             PathLog.debug("{} 路线 {}", rig.who, PathLog.legs(route));
@@ -574,14 +590,13 @@ public final class Driver {
     }
 
     /** 半程路线:连续几段都没让离目标更近({@link Recovery#stalled}),就按那次搜索的停因收场。 */
-    private void partial(SearchResult result) {
+    private void partial(SearchResult result, Search search) {
         if (result.arrived()) {
             return;
         }
-        BlockPos end = result.route().end();
-        if (recovery.stalled(goal.estimate(end.getX(), end.getY(), end.getZ(), Kinematics.pace(rig.snapshot().stats())))) {
+        if (recovery.stalled(result.estimate())) {
             PathLog.info("{} 半程路线连续 {} 段没离目标更近,收场", rig.who, Recovery.STALE_PARTIALS);
-            halt(new Halt.Searched(result.stop(), result.breathless(), pendingSearch));
+            halt(new Halt.Searched(result.stop(), result.breathless(), search));
         }
     }
 
@@ -618,10 +633,7 @@ public final class Driver {
         if (!course.isEmpty()) {
             favoring = Favoring.along(course.route());
         }
-        if (pending != null) {
-            pending.cancel();
-            pending = null;
-        }
+        abandon();
         rig.mouse.release();
         course.clear();
         continuation.reset();
@@ -656,10 +668,7 @@ public final class Driver {
     private void halt(Halt why) {
         halt = why;
         state = State.HALTED;
-        if (pending != null) {
-            pending.cancel();
-            pending = null;
-        }
+        abandon();
         rig.keys.releaseAll();
     }
 

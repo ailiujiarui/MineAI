@@ -86,16 +86,15 @@ public final class MineIron implements Scenario {
         StringBuilder program = new StringBuilder("local found = numen.scan.blocks(\"iron_ore\", {radius = 12})\n");
         program.append("""
                 while #found > 0 do
-                  numen.move.to(found[1], {arrive = "dig", costs = {dig = true, place = true, consent = false}})
                   numen.work.dig(found[1])
                   found = numen.scan.blocks("iron_ore", {radius = 12})
                 end
                 """);
-        // 粗铁落在挖空的矿洞里,有的洞只有一格高、不改地形走不进去(numen.work.collect 不挖不放):站进芯的正中(挖开头顶那格)
+        // 粗铁落在挖空的矿洞里,有的洞只有一格高、走不进去:站进芯的正中(挖开头顶那格)
         // 一圈都捡得到,再把剩下的捡了
         BlockPos core = scene.pos(10, 1, 10);
         program.append("numen.move.to(").append(com.dwinovo.numen.api.sdk.Positions.literal(core))
-                .append(", {costs = {dig = true, place = true, consent = false}})\n");
+                .append(")\n");
         program.append("numen.work.collect()\n");
         return program.toString();
     }

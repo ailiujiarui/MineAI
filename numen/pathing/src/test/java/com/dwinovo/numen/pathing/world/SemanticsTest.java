@@ -152,6 +152,27 @@ class SemanticsTest {
         assertTrue(kinds(Blocks.TURTLE_EGG.defaultBlockState()).contains(Kind.FRAGILE));
     }
 
+    /**
+     * 只问方块状态的掩码({@link Semantics#stateMask})是整格掩码的一部分:凡是不用看邻格的种类(岩浆、危险、机关、易碎、会塌、门……)两边一样,
+     * 空气一律没有任何种类。对注册表里的每一种方块状态逐个核对。
+     */
+    @Test
+    void theMaskThatReadsOnlyTheStateAgreesWithTheWholeMaskOnEveryState() {
+        int needsNeighbours = Semantics.bit(Kind.WATER) | Semantics.bit(Kind.FLOWING_WATER) | Semantics.bit(Kind.CLIMBABLE);
+        int checked = 0;
+        for (BlockState state : net.minecraft.world.level.block.Block.BLOCK_STATE_REGISTRY) {
+            TestWorld world = new TestWorld().set(AT, state);
+            int whole = Semantics.mask(world, AT);
+            int byState = Semantics.stateMask(state);
+            assertEquals(whole & ~needsNeighbours, byState & ~needsNeighbours, state.toString());
+            if (state.isAir()) {
+                assertEquals(0, whole, state.toString());
+            }
+            checked++;
+        }
+        assertTrue(checked > 20_000);
+    }
+
     @Test
     void theBlocksWhoseCollisionFollowsTheWorldOrTheBodyAreNamed() {
         for (BlockState state : new BlockState[] {Blocks.SCAFFOLDING.defaultBlockState(), Blocks.POWDER_SNOW.defaultBlockState(),

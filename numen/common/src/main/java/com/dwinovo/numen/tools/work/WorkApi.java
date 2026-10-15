@@ -23,10 +23,9 @@ import java.util.Optional;
  * {@code numen.work}:采集类的活——挖方块、钓鱼。两个函数都站在原地干,占身体,进任务槽;开始不了的(手够得着的一格都没有、站的地方抛不进
  * 水……)受理之前就当场失败,判据在各自的任务里。
  *
- * <p>{@code dig} 只挖她站在原地手够得着的格,挡在前面的一并挖开,不走动、不捡,收工前等这一挖的掉落物落定、说清各去了哪
- * ({@link DigCompanionTask});{@code fish} 只钓,不走去岸边、不追战果。走到够得着的地方是 {@code numen.move.to(…, {arrive = "dig"})}
- * 的事;捡是库里的 {@code numen.work.collect}:原版玩家走近掉落物就捡起来,所以捡就是走到掉落物跟前——挖完捡的是挖的结果里还落在
- * 地上的那几件。组合交给脚本。
+ * <p>{@code dig} 挖点名的格:手够得着的先挖,够不着的走到够得着剩下最多格的地方再挖,挡在前面的一并挖开,不捡,收工前等这一挖的
+ * 掉落物落定、说清各去了哪({@link DigCompanionTask});{@code fish} 只钓,不走去岸边、不追战果。捡是库里的 {@code numen.work.collect}:
+ * 原版玩家走近掉落物就捡起来,所以捡就是走到掉落物跟前——挖完捡的是挖的结果里还落在地上的那几件。组合交给脚本。
  */
 public final class WorkApi {
 
@@ -42,29 +41,29 @@ public final class WorkApi {
             + "holds that block; a Pos is dug whatever it holds, air and fluid skipped; a Cluster from "
             + "numen.scan.blocks is its blocks.") @Rest List<Target> blocks,
                       @Doc("How many cells to dig at most (up to " + BlockActionOps.MAX_DIG_COUNT + ").")
-                      @Omitted("dig every cell of it within reach") Optional<Integer> count) {}
+                      @Omitted("dig every cell of it") Optional<Integer> count) {}
 
-    /** 点名的几格读成格子的那一步在 {@link BlockActionOps#dig},够不够得着在任务受理之前的准备里判。 */
-    @Fn("Dig the given blocks that are within reach of where you stand.")
+    /** 点名的几格读成格子的那一步在 {@link BlockActionOps#dig},挖不挖得成、够不够得着在任务受理之前的准备里判。 */
+    @Fn("Dig the given blocks, walking up to those out of reach.")
     @Example("numen.work.dig({name = \"minecraft:iron_ore\", pos = {x = 120, y = 12, z = -35}}, "
             + "{name = \"minecraft:iron_ore\", pos = {x = 121, y = 12, z = -35}})")
     @Example("numen.work.dig({x = 120, y = 12, z = -35})")
     @Example("local r = numen.work.dig({{x = 120, y = 64, z = -35}, {x = 120, y = 65, z = -35}}, {count = 1})\n"
             + "print(r.dug, r.left, r.out_of_reach)")
     @Note("A cluster from `numen.scan.blocks` or a Block from `numen.scan.block` goes in as it is.")
-    @Note("Digs only what your hand reaches from where you stand: it never walks and never picks up. Get within reach "
-            + "first with `numen.move.to(cluster, {arrive = \"dig\"})` (it picks the spot that reaches the most cells), "
-            + "dig, and pick up what it dropped: `local r = numen.work.dig({x = 120, y = 12, z = -35}); "
-            + "numen.work.collect({items = r.drops})`; `numen.work.mine(cluster)` does all three until the cluster is "
-            + "gone.")
+    @Note("Digs what your hand reaches from where you stand; what is out of reach it walks to, standing where the hand "
+            + "reaches the most of what is left, and digs on, until all of it is dug or it can't get to the rest. The "
+            + "walk goes its own way like `numen.move.to`, digging and building when going around costs more, and is "
+            + "told in the result. It never picks up: `local r = numen.work.dig({x = 120, y = 12, z = -35}); "
+            + "numen.work.collect({items = r.drops})`; `numen.work.mine(cluster)` does both.")
     @Note("Before it returns it waits up to " + Drops.SETTLE_TICKS / 20 + " seconds for what this dig dropped to "
             + "settle, and says where each went: landed (and where), picked up (and by whom), destroyed (lava, fire, "
             + "a cactus …), fallen into the void, or still moving. Only what it dropped is followed, and only until it "
             + "settles.")
-    @Note("Background work: before it starts it checks something within reach can be dug, harvested with your tools "
-            + "and is allowed; when nothing is, it fails with kind out_of_reach (or denied, failed) and a hint with the "
-            + "numen.move.to call to copy — no task starts and whatever you were doing goes on. It returns when the "
-            + "job ends: how many cells it dug and how many are still out of reach, the nearest of them as a pos.")
+    @Note("Background work: before it starts it checks something can be dug, harvested with your tools and is allowed, "
+            + "within reach or by walking up to it; when nothing is, it fails with kind denied, failed or out_of_reach "
+            + "and says why — no task starts and whatever you were doing goes on. It returns when the job ends: how "
+            + "many cells it dug and how many are still out of reach, the nearest of them as a pos.")
     @Note("A block in the way of your hand is dug open too when it is natural terrain. A block in the way that needs "
             + "your owner's consent or that their rules forbid is not touched: the account names it, where it is and "
             + "why.")

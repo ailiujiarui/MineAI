@@ -27,11 +27,11 @@ public final class Journal {
     /**
      * 一种走法走完的步的用时。
      *
-     * @param steps     走完几步(有时一步没走完身体已落在后面某一步上,这样的不计)
-     * @param ticks     这些步实际共用的刻数
-     * @param estimated 这些步开始时算的几何最短耗时(运动学加挖掘的刻数)共多少刻,也是看护定期限的基数
+     * @param steps     走完几步(冲劲把身体带过几步、落在后面某一步上时,带过的几步也算走完)
+     * @param ticks     这些步实际共用的刻数(一次走完几步的,按各步最短耗时的比例分)
+     * @param estimated 这些步的几何最短耗时(运动学加挖掘的刻数)共多少刻
      */
-    public record Timing(int steps, int ticks, double estimated) {}
+    public record Timing(int steps, double ticks, double estimated) {}
 
     /** 一次搜索有了结论;{@code budgetStop} 是它因节点预算停下(交出半程路线,接着再搜),{@code expanded} 是它展开了几个节点。 */
     void searched(boolean budgetStop, int expanded) {
@@ -62,8 +62,8 @@ public final class Journal {
         rechecks++;
     }
 
-    /** 一步 {@code kind} 走完:实际用了 {@code ticks} 刻,开始时算的最短耗时是 {@code estimated} 刻。 */
-    void timed(MoveKind kind, int ticks, double estimated) {
+    /** 一步 {@code kind} 走完:实际用了 {@code ticks} 刻,几何最短耗时是 {@code estimated} 刻。 */
+    void timed(MoveKind kind, double ticks, double estimated) {
         timings.merge(kind, new Timing(1, ticks, estimated),
                 (a, b) -> new Timing(a.steps + b.steps, a.ticks + b.ticks, a.estimated + b.estimated));
     }

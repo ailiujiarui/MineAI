@@ -96,8 +96,7 @@ public final class BuildOps {
                        @Doc("Up to " + LISTED_DIG + " cells holding another block to dig out first, nearest first.")
                        List<BlockPos> dig,
                        @Doc("Out of reach.") int far,
-                       @Doc("The lowest, then nearest, of those out of reach: numen.move.to(d.next, {arrive = "
-                               + "\"place\"}) gets within reach of it.") Optional<BlockPos> next,
+                       @Doc("The lowest, then nearest, of those out of reach: numen.build.place walks up to it.") Optional<BlockPos> next,
                        @Doc("Cells holding another block with nothing of yours to put there.") int noStock,
                        @Doc("Cells that would not stay put yet: what holds them (the block below, the wall behind) is "
                                + "not built.") int unheld,

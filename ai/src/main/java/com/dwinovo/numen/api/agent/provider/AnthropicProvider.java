@@ -393,16 +393,6 @@ public class AnthropicProvider implements LlmProvider {
         return new AssistantTurn(acc.content.toString(), calls, extras, acc.reasoning.toString());
     }
 
-    @Override
-    public String extractReasoningDelta(JsonObject chunk) {
-        if (!"content_block_delta".equals(str(chunk, "type"))) return null;
-        if (!chunk.has("delta") || !chunk.get("delta").isJsonObject()) return null;
-        JsonObject delta = chunk.getAsJsonObject("delta");
-        if (!"thinking_delta".equals(str(delta, "type"))) return null;
-        String v = str(delta, "thinking");
-        return v == null || v.isEmpty() ? null : v;
-    }
-
     // ---- 入向:非流式 ----
 
     @Override

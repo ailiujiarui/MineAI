@@ -26,7 +26,6 @@ import com.dwinovo.numen.api.permission.Verdict;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -65,8 +64,7 @@ public final class NavText {
 
     /**
      * 没走到时的那句话:从哪儿、朝哪儿、多远,为什么,下一步能试什么。每一种结局各说各的原因与下一步,走路与各件活
-     * (挖矿、建造……)没走到时都原样说这一句,不另写、不并成一句"到不了"。要改的是这一趟的描述时,下一步写成描述里的那几项
-     * (如 {@code costs = {dig = true, place = true}}),再规划一次。
+     * (挖矿、建造……)没走到时都原样说这一句,不另写、不并成一句"到不了"。
      *
      * @param from      她此刻脚下那一格
      * @param toward    要去的那一格(给人看的方向)
@@ -82,30 +80,29 @@ public final class NavText {
                     + (spec.changes() ? ", digging, bridging and pillaring included" : "")
                     + "): there is no way there from here, pick another destination";
             case Outcome.OutOfBudget budget -> "found no path to target (" + where + "; the search used up its budget"
-                    + " before finding one, so this is not proof there is none; a nearer stop in that direction"
-                    + " gets further)";
+                    + " before finding one, so this is not proof there is none; going to a nearer place in that"
+                    + " direction first gets further)";
             case Outcome.Unloaded unloaded -> "found no path to target (" + where + "; the search reached chunks that"
                     + " are not loaded, so what lies past them is unknown; walk toward it and try again)";
             case Outcome.OverAlterBudget over -> "found no path to target (" + where + "; "
-                    + overBudget(spec.alterBudget(), over.needed()) + "): plan it again with costs = {max_changes = "
-                    + over.needed() + "} to allow it";
-            case Outcome.NeedsChanges needs -> needsChanges(needs, spec, where);
+                    + overBudget(spec.alterBudget(), over.needed()) + ")";
+            case Outcome.NeedsChanges needs -> needsChanges(needs, where);
             case Outcome.NoMaterials none -> "found no path to target (" + where + "; every way needs blocks to"
                     + " pillar or bridge with)." + ThrowawayBlocks.shortageAdvice(player, materials);
             case Outcome.Denied denied when denied.reason() instanceof CompanionHands.Withheld withheld ->
                     "had to stop: changing " + Listing.coords(denied.cell()) + " is unresolved ("
                             + withheld.verdict().reason() + "); nothing was done — try again, or ask your owner";
             case Outcome.Denied denied -> "had to stop: changing " + Listing.coords(denied.cell()) + " is refused ("
-                    + reason(denied.reason()) + "); that is not mine to get around, so plan a way that keeps out of it"
-                    + " (avoid = {" + com.dwinovo.numen.api.sdk.LuaCodecs.literal(denied.cell()) + "}) or ask your owner";
+                    + reason(denied.reason()) + ") and no way around it was found; pick another destination, or ask "
+                    + "your owner to allow it";
             case Outcome.Stranded stranded -> "can't set off: I can't stand where I am (" + name(stranded.block())
                     + " at " + Listing.coords(stranded.cell()) + "); free me first (break that block: `numen.work.dig("
                     + com.dwinovo.numen.api.sdk.LuaCodecs.literal(stranded.cell()) + ")`) or wait until I land";
             case Outcome.Blocked blocked -> "gave up: " + blockage(blocked.blockage())
                     + "; try again, and pick another destination if it keeps failing";
             case Outcome.NoLineOfSight sight -> "arrived, but " + Listing.coords(sight.target())
-                    + " went out of sight after the walk was planned (something now stands in between); "
-                    + gotoCall(Place.cell(sight.target()), "arrive = \"use\"") + " again picks a spot that sees it";
+                    + " went out of sight after the walk was planned (something now stands in between): dig what is in"
+                    + " the way with `numen.work.dig`, or use it from another side";
             case Outcome.Breathless b -> "found no path to target (" + where + "; the way there swims under water"
                     + " from " + Listing.coords(b.from()) + " to " + Listing.coords(b.to()) + " with no air on the way,"
                     + " about " + seconds(b.held()) + " without a breath, longer than I can safely hold mine now (about "
@@ -115,27 +112,14 @@ public final class NavText {
     }
 
     /**
-     * 这一趟的描述不许的改动,有了才有路:那条路要改什么,描述里该改哪几项——诊断为找出这条路打开了哪几样就说哪几样(挖与放
-     * 一起打开,要问主人的格算能走)。只点那条路用到的一样不行:诊断设想身上有料,只许放的计划在没料时仍然走不通。
+     * 这一趟不改地形走不到,改了才有路:那条路要改什么。不改地形的只有少数几件活(逃跑、追打),模型自己走的 {@code numen.move.to}
+     * 可挖可搭;要问主人的格走到跟前才问。
      */
-    private static String needsChanges(Outcome.NeedsChanges needs, RouteSpec spec, String where) {
-        List<String> knobs = new ArrayList<>();
-        if (!spec.dig()) {
-            knobs.add("dig = true");
-        }
-        if (!spec.place()) {
-            knobs.add("place = true");
-        }
-        boolean asking = needs.asks() && !spec.consent();
-        if (asking) {
-            knobs.add("consent = " + (int) RouteSpec.CONSENT_MULTIPLIER);
-        }
-        String what = knobs.size() == 1 && asking ? "touching what needs the owner's consent"
-                : "changing terrain";
-        return "found no path to target without " + what + " (" + where + "; a way exists that changes "
-                + needs.alterations() + " block(s) — " + planned(needs.changes()) + "): plan it again with costs = {"
-                + String.join(", ", knobs) + "}"
-                + (needs.asks() ? "; walking it asks your owner when I get to each of those cells" : "");
+    private static String needsChanges(Outcome.NeedsChanges needs, String where) {
+        return "found no path to target without changing terrain (" + where + "; a way exists that changes "
+                + needs.alterations() + " block(s) — " + planned(needs.changes()) + "): this job walks without "
+                + "changing terrain, `numen.move.to` takes such a way" + (needs.asks()
+                ? " and asks your owner when I get to each of the cells that need consent" : "");
     }
 
     /** 刻数说成秒:{@code 14 s},不足一秒说 {@code under 1 s}。憋气的几处(回执、结局、计划)都这么说。 */
@@ -150,12 +134,12 @@ public final class NavText {
 
     /** 预算内无路:两处回执共用,数字口径一致。 */
     public static String overBudget(int budget, int cheapest) {
-        return String.format("no route within max_changes = %d (the cheapest found would change %d blocks)",
+        return String.format("no route within a budget of %d changed blocks (the cheapest found would change %d)",
                 budget, cheapest);
     }
 
     /** 许可或动手时被拒的理由:权限层的裁决说它自己的话,别的(服务端退回)照实说。 */
-    private static String reason(Object refusal) {
+    static String reason(Object refusal) {
         Verdict verdict = switch (refusal) {
             case Verdict v -> v;
             case Mouse.Refusal r -> r.verdict();
@@ -245,10 +229,12 @@ public final class NavText {
      * I also stepped off the boat. I went under water once: 12 s without a breath from 10,40,5 to 20,40,5, air down to
      * 60/300.}
      */
-    public static String journey(List<EditLedger.Entry> entries, List<BodyAction> actions, List<DiveLog.Dive> dives) {
+    public static String journey(List<EditLedger.Entry> entries, List<BodyAction> actions, List<DiveLog.Dive> dives,
+                                 List<Ruling> rulings) {
         String edits = edits(entries);
         String done = actions(actions);
         String under = dives(dives);
+        String refused = refusals(rulings);
         StringBuilder sb = new StringBuilder();
         if (!edits.isEmpty()) {
             sb.append("En route I had to ").append(edits).append('.');
@@ -259,7 +245,24 @@ public final class NavText {
         if (!under.isEmpty()) {
             sb.append(sb.length() > 0 ? " " : "").append(under);
         }
+        if (!refused.isEmpty()) {
+            sb.append(sb.length() > 0 ? " " : "").append(refused);
+        }
         return sb.toString();
+    }
+
+    /**
+     * 路上被拒的:要改而没让改的格与谁怎么说的。例如 {@code Refused on the way: break oak_planks at 4,5,6 (your owner: no).}
+     * 没有被拒的是空串;答应了的另在主人点头的那一句里。
+     */
+    static String refusals(List<Ruling> rulings) {
+        List<String> parts = new ArrayList<>();
+        for (Ruling ruling : rulings) {
+            if (!ruling.allowed()) {
+                parts.add(ruling.what() + " at " + Listing.coords(ruling.pos()) + " (" + ruling.by() + ")");
+            }
+        }
+        return parts.isEmpty() ? "" : "Refused on the way: " + String.join("; ", parts) + ".";
     }
 
     /**
@@ -282,8 +285,27 @@ public final class NavText {
                 + longest.maxAir() + ".";
     }
 
-    /** 实际账的正文:挖掉的、放下的、倒下的液体与收回的,各按方块归堆。空账是空串。 */
-    static String edits(List<EditLedger.Entry> entries) {
+    /** 实际账按方块归堆:挖掉的、放下的、倒下的液体、收回的。 */
+    record Tally(Map<Block, List<BlockPos>> broke, Map<Block, List<BlockPos>> placed, Map<Block, List<BlockPos>> poured,
+                 Map<Block, List<BlockPos>> scooped) {
+
+        /** 挖了几格。 */
+        int dugCount() {
+            return count(broke);
+        }
+
+        /** 放下几格(倒下又收回的水不算)。 */
+        int placedCount() {
+            return count(placed);
+        }
+
+        private static int count(Map<Block, List<BlockPos>> heaps) {
+            return heaps.values().stream().mapToInt(List::size).sum();
+        }
+    }
+
+    /** 把实际账归堆。 */
+    static Tally tally(List<EditLedger.Entry> entries) {
         Map<Block, List<BlockPos>> broke = new LinkedHashMap<>();
         Map<Block, List<BlockPos>> placed = new LinkedHashMap<>();
         Map<Block, List<BlockPos>> poured = new LinkedHashMap<>();
@@ -299,18 +321,24 @@ public final class NavText {
                 }
             }
         }
+        return new Tally(broke, placed, poured, scooped);
+    }
+
+    /** 实际账的正文:挖掉的、放下的、倒下的液体与收回的,各按方块归堆。空账是空串。 */
+    static String edits(List<EditLedger.Entry> entries) {
+        Tally tally = tally(entries);
         List<String> parts = new ArrayList<>();
-        if (!broke.isEmpty()) {
-            parts.add("break " + heaps(broke));
+        if (!tally.broke().isEmpty()) {
+            parts.add("break " + heaps(tally.broke()));
         }
-        if (!placed.isEmpty()) {
-            parts.add("place " + heaps(placed));
+        if (!tally.placed().isEmpty()) {
+            parts.add("place " + heaps(tally.placed()));
         }
-        if (!poured.isEmpty()) {
-            parts.add("pour " + heaps(poured) + " to break a fall");
+        if (!tally.poured().isEmpty()) {
+            parts.add("pour " + heaps(tally.poured()) + " to break a fall");
         }
-        if (!scooped.isEmpty()) {
-            parts.add("scoop " + heaps(scooped) + " back into the bucket");
+        if (!tally.scooped().isEmpty()) {
+            parts.add("scoop " + heaps(tally.scooped()) + " back into the bucket");
         }
         return andJoined(parts);
     }
@@ -328,7 +356,6 @@ public final class NavText {
 
     private static String action(BodyAction action) {
         return switch (action) {
-            case BodyAction.Dismounted d -> "stepped off the " + EntityType.getKey(d.vehicle()).getPath();
             case BodyAction.Held h when h.item() == Items.AIR -> "put away what was in my hand";
             case BodyAction.Held h when h.from() == Hotbar.OFFHAND -> "swapped " + item(h.item())
                     + " from my offhand into my hand";
@@ -448,12 +475,14 @@ public final class NavText {
         return String.join(", ", parts.subList(0, parts.size() - 1)) + " and " + parts.get(parts.size() - 1);
     }
 
-    /**
-     * 一句能照抄的去一处,带反引号:{@code `numen.move.to({x = 1, y = 2, z = 3}, {arrive = "use"})`};{@code options} 是路线描述里的那几项,
-     * 可以为空。
-     */
-    public static String gotoCall(Place to, String options) {
-        return "`numen.move.to(" + com.dwinovo.numen.api.sdk.LuaCodecs.literal(to) + (options.isEmpty() ? "" : ", {" + options + "}") + ")`";
+    /** 一句能照抄的去一处,带反引号:{@code `numen.move.to({x = 1, y = 2, z = 3})`}。 */
+    public static String gotoCall(Place to) {
+        return "`" + com.dwinovo.numen.api.sdk.Call.of("numen.move.to", to) + "`";
+    }
+
+    /** 一句能照抄的走到离一处不超过 {@code distance} 格:{@code `numen.move.to({x = 1, y = 2, z = 3}, 2)`}。 */
+    public static String gotoCall(Place to, int distance) {
+        return "`" + com.dwinovo.numen.api.sdk.Call.of("numen.move.to", to, distance) + "`";
     }
 
     public static String name(BlockState state) {

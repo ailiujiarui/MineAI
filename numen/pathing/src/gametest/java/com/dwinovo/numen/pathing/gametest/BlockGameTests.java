@@ -230,4 +230,21 @@ public class BlockGameTests {
                 })
                 .arrives();
     }
+
+    /**
+     * 开着的活板门的薄板贴着落点那一格靠起步一侧的边(板宽 3/16),起步的下半砖顶面比地面高半格,板顶又比半砖高半格:迈下去时脚先踩上
+     * 板顶,要走到落点中心(身子的另一侧离开板的内沿只剩 1/80 格)才踩得到地。到了落点这一格却还踩在板上,不是走完了这一步。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 500)
+    public static void steps_down_off_an_open_trapdoor_edge_onto_the_floor(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.set(4, 1, 5, slab(SlabType.BOTTOM));
+        t.set(5, 1, 5, trapdoor(Blocks.OAK_TRAPDOOR, Direction.EAST, Half.BOTTOM, true));
+        TestBody body = t.body(4, 2, 5);
+        t.go(body, Goals.at(t.at(5, 1, 5)), RouteSpec.defaults()).within(60).arrives().then(r -> {
+            if (Math.abs(r.body.getY() - t.at(5, 1, 5).getY()) > 0.01) {
+                throw new GameTestAssertException("该落在地上,却踩在板上:脚高 " + r.body.getY());
+            }
+        });
+    }
 }

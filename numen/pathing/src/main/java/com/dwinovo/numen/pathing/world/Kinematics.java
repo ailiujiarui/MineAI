@@ -89,6 +89,11 @@ public final class Kinematics {
         return distance;
     }
 
+    /** 平地一直按前进键,疾跑({@code sprinting})或平走时每刻加的速度。 */
+    public static double pushAcceleration(BodyStats body, boolean sprinting) {
+        return groundAcceleration(body.movementSpeed() * (sprinting ? SPRINT_MULTIPLIER : 1), DEFAULT_FRICTION);
+    }
+
     /** 平地疾跑稳态的速度(格每刻)。 */
     public static double sprintSpeed(BodyStats body) {
         return steadyStride(body.movementSpeed() * SPRINT_MULTIPLIER, DEFAULT_FRICTION);
@@ -230,6 +235,41 @@ public final class Kinematics {
         return 1 / CLIMB_DOWN_SPEED;
     }
 
+    // ==================== 走出边沿 ====================
+
+    /**
+     * 地上沿前进方向走向支撑的边沿,走出去落下 {@code drop} 格,落地那一刻身体中心在哪(沿前进方向,离此刻的位置多远;包括落地那一刻
+     * 自己的水平挪动——原版先处理竖直方向落到地上,再接着水平挪,落在边上的会被这一挪带出支撑):地上这一刻挪 {@code move},之后
+     * 每刻先乘惯性({@link #groundDrag})再加 {@code groundAccel}(按着前进键是 {@link #groundAcceleration},松着为 0),挪过
+     * {@code toEdge} 就离了地;空中每刻加 {@code airAccel}(按着前进键是 {@link #airAcceleration},松着为 0)再乘阻力({@link #AIR_DRAG}),
+     * 直到落下 {@code drop} 格({@link #ticksToLand},从站着时的竖直速度起)。步态与走出边沿的控制拿它预判落点:冲出去太快就落过了落点那一列。
+     *
+     * @param move   这一刻身体会挪的距离:上一刻留下的速度加这一刻按键的加速度
+     * @param toEdge 身体中心此刻离"身子整个离开支撑"那一点的距离(整块的边沿是半格加半个身宽)
+     * @return 松着键滑不到边沿就停住了为 NaN
+     */
+    public static double dropLanding(double gravity, double toEdge, double move, double groundAccel, double airAccel, double drop) {
+        double drag = groundDrag(DEFAULT_FRICTION);
+        double x = 0;
+        double m = move;
+        while (x + m < toEdge) {
+            x += m;
+            m = m * drag + groundAccel;
+            if (m < REST) {
+                return Double.NaN;
+            }
+        }
+        x += m;
+        double v = m * drag;
+        int air = ticksToLand(drop, -gravity * VERTICAL_DRAG, 0, gravity, 200);
+        for (int t = 0; t < air; t++) {
+            v += airAccel;
+            x += v;
+            v *= AIR_DRAG;
+        }
+        return x;
+    }
+
     // ==================== 几步合起来的几何 ====================
 
     /** 走到边沿并迈出去开始下落:半格走到边,再让身体离开边沿(半个身宽),按平走的步速。 */
@@ -242,49 +282,31 @@ public final class Kinematics {
         return (0.5 - body.width() / 2) * walkTicksPerBlock(body);
     }
 
-    // ==================== 估价的下界 ====================
-
     /**
-     * 搜索估价用的几个价钱(刻),都是这具身体各种走法里真实耗时的下界,见 {@link #pace}。
-     *
-     * @param walk  平地走一格(权衡以它为单位,不进估价)
-     * @param sprint 水平每格:各种走法里最快的,疾跑一格
-     * @param rise  往上升每格节点最少多少刻
-     * @param drop  往下落每格节点最少多少刻
+     * 落到地上的耗时:自由下落 {@code drop} 格,至少要走回落点那一列的中心({@link #centerAfterFallTicks})。下一级、下落、斜着下一级、
+     * 向下挖的落地都是它;估价拿它给往下落的步子定下界。
      */
-    public record Pace(double walk, double sprint, double rise, double drop) {
-
-        /**
-         * 水平挪 {@code horizontal} 格(八方向距离)、竖直挪 {@code vertical} 格节点(上为正)至少要多少刻。水平与竖直取大者,不相加:
-         * 一步可以同时前进又升降,代价至少是两者中大的那个;一条路线由许多步合成,每步的代价不小于它水平与竖直两项中大的那个,
-         * 总和也就不小于水平总量与竖直总量各自的和中大的那个。
-         *
-         * <p>往上按节点数算(每一步至多升一个节点,见 {@link #pace});往下按米算。节点是脚所在的那一格({@link Footing#cellOf}),
-         * 脚高在格子里可以高到差一点满一格,所以落 {@code n} 个节点,脚至少落 {@code n - 1} 米。
-         */
-        public double estimate(double horizontal, double vertical) {
-            double across = sprint * horizontal;
-            double along = vertical >= 0 ? rise * vertical : drop * Math.max(0, -vertical - 1);
-            return Math.max(across, along);
-        }
+    public static double fallLandingTicks(BodyStats body, double drop) {
+        return Math.max(fallTicks(body.gravity(), drop), centerAfterFallTicks(body));
     }
 
+    // ==================== 估价的底价 ====================
+
     /**
-     * 这具身体的估价价钱。每一项都取各种走法里最小的那个,所以估价不会高过任何一条路线的真实代价:
-     * <ul>
-     *   <li>水平每格:疾跑一格({@link #sprintTicksPerBlock})。平走、潜行、涉水、疾跑跳、爬梯子的水平耗时都不比它短;脚下方块的步速系数只会让
-     *       走得更慢;</li>
-     *   <li>往上每个节点:每种走法定义上一步至多升一个节点(上一级、斜上、跑酷落高一级、垫柱、攀爬、游),其中水平挪动的一步
-     *       至少疾跑一格的耗时,垫柱一步至少一个起跳间隔({@link #JUMP_DELAY} 刻),攀爬一步至少 {@link #climbUpTicksPerBlock};取三者最小。
-     *       半砖、楼梯台阶的上一步脚只抬半格也升一个节点,耗时仍是一步走路,所以不能按"脚抬了多高"算;</li>
-     *   <li>往下每格:自由下落的终速是每刻 {@code 重力 × 0.98 / 0.02},落多高每格都不会比这更快。</li>
-     * </ul>
+     * 搜索估价的水平底价,这具身体各种走法里真实耗时的下界,见 {@link #pace}。估价是"疾跑底价加额外代价下界":底价按水平距离乘
+     * {@code sprint},额外代价(挖、升、降)由搜索按世界另算,价钱都来自这里与成本模型。
+     *
+     * @param walk   平地走一格(权衡以它为单位,不进估价)
+     * @param sprint 水平每格:各种走法里最快的,疾跑一格
+     */
+    public record Pace(double walk, double sprint) {}
+
+    /**
+     * 这具身体的估价底价。水平每格取疾跑一格({@link #sprintTicksPerBlock}):平走、潜行、涉水、疾跑跳、爬梯子的水平耗时都不比它短;
+     * 脚下方块的步速系数只会让走得更慢。
      */
     public static Pace pace(BodyStats body) {
-        double sprint = sprintTicksPerBlock(body);
-        double rise = Math.min(sprint, Math.min(JUMP_DELAY, climbUpTicksPerBlock(body)));
-        double drop = (1 - VERTICAL_DRAG) / (body.gravity() * VERTICAL_DRAG);
-        return new Pace(walkTicksPerBlock(body), sprint, rise, drop);
+        return new Pace(walkTicksPerBlock(body), sprintTicksPerBlock(body));
     }
 
     /**

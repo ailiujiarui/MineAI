@@ -1,11 +1,14 @@
 package com.dwinovo.numen.tools.work;
 
+import com.dwinovo.numen.api.NumenApi;
 import com.dwinovo.numen.api.agent.script.ApiError;
 import com.dwinovo.numen.api.agent.script.ErrorKind;
-import com.dwinovo.numen.api.NumenApi;
-import com.dwinovo.numen.api.entity.NumenPlayer;
-import com.dwinovo.numen.route.Plan;
-import com.dwinovo.numen.route.Plans;
+import com.dwinovo.numen.nav.Walked;
+import com.dwinovo.numen.task.move.Arrival;
+import com.dwinovo.numen.task.move.FollowTaskRecord;
+import com.dwinovo.numen.task.move.MoveToTaskRecord;
+import com.dwinovo.numen.task.move.Where;
+import com.dwinovo.numen.api.sdk.Call;
 import com.dwinovo.numen.api.sdk.Doc;
 import com.dwinovo.numen.api.sdk.EntityRef;
 import com.dwinovo.numen.api.sdk.Example;
@@ -17,22 +20,14 @@ import com.dwinovo.numen.api.sdk.Positional;
 import com.dwinovo.numen.api.sdk.SeeAlso;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import com.dwinovo.numen.api.spectator.OwnerLocation;
-import com.dwinovo.numen.task.move.FollowCompanionTask;
-import com.dwinovo.numen.task.move.FollowTaskRecord;
-import com.dwinovo.numen.task.move.MoveToCompanionTask;
-import com.dwinovo.numen.task.move.MoveToTaskRecord;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 
 /**
- * {@code numen.move}:移动——照一份计划走({@code go}),跟着谁走一阵({@code follow}),从坐着的东西上下来({@code dismount})。
- *
- * <p>{@code go} 只走:计划由 {@code numen.route.plan} 算({@link com.dwinovo.numen.route.Planning}),计划就是它守的承诺,从她此刻
- * 的位置起只改承诺里的格;要问主人的格走到那一格才问。"去一处"是库里的 {@code numen.move.to}:规划、再走,两次 API 调用。驾船也是
- * 计划里写的移动方式({@code mode = "boat"}),{@code go} 不替她决定要不要驾船。
+ * {@code numen.move}:移动——去一处({@code to})、离开某物({@code away})、跟着谁走一阵({@code follow})。三个都是同一套走法
+ * ({@link com.dwinovo.numen.nav.Walking}):默认可挖可搭,只看价钱;能不能动哪一格由权限层在动手那一刻决定,不在这里判。模型只说去哪、
+ * 多近算到,怎么走归寻路。
  */
 public final class MoveApi {
 
@@ -48,48 +43,60 @@ public final class MoveApi {
     private MoveApi() {}
 
     public static void install(NumenApi numen) {
-        numen.api("move", "Moving: walk a plan from numen.route.plan, follow someone for a while, step off what you "
-                + "ride. numen.move.to (library) plans and walks to one place.", MoveApi.class);
+        numen.codec(Where.class, Where.CODEC);
+        numen.api("move", "Moving: go to a place, get away from something, follow someone for a while. They all walk "
+                + "the same way: the cheapest, digging and building only when going around costs more.", MoveApi.class);
     }
 
-    /** 照哪一份计划走。 */
-    public record Go(@Doc("The plan to walk, as numen.route.plan returned it.") Plans.Ref plan) {}
+    /** 去哪儿、多近算到。 */
+    public record To(@Doc("Where: a Pos, a Block, an Entity (where it is now), a Cluster or Cells from a scan (any of its "
+            + "cells), a column {x = …, z = …} or a height {y = …}.") Where where,
+                     @Doc("How close counts as there, in blocks (1-" + Arrival.MAX_RANGE + ").")
+                     @Omitted("stand in it; a Block, an Entity or a Cluster you can't stand in, go beside (within "
+                             + Arrival.BESIDE + " blocks)") @Positional Optional<Integer> distance) {}
 
-    /** 照一份计划走:计划得是这一段程序里算的,而且走得通;守承诺、半路问主人都在任务里。 */
-    @Fn("Walk a plan from numen.route.plan, keeping to it.")
-    @Example("local plan = numen.route.plan({to = {x = 120, y = 64, z = -35}})\nnumen.move.go(plan)")
-    @Note("It only walks the plan: the plan lists every block the walk changes and every cell it asks your owner "
-            + "about, and is a promise — if the way from where you stand now would break, place or ask about any cell "
-            + "it did not list, it does not set off and says which. A plan that can't be walked (ok = false) fails "
-            + "with kind no_path and its why; a plan from an earlier program is gone (not_found): plan again.")
-    @Note("Background work: it returns when the walk ends, with where you stand. Each cell needing your owner's "
-            + "consent is asked about when you get to it: yes, and the walk goes on; no, and it stops there with kind "
-            + "denied — plan again around that cell (avoid it, or costs.consent = false).")
-    @Note("On the way it changes only the cells of the plan; when the world changes so that the way on needs more, it "
-            + "stops and says which. A leg the plan saw only in part is worked out on the way. A through stop is "
-            + "passed without stopping.")
-    @Note("A plan with mode = \"boat\" steers the boat you sit in; a walking plan started in a boat or on a mount "
-            + "steps off first (and says so).")
-    @SeeAlso({"numen.route.plan", "numen.move.to", "numen.move.dismount", "numen.task.stop"})
-    public static Job<MoveToCompanionTask.Walked> go(ServerCall call, Go args) {
-        String id = args.plan().id();
-        Plan plan = Plans.of(call.her()).get(Plans.program(call.callId()), id);
-        if (plan == null) {
-            throw new ApiError(ErrorKind.NOT_FOUND, "plan " + id + " is not one of this program's: a plan is good "
-                    + "only within the program that made it, so plan the walk again",
-                    "numen.move.go(numen.route.plan(spec))");
-        }
-        if (!plan.ok()) {
-            throw new ApiError(ErrorKind.NO_PATH, "plan " + id + " can't be walked: " + plan.why(),
-                    "numen.route.plan(...) again with the description changed where that reason points");
-        }
-        var restored = com.dwinovo.numen.route.WalkCommit.restored(args.plan(), call.isReplay(), plan);
-        var commit = restored != null ? restored : com.dwinovo.numen.route.WalkCommit.of(call.her(), plan);
-        if (!Plans.of(call.her()).inRealm(id, call.her()) || !commit.inRealm(call.her())) {
-            throw new ApiError(ErrorKind.NOT_FOUND, "the saved walk belongs to another world or dimension", null);
-        }
-        return Job.<MoveToCompanionTask.Walked>of(new MoveToTaskRecord(call, plan, commit,
-                restored != null)).replayedAs(commit.lua());
+    @Fn("Walk to a place, digging and building on the way when going around costs more.")
+    @Example("numen.move.to({x = 120, y = 64, z = -35})")
+    @Example("numen.move.to(numen.scan.blocks(\"iron_ore\")[1].nearest.pos)")
+    @Example("numen.move.to(184, 6)")
+    @Example("numen.move.to({x = 120, z = -35})")
+    @Example("numen.move.to({y = 12})")
+    @Note("Background work with an end: it returns when you are there or can't get further, and says how it went: where you "
+            + "stand, how far you still were from where you were heading, how many blocks it broke and placed, what your "
+            + "owner and the rules ruled about the cells it wanted to change. A walk that stops short fails with its "
+            + "reason and the same account in the error's data.")
+    @Note("Without a distance a Pos, a column or a height is stood in (a Pos inside rock is dug into); a Block, an Entity "
+            + "or a Cluster is gone beside. With a distance, within that many blocks of it.")
+    @Note("It walks where it can and digs, bridges or pillars only when going around costs more. Which blocks it may "
+            + "change is your owner's rules to say: cells they forbid are walls to it, cells they ask about cost extra and "
+            + "your owner is asked when the walk gets to one. A cell your owner refuses is a wall for the rest of this "
+            + "walk: it plans around it, and fails with kind denied when there is no way around. It never digs the block "
+            + "under its feet or gravel overhead, never lets liquid in, and takes a drop only as high as your health "
+            + "allows.")
+    @Note("Sitting in a boat, it sails to the water nearest the place; a place on land ends at the shore, still sitting "
+            + "in the boat. Any other vehicle, or a place that is not a Pos or a column, fails at once and names "
+            + "`numen.use.dismount()`: a walk never steps off by itself.")
+    @Note("A Pos, Block or Cluster that can't be stood in, used or reached as asked, or an Entity that is gone, fails "
+            + "at once with the reason and nothing starts.")
+    @SeeAlso({"numen.move.away", "numen.move.follow", "numen.use.dismount", "numen.task.stop"})
+    public static Job<Walked> to(ServerCall call, To args) {
+        return Job.of(new MoveToTaskRecord(call, Arrival.to(args.where(), args.distance().orElse(null))));
+    }
+
+    /** 离开什么、多远。 */
+    public record Away(@Doc("What to get away from: a Pos, a Block, an Entity (where it is now), a Cluster or Cells.")
+                       Where from,
+                       @Doc("How far to get, in blocks (1-" + Arrival.MAX_RANGE + ").") int distance) {}
+
+    @Fn("Walk until you are at least a distance away from something.")
+    @Example("numen.move.away(184, 12)")
+    @Example("numen.move.away({x = 120, y = 64, z = -35}, 8)")
+    @Note("The same walk as `numen.move.to`, with the same account when it ends: it is done once you are that far from "
+            + "every cell of it, and ends there.")
+    @Note("Sitting in a boat or on a mount, it fails at once and names `numen.use.dismount()`.")
+    @SeeAlso({"numen.move.to", "numen.task.stop"})
+    public static Job<Walked> away(ServerCall call, Away args) {
+        return Job.of(new MoveToTaskRecord(call, Arrival.away(args.from(), args.distance())));
     }
 
     /** 跟谁、多近、多久。 */
@@ -109,14 +116,15 @@ public final class MoveApi {
     @Example("numen.move.follow()")
     @Example("numen.move.follow(184, {distance = 5, seconds = 30})")
     @Note("Background work with an end: it returns after seconds (default " + DEFAULT_FOLLOW_SECONDS + "), or when "
-            + "your owner stops it. You go quiet while already beside them.")
+            + "your owner stops it, with the same account of the walk as `numen.move.to`. You go quiet while already "
+            + "beside them.")
     @Note("Following a named entity ends if it dies or leaves the loaded area; following your owner just waits while "
             + "they are offline. When they are already out of reach as you call it, the call is refused with the "
             + "reason and nothing starts.")
-    @Note("Never breaks or places a block. When the only way to them needs digging, bridging or pillaring, it ends "
-            + "with a failure saying so.")
+    @Note("It walks the way `numen.move.to` does: it digs, bridges or pillars to keep up when going around costs more, "
+            + "within what your owner's rules allow, and says so in the account.")
     @SeeAlso({"numen.scan.entities", "numen.move.to", "numen.task.stop"})
-    public static Job<FollowCompanionTask.Followed> follow(ServerCall call, Follow args) {
+    public static Job<Walked> follow(ServerCall call, Follow args) {
         int distance = Math.clamp(args.distance().orElse(DEFAULT_DISTANCE), MIN_DISTANCE, MAX_DISTANCE);
         long ticks = Math.clamp(args.seconds().orElse(DEFAULT_FOLLOW_SECONDS), 1, MAX_FOLLOW_SECONDS) * 20L;
         if (args.entity().isEmpty()) {
@@ -129,35 +137,11 @@ public final class MoveApi {
         // 主人的逻辑站位与摄像机实体可以在不同维度;只跟原站位所在的那一层。
         if (namedOwner && OwnerLocation.of(owner).level() != call.her().serverLevel()) {
             throw new ApiError(ErrorKind.NOT_FOUND, "your owner is in a different dimension",
-                    com.dwinovo.numen.api.sdk.Call.of("numen.status.owner"));
+                    Call.of("numen.status.owner"));
         }
         Entity target = namedOwner ? owner : call.entity(ref);
-        return Job.<FollowCompanionTask.Followed>of(
+        return Job.<Walked>of(
                         new FollowTaskRecord(call, distance, target.getUUID(), target.getName().getString(), ticks))
                 .replayedAs(new Follow(Optional.of(EntityRef.of(target)), args.distance(), args.seconds()));
-    }
-
-    /** {@code numen.move.dismount} 交回的值。 */
-    @Doc("What you stepped off.")
-    public record Dismounted(@Doc("What you stepped off, minecraft:oak_boat.") String vehicle,
-                             @Doc("Where you stand now.") Vec3 pos) {}
-
-    /**
-     * 下来:原版玩家按潜行就从坐着的东西上下来(服务端在骑乘刻里调 {@code stopRiding}),落脚点由原版的下车位置定。这里直接调同一个
-     * {@code stopRiding},结果一样,当场就有;下来了什么、站在哪照实交回。
-     */
-    @Fn("Step off the boat, minecart or mount you ride, as a player does with sneak.")
-    @Example("numen.move.dismount()")
-    @Note("Instant. Riding nothing fails with kind failed. Vanilla puts you down beside it, where there is room.")
-    @SeeAlso("numen.move.go")
-    public static Dismounted dismount(ServerCall call) {
-        NumenPlayer her = call.her();
-        Entity vehicle = her.getVehicle();
-        if (vehicle == null) {
-            throw new ApiError(ErrorKind.FAILED, "I am not riding anything", null);
-        }
-        String what = BuiltInRegistries.ENTITY_TYPE.getKey(vehicle.getType()).toString();
-        her.stopRiding();
-        return new Dismounted(what, her.position());
     }
 }

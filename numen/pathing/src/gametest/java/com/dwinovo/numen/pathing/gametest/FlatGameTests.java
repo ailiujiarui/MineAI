@@ -175,25 +175,4 @@ public class FlatGameTests {
         t.go(body, Goals.at(t.at(11, 1, 5)), RouteSpec.defaults())
                 .arrives();
     }
-
-    /** 起步坐在船上:按潜行下船,记进身体动作,再走。 */
-    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 500)
-    public static void steps_off_a_vehicle_first(GameTestHelper helper) {
-        Trial t = new Trial(helper).floor();
-        TestBody body = t.body(5, 1, 5);
-        Boat boat = EntityType.BOAT.create(t.level);
-        net.minecraft.core.BlockPos at = t.at(5, 1, 5);
-        boat.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
-        t.level.addFreshEntity(boat);
-        body.startRiding(boat, true);
-        t.go(body, Goals.at(t.at(11, 1, 5)), RouteSpec.defaults())
-                .then(r -> {
-                    boolean dismounted = r.report.actions().stream().anyMatch(a -> a instanceof BodyAction.Dismounted);
-                    if (!dismounted) {
-                        throw new GameTestAssertException("下了船却没记进身体动作:" + r.report.actions());
-                    }
-                    boat.discard();
-                })
-                .arrives();
-    }
 }

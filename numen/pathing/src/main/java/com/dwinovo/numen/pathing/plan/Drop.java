@@ -110,8 +110,8 @@ final class Drop implements Move {
         boolean wading = Strides.inWater(draft, to);
         double drop = f0 - landing.feetY();
         BlockPos support = landing.support(tx, tz);
-        int damage = Strides.fallDamage(model, draft, landing, support, drop, wading);
-        if (!Strides.bearsLanding(model, landing, wading, drop, damage)) {
+        int damage = model.fallDamage(draft, landing, support, drop, wading);
+        if (!model.bearsLanding(landing, wading, drop, damage)) {
             // 摔不起:身上有水桶就在落点倒一桶水接住,落进水里
             if (!draft.catchFall(to)) {
                 return draft.failure();

@@ -137,7 +137,7 @@ public class TaskControlGameTests {
                 .thenExecute(() -> {
                     helper.assertTrue(status.get().succeeded()
                                     && status.get().reply().contains(walk.task().publicId())
-                                    && status.get().reply().contains("numen.move.go")
+                                    && status.get().reply().contains("numen.move.to")
                                     && status.get().reply().contains("check the furnace"),
                             "task status does not name the walk and the timer: " + status.get().reply());
                     CompanionFactory.despawn(helper.getLevel().getServer(), companion);
@@ -597,7 +597,7 @@ public class TaskControlGameTests {
                                 "a call left unrun does not say why: " + result);
                     }
                     TaskRecord<?> now = CompanionTickDispatcher.currentTaskFor(companion.getUUID());
-                    helper.assertTrue(now != null && now.getToolName().equals("numen.move.go"),
+                    helper.assertTrue(now != null && now.getToolName().equals("numen.move.to"),
                             "the walk is no longer running: " + now);
                     outbox.forget(companion.getUUID());
                     CompanionFactory.despawn(helper.getLevel().getServer(), companion);
@@ -638,15 +638,13 @@ public class TaskControlGameTests {
 
     /**
      * 受理 = 这件活此刻真能开始。先走一段路,受理回执带着任务编号。到了之后她跟着主人(主人不在线,这件活睡着占着槽,到点才收);
-     * 这时派一趟不改地形就没有路的 {@code numen.move.to}——目标在一间封死的木板屋里。计划走不通,{@code numen.move.go} 直接回错误:说要改地形、
-     * 给出描述里要加的那一项,没有任务编号,不发 task_finished;她手上的跟随还是那一件,照旧在跑。
+     * 这时派一趟当场就走不了的 {@code numen.move.to}——目标是一只不存在的实体。直接回错误:说那只实体不在,没有任务编号,不发
+     * task_finished;她手上的跟随还是那一件,照旧在跑。
      */
     @GameTest(template = "floor16", timeoutTicks = 1200, batch = "numen_tasks")
-    public static void a_walk_with_no_clean_route_is_refused_and_the_work_in_hand_goes_on(GameTestHelper helper) {
-        plankRoomAround(helper, 10, 10);
+    public static void a_walk_that_cannot_start_is_refused_and_the_work_in_hand_goes_on(GameTestHelper helper) {
         NumenPlayer companion = spawnAt(helper, "gametest_undeterred", new BlockPos(2, 2, 2), false);
         BlockPos far = helper.absolutePos(new BlockPos(2, 2, 14));
-        BlockPos shut = helper.absolutePos(new BlockPos(10, 2, 10));
         ToolRun walk = lua(companion, "numen.move.to(" + xyz(far) + ")");
         AtomicReference<ToolRun> follow = new AtomicReference<>();
         AtomicReference<ToolRun> blocked = new AtomicReference<>();
@@ -666,16 +664,15 @@ public class TaskControlGameTests {
                 .thenExecute(() -> follow.set(lua(companion, "numen.move.follow()")))
                 .thenWaitUntil(() -> helper.assertTrue(follow.get().accepted(),
                         "following was not accepted: " + follow.get().reply()))
-                .thenExecute(() -> blocked.set(lua(companion, "numen.move.to(" + xyz(shut) + ")")))
+                .thenExecute(() -> blocked.set(lua(companion, "numen.move.to(999999)")))
                 .thenWaitUntil(() -> helper.assertTrue(blocked.get().done(), "the blocked walk has not replied"))
                 .thenExecute(() -> {
                     ToolRun refused = blocked.get();
-                    helper.assertTrue(refused.refused(), "a walk with no clean route was accepted: " + refused.reply());
+                    helper.assertTrue(refused.refused(), "a walk to nothing was accepted: " + refused.reply());
                     String reply = refused.outcome();
                     Constants.LOG.info("[numen-task] numen.move.to refused -> {}", reply);
-                    helper.assertTrue(reply.contains("without changing terrain") && reply.contains("costs = {dig = true, place = true}")
-                                    && !reply.contains("task_id"),
-                            "the refusal does not say why and what to change, or carries a task id: " + reply);
+                    helper.assertTrue(reply.contains("no entity with id 999999") && !reply.contains("task_id"),
+                            "the refusal does not say why, or carries a task id: " + reply);
                     TaskRecord<?> inHand = CompanionTickDispatcher.currentTaskFor(companion.getUUID());
                     helper.assertTrue(inHand == follow.get().task() && inHand.getState() == TaskState.RUNNING,
                             "the refused call interrupted the work in hand: " + inHand);
@@ -714,8 +711,7 @@ public class TaskControlGameTests {
                 .thenExecute(() -> {
                     helper.assertTrue(dig.refused(), "a dig with nothing diggable was accepted: " + dig.reply());
                     Constants.LOG.info("[numen-task] work dig refused -> {}", dig.reply());
-                    helper.assertTrue(dig.outcome().contains("1 cell(s) of " + xyz(bedrock)
-                                    + " within my reach can't be broken here"),
+                    helper.assertTrue(dig.outcome().contains("bedrock at ") && dig.outcome().contains("can't be dug: it can't be broken"),
                             "the refusal does not say the block can't be broken: " + dig.reply());
                     helper.assertTrue(CompanionTickDispatcher.currentTaskFor(companion.getUUID()) == null,
                             "the refused dig reached the task slot");

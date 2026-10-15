@@ -1,6 +1,9 @@
 package com.dwinovo.numen.tools.interact;
 
 import com.dwinovo.numen.api.NumenApi;
+import com.dwinovo.numen.api.agent.script.ApiError;
+import com.dwinovo.numen.api.agent.script.ErrorKind;
+import com.dwinovo.numen.api.entity.NumenPlayer;
 import com.dwinovo.numen.task.MouseButton;
 import com.dwinovo.numen.tools.BlockActionOps;
 import com.dwinovo.numen.tools.Clicks;
@@ -16,18 +19,21 @@ import com.dwinovo.numen.api.sdk.Pending;
 import com.dwinovo.numen.api.sdk.SeeAlso;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 
 /**
  * {@code numen.use}:像玩家那样点世界——右键一格(打开它就交回那个界面)、对着前方用手里的东西、右键一只实体、左键点一格或一只实体一下,
- * 上床。打开之后在界面里搬东西是 {@code gui} 那一组。
+ * 上床、从坐着的东西上下来。打开之后在界面里搬东西是 {@code gui} 那一组。
  *
- * <p>按键是有界短活(经 {@link ServerCall#sync}),动手前各自把动作交给权限层;上床当场回。按键都站在原地按:目标得在手够得着、看得见的
- * 地方,不然当场失败,说清先走过去({@code numen.move.to})。对准一格和不对准任何东西是两件事,拆成 {@code block} 与 {@code item}。右键是
- * "用"这一组的本义,左键一下是 {@code hit};把一格挖下来是 {@code numen.work.dig}。上床放在这一组:原版里睡觉就是用一张床。
+ * <p>按键经 {@link ServerCall#sync},动手前各自把动作交给权限层;上床当场回。目标得在手够得着、看得见的地方才按,够不着先走到能按的
+ * 地方({@code InReachTask} 的走过去,到达目标是动作自己那一处的)。对准一格和不对准任何东西是两件事,拆成 {@code block} 与
+ * {@code item}。右键是"用"这一组的本义,左键一下是 {@code hit};把一格挖下来是 {@code numen.work.dig}。上床放在这一组:原版里睡觉就是
+ * 用一张床。
  */
 public final class UseApi {
 
@@ -38,7 +44,7 @@ public final class UseApi {
 
     public static void install(NumenApi numen) {
         numen.api("use", "Clicking the world like a player: right-click a block (opening its window) or an entity, use "
-                + "what you hold, hit something once, get into bed.", UseApi.class);
+                + "what you hold, hit something once, get into bed, step off what you ride.", UseApi.class);
     }
 
     /** 右键一格。 */
@@ -48,7 +54,7 @@ public final class UseApi {
                         @Doc("An item from your inventory to take in hand first, e.g. minecraft:bone_meal.")
                         @Omitted("use what you hold") Optional<Item> item,
                         @Doc("Hold sneak while pressing, as a player holds Shift and clicks; while riding, that steps "
-                                + "you off first (numen.move.dismount() does just that).")
+                                + "you off first (numen.use.dismount() does just that).")
                         @Omitted("press standing") Optional<Boolean> sneak) {}
 
     @Fn("Aim at a block, fluid or air cell within reach and right-click it: the full native click. When it opens a "
@@ -62,9 +68,9 @@ public final class UseApi {
             + "right-click: aiming at water with a bucket scoops it, with a boat places it.")
     @Note("With sneak = true and something in hand, a right click skips what the aimed block itself does: a block "
             + "goes onto a chest instead of opening it.")
-    @Note("It does NOT travel: you must already be within working reach (~4.5 blocks) of the aim point; "
-            + "`numen.move.to({x = 120, y = 64, z = -35}, {arrive = \"use\"})` stands you where one of its faces is in "
-            + "sight and in reach. Farther away it fails and names that call.")
+    @Note("Out of working reach (~4.5 blocks) of the aim point, it first walks to where one of its faces is in sight and in "
+            + "reach, then clicks; the walk digs and builds its own way like `numen.move.to` and is told in the result. "
+            + "A walk that can't get there fails with its reason and nothing is clicked.")
     @Note("It is a bare key press: whatever you hold is what is used, and the block the crosshair lands on is the one "
             + "clicked — if something else is in the way (tall grass in front of a chest, a leaf), that is what gets "
             + "clicked, and the result says so and names the next step. It never moves, never swaps tools, never "
@@ -107,10 +113,10 @@ public final class UseApi {
             + "it returns that Window.")
     @Example("numen.use.entity(812, {item = \"minecraft:shears\"})")
     @Example("numen.use.entity(812, {sneak = true})")
-    @Note("It does NOT travel: an entity farther than your reach, or behind a wall, fails with where it is and the "
-            + "numen.move.to call to copy. numen.scan.entities gives its cell.")
-    @Note("Right on a boat or rideable boards it: runtime_state then shows <riding>; a plan with mode = \"boat\" "
-            + "steers it, numen.move.dismount() steps off. Never click your own vehicle again.")
+    @Note("An entity farther than your reach, or behind a wall, is walked up to first, then clicked; the walk is told in "
+            + "the result and a walk that can't get there fails with its reason.")
+    @Note("Right on a boat or rideable boards it: runtime_state then shows <riding>; `numen.move.to` sails a boat "
+            + "across water, numen.use.dismount() steps off. Never click your own vehicle again.")
     @SeeAlso({"numen.use.block", "numen.use.hit"})
     public static Pending<Clicks.Pressed> entity(ServerCall call, OnEntity args) {
         return call.sync(BlockActionOps.interactEntity(call, MouseButton.RIGHT, idOf(call, args.entity()),
@@ -126,8 +132,8 @@ public final class UseApi {
     @Example("numen.use.hit(812)")
     @Note("One press, never held: a block that takes several hits to break is only hit once — `numen.work.dig` breaks "
             + "blocks (best tool, the way cleared); `numen.fight.attack` fights.")
-    @Note("It does NOT travel: the target must be within reach and in sight of where you stand; otherwise it fails "
-            + "with the numen.move.to call to copy.")
+    @Note("A target out of reach or out of sight is walked up to first, then hit; a walk that can't get there fails "
+            + "with its reason and nothing is hit.")
     @Note("Hitting your owner's blocks, pets, named mobs or villagers asks your owner first; the call waits for the "
             + "answer.")
     @SeeAlso({"numen.use.block", "numen.use.entity"})
@@ -158,13 +164,36 @@ public final class UseApi {
     @Example("numen.use.sleep()")
     @Example("numen.use.sleep({at = {x = 120, y = 64, z = -35}})")
     @Note("It does NOT travel: find a bed with `numen.scan.blocks(\"#minecraft:beds\")` (that one tag covers every "
-            + "colour), `numen.move.to({x = 120, y = 64, z = -35}, {arrive = \"use\"})` with its coordinates, then call "
-            + "this.")
+            + "colour), `numen.move.to({x = 120, y = 64, z = -35}, 2)` with its coordinates, then call this.")
     @Note("Succeeds only when the server confirms you are sleeping; otherwise it hands back Minecraft's own reason. "
             + "\"Only at night\" means wait (`numen.task.timer`), not retry; \"too far away\" means numen.move.to.")
     @Note("Returns the moment you lie down; night passes on its own.")
     @SeeAlso("numen.task.timer")
     public static SleepOps.Slept sleep(ServerCall call, Sleep args) {
         return SleepOps.sleep(args.at().orElse(null), call.her());
+    }
+
+    /** {@code numen.use.dismount} 交回的值。 */
+    @Doc("What you stepped off.")
+    public record Dismounted(@Doc("What you stepped off, minecraft:oak_boat.") String vehicle,
+                             @Doc("Where you stand now.") Vec3 pos) {}
+
+    /**
+     * 下来:原版玩家按潜行就从坐着的东西上下来(服务端在骑乘刻里调 {@code stopRiding}),落脚点由原版的下车位置定。这里直接调同一个
+     * {@code stopRiding},结果一样,当场就有;下来了什么、站在哪照实交回。上载具是 {@code use.entity},下载具同属 {@code use}。
+     */
+    @Fn("Step off the boat, minecart or mount you ride, as a player does with sneak.")
+    @Example("numen.use.dismount()")
+    @Note("Instant. Riding nothing fails with kind failed. Vanilla puts you down beside it, where there is room.")
+    @SeeAlso("numen.use.entity")
+    public static Dismounted dismount(ServerCall call) {
+        NumenPlayer her = call.her();
+        Entity vehicle = her.getVehicle();
+        if (vehicle == null) {
+            throw new ApiError(ErrorKind.FAILED, "I am not riding anything", null);
+        }
+        String what = BuiltInRegistries.ENTITY_TYPE.getKey(vehicle.getType()).toString();
+        her.stopRiding();
+        return new Dismounted(what, her.position());
     }
 }

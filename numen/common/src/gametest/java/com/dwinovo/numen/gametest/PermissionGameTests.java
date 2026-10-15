@@ -93,54 +93,9 @@ public class PermissionGameTests {
     private static final BlockPos WEST_INSIDE = new BlockPos(6, 2, 7);
 
     /**
-     * 把要问主人的格当墙({@code consent = false}):主人的屋子,许挖许放。没有路;回执说把要问的格算能走才有路、要改几格,给出旋钮的
-     * 写法。照它不当墙再规划:计划列出那几格(asks)。墙一块不少,她还在屋里,没有弹过一张卡——规划不问主人,问只在走到那一格时。
-     */
-    @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_permission")
-    public static void a_walk_that_walls_off_consent_cells_names_them_without_asking(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        ownersRoom(helper, 7, 7);
-        int planksBefore = plankCount(helper, 7, 7);
-        NumenPlayer companion = spawnAt(helper, "gametest_lodger", new BlockPos(7, 2, 7), false);
-        net.minecraft.server.level.ServerPlayer owner = presentOwner(helper, companion, "gametest_landlord");
-        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 7));
-        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ", {costs = {dig = true, place = true, consent = false}})");
-        boolean[] asked = new boolean[1];
-        helper.onEachTick(() -> asked[0] |= desk(companion).pending() != null);
-        ToolRun[] plan = new ToolRun[1];
-
-        steps(helper)
-                .thenWaitUntil(() -> helper.assertTrue(walk.done(), "the walk has not replied"))
-                .thenExecute(() -> {
-                    String reply = walk.receipt();
-                    helper.assertTrue(!walk.ranToTheEnd() && "no_path".equals(walk.kind()),
-                            "the walk through the owner's wall was accepted: " + reply);
-                    helper.assertTrue(reply.contains("owner's consent") && reply.contains("costs = {consent = 10}"),
-                            "the refusal does not say it needs the owner's consent and how to allow it: " + reply);
-                    plan[0] = lua(companion, "local p = numen.route.plan({to = " + xyz(target) + ", costs = {dig = true, "
-                            + "place = true}})\nreturn {ok = p.ok, asks = p.legs[1].asks}");
-                })
-                .thenWaitUntil(() -> helper.assertTrue(plan[0].done(), "route plan has not replied"))
-                .thenExecute(() -> {
-                    com.google.gson.JsonObject p = plan[0].data().getAsJsonObject("returned");
-                    helper.assertTrue(p.get("ok").getAsBoolean() && p.getAsJsonArray("asks").size() > 0
-                                    && p.getAsJsonArray("asks").toString().contains("oak_planks")
-                                    && p.getAsJsonArray("asks").toString().contains("why"),
-                            "the plan does not list the cells needing consent: " + plan[0].receipt());
-                    helper.assertTrue(!asked[0], "a walled-off walk or a plan must not ask the owner");
-                    helper.assertTrue(plankCount(helper, 7, 7) == planksBefore, "the owner's wall was damaged");
-                    helper.assertTrue(companion.blockPosition().distSqr(target) > 3 * 3,
-                            "companion got out through the owner's wall?!");
-                    CompanionFactory.despawn(level.getServer(), companion);
-                    leave(owner);
-                })
-                .thenSucceed();
-    }
-
-    /**
      * 越过边界才问:穿主人墙的那条路照常规划、照常开走——不在开走前问。她走过屋里那两格,走到墙前要挖它时才停下挂一条征询,
-     * 这时墙一块不少;征询列出这一声答应放行的每一格,就是计划里要问的那几格(同一种木板、同一行规则),之后不再问;主人允许,
-     * 她拆墙出去到达,回执说主人允许过。
+     * 这时墙一块不少;征询列出这一声答应放行的每一格(同一种木板、同一行规则),之后不再问;主人允许,她拆墙出去到达,
+     * 回执说主人允许过,路程回执的裁定列表里就是那几格。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_permission")
     public static void a_walk_asks_at_the_owners_wall_and_goes_on_when_allowed(GameTestHelper helper) {
@@ -151,8 +106,7 @@ public class PermissionGameTests {
         net.minecraft.server.level.ServerPlayer owner = presentOwner(helper, companion, "gametest_host");
         BlockPos start = companion.blockPosition();
         BlockPos target = helper.absolutePos(new BlockPos(13, 2, 7));
-        ToolRun walk = lua(companion, "local p = numen.route.plan({to = " + xyz(target) + ", costs = {dig = true, "
-                + "place = true}})\nprint(\"asks=\" .. #p.legs[1].asks)\nreturn numen.move.go(p)");
+        ToolRun walk = lua(companion, "return numen.move.to(" + xyz(target) + ")");
         boolean[] answered = new boolean[1];
         int[] listed = new int[1];
         int[] requests = new int[1];
@@ -185,9 +139,10 @@ public class PermissionGameTests {
             helper.assertTrue(reply != null, "the walk has not finished");
             helper.assertTrue(record.getResult().success(), "the walk failed after the owner allowed it: " + reply);
             helper.assertTrue(walk.receipt() != null, "the program has not handed in its receipt");
-            helper.assertTrue(walk.receipt().contains("asks=" + listed[0]) && listed[0] >= 2,
-                    "the request did not list every cell of the plan the yes lets through (" + listed[0] + "): "
-                            + walk.receipt());
+            com.google.gson.JsonArray rulings = walk.data().getAsJsonObject("returned").getAsJsonArray("rulings");
+            helper.assertTrue(listed[0] >= 2 && rulings.size() == listed[0]
+                            && rulings.toString().contains("\"allowed\":true"),
+                    "the account does not list every cell the yes lets through (" + listed[0] + "): " + walk.receipt());
             helper.assertTrue(requests[0] == 1, "the owner was asked " + requests[0] + " times");
             helper.assertTrue(plankCount(helper, 7, 7) < planksBefore, "no plank was broken");
             helper.assertTrue(reply.contains("the owner allowed"), "the reply does not say the owner allowed it: " + reply);
@@ -197,8 +152,8 @@ public class PermissionGameTests {
     }
 
     /**
-     * 同一条路主人说不:走到墙前问,主人不答应,她就停在那里,以 denied 收场,理由是主人原话,下一步是绕开那一格再规划的那一行;
-     * 墙一块不少,她没出屋。
+     * 同一条路主人说不:走到墙前问,主人不答应,那几格这一趟里当墙、重新规划;屋子四面都是主人的墙,绕不开,她以 denied 收场,
+     * 回执里有主人的原话,同一种东西不再问第二遍;墙一块不少,她没出屋。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_permission")
     public static void a_walk_refused_at_the_owners_wall_stops_there(GameTestHelper helper) {
@@ -209,45 +164,43 @@ public class PermissionGameTests {
         net.minecraft.server.level.ServerPlayer owner = presentOwner(helper, companion, "gametest_strict");
         BlockPos start = companion.blockPosition();
         BlockPos target = helper.absolutePos(new BlockPos(13, 2, 7));
-        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ", {costs = {dig = true, place = true}})");
+        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ")");
         boolean[] answered = new boolean[1];
+        int[] cards = new int[1];
 
         succeedWhen(helper, () -> {
             TaskRecord<?> record = walk.task();
-            if (!answered[0]) {
-                var pending = desk(companion).pending();
-                helper.assertTrue(pending != null, "no consent request at the wall");
+            var pending = desk(companion).pending();
+            if (pending != null) {
+                cards[0]++;
                 answered[0] = desk(companion).answer(pending.id(),
                         com.dwinovo.numen.api.permission.ConsentAnswer.Decision.DENY, "别拆我的墙");
             }
             String reply = record == null || record.getResult() == null ? null : record.getResult().message();
             helper.assertTrue(reply != null, "the walk has not finished");
             helper.assertTrue(!record.getResult().success() && "denied".equals(walk.kind())
-                    && reply.contains("refused by the owner") && reply.contains("别拆我的墙"),
+                    && reply.contains("your owner: 别拆我的墙") && reply.contains("kept out of this walk"),
                     "the refusal does not quote the owner: " + reply);
-            helper.assertTrue(walk.hint() != null && walk.hint().contains("numen.route.plan(") && walk.hint().contains("avoid"),
-                    "the refusal does not give the plan around that cell: " + walk.hint());
+            helper.assertTrue(answered[0] && cards[0] == 1, "the owner was asked " + cards[0] + " times for the same kind of wall");
             helper.assertTrue(plankCount(helper, 7, 7) == planksBefore, "the wall was damaged after a no");
-            helper.assertTrue(companion.blockPosition().getX() - start.getX() >= 2
-                            && companion.blockPosition().distSqr(target) > 3 * 3,
-                    "she did not stop at the wall: " + companion.blockPosition().toShortString());
+            helper.assertTrue(companion.blockPosition().distSqr(target) > 3 * 3,
+                    "she got out through the wall though the owner refused: " + companion.blockPosition().toShortString());
             CompanionFactory.despawn(level.getServer(), companion);
             leave(owner);
         });
     }
 
     /**
-     * 当墙就绕开:主人的一道木板墙横在半路,另一头留着口。要问的格当墙({@code consent = false})时她绕到口子过去,一张卡也不弹,
-     * 墙一块不少。
+     * 问有代价就绕开:主人的一道木板墙横在半路,近处留着口。要问的格比绕过去贵得多,她绕到口子过去,一张卡也不弹,墙一块不少。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_permission")
-    public static void walling_off_consent_cells_goes_around_the_owners_wall(GameTestHelper helper) {
+    public static void asking_costs_extra_so_she_goes_around_the_owners_wall(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         var placed = com.dwinovo.numen.api.permission.PlacedBlocks.of(level);
         var placer = new com.dwinovo.numen.api.permission.PlacedBlocks.Placer(UUID.randomUUID(), "gametest_owner");
         for (int z = 0; z <= 15; z++) {
             for (int y = 2; y <= 3; y++) {
-                if (z != 14) {
+                if (z != 4) {
                     BlockPos pos = helper.absolutePos(new BlockPos(8, y, z));
                     level.setBlockAndUpdate(pos, Blocks.OAK_PLANKS.defaultBlockState());
                     placed.record(pos, placer);
@@ -257,7 +210,7 @@ public class PermissionGameTests {
         NumenPlayer companion = spawnAt(helper, "gametest_polite", new BlockPos(2, 2, 2), false);
         net.minecraft.server.level.ServerPlayer owner = presentOwner(helper, companion, "gametest_gardener");
         BlockPos target = helper.absolutePos(new BlockPos(13, 2, 2));
-        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ", {costs = {dig = 1, place = true, consent = false}})");
+        ToolRun walk = lua(companion, "numen.move.to(" + xyz(target) + ")");
         boolean[] asked = new boolean[1];
         helper.onEachTick(() -> asked[0] |= desk(companion).pending() != null);
 
@@ -265,9 +218,9 @@ public class PermissionGameTests {
             helper.assertTrue(walk.done(), "the walk has not finished");
             helper.assertTrue(walk.succeeded() && companion.blockPosition().distSqr(target) <= 1,
                     "she did not get around the owner's wall: " + walk.outcome());
-            helper.assertTrue(!asked[0], "a walk that walls off consent cells asked the owner");
+            helper.assertTrue(!asked[0], "a walk with a way around asked the owner");
             for (int z = 0; z <= 15; z++) {
-                if (z != 14) {
+                if (z != 4) {
                     helper.assertTrue(level.getBlockState(helper.absolutePos(new BlockPos(8, 2, z))).is(Blocks.OAK_PLANKS),
                             "the owner's wall lost a plank at z=" + z);
                 }
@@ -380,8 +333,8 @@ public class PermissionGameTests {
     }
 
     /**
-     * 出路全被主人的规则拦着:她关在一间白羊毛小屋里,主人写了 deny 行不许挖白羊毛,南瓜在屋外。回执说哪一格不许动、
-     * 是哪一行规则,下一步是换个去处或问主人——和"要改地形"不是同一句。屋子与南瓜原样,也不弹卡。
+     * 出路全被主人的规则拦着:她关在一间白羊毛小屋里,主人写了 deny 行不许挖白羊毛,南瓜在屋外。她走出去的路规划不出来,收场是
+     * denied,回执说哪一格不许动、是哪一行规则,下一步是换个去处或问主人。屋子与南瓜原样,也不弹卡。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_permission")
     public static void mine_with_every_way_out_refused_says_which_cell_and_why(GameTestHelper helper) {
@@ -403,8 +356,7 @@ public class PermissionGameTests {
         succeedWhen(helper, () -> {
             helper.assertTrue(mine.done(), "mine has not finished");
             String said = mine.outcome();
-            helper.assertTrue(mine.task() == null, "a dig with every way out refused was accepted: " + mine.reply());
-            helper.assertTrue(!mine.succeeded() && said.contains("had to stop: changing")
+            helper.assertTrue(!mine.succeeded() && "denied".equals(mine.kind()) && said.contains("had to stop: changing")
                             && said.contains("is refused") && said.contains("denied by rule")
                             && said.contains("ask your owner") && !said.contains("without changing terrain"),
                     "the reply does not say which cell is refused, by what, and what to do: " + said);

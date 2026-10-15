@@ -41,6 +41,35 @@ class FootingTest {
         return Footing.height(world, SURVIVAL, 0, node, 0);
     }
 
+    private static double highest(BlockState state) {
+        double best = 0;
+        for (double top : Footing.tops(SURVIVAL, state)) {
+            best = Math.max(best, top);
+        }
+        return best;
+    }
+
+    /** 方块碰撞箱的顶面,相对所在那一格的底:空气没有,整块 1,下半砖 0.5,楼梯最高 1,土径与耕地 0.9375,栅栏 1.5。 */
+    @Test
+    void topsAreTheHeightsOfTheCollisionBoxesInsideTheirCell() {
+        assertEquals(0, Footing.tops(SURVIVAL, Blocks.AIR.defaultBlockState()).length);
+        assertEquals(1, highest(Blocks.STONE.defaultBlockState()), 1e-9);
+        assertEquals(0.5, highest(Blocks.STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM)), 1e-9);
+        assertEquals(1, highest(Blocks.OAK_STAIRS.defaultBlockState().setValue(StairBlock.HALF, Half.BOTTOM)), 1e-9);
+        assertEquals(0.9375, highest(Blocks.DIRT_PATH.defaultBlockState()), 1e-9);
+        assertEquals(1.5, highest(Blocks.OAK_FENCE.defaultBlockState()), 1e-9);
+    }
+
+    /** 估价按层扫视图里出现的状态:全部方块状态都答得出。 */
+    @Test
+    void topsAreDefinedForEveryBlockState() {
+        for (BlockState state : net.minecraft.world.level.block.Block.BLOCK_STATE_REGISTRY) {
+            for (double top : Footing.tops(SURVIVAL, state)) {
+                assertTrue(top > 0 && top <= 2, state + " 的顶面 " + top);
+            }
+        }
+    }
+
     /** 这块方块托住脚的地方在它自己的格里:高度是 Y + top,节点是 Y,踩的就是它。 */
     private static void standsInsideOwnCell(BlockState state, double top) {
         TestWorld world = on(state);

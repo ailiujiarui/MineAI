@@ -29,8 +29,11 @@ public record Stance(Kind kind, double feetY, int supportY) {
         GROUND, CLIMBING, SWIMMING
     }
 
-    /** 站姿,一次搜索里按格记住({@link Recall})。 */
-    private static final Recall.Fact<Stance> STANCE = new Recall.Fact<>(Stance::measure);
+    /**
+     * 站姿,一次搜索里按格记住({@link Recall})。读的格:这一列从脚下一格({@code y - 1},托脚的碰撞箱可能在那里)到身体占的最高一格
+     * ({@code y + 2},脚高不到 {@code y + 1}、身高 1.8),穿冰霜行者时水面上那一格再往上一格({@code y + 3})。
+     */
+    private static final Recall.Fact<Stance> STANCE = new Recall.Fact<>(Stance::measure, new Recall.Reach(1, 3));
 
     /** 身体在 {@code (x, y, z)} 这个节点上怎么待着;待不住为 null。 */
     public static Stance at(BlockGetter level, BodyStats body, int x, int y, int z) {

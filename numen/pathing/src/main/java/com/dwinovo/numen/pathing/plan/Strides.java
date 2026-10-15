@@ -140,32 +140,9 @@ final class Strides {
         return m.landing().feetY() - m.start().feetY();
     }
 
-    /**
-     * 身体从 {@code drop} 高处落到 {@code support}(落定后脚踩的那一格)上摔掉几点血:站着落地、没落进水里,才照身体快照按落差与
-     * 那一格算({@link BodySnapshot#fallDamage});落进水里、攀着、浮着不摔。
-     *
-     * <p>脚踩的那一格是托住脚的碰撞箱所在的格(第 0 层 {@code Footing.supportY})。原版结算摔伤看的是脚底往下 0.2 格处那一格
-     * ({@code Entity.getOnPosLegacy}),两者只在托脚的是不到 0.2 格厚的薄片(地毯、一层雪、中继器)时不同:那时原版看的是薄片底下那一块。
-     */
-    static int fallDamage(CostModel model, BlockGetter level, Stance landing, BlockPos support, double drop, boolean wading) {
-        if (!landing.grounded() || wading || support == null) {
-            return 0;
-        }
-        return model.body().fallDamage(drop, level.getBlockState(support));
-    }
-
-    /**
-     * 这个落点摔得起摔不起:站着落地、没落进水里的,身体受得起这一摔({@link BodySnapshot#bears})、落差也在规格的无水落差以内
-     * ({@link CostModel#bearsFall});攀着、浮着、落进水里的不摔。所有会落下去的走法(落下一级、斜走、向下挖)问的都是这一处。
-     */
-    static boolean bearsLanding(CostModel model, Stance landing, boolean wading, double drop, int damage) {
-        return !landing.grounded() || wading || model.bearsFall(drop, damage);
-    }
-
     /** 从 {@code drop} 高处落到这个落点的耗时:下落,至少要走回列中心那一截。 */
     static double landing(CostModel model, Maneuver m) {
-        BodyStats body = model.body().stats();
-        return Math.max(Kinematics.fallTicks(body.gravity(), m.drop()), Kinematics.centerAfterFallTicks(body));
+        return Kinematics.fallLandingTicks(model.body().stats(), m.drop());
     }
 
     /** 落地摔疼的折价:掉的血按 {@link ActionCosts#FALL_DAMAGE_PER_POINT} 折成刻。 */

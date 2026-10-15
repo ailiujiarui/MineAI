@@ -18,8 +18,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * 水下的路,从 {@code numen.move.to} 与 {@code numen.route.plan} 的入口:封顶的水道短到一口气游得完,她游过去,换气本能不在半路把她
- * 拽上去,回执说潜过一段水、憋了多久;计划里写出要潜的那一段;长到憋不住的不下水,回执说出那一段水下在哪、要憋多久。
+ * 水下的路,从 {@code numen.move.to} 的入口:封顶的水道短到一口气游得完,她游过去,换气本能不在半路把她
+ * 拽上去,回执说潜过一段水、憋了多久;长到憋不住的不下水,回执说出那一段水下在哪、要憋多久。
  */
 public class SwimGameTests {
 
@@ -81,7 +81,7 @@ public class SwimGameTests {
     }
 
     /**
-     * 17 格长的封顶水道(一口气约 200 刻,满氧气憋得住),离出口两格的顶上有一个封死的小气室(一格水、上面一格空气,四周是玻璃),
+     * 17 格长的封顶水道(一口气约 200 刻,满氧气憋得住),离出口两格的顶上有一个封死的小气室(一格水、上面一格空气,四周是基岩),
      * 不通地面。她游到气室底下、往东的那一步刚开始,前面那一格被一堵基岩挡住:这一步卡住,拖得比这一段剩下的憋气长。
      * <ul>
      *   <li>导航说这一段是计划内的每一刻,她的氧气都还够游完剩下的水下再留出余量({@link Breath#RESERVE})——撑不到的那一刻导航
@@ -94,8 +94,8 @@ public class SwimGameTests {
     public static void a_planned_dive_held_up_under_water_lets_go_before_the_air_runs_out(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         sealedChannel(helper, 10, 27);
-        // 气室:水道顶上 x = 25 那一格是水,再上面一格空气,四周与顶上是玻璃
-        fill(helper, 24, 2, Z - 1, 26, 3, Z + 1, Blocks.GLASS.defaultBlockState());
+        // 气室:水道顶上 x = 25 那一格是水,再上面一格空气,四周与顶上是基岩(挖不开,不通地面)
+        fill(helper, 24, 2, Z - 1, 26, 3, Z + 1, Blocks.BEDROCK.defaultBlockState());
         fill(helper, 25, 1, Z, 25, 1, Z, Blocks.WATER.defaultBlockState());
         fill(helper, 25, 2, Z, 25, 2, Z, Blocks.AIR.defaultBlockState());
         NumenPlayer companion = spawnAt(helper, "gametest_held_diver", new BlockPos(7, 2, Z), false);
@@ -133,28 +133,6 @@ public class SwimGameTests {
             helper.assertTrue(!walk.succeeded() && walk.outcome().contains("I went under water"),
                     "the reply does not tell the failed walk and the dive: " + walk.outcome());
             outbox.forget(companion.getUUID());
-            CompanionFactory.despawn(level.getServer(), companion);
-        });
-    }
-
-    /** 同一条 8 格的封顶水道,{@code numen.route.plan}:计划写出要潜的那一段水下、一口气憋多久、还剩多少气;她一步没动。 */
-    @GameTest(template = "floor52", timeoutTicks = 100000, batch = BATCH)
-    public static void a_route_plan_tells_the_dive_on_the_way(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        sealedChannel(helper, 10, 18);
-        NumenPlayer companion = spawnAt(helper, "gametest_planner", new BlockPos(7, 2, Z), false);
-        BlockPos start = companion.blockPosition();
-        ToolRun plan = lua(companion, "numen.route.plan({to = " + at(helper, new BlockPos(21, 2, Z)) + "})");
-
-        succeedWhen(helper, () -> {
-            helper.assertTrue(plan.done(), "route plan has not replied");
-            helper.assertTrue(plan.succeeded(), "route plan failed: " + plan.reply());
-            var leg = valueIn(plan.reply()).getAsJsonObject().getAsJsonArray("legs").get(0).getAsJsonObject();
-            helper.assertTrue(leg.has("dives") && leg.getAsJsonArray("dives").size() == 1
-                            && leg.getAsJsonArray("dives").get(0).getAsJsonObject().get("seconds").getAsDouble() > 0
-                            && leg.getAsJsonArray("dives").get(0).getAsJsonObject().has("spare"),
-                    "the plan does not tell the dive: " + plan.reply());
-            helper.assertTrue(companion.blockPosition().equals(start), "planning moved the body");
             CompanionFactory.despawn(level.getServer(), companion);
         });
     }

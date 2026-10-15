@@ -54,10 +54,6 @@ public final class CompanionChunkLoader {
 
     private CompanionChunkLoader() {}
 
-    /** 运行期总开关(诊断 A/B 用):关掉后 {@link #refresh} 变空操作,已有票据 40 tick 内自然过期。
-     *  服务端主线程读写;volatile 仅为命令线程可见性兜底。 */
-    public static volatile boolean enabled = true;
-
     /** 距超时刷新的间隔:取 {@link #TIMEOUT_TICKS} 的一半,对到期留一整倍裕量。 */
     private static final int REFRESH_TICKS = TIMEOUT_TICKS / 2;
 
@@ -79,9 +75,6 @@ public final class CompanionChunkLoader {
      * companion stops ticking for any reason.
      */
     public static void refresh(NumenPlayer companion) {
-        if (!enabled) {
-            return;
-        }
         if (companion.level() instanceof ServerLevel level) {
             ChunkPos pos = companion.chunkPosition();
             long packed = pos.toLong();

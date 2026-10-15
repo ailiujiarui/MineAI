@@ -27,6 +27,7 @@ import static com.dwinovo.numen.pathing.Fixtures.PACE;
 import static com.dwinovo.numen.pathing.Vanilla.SURVIVAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -63,6 +64,19 @@ class GoalsTest {
         assertThrows(IllegalArgumentException.class, () -> new Goals.Position(1, null, null), "x 与 z 要一起给");
     }
 
+    /** 到了时脚所在节点的高度范围:某一格、某一高度是那一层;只给列、离某处多远、远离这些没有范围;几个取其一合起来。 */
+    @Test
+    void goalsSayWhichLevelsTheyCanBeReachedAt() {
+        assertEquals(new Goal.Heights(64, 64), Goals.at(CENTER).heights());
+        assertEquals(new Goal.Heights(70, 70), Goals.level(70).heights());
+        assertNull(COLUMN.heights());
+        assertNull(Goals.within(COLUMN, 3, 5).heights());
+        assertNull(Goals.awayFrom(List.of(new Threat(0.5, 64, 0.5, 3))).heights());
+        assertEquals(new Goal.Heights(60, 70), Goals.anyOf(List.of(Goals.at(new BlockPos(0, 60, 0)), Goals.level(70))).heights());
+        assertNull(Goals.anyOf(List.of(Goals.at(CENTER), COLUMN)).heights(), "有一个没有范围,合起来也没有");
+        assertEquals(new Goal.Heights(64, 64), Goals.allOf(List.of(COLUMN, Goals.at(CENTER))).heights(), "每一个都要到:取有范围的那个");
+    }
+
     /** 某一格:站着、挂在梯子上、浮在水里,脚在那一格就算到了。 */
     @Test
     void aCellCountsHowEverTheBodyIsHeldThere() {
@@ -92,6 +106,33 @@ class GoalsTest {
         Goal sphere = Goals.within(Goals.at(CENTER), 3, 5);
         assertTrue(sphere.contains(4, 64, 0, null));
         assertFalse(sphere.contains(4, 90, 0, null));
+    }
+
+    /** 离一格的距离范围:终点格就是范围里的每一格,交出的高度范围盖得住它们;没有边或枚举不动的没有。 */
+    @Test
+    void aRangeAroundACellHandsOutItsEndCellsAndHeights() {
+        Goal ring = Goals.within(Goals.at(CENTER), 1, 2.5);
+        var ends = ring.endCells();
+        int count = 0;
+        for (int x = -4; x <= 4; x++) {
+            for (int y = 60; y <= 68; y++) {
+                for (int z = -4; z <= 4; z++) {
+                    boolean in = ring.contains(x, y, z, null);
+                    assertEquals(in, ends.contains(BlockPos.asLong(x, y, z)), x + "," + y + "," + z);
+                    count += in ? 1 : 0;
+                }
+            }
+        }
+        assertEquals(count, ends.size());
+        Goal.Heights heights = ring.heights();
+        for (long cell : ends) {
+            assertTrue(heights.lo() <= BlockPos.getY(cell) && BlockPos.getY(cell) <= heights.hi());
+        }
+        assertNull(Goals.within(Goals.at(CENTER), 0, Double.POSITIVE_INFINITY).endCells());
+        assertNull(Goals.within(Goals.at(CENTER), 0, Double.POSITIVE_INFINITY).heights());
+        assertNull(Goals.within(Goals.at(CENTER), 0, 200).endCells());
+        assertNull(Goals.within(COLUMN, 0, 3).endCells());
+        assertEquals(new Goal.Heights(61, 67), Goals.within(Goals.level(64), 0, 3).heights());
     }
 
     @Test
@@ -171,7 +212,8 @@ class GoalsTest {
         for (int x = 0; x <= 5; x++) {
             assertFalse(reach.contains(x, 64, 0, standing), "x=" + x + " 够不着");
             double here = reach.estimate(x, 64, 0, PACE);
-            assertTrue(here > 0 && here < previous, "x=" + x + ":" + here);
+            // 底价只量水平:离够得着的带只差眼睛高出那一点竖直距离的那一格,水平上已经够了,底价是零
+            assertTrue((x < 5 ? here > 0 : here >= 0) && here < previous, "x=" + x + ":" + here);
             previous = here;
         }
     }
@@ -238,21 +280,20 @@ class GoalsTest {
     }
 
     /**
-     * 挖的估价按分轴的价钱:要挖的那一格在正下方二十格,正上方往下每一格按落的价;横着走开,每一格涨一格疾跑的价(竖直的落比横着走快得多,横着走开之后价钱全在横向)——
-     * 不因为离得深,横着走就几乎不涨。
+     * 挖的水平底价只量水平:要挖的那一格在正下方二十格,正上方水平上已经够得着,不付;横着走开,超出交互距离的每一格涨一格疾跑的价。
+     * 竖直方向的二十层不在这里,由目标的高度范围算({@link Goal#heights()})。
      */
     @Test
-    void diggingABlockFarBelowPricesEachAxisOnItsOwn() {
+    void diggingABlockFarBelowIsPricedOnlyHorizontallyHere() {
         BlockPos target = new BlockPos(0, 44, 0);
         Goal dig = Goals.dig(target, SURVIVAL, Goals.Clearing.ANY);
-        double eye = SURVIVAL.eyeHeight();
-        double above = 64 + eye - (target.getY() + 1);
-        // 正下方横向不用挪,只付落的价
-        assertEquals((above - SURVIVAL.blockReach()) * PACE.drop(), dig.estimate(0, 64, 0, PACE), 1e-9);
+        assertEquals(0, dig.estimate(0, 64, 0, PACE), 1e-9);
         for (int x = 10; x < 16; x++) {
             assertEquals(PACE.sprint(), dig.estimate(x + 1, 64, 0, PACE) - dig.estimate(x, 64, 0, PACE), 1e-9,
                     "x=" + x);
         }
+        Goal.Heights heights = dig.heights();
+        assertTrue(heights.lo() < target.getY() && heights.hi() > target.getY(), "脚在目标上下几层都够得着它");
     }
 
     /** 挖的终点:脚在一格里任何高度时够得着它的节点,全都在里面;离得够不着的不在。 */
@@ -279,6 +320,24 @@ class GoalsTest {
                     }
                 }
             }
+        }
+    }
+
+    /** 挖、放、挖几格里的一格交出的高度范围,就是它们终点格里最低与最高的一层。 */
+    @Test
+    void theHeightsOfADigAreTheLowestAndHighestLevelOfItsEndCells() {
+        List<Goal> goals = List.of(Goals.dig(new BlockPos(3, 70, -2), SURVIVAL, Goals.Clearing.ANY),
+                Goals.place(new BlockPos(-5, 12, 9), SURVIVAL),
+                Goals.dig(List.of(new Goals.DigTarget(new BlockPos(0, 40, 0), 1), new Goals.DigTarget(new BlockPos(6, 47, 3), 2)),
+                        SURVIVAL, Goals.Clearing.ANY));
+        for (Goal goal : goals) {
+            int lo = Integer.MAX_VALUE;
+            int hi = Integer.MIN_VALUE;
+            for (long cell : goal.endCells()) {
+                lo = Math.min(lo, BlockPos.getY(cell));
+                hi = Math.max(hi, BlockPos.getY(cell));
+            }
+            assertEquals(new Goal.Heights(lo, hi), goal.heights(), goal.toString());
         }
     }
 

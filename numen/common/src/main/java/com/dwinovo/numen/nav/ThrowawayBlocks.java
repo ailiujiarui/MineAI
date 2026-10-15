@@ -5,9 +5,6 @@ import com.dwinovo.numen.init.InitTag;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.TagKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.BlockItem;
@@ -17,16 +14,14 @@ import net.minecraft.world.level.block.Block;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
- * 垫路料:一趟路往上垫柱、过沟搭桥时愿意消耗掉的方块(名字取 Baritone 的 acceptableThrowawayItems)。哪几种由这一趟的路线描述写
- * ({@code numen.route.plan} 的 {@code materials},按先后就是挑的先后);没写的是出厂那一份({@link #factory}),反射(逃跑、脱困、摔落自救)
- * 走的也是它。料是这一趟的事,不记在她身上。
+ * 垫路料:一趟路往上垫柱、过沟搭桥时愿意消耗掉的方块(名字取 Baritone 的 acceptableThrowawayItems)。哪几种由走路的一方给
+ * (按先后就是挑的先后);模型走路用的是出厂那一份({@link #factory}),反射(逃跑、脱困、摔落自救)走的也是它。料是这一趟的事,不记在她
+ * 身上。
  *
  * <h2>出厂那一份的判据</h2>
  * 标签 {@code numen:throwaway}:遍地都是、没有功能、<b>放下去不会掉</b>——重力方块(沙、砂砾)一个不要,垫在半空会直接落下去。
@@ -41,40 +36,6 @@ public final class ThrowawayBlocks {
         List<Item> out = new ArrayList<>();
         for (Holder<Item> holder : BuiltInRegistries.ITEM.getTagOrEmpty(InitTag.THROWAWAY)) {
             out.add(holder.value());
-        }
-        return List.copyOf(out);
-    }
-
-    /**
-     * 写下的几项展开成物品,保持先后、去掉重复:{@code #ns:path} 是标签(此刻的全部成员),否则是一个方块物品的 id
-     * ({@code cobblestone} 与 {@code minecraft:cobblestone} 都收)。
-     *
-     * @throws IllegalArgumentException 有一项认不出、标签是空的、或不是能放下的方块:说是哪一项
-     */
-    public static List<Item> of(List<String> written) {
-        Set<Item> out = new LinkedHashSet<>();
-        for (String raw : written) {
-            String entry = raw.trim().toLowerCase(java.util.Locale.ROOT);
-            TagKey<Item> tag = InitTag.parseRef(Registries.ITEM, entry);
-            if (tag != null) {
-                int before = out.size();
-                for (Holder<Item> holder : BuiltInRegistries.ITEM.getTagOrEmpty(tag)) {
-                    if (holder.value() instanceof BlockItem) {
-                        out.add(holder.value());
-                    }
-                }
-                if (out.size() == before) {
-                    throw new IllegalArgumentException("materials: tag '" + raw + "' has no blocks to place");
-                }
-                continue;
-            }
-            ResourceLocation id = ResourceLocation.tryParse(entry);
-            Item item = id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-            if (!(item instanceof BlockItem)) {
-                throw new IllegalArgumentException("materials: '" + raw + "' is not a block you can place — give "
-                        + "block ids like minecraft:cobblestone or tags like #minecraft:dirt");
-            }
-            out.add(item);
         }
         return List.copyOf(out);
     }
@@ -106,8 +67,8 @@ public final class ThrowawayBlocks {
     }
 
     /**
-     * 每条路都要垫方块而身上一件料都没有时的那句话:这一趟能垫哪几种,背包里带着哪些别的方块——要用哪种,写进这一趟的
-     * {@code materials}。背包里的方块一样不落地列:种数不会多过背包的格数。
+     * 每条路都要垫方块而身上一件料都没有时的那句话:这一趟能垫哪几种,背包里带着哪些别的方块(走路不垫它们)。背包里的方块
+     * 一样不落地列:种数不会多过背包的格数。
      */
     public static String shortageAdvice(ServerPlayer player, List<Item> list) {
         Inventory inv = player.getInventory();
@@ -130,7 +91,6 @@ public final class ThrowawayBlocks {
             return out.append(" Get some of those blocks first.").toString();
         }
         return out.append(" I do carry ").append(carrying)
-                .append(": name the ones to spend in the walk's materials, e.g. materials = {\"")
-                .append(spare.keySet().iterator().next()).append("\"}.").toString();
+                .append(", which a walk does not spend: get some of the blocks above.").toString();
     }
 }

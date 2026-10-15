@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -98,14 +97,6 @@ class ReasoningStreamTest {
     }
 
     @Test
-    void extractReasoningDeltaUnwrapsChunk() {
-        OpenAIProvider p = new OpenAIProvider();
-        assertEquals("思", p.extractReasoningDelta(chunk("{\"reasoning_content\":\"思\"}")));
-        assertNull(p.extractReasoningDelta(chunk("{\"content\":\"正文\"}")));
-        assertNull(p.extractReasoningDelta(JsonParser.parseString("{}").getAsJsonObject()));
-    }
-
-    @Test
     void parseResponseBodyExtractsReasoningNonStreaming() {
         JsonObject body = JsonParser.parseString(
                 "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"c\","
@@ -114,5 +105,68 @@ class ReasoningStreamTest {
         assertEquals("c", turn.content());
         assertEquals("r", turn.reasoning());
         assertTrue(turn.extras().has("reasoning_content"));
+    }
+
+    // ---- content 里的 <think>…</think>(不走方言字段的推理模型) ----
+
+    private static String[] contentChunks(String... pieces) {
+        String[] out = new String[pieces.length];
+        for (int i = 0; i < pieces.length; i++) {
+            out[i] = "{\"content\":" + new com.google.gson.JsonPrimitive(pieces[i]) + "}";
+        }
+        return out;
+    }
+
+    @Test
+    void thinkTagInContentGoesToReasoningNotContent() {
+        AssistantTurn turn = stream(new OpenAIProvider(),
+                contentChunks("<think>\n先看背包</think>\n\n", "好的,我去挖矿"));
+        assertEquals("\n先看背包", turn.reasoning());
+        assertEquals("好的,我去挖矿", turn.content());
+    }
+
+    @Test
+    void thinkTagsCutAcrossChunksAreStillRecognised() {
+        // 开标签和闭标签都被切在 chunk 中间;一字一块是最坏情形。
+        String whole = "<think>想想</think>说话";
+        String[] pieces = whole.split("");
+        AssistantTurn turn = stream(new OpenAIProvider(), contentChunks(pieces));
+        assertEquals("想想", turn.reasoning());
+        assertEquals("说话", turn.content());
+    }
+
+    @Test
+    void unclosedThinkStaysReasoningMidStream() {
+        StreamAccumulator acc = new StreamAccumulator();
+        OpenAIProvider p = new OpenAIProvider();
+        for (String d : contentChunks("<think>还在想", ",没完")) p.accumulateChunk(chunk(d), acc);
+        assertEquals("", acc.content.toString());
+        assertEquals("还在想,没完", acc.reasoning.toString());
+    }
+
+    @Test
+    void tagLikeTextThatNeverCompletesIsKeptAsContent() {
+        AssistantTurn turn = stream(new OpenAIProvider(), contentChunks("1 <", "2"));
+        assertEquals("1 <2", turn.content());
+        AssistantTurn tail = stream(new OpenAIProvider(), contentChunks("答案 <thi"));
+        assertEquals("答案 <thi", tail.content());
+    }
+
+    @Test
+    void thinkTagAndDialectFieldShareOneReasoning() {
+        AssistantTurn turn = stream(new OpenAIProvider(),
+                "{\"reasoning_content\":\"甲\"}", contentChunks("<think>乙</think>丙")[0]);
+        assertEquals("甲乙", turn.reasoning());
+        assertEquals("丙", turn.content());
+    }
+
+    @Test
+    void thinkTagInNonStreamingBodyIsSplitToo() {
+        JsonObject body = JsonParser.parseString(
+                "{\"choices\":[{\"message\":{\"role\":\"assistant\","
+                + "\"content\":\"<think>r</think>\\n\\nc\"}}]}").getAsJsonObject();
+        AssistantTurn turn = new OpenAIProvider().parseResponseBody(body);
+        assertEquals("c", turn.content());
+        assertEquals("r", turn.reasoning());
     }
 }

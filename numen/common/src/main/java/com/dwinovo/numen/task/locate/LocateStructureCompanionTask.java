@@ -324,7 +324,7 @@ public final class LocateStructureCompanionTask extends AbstractCompanionTask<Lo
             return "nearest " + r.structure + " at " + best.getX() + ","
                     + best.getY() + "," + best.getZ() + " (" + dir + ", ~" + dist
                     + " blocks). " + com.dwinovo.numen.nav.NavText.gotoCall(new com.dwinovo.numen.api.sdk.Place(best.getX(), null,
-                    best.getZ()), "") + " goes there (it finds the "
+                    best.getZ())) + " goes there (it finds the "
                     + "height on its own), then `numen.scan.blocks` finds its actual blocks.";
         }
         String dim = player.level().dimension().location().getPath();

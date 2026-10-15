@@ -3,6 +3,10 @@ package com.dwinovo.numen.task.base;
 
 import com.dwinovo.numen.nav.Journey;
 import com.dwinovo.numen.nav.Trip;
+import com.dwinovo.numen.nav.Walked;
+import com.dwinovo.numen.task.move.Arrival;
+import com.dwinovo.numen.task.move.MoveToCompanionTask;
+import com.dwinovo.numen.task.move.MoveToTaskRecord;
 import com.dwinovo.numen.pathing.api.Report;
 import com.dwinovo.numen.api.task.Preparation;
 import com.dwinovo.numen.api.task.Task;
@@ -19,6 +23,7 @@ import com.dwinovo.numen.api.permission.Permission;
 import com.dwinovo.numen.api.permission.Verdict;
 import com.dwinovo.numen.api.task.TaskResult;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -181,8 +186,7 @@ public abstract class AbstractCompanionTask<R extends TaskRecord<V>, V>
         awaitingSearch = false;
         TaskState state;
         try {
-            TaskState checked = beforeTick();
-            TaskState routeConsent = checked == null ? awaitRouteConsent() : checked;
+            TaskState routeConsent = awaitRouteConsent();
             state = routeConsent != null ? routeConsent : onTick();
         } catch (RuntimeException e) {
             crashed("tick", e);
@@ -226,10 +230,9 @@ public abstract class AbstractCompanionTask<R extends TaskRecord<V>, V>
     }
 
     /**
-     * 导航走到一格要问主人的地方停下时,这一刻归征询:身体站住、问主人;答应了那一格放行、接着跑
-     * {@link #onTick},拒绝了按 {@link FailureType#REFUSED} 收场,下一步由 {@link #refusedHint} 给。主人不在、到点没答复
-     * (悬而未决)既不硬顶成拒绝、也不进 CONSENT 死等:收起这一趟,这一格留给下一次,接着跑 {@link #onTick}。任何带导航的
-     * 任务都一样,不各写各的。
+     * 导航走到一格要问主人的地方停下时,这一刻归征询:身体站住、问主人;答应了那一格放行、接着跑 {@link #onTick},拒绝了那一格在
+     * 这一趟里当墙、重新规划绕开({@link Trip#consentRefused}),绕不开才由导航以被拒收场;主人不在、到点没答复(悬而未决)
+     * 同样当墙绕开,但不记成主人拒绝({@link Trip#consentWithheld}),绕不开按悬而未决收场。任何带导航的任务都一样,不各写各的。
      *
      * @return 这一刻的终态或 RUNNING;不用等(没有扣着的路,或刚放行)时为 null
      */
@@ -246,22 +249,17 @@ public abstract class AbstractCompanionTask<R extends TaskRecord<V>, V>
         if (answer == null) {
             return TaskState.RUNNING;
         }
-        if (answer.pending()) {
-            com.dwinovo.numen.Constants.LOG.info("[numen-task] 路上要问主人({})悬而未决,搁下这一格继续:{}",
-                    needed.size(), answer.words());
-            stopNav();
-            return null;
+        if (answer.allowed()) {
+            nav.consentGranted();
+        } else if (answer.pending()) {
+            // 悬而未决(主人不在、到点没答复):不与主人硬顶、不进 CONSENT 死等。问的那几格这一趟里当墙、重新规划绕开
+            // (主人没说不行,下一趟还会问),绕不开才按悬而未决收场。
+            com.dwinovo.numen.Constants.LOG.info("[numen-task] 路上要问主人({})悬而未决,这一趟搁下这几格:{}",
+                    needed.size(), answer.withholding(needed));
+            nav.consentWithheld(answer.words());
+        } else {
+            nav.consentRefused(answer.words());
         }
-        if (!answer.allowed()) {
-            fail(answer.refusal(needed), FailureType.REFUSED, refusedHint(needed));
-            return TaskState.FAILED;
-        }
-        nav.consentGranted();
-        return null;
-    }
-
-    /** 主人不答应路上那一格时,能照抄的下一步;没有为 null。 */
-    protected String refusedHint(List<ConsentItem> refused) {
         return null;
     }
 
@@ -464,11 +462,6 @@ public abstract class AbstractCompanionTask<R extends TaskRecord<V>, V>
     /** First-tick setup (build the nav, snapshot baselines, …). Default: no-op. */
     protected void onStart() {}
 
-    /** 导航与征询都用身体所在的世界;有世界约束的任务在两者推进之前验证。 */
-    protected TaskState beforeTick() {
-        return null;
-    }
-
     /** Advance one tick; return {@link TaskState#RUNNING} or a terminal state. */
     protected abstract TaskState onTick();
 
@@ -567,7 +560,7 @@ public abstract class AbstractCompanionTask<R extends TaskRecord<V>, V>
 
     /** 旅程账加上还在走的这一趟。 */
     private Journey soFar() {
-        return nav == null ? journey : journey.plus(nav.reports());
+        return nav == null ? journey : journey.plus(nav.reports(), nav.rulings());
     }
 
     /** 叫停并放下在走的这一趟(可重复调);它的实际账并进旅程账。 */
@@ -576,8 +569,33 @@ public abstract class AbstractCompanionTask<R extends TaskRecord<V>, V>
             for (Report report : nav.stop()) {
                 journey.add(report);
             }
+            journey.ruled(nav.rulings());
             nav = null;
         }
+    }
+
+    /** 路程回执:停在 {@code pos}、离要去的地方还差 {@code distanceLeft} 格,加上这件活到此刻为止路上的账。 */
+    protected final Walked walked(Vec3 pos, double distanceLeft) {
+        return soFar().walked(pos, distanceLeft);
+    }
+
+    /** 动手的活替自己走路的那个子活;没在走是 null。 */
+    private MoveToCompanionTask walker;
+
+    /**
+     * 动手的活够不着时先走过去:走路是子活({@link MoveToCompanionTask}),判据是 {@code to} 这个到达目标。还在走返回 null,下一刻
+     * 接着调;走完(到了、走不到、超时)返回那一趟的回执,走不到时失败原因与类型已抄在这件活上({@link #lastFailure()})。
+     * 走路的账(挖了什么、放了什么、问过主人什么)归这件活,回执末尾说一次。
+     */
+    protected final TaskResult walkTo(Arrival to) {
+        if (walker == null) {
+            walker = new MoveToCompanionTask(player, MoveToTaskRecord.errand(r, player.level().getGameTime(), to));
+        }
+        TaskResult done = runChild(walker);
+        if (done != null) {
+            walker = null;
+        }
+        return done;
     }
 
     // ---------------------------------------------------------------------

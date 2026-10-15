@@ -1,6 +1,5 @@
 package com.dwinovo.numen.api.entity;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.core.BlockPos;
@@ -11,7 +10,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * 一具服务端假玩家的视角:往哪儿看、怎么转过去(同伴的是 {@link NumenPlayer#look})。转头照原版鼠标,每移一个像素转一个固定
@@ -47,8 +45,8 @@ public final class Look {
      */
     public void atNearest(AABB box) {
         Vec3 eye = body.getEyePosition();
-        at(new Vec3(clampInside(eye.x, box.minX, box.maxX), clampInside(eye.y, box.minY, box.maxY),
-                clampInside(eye.z, box.minZ, box.maxZ)));
+        at(new Vec3(Sight.clampInside(eye.x, box.minX, box.maxX), Sight.clampInside(eye.y, box.minY, box.maxY),
+                Sight.clampInside(eye.z, box.minZ, box.maxZ)));
     }
 
     /** 转到朝 {@code yaw}、俯仰 {@code pitch}(按鼠标像素取整)。 */
@@ -129,40 +127,7 @@ public final class Look {
      * 清得掉的那一条视线({@link Sight#dig}),朝那一点看过去,准星落着的就是先要挖开的那一格。
      */
     public List<Vec3> digPoints(BlockPos pos) {
-        Vec3 eye = body.getEyePosition();
-        double range = body.blockInteractionRange();
-        List<Vec3> out = new ArrayList<>();
-        for (Vec3 candidate : candidates(pos)) {
-            if (candidate.distanceTo(eye) < range) {
-                out.add(candidate);
-            }
-        }
-        return out;
-    }
-
-    /** 挖 {@code pos} 时的候选瞄点,先后照 {@link #point} 说的那三档。 */
-    private List<Vec3> candidates(BlockPos pos) {
-        Level level = body.level();
-        VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
-        List<AABB> boxes = shape.isEmpty() ? List.of(new AABB(0, 0, 0, 1, 1, 1)) : shape.toAabbs();
-        Vec3 eye = body.getEyePosition();
-        List<Vec3> candidates = new ArrayList<>();
-        AABB bounds = shape.isEmpty() ? boxes.get(0) : shape.bounds();
-        candidates.add(bounds.getCenter().add(pos.getX(), pos.getY(), pos.getZ()));
-        List<Vec3> nearest = new ArrayList<>();
-        for (AABB local : boxes) {
-            AABB box = local.move(pos);
-            for (Direction side : Direction.values()) {
-                Vec3 center = faceCenter(box, side);
-                if (Sight.facing(eye, center, side)) {
-                    Vec3 inward = Vec3.atLowerCornerOf(side.getNormal()).scale(Sight.INSET);
-                    candidates.add(center.subtract(inward));
-                    nearest.add(nearestOnFace(box, side, eye).subtract(inward));
-                }
-            }
-        }
-        candidates.addAll(nearest);
-        return candidates;
+        return Sight.digPoints(body.level(), body.getEyePosition(), body.blockInteractionRange(), pos);
     }
 
     // ==================== 用:点它哪一面 ====================
@@ -199,39 +164,5 @@ public final class Look {
      */
     public Faces.Face face(BlockPos target, Block placing) {
         return Faces.inSight(body.level(), body.getEyePosition(), body.blockInteractionRange(), target, placing);
-    }
-
-    // ==================== 几何 ====================
-
-    /** {@code box} 的 {@code side} 面上离 {@code eye} 最近的一点,离面的四条棱各留 {@link Reach#EDGE}。 */
-    private static Vec3 nearestOnFace(AABB box, Direction side, Vec3 eye) {
-        double x = clampInside(eye.x, box.minX, box.maxX);
-        double y = clampInside(eye.y, box.minY, box.maxY);
-        double z = clampInside(eye.z, box.minZ, box.maxZ);
-        return switch (side) {
-            case DOWN -> new Vec3(x, box.minY, z);
-            case UP -> new Vec3(x, box.maxY, z);
-            case NORTH -> new Vec3(x, y, box.minZ);
-            case SOUTH -> new Vec3(x, y, box.maxZ);
-            case WEST -> new Vec3(box.minX, y, z);
-            case EAST -> new Vec3(box.maxX, y, z);
-        };
-    }
-
-    private static double clampInside(double v, double min, double max) {
-        double margin = Math.min(Reach.EDGE, (max - min) / 2);
-        return Mth.clamp(v, min + margin, max - margin);
-    }
-
-    private static Vec3 faceCenter(AABB box, Direction side) {
-        Vec3 c = box.getCenter();
-        return switch (side) {
-            case DOWN -> new Vec3(c.x, box.minY, c.z);
-            case UP -> new Vec3(c.x, box.maxY, c.z);
-            case NORTH -> new Vec3(c.x, c.y, box.minZ);
-            case SOUTH -> new Vec3(c.x, c.y, box.maxZ);
-            case WEST -> new Vec3(box.minX, c.y, c.z);
-            case EAST -> new Vec3(box.maxX, c.y, c.z);
-        };
     }
 }

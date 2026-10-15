@@ -14,6 +14,7 @@ neoForge {
 
 // 要读 Numen API 的 apiJar 任务,它得先配置好
 evaluationDependsOn(':numen-api:common')
+evaluationDependsOn(':numen:pathing')
 
 dependencies {
     // Numen 是 Numen API 的第一个插件。上游只放行瘦 api jar 的公开面;本仓二开用到了 Numen API 的
@@ -27,6 +28,8 @@ dependencies {
     // 单元测试可以看完整的 Numen API(夹具要登记处、排程机器),编译与运行类路径补上同一模块。
     testImplementation project(':numen-api:common')
     testImplementation project(':numen:pathing')
+    // 目标族的终点格核对表要原版世界夹具(TestWorld、Vanilla),与寻路模块的单测共用同一份
+    testImplementation project(':numen:pathing').sourceSets.test.output
 
     compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.5'
     // fabric and neoforge both bundle mixinextras, so it is safe to use it in common

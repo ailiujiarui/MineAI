@@ -65,18 +65,16 @@ class NumenGroupsTest {
     }
 
     /**
-     * build 组是 blueprint/place/diff 与库里的 raise;垫路料是一趟路的描述里的一项({@code numen.route.plan} 的 materials),没有一组
-     * 函数记在她身上。
+     * build 组是 blueprint/place/diff 与库里的 raise;没有一组函数管垫路料。
      */
     @Test
     void buildIsThreeFunctionsAndTheLibrarysRaise() {
         String build = help("numen.build");
         assertEquals(List.of("blueprint", "diff", "place", "raise"), functions(build, "build"), build);
-        assertTrue(build.contains("\n---@field raise fun(building: Cells|Blueprint, opts?: table): integer "),
+        assertTrue(build.contains("\n---@field raise fun(building: Cells|Blueprint): integer "),
                 "库里的 numen.build.raise 照它的类型注解列在组里: " + build);
         assertTrue(build.contains("\n---@class Placed\n") && build.contains("\n---@class Blueprint\n")
                 && build.contains("\n---@class Diff\n"), "组里返回值用到的类跟在后面: " + build);
-        assertTrue(help("numen.route.plan").contains("\n---@field materials? "), "垫路料写在一趟路的描述里");
         ApiTester.Run gone = run("numen.build.scaffold_add(\"minecraft:dirt\")");
         assertFalse(gone.ok(), "build 组里没有垫路料的函数: " + gone.message());
         assertTrue(gone.message().contains("there is no API function numen.build.scaffold_add"), gone.message());
@@ -95,26 +93,21 @@ class NumenGroupsTest {
 
     @Test
     void eachGroupAnswersItsHelp() {
-        for (String group : List.of("move", "route", "work", "fight", "build", "inv", "gui", "gear", "creative",
+        for (String group : List.of("move", "work", "fight", "build", "inv", "gui", "gear", "creative",
                 "time", "use", "scan", "status", "locate")) {
             String text = help("numen." + group);
             assertTrue(text.startsWith("---") && text.contains("\n---@class numen." + group + "\n")
                     && text.contains("\nnumen." + group + " = {}"), text);
         }
-        String routeHelp = help("numen.route");
-        assertEquals(List.of("plan"), functions(routeHelp, "route"), "路线不是名词,只有规划: " + routeHelp);
-        String planHelp = help("numen.route.plan");
-        assertTrue(planHelp.contains("\n---@field costs? ") && planHelp.contains("\n---@field stops? ")
-                && planHelp.contains("\n---@field avoid_break? ") && planHelp.contains("\n---@class Plan\n"), planHelp);
         String moveHelp = help("numen.move");
-        assertEquals(List.of("dismount", "follow", "go", "to", "flee", "explore"), functions(moveHelp, "move"),
-                "库函数与函数都列在组里: " + moveHelp);
-        assertTrue(moveHelp.contains("\n---@field to fun(target: Pos|Block|Entity|table, spec?: table): "
-                + "{pos: Pos, distance_left: number} Walk to a place in one call: numen.route.plan with the description "
-                + "and to = target, then numen.move.go.\n"), "库函数的说明是它注释的第一句: " + moveHelp);
+        assertEquals(List.of("away", "follow", "to", "explore"), functions(moveHelp, "move"),
+                "库函数与函数都列在组里,寻路给模型的只有三个: " + moveHelp);
+        assertTrue(help("numen.move.to").contains("\n---@class Walked\n"), "走路的回执只有一个类型");
+        assertTrue(help("numen.move.follow").contains("Walked") && help("numen.move.away").contains("Walked"));
+        assertEquals(List.of("block", "dismount", "entity", "hit", "item", "sleep"), functions(help("numen.use"), "use"));
         String workHelp = help("numen.work");
         assertTrue(functions(workHelp, "work").contains("mine") && workHelp.contains("\n---@field mine fun(cluster: "
-                + "Cluster|Cells): integer Dig out one cluster, walking first"), "挖完一团是内置模块 work 里的 Lua 函数: " + workHelp);
+                + "Cluster|Cells): integer Dig out one cluster: numen.work.dig walks up to"), "挖完一团是内置模块 work 里的 Lua 函数: " + workHelp);
     }
 
     /**
@@ -129,11 +122,10 @@ class NumenGroupsTest {
                 "numen.inv.drop(\"minecraft:cobblestone\", {count = 32})", "numen.work.dig({x = 120, y = 64, z = -35})",
                 "numen.work.dig({name = \"minecraft:iron_ore\", pos = {x = 120, y = 12, z = -35}}, "
                         + "{x = 121, y = 12, z = -35}, {count = 4})",
-                "numen.move.go({id = \"p1\"})", "numen.move.follow(184)", "numen.move.dismount()",
+                "numen.move.to({x = 1, y = 2, z = 3})", "numen.move.to({x = 1, y = 2, z = 3}, 4)",
+                "numen.move.away(184, 12)", "numen.move.follow(184)", "numen.use.dismount()",
                 "numen.scan.blocks(\"iron_ore\")", "numen.scan.entities()",
                 "numen.scan.block({x = 1, y = 2, z = 3})", "numen.task.timer(\"check the furnace\", {after = 90})",
-                "numen.route.plan({to = {x = 1, y = 2, z = 3}})",
-                "numen.route.plan({stops = {{to = {x = 1, z = 2}}}, costs = {dig = true, consent = false}, avoid = {\"water\"}})",
                 "numen.build.place({{name = \"stone\", pos = {x = 1, y = 2, z = 3}}})",
                 "numen.build.place({name = \"oak_planks\", pos = {x = 0, y = 1, z = 0}})",
                 "numen.build.blueprint(\"house\", {x = 100, y = 64, z = -20}, {rotation = 90})",
@@ -145,8 +137,7 @@ class NumenGroupsTest {
         }
         for (String wrong : List.of("numen.fight.attack({entity_ids = {27, 26}})", "numen.fight.attack(27, 26)",
                 "numen.use.block(\"right\", {x = 120, y = 64, z = -35})", "numen.inv.drop(\"cobblestone\", 32)",
-                "numen.move.go(\"home\")", "numen.route.plan({to = \"ores\"})",
-                "numen.route.plan({to = {x = 1, y = 2, z = 3}, alter = \"natural\"})")) {
+                "numen.move.to(\"home\")", "numen.move.to({x = 1, y = 2, z = 3}, {arrive = \"dig\"})")) {
             var reading = ScriptEngine.IN_USE.calls("t", wrong, ApiRegistry.catalog(Modules.factory()));
             assertThrows(ApiError.class, () -> Dispatcher.invocation(reading.calls().get(0)), "旧写法不再收: " + wrong);
         }

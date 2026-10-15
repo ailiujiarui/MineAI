@@ -3,7 +3,10 @@ package com.dwinovo.numen.pathing.drive;
 import com.dwinovo.numen.api.entity.Controls.Key;
 import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.MoveKind;
+import com.dwinovo.numen.pathing.world.Kinematics;
+import com.dwinovo.numen.pathing.world.Semantics;
 
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -64,8 +67,7 @@ final class StrideControl extends Control {
                 && (rig.entity.horizontalCollision
                         || rig.entity.getY() < m.landing().feetY() - 0.01 && ahead() >= jumpPoint());
         keys().set(Key.JUMP, jump);
-        boolean flows = stride.flows();
-        if (flows) {
+        if (stride.flows() || perched()) {
             Steering.pass(rig, target.x, target.z);
         } else {
             Steering.stop(rig, target.x, target.z, m.landing().feetY());
@@ -73,9 +75,29 @@ final class StrideControl extends Control {
         keys().set(Key.SPRINT, stride.sprint());
     }
 
-    /** 身体中心走出这么远就起跳:身子前沿快碰到那一列时。 */
+    /**
+     * 身体已经进了落点这一列,脚却还踩在比落点高的东西上(开着的活板门的薄板顶、贴着落点边沿的矮墙):还没到落点,不收脚,接着朝中心走下来。
+     * 收脚的停点是中心,可停在差一点的地方就下不来——薄板宽 3/16,身子的另一侧离开板的内沿离中心只剩 1/80 格,而收脚能停准的精度远不到这个数;
+     * 到了落点的高度再收脚。
+     */
+    private boolean perched() {
+        var body = rig.entity;
+        return body.onGround() && body.getY() > m.landing().feetY() + PERCHED
+                && Mth.floor(body.getX()) == m.to().getX() && Mth.floor(body.getZ()) == m.to().getZ();
+    }
+
+    /** 脚比落点高出这么多,算还踩在别的东西上。 */
+    private static final double PERCHED = 0.05;
+
+    /**
+     * 身体中心走出这么远就起跳:从离地到脚升过这一级的高度要几刻({@link Kinematics#riseTicks}),这几刻里身子每刻往前挪的距离按
+     * 下一刻的({@link Steering#nextStride}:上一刻留下的速度加这一刻按前进的加速度),挪到前沿碰上那一列时脚刚好高过去。
+     * 起得晚了,身子先撞在立面上停住,再从静止起跳,一级台阶白白多费几刻。
+     */
     private double jumpPoint() {
         double half = rig.entity.getBbWidth() / 2;
-        return 0.5 - half - horizontalSpeed();
+        double factor = Semantics.jumpFactor(rig.world(), m.from().getX(), m.start().feetY(), m.from().getZ());
+        double ticks = Kinematics.riseTicks(rig.snapshot().stats(), factor, m.landing().feetY() - m.start().feetY());
+        return 0.5 - half - Steering.nextStride(rig.entity) * ticks;
     }
 }

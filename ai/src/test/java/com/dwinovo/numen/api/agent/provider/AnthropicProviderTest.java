@@ -10,7 +10,6 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -279,14 +278,6 @@ class AnthropicProviderTest {
         assertEquals("stop", acc.finishReason);
         P.accumulateChunk(j("{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"max_tokens\"}}"), acc);
         assertEquals("length", acc.finishReason);
-    }
-
-    @Test
-    void extractReasoningDeltaReadsThinkingDelta() {
-        assertEquals("想", P.extractReasoningDelta(j(
-                "{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"想\"}}")));
-        assertNull(P.extractReasoningDelta(j(
-                "{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"答\"}}")));
     }
 
     @Test

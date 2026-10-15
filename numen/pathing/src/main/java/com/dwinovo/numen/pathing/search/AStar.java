@@ -19,7 +19,6 @@ import com.dwinovo.numen.pathing.plan.WorldView;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.pathing.world.Bounds;
 import com.dwinovo.numen.pathing.world.BodyStats;
-import com.dwinovo.numen.pathing.world.Kinematics;
 import com.dwinovo.numen.pathing.world.Recall;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -48,8 +47,8 @@ import net.minecraft.world.level.material.FluidState;
  *       在封顶之前到了目标的,路线与搜到底一样;封顶时还没有可交的半程,就接着搜,直到有了或预算用完;</li>
  *   <li><b>接着一条路线往下搜</b>:起点是那条路线的终点({@link Search#arrival}),身体到那里时怎么待着按那一步的落点算,
  *       展开起点时叠上那一步的改动——快照里还没有它垫下的块;</li>
- *   <li><b>估价</b>:目标的估价({@link Goal#estimate})加上埋深({@link Burial}):路上绕不开要挖掉的格至少多少钱。两样都是
- *       下界,搜出来的仍是最便宜的路;埋深在开搜时从目标往外算一次;</li>
+ *   <li><b>估价</b>:疾跑底价加额外代价下界({@link Estimate}):水平距离乘疾跑一格,加上路上绕不开要挖掉的格至少多少钱、
+ *       要升降几个节点每个至少多花多少。每一项都是下界,搜出来的仍是最便宜的路;后两样在开搜时按世界算一次,每个节点只查表加乘法;</li>
  *   <li><b>目标格保护</b>:目标的 {@link Goal#protection()} 并进路线规格的按位置禁令,规划不挖自己要站、要够的格;</li>
  *   <li><b>改动预算</b>(规格的 {@code alterBudget})在展开时就生效:设了预算时节点按"位置加已改几格"区分,超出预算的步子
  *       不展开,所以搜出来的路一定在预算内,而且是预算内最便宜的;</li>
@@ -68,12 +67,15 @@ public final class AStar {
     private static final double[] COEFFICIENTS = {1.5, 2, 2.5, 3, 4, 5, 10, Double.POSITIVE_INFINITY};
     /** 小于这个改进不松弛:平地上斜走与直走组合出的浮点差不值得重排堆。 */
     private static final double MIN_IMPROVEMENT = 0.01;
+    /**
+     * 总价差在这以内算平手。平地上同一价钱的路线加的顺序不同,浮点和差在 1e-12 上下:用 f 直接比,平手大半被噪声拆开,
+     * 所以堆按取整到这个刻度的总价比({@link Node#key}),这一格里再比估价。
+     */
+    private static final double TIE = 1e-6;
 
     private final Search search;
     private final CostModel model;
     private final BodyStats body;
-    /** 这一次搜索的估价价钱:这具身体运动学的下界。 */
-    private final Kinematics.Pace pace;
     private final boolean budgeted;
     private final int alterBudget;
     private final Breath breath;
@@ -81,14 +83,13 @@ public final class AStar {
     private boolean breathless;
     private final Long2ObjectOpenHashMap<Node> nodes = new Long2ObjectOpenHashMap<>();
     private final Heap open = new Heap();
-    private Burial burial = Burial.NONE;
+    private Estimate estimate;
 
     private AStar(Search search) {
         this.search = search;
         RouteSpec spec = search.model().spec();
         this.model = Goal.guarded(search.goal(), search.model());
         this.body = model.body().stats();
-        this.pace = Kinematics.pace(body);
         this.budgeted = spec.budgeted();
         this.alterBudget = spec.alterBudget();
         this.breath = model.body().breath();
@@ -106,9 +107,9 @@ public final class AStar {
         Maneuver arrival = search.arrival();
         Stance startStance = arrival != null ? arrival.landing() : Stance.at(view, body, startPos);
         if (startStance == null) {
-            return new SearchResult(SearchResult.Stop.STRANDED, null, 0, false);
+            return result(SearchResult.Stop.STRANDED, null, 0);
         }
-        burial = Burial.of(view, model, goal, startPos, search.budget());
+        estimate = Estimate.of(view, model, goal, startPos, search.budget());
         Node start = node(startPos.getX(), startPos.getY(), startPos.getZ(), 0, breath.band(search.air()));
         start.g = 0;
         start.stance = startStance;
@@ -126,7 +127,7 @@ public final class AStar {
         Probe probe = new Probe(view, new Recall(body));
         while (!open.isEmpty()) {
             if (cancelled.getAsBoolean()) {
-                return new SearchResult(SearchResult.Stop.CANCELLED, null, expanded, breathless);
+                return result(SearchResult.Stop.CANCELLED, null, expanded);
             }
             Node current = open.pop();
             // 身体此刻面对的世界:快照,加上走到这个节点的那一步做过的改动
@@ -141,17 +142,17 @@ public final class AStar {
                     current.f = total;
                     open.push(current);
                 } else {
-                    return new SearchResult(SearchResult.Stop.ARRIVED, route(start, current), expanded, breathless);
+                    return result(SearchResult.Stop.ARRIVED, route(start, current), expanded);
                 }
             }
             if (HandOver.due(expanded, search.handOver())) {
                 Route early = partial(start, best);
                 if (early != null) {
-                    return new SearchResult(SearchResult.Stop.BUDGET, early, expanded, breathless);
+                    return result(SearchResult.Stop.BUDGET, early, expanded);
                 }
             }
             if (expanded >= search.budget()) {
-                return new SearchResult(SearchResult.Stop.BUDGET, partial(start, best), expanded, breathless);
+                return result(SearchResult.Stop.BUDGET, partial(start, best), expanded);
             }
             expanded++;
             BlockPos from = new BlockPos(current.x, current.y, current.z);
@@ -215,7 +216,13 @@ public final class AStar {
             }
         }
         SearchResult.Stop stop = skippedUnloaded ? SearchResult.Stop.UNLOADED : SearchResult.Stop.EXHAUSTED;
-        return new SearchResult(stop, partial(start, best), expanded, breathless);
+        return result(stop, partial(start, best), expanded);
+    }
+
+    /** 搜索的结论;交出的路线终点离目标的估价连同带上:到了为 0,没有路线为 NaN。 */
+    private SearchResult result(SearchResult.Stop stop, Route route, int expanded) {
+        double atEnd = route == null ? Double.NaN : stop == SearchResult.Stop.ARRIVED ? 0 : estimate.at(route.end());
+        return new SearchResult(stop, route, expanded, breathless, atEnd);
     }
 
     /**
@@ -238,11 +245,18 @@ public final class AStar {
         }
 
         @Override
+        public boolean changed(int x, int yMin, int yMax, int z) {
+            return false;
+        }
+
+        @Override
         public BlockState getBlockState(BlockPos pos) {
-            if (!view.isLoaded(pos.getX(), pos.getZ())) {
+            BlockState state = view.loadedBlockState(pos);
+            if (state == null) {
                 recall.touchUnloaded();
+                return view.getBlockState(pos);
             }
-            return view.getBlockState(pos);
+            return state;
         }
 
         @Override
@@ -292,7 +306,7 @@ public final class AStar {
                 return n;
             }
         }
-        Node n = new Node(x, y, z, used, band, search.goal().estimate(x, y, z, pace) + burial.floor(x, y, z));
+        Node n = new Node(x, y, z, used, band, estimate.at(x, y, z));
         n.sibling = head;
         nodes.put(key, n);
         return n;
@@ -326,6 +340,8 @@ public final class AStar {
         final double h;
         double g = Double.POSITIVE_INFINITY;
         double f;
+        /** 堆里排序用的总价:f 取整到 {@link #TIE};入堆、改键时由堆更新。 */
+        long key;
         Stance stance;
         Node parent;
         Maneuver via;
@@ -346,7 +362,11 @@ public final class AStar {
         }
     }
 
-    /** 按 f 排的二叉堆,支持原地降键。 */
+    /**
+     * 按总价排的二叉堆,支持原地降键。总价平手时估价小的在前(同总价里 g 更大的,离目标更近的先展开),
+     * 平地上一大片同总价的节点不再整片展开:总价低于最优路线的节点怎么排都得展开,顺序只影响总价恰等于最优价的那一层,
+     * 所以搜出的总价不变;最优路线有多条等价时,选到哪一条取决于这个顺序。
+     */
     private static final class Heap {
         private Node[] items = new Node[1024];
         private int size;
@@ -361,16 +381,26 @@ public final class AStar {
             }
             items[size] = n;
             n.heapIndex = size;
+            n.key = key(n.f);
             size++;
             up(n.heapIndex);
         }
 
         void pushOrUpdate(Node n) {
             if (n.heapIndex >= 0) {
+                n.key = key(n.f);
                 up(n.heapIndex);
             } else {
                 push(n);
             }
+        }
+
+        private static long key(double f) {
+            return Math.round(f / TIE);
+        }
+
+        private static boolean before(Node a, Node b) {
+            return a.key < b.key || (a.key == b.key && a.h < b.h);
         }
 
         Node pop() {
@@ -390,7 +420,7 @@ public final class AStar {
             Node n = items[i];
             while (i > 0) {
                 int parent = (i - 1) >>> 1;
-                if (items[parent].f <= n.f) {
+                if (!before(n, items[parent])) {
                     break;
                 }
                 items[i] = items[parent];
@@ -408,10 +438,10 @@ public final class AStar {
                 if (child >= size) {
                     break;
                 }
-                if (child + 1 < size && items[child + 1].f < items[child].f) {
+                if (child + 1 < size && before(items[child + 1], items[child])) {
                     child++;
                 }
-                if (items[child].f >= n.f) {
+                if (!before(items[child], n)) {
                     break;
                 }
                 items[i] = items[child];

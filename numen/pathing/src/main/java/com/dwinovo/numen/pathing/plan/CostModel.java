@@ -17,6 +17,7 @@ import com.dwinovo.numen.pathing.world.Kinematics;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -106,6 +107,29 @@ public final class CostModel {
      */
     public boolean bearsFall(double drop, int damage) {
         return body.bears(damage) && drop <= spec.maxFallHeightNoWater() + Footing.EPSILON;
+    }
+
+    /**
+     * 身体从 {@code drop} 高处落到 {@code support}(落定后脚踩的那一格)上摔掉几点血:站着落地、没落进水里,才照身体快照按落差与
+     * 那一格算({@link BodySnapshot#fallDamage});落进水里、攀着、浮着不摔。
+     *
+     * <p>脚踩的那一格是托住脚的碰撞箱所在的格(第 0 层 {@code Footing.supportY})。原版结算摔伤看的是脚底往下 0.2 格处那一格
+     * ({@code Entity.getOnPosLegacy}),两者只在托脚的是不到 0.2 格厚的薄片(地毯、一层雪、中继器)时不同:那时原版看的是薄片底下那一块。
+     */
+    public int fallDamage(BlockGetter level, Stance landing, BlockPos support, double drop, boolean wading) {
+        if (!landing.grounded() || wading || support == null) {
+            return 0;
+        }
+        return body.fallDamage(drop, level.getBlockState(support));
+    }
+
+    /**
+     * 这个落点摔得起摔不起:站着落地、没落进水里的,身体受得起这一摔({@link BodySnapshot#bears})、落差也在规格的无水落差以内
+     * ({@link #bearsFall});攀着、浮着、落进水里的不摔。所有会落下去的走法(落下一级、斜走、向下挖)与步态({@code Gait}
+     * 判多掉一次摔不摔得起)问的都是这一处。
+     */
+    public boolean bearsLanding(Stance landing, boolean wading, double drop, int damage) {
+        return !landing.grounded() || wading || bearsFall(drop, damage);
     }
 
     /** 这次能不能疾跑:身体跑得动(饱食度够,或能飞)。 */

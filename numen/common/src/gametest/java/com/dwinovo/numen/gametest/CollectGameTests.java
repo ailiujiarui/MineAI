@@ -131,14 +131,14 @@ public class CollectGameTests {
     }
 
     /**
-     * 三块铁锭搁在一根三格高的石柱顶上,不改地形的路走不上去:走过去的那一步(规划路线)失败,整段如实停在那里,回执说是哪一步、
+     * 三块铁锭搁在一根三格高的基岩柱顶上(石头她挖得动,从柱身里就够得着),她身上没有垫脚的方块,走不上去:走过去的那一步失败,整段如实停在那里,回执说是哪一步、
      * 为什么;铁锭原样留在柱顶——不能让模型以为这一片已经干净了。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_collect")
     public static void work_collect_stops_where_it_cannot_walk(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         for (int y = 2; y <= 4; y++) {
-            level.setBlockAndUpdate(helper.absolutePos(new BlockPos(10, y, 10)), Blocks.STONE.defaultBlockState());
+            level.setBlockAndUpdate(helper.absolutePos(new BlockPos(10, y, 10)), Blocks.BEDROCK.defaultBlockState());
         }
         dropOnFloor(helper, new BlockPos(10, 5, 10), Items.IRON_INGOT, 3);
         NumenPlayer companion = spawnAt(helper, "gametest_shortarm", new BlockPos(6, 2, 6), false);
@@ -146,7 +146,7 @@ public class CollectGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(collect.receipt() != null, "numen.work.collect has not finished");
-            helper.assertTrue(!collect.ranToTheEnd() && collect.receipt().contains("numen.move.go: "),
+            helper.assertTrue(!collect.ranToTheEnd() && collect.receipt().contains("numen.move.to: "),
                     "a sweep that can reach nothing did not stop at the walk: " + collect.receipt());
             helper.assertTrue(companion.getInventory().countItem(Items.IRON_INGOT) == 0
                             && onFloor(helper, Items.IRON_INGOT) == 3,

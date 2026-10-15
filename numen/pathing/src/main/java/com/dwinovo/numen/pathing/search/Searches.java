@@ -24,6 +24,11 @@ public final class Searches {
 
     private Searches() {}
 
+    /** 工作线程池的大小。 */
+    public static int poolSize() {
+        return POOL_SIZE;
+    }
+
     private static ThreadPoolExecutor pool() {
         ThreadPoolExecutor pool = new ThreadPoolExecutor(POOL_SIZE, POOL_SIZE, 60, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(), task -> {
@@ -55,7 +60,16 @@ public final class Searches {
     private static <T> Pending<T> dispatch(Function<BooleanSupplier, T> job) {
         AtomicBoolean cancelled = new AtomicBoolean();
         Pending.Clock clock = new Pending.Clock();
-        CompletableFuture<T> future = CompletableFuture.supplyAsync(() -> clock.time(() -> job.apply(cancelled::get)), POOL);
-        return new Pending<>(future, cancelled, clock);
+        CompletableFuture<T> future = new CompletableFuture<>();
+        Runnable task = () -> {
+            try {
+                future.complete(clock.time(() -> job.apply(cancelled::get)));
+            } catch (Throwable e) {
+                future.completeExceptionally(e);
+            }
+        };
+        POOL.execute(task);
+        // 叫停时还在队里排着的,直接从队里拿走:它握着的快照与成本模型不必等到有线程空出来、跑到它、发现被叫停才放掉
+        return new Pending<>(future, cancelled, clock, () -> POOL.remove(task));
     }
 }

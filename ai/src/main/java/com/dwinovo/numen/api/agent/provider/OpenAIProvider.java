@@ -187,7 +187,11 @@ public class OpenAIProvider implements LlmProvider {
     @Override
     public AssistantTurn parseResponseBody(JsonObject body) {
         JsonObject msg = extractMessage(body);
-        String content = stringOrEmpty(msg.get("content"));
+        StringBuilder content = new StringBuilder();
+        StringBuilder thought = new StringBuilder();
+        ThinkTagSplitter tags = new ThinkTagSplitter();
+        tags.feed(stringOrEmpty(msg.get("content")), content, thought);
+        tags.flush(content, thought);
         List<LlmToolCall> toolCalls = parseToolCalls(msg);
         JsonObject extras = extractExtras(msg);
         String reasoning = "";
@@ -195,7 +199,7 @@ public class OpenAIProvider implements LlmProvider {
             String v = stringField(msg, f);
             if (v != null && !v.isEmpty()) { reasoning = v; break; }
         }
-        return new AssistantTurn(content, toolCalls, extras, reasoning);
+        return new AssistantTurn(content.toString(), toolCalls, extras, reasoning + thought);
     }
 
     /** Pull {@code choices[0].message} out of the response body. */
@@ -291,7 +295,7 @@ public class OpenAIProvider implements LlmProvider {
 
         // content fragment
         if (delta.has("content") && delta.get("content").isJsonPrimitive()) {
-            acc.content.append(delta.get("content").getAsString());
+            acc.appendContent(delta.get("content").getAsString());
         }
 
         // 思考文本增量(方言字段,首个非空者锁定)——展示面累积;
@@ -365,26 +369,6 @@ public class OpenAIProvider implements LlmProvider {
                 ? el.getAsString() : null;
     }
 
-    /**
-     * 无状态版思考增量抽取(供 UI 实时流)。没有跨 chunk 的字段锁定,同流
-     * 双字段的极端场合可能重复;权威去重版本是累积后的
-     * {@link AssistantTurn#reasoning}。
-     */
-    @Override
-    public String extractReasoningDelta(JsonObject chunk) {
-        if (!chunk.has("choices") || !chunk.get("choices").isJsonArray()) return null;
-        JsonArray choices = chunk.getAsJsonArray("choices");
-        if (choices.isEmpty() || !choices.get(0).isJsonObject()) return null;
-        JsonObject choice = choices.get(0).getAsJsonObject();
-        if (!choice.has("delta") || !choice.get("delta").isJsonObject()) return null;
-        JsonObject delta = choice.getAsJsonObject("delta");
-        for (String f : REASONING_FIELDS) {
-            String v = stringField(delta, f);
-            if (v != null && !v.isEmpty()) return v;
-        }
-        return null;
-    }
-
     /** Set of delta fields we treat as "standard" — subclasses use this for partition. */
     protected static java.util.Set<String> standardDeltaFields() {
         return STANDARD_DELTA_FIELDS;
@@ -411,6 +395,7 @@ public class OpenAIProvider implements LlmProvider {
 
     @Override
     public AssistantTurn finalizeStream(StreamAccumulator acc) {
+        acc.endContent();
         List<LlmToolCall> calls = new ArrayList<>(acc.toolCalls.size());
         for (StreamAccumulator.ToolCallBuilder b : acc.toolCalls.values()) {
             if (b.id == null && b.name == null && b.arguments.length() == 0) continue;

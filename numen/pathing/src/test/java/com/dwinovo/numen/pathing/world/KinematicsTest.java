@@ -36,6 +36,25 @@ class KinematicsTest {
         return moved;
     }
 
+    /** 落地的耗时:自由下落的工夫,至少要走回落点那一列的中心。 */
+    @Test
+    void landingTakesTheFallOrTheWalkBackToTheCenterWhicheverIsLonger() {
+        assertEquals(Kinematics.fallTicks(SURVIVAL.gravity(), 3), Kinematics.fallLandingTicks(SURVIVAL, 3), 1e-12);
+        // 走得很慢的身体,落下一点点的工夫还不够走回中心
+        BodyStats slow = body(0.02, 0.42, 0.08);
+        assertEquals(Kinematics.centerAfterFallTicks(slow), Kinematics.fallLandingTicks(slow, 0.01), 1e-12);
+        assertTrue(Kinematics.centerAfterFallTicks(slow) > Kinematics.fallTicks(slow.gravity(), 0.01));
+    }
+
+    /** 估价的水平底价:平走与疾跑一格的耗时,疾跑比平走快。 */
+    @Test
+    void thePaceIsTheWalkAndSprintTicksPerBlock() {
+        Kinematics.Pace pace = Kinematics.pace(SURVIVAL);
+        assertEquals(Kinematics.walkTicksPerBlock(SURVIVAL), pace.walk(), 1e-12);
+        assertEquals(Kinematics.sprintTicksPerBlock(SURVIVAL), pace.sprint(), 1e-12);
+        assertTrue(pace.sprint() < pace.walk());
+    }
+
     @Test
     void groundSpeedsMatchTheTickByTickIntegrationAndTheVanillaFigures() {
         double walk = integratedStride(0.1, 0.6);
@@ -190,5 +209,59 @@ class KinematicsTest {
         // 疾跑稳态 0.2806 格每刻:先滑一刻(×0.546)0.153,再按反向键减去 0.098 滑 0.055,第三刻停住
         assertEquals(0.153 + 0.055, Kinematics.stopDistance(SURVIVAL, sprint), 2e-3);
         assertTrue(Kinematics.stopDistance(SURVIVAL, sprint * Math.sqrt(0.5)) < Kinematics.stopDistance(SURVIVAL, sprint));
+    }
+
+    /** 参照:地上挪过边沿后一刻一刻地落,竖直方向用位置积分(先按速度挪、再减重力乘阻力),落到不高于落点的那一刻,水平挪动也算上。 */
+    private static double integratedLanding(double gravity, double toEdge, double move, double groundAccel, double airAccel, double drop) {
+        double x = 0;
+        double m = move;
+        double drag = 0.6 * 0.91;
+        while (x + m < toEdge) {
+            x += m;
+            m = m * drag + groundAccel;
+            if (m < 0.003) {
+                return Double.NaN;
+            }
+        }
+        x += m;
+        double v = m * drag;
+        double y = drop;
+        double vy = -gravity * 0.98;
+        while (y > 0) {
+            v += airAccel;
+            x += v;
+            v *= 0.91;
+            y += vy;
+            vy = (vy - gravity) * 0.98;
+        }
+        return x;
+    }
+
+    @Test
+    void dropLandingMatchesTheTickByTickFlightOffAnEdge() {
+        double walkPush = Kinematics.pushAcceleration(SURVIVAL, false);
+        double sprintPush = Kinematics.pushAcceleration(SURVIVAL, true);
+        double air = Kinematics.airAcceleration(false);
+        double sprintAir = Kinematics.airAcceleration(true);
+        double walk = Kinematics.walkSpeed(SURVIVAL);
+        double sprint = Kinematics.sprintSpeed(SURVIVAL);
+        for (double drop : new double[] {1, 2, 3}) {
+            assertEquals(integratedLanding(0.08, 0.8, walk, walkPush, air, drop),
+                    Kinematics.dropLanding(0.08, 0.8, walk, walkPush, air, drop), 1e-9, "平走带着冲劲落 " + drop + " 格");
+            assertEquals(integratedLanding(0.08, 0.8, sprint, sprintPush, sprintAir, drop),
+                    Kinematics.dropLanding(0.08, 0.8, sprint, sprintPush, sprintAir, drop), 1e-9, "疾跑带着冲劲落 " + drop + " 格");
+        }
+        assertEquals(1.617, Kinematics.dropLanding(0.08, 0.8, walk, walkPush, air, 1), 1e-3, "平走落一格:离起步列中心约一格半");
+        assertEquals(1.821, Kinematics.dropLanding(0.08, 0.8, sprint, sprintPush, sprintAir, 1), 1e-3, "疾跑落一格:落过了下一列的外沿");
+    }
+
+    @Test
+    void dropLandingGrowsWithSpeedAndDropAndIsNaNWhenTheBodyCoastsToAStop() {
+        double slow = Kinematics.dropLanding(0.08, 0.8, 0.25, 0.04, 0, 1);
+        double fast = Kinematics.dropLanding(0.08, 0.8, 0.3, 0.04, 0, 1);
+        assertTrue(fast > slow, "冲得快落得远");
+        assertTrue(Kinematics.dropLanding(0.08, 0.8, 0.25, 0.04, 0, 2) > slow, "落得深,在空中的时间长,飘得远");
+        assertTrue(Double.isNaN(Kinematics.dropLanding(0.08, 0.8, 0.2, 0, 0, 1)), "松着键滑不到边沿就停住了");
+        assertTrue(slow >= 0.8, "落地时身体早已在边沿外");
     }
 }

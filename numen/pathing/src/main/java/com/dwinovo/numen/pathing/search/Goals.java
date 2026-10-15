@@ -42,7 +42,8 @@ import net.minecraft.world.phys.Vec3;
  * 组合方式:多个取其一({@link #anyOf});几个同时成立({@link #allOf})只给战斗走位
  * ——站在围着目标的环上,同时离别的怪够远。
  *
- * <p>估价按 {@link ActionCosts} 的估价权重:水平走八方向距离、往上按跳、往下按落,每种目标只估到它自己的边界。
+ * <p>估价的水平底价({@link Goal#estimate}):水平按疾跑走八方向距离,每种目标只估到它自己的边界;升降与挖开的额外代价另算
+ * ({@link Vertical}、{@link Burial}),目标只交出到了时脚所在的高度范围({@link Goal#heights})与终点格({@link Goal#endCells})。
  */
 public final class Goals {
 
@@ -261,63 +262,99 @@ public final class Goals {
     }
 
     /**
-     * 眼睛(按脚在这一格的底算)挪进 {@code target} 那一格的交互距离以内,最少要付多少:同一套分轴的价(水平八方向距离按走,竖直往上按跳、往下按落),
-     * 水平每格按走、往上按跳、往下按落。眼睛离那一格水平差 {@code a}、竖直差 {@code b},交互距离是 {@code r},挪完之后剩下的
-     * 水平差 {@code u}、竖直差 {@code v} 要满足 {@code u² + v² < r²};在这些里取价钱最省的一处。
-     *
-     * <p>不按直线距离一个价钱估:那样目标在正下方深处时,横着走开十几格估价几乎不涨,地表每一格连同它底下挖开的一列都
-     * 像离目标一样近,搜索一圈圈铺开。
+     * 眼睛挪进 {@code target} 那一格的交互距离以内,水平上最少要付多少:眼睛离那一格的水平距离减去交互距离(竖直差为零时水平能容的
+     * 最远),乘疾跑一格的耗时。竖直方向要升降几个节点不在这里,由目标的高度范围算({@link Goal#heights()}、{@link Vertical})。
      */
-    private static double beyondReach(BlockPos target, BodyStats body, int x, int y, int z, Kinematics.Pace pace) {
-        return beyondReach(new AABB(target), body.blockReach(), body, x, y, z, pace);
+    private static double beyondReach(BlockPos target, int x, int z, double reach, Kinematics.Pace pace) {
+        return beyondReach(new AABB(target), x, z, reach, pace);
     }
 
-    /** 眼睛(按脚在这一格的底算)挪进 {@code box} 的 {@code reach} 以内最少要付多少,同 {@link #beyondReach(BlockPos, BodyStats, int, int, int, Kinematics.Pace)}。 */
-    private static double beyondReach(AABB box, double reach, BodyStats body, int x, int y, int z, Kinematics.Pace pace) {
-        Vec3 eye = body.eye(x, y, z);
-        double dx = gap(eye.x, box.minX, box.maxX);
-        double dz = gap(eye.z, box.minZ, box.maxZ);
-        double rise = eye.y < box.minY ? box.minY - eye.y : 0;
-        double drop = eye.y > box.maxY ? eye.y - box.maxY : 0;
-        // 眼睛按脚在格底算:目标在上方时,脚真实可以高到差一点满一格,要升的至多少了一格;目标在下方时格底就是离目标最近的脚高,
-        // 要落的米数一点不少
-        double vertical = rise > 0 ? Math.max(0, rise - 1) : drop;
-        return intoDisc(Math.sqrt(dx * dx + dz * dz), vertical, reach, pace.sprint(), rise > 0 ? pace.rise() : pace.drop());
+    /** 同 {@link #beyondReach(BlockPos, int, int, double, Kinematics.Pace)},目标是一个碰撞箱。 */
+    private static double beyondReach(AABB box, int x, int z, double reach, Kinematics.Pace pace) {
+        double dx = gap(x + 0.5, box.minX, box.maxX);
+        double dz = gap(z + 0.5, box.minZ, box.maxZ);
+        return pace.sprint() * Math.max(0, Math.hypot(dx, dz) - reach);
     }
 
-    /** 坐标 {@code v} 离 {@code [cell, cell + 1]} 这一段有多远:在段里为 0。 */
-    private static double gap(double v, int cell) {
-        return gap(v, cell, cell + 1);
+    /** 终点格往各个方向最多离碰撞箱这么远(格数)。 */
+    private static int span(double reach, double eye) {
+        return (int) Math.ceil(reach + eye) + 1;
+    }
+
+    /** 脚在 [y, y + 1) 里,眼睛在 [y + eye, y + 1 + eye) 里:取离 {@code box} 最近的高度,量竖直方向的距离。 */
+    private static double lift(AABB box, int y, double eye) {
+        return Math.max(0, Math.max(box.minY - (y + 1 + eye), y + eye - box.maxY));
+    }
+
+    /** 三个方向的距离合起来够得着:终点格与它所在的高度范围用的是同一个判据。 */
+    private static boolean near(double dx, double dy, double dz, double reach) {
+        return dx * dx + dy * dy + dz * dz < reach * reach;
+    }
+
+    /**
+     * 脚在一格里任何一个高度时,眼睛(在格的中心列)够得着 {@code box} 的那些格:挖一格、放一格、够着一个碰撞箱共用这一份几何,
+     * {@code reach} 是调用方按目标给的交互距离(方块或实体)。
+     */
+    private static LongSet cellsReaching(AABB box, double eye, double reach) {
+        int span = span(reach, eye);
+        int x0 = (int) Math.floor(box.minX) - span;
+        int y0 = (int) Math.floor(box.minY) - span;
+        int z0 = (int) Math.floor(box.minZ) - span;
+        // 每个方向上离碰撞箱的距离只和这一格的坐标有关:先各量一遍,三层循环里只相加比较
+        double[] dxs = new double[(int) Math.max(Math.floor(box.minX), Math.ceil(box.maxX) - 1) + span - x0 + 1];
+        double[] dys = new double[(int) Math.max(Math.floor(box.minY), Math.ceil(box.maxY) - 1) + span - y0 + 1];
+        double[] dzs = new double[(int) Math.max(Math.floor(box.minZ), Math.ceil(box.maxZ) - 1) + span - z0 + 1];
+        for (int i = 0; i < dxs.length; i++) {
+            dxs[i] = gap(x0 + i + 0.5, box.minX, box.maxX);
+        }
+        for (int i = 0; i < dys.length; i++) {
+            dys[i] = lift(box, y0 + i, eye);
+        }
+        for (int i = 0; i < dzs.length; i++) {
+            dzs[i] = gap(z0 + i + 0.5, box.minZ, box.maxZ);
+        }
+        // 先数出有几格再建表:一格格往空表里加,表要翻着倍地扩上七八回
+        long[] found = new long[dxs.length * dys.length * dzs.length];
+        int count = 0;
+        for (int i = 0; i < dxs.length; i++) {
+            for (int j = 0; j < dys.length; j++) {
+                for (int k = 0; k < dzs.length; k++) {
+                    if (near(dxs[i], dys[j], dzs[k], reach)) {
+                        found[count++] = BlockPos.asLong(x0 + i, y0 + j, z0 + k);
+                    }
+                }
+            }
+        }
+        return new LongOpenHashSet(found, 0, count);
+    }
+
+    /** {@link #cellsReaching} 里最低与最高的一层,不枚举格:水平上取最近的(为零),竖直上逐层问同一个判据。 */
+    private static Goal.Heights heightsReaching(AABB box, double eye, double reach) {
+        int span = span(reach, eye);
+        int lo = Integer.MAX_VALUE;
+        int hi = Integer.MIN_VALUE;
+        for (int y = (int) Math.floor(box.minY) - span; y <= Math.ceil(box.maxY) + span; y++) {
+            if (near(0, lift(box, y, eye), 0, reach)) {
+                lo = Math.min(lo, y);
+                hi = Math.max(hi, y);
+            }
+        }
+        return lo > hi ? null : new Goal.Heights(lo, hi);
+    }
+
+    /**
+     * 把 {@code more} 并进 {@code into}。逐个加:一次 {@code addAll} 会按两边个数之和扩表,几十个大半重叠的成员(挖放同一片里的几十格)
+     * 并起来的表比并出的格数大几十倍。
+     */
+    private static void union(LongOpenHashSet into, LongSet more) {
+        for (long cell : more) {
+            into.add(cell);
+        }
     }
 
     /** 坐标 {@code v} 离 {@code [min, max]} 这一段有多远:在段里为 0。 */
     private static double gap(double v, double min, double max) {
         return v < min ? min - v : Math.max(0, v - max);
-    }
-
-    /**
-     * 平面上从 {@code (a, b)}({@code a, b ≥ 0})挪进以原点为心、半径 {@code r} 的圆,横向每格 {@code alpha}、纵向每格
-     * {@code beta},最少付多少。横纵同时挪,付的是两项中大的那个({@link Kinematics.Pace#estimate}):挪 {@code x} 格横向、
-     * {@code y} 格纵向付 {@code max(alpha·x, beta·y)}。付 {@code t} 刻能挪的是方块 {@code [0, t/alpha] × [0, t/beta]},要它碰上
-     * 以 {@code (a, b)} 为心、半径 {@code r} 的圆,即 {@code (a, b)} 到方块的距离不超过 {@code r};取最小的 {@code t}。
-     */
-    private static double intoDisc(double a, double b, double r, double alpha, double beta) {
-        if (a * a + b * b <= r * r) {
-            return 0;
-        }
-        double u = 1 / alpha;
-        double w = 1 / beta;
-        // 横纵两项都还没挪够(离方块都还有距离):解 (a - u t)² + (b - w t)² = r²
-        double q = u * u + w * w;
-        double half = a * u + b * w;
-        double t = (half - Math.sqrt(Math.max(0, half * half - q * (a * a + b * b - r * r)))) / q;
-        double tA = alpha * a;
-        double tB = beta * b;
-        if (t <= Math.min(tA, tB)) {
-            return t;
-        }
-        // 先挪够的那一项已经不用再挪,只剩另一项靠到圆上
-        return tA <= tB ? beta * (b - r) : alpha * (a - r);
     }
 
     // ==================== 排障 ====================
@@ -391,7 +428,13 @@ public final class Goals {
 
         @Override
         public double estimate(int nx, int ny, int nz, Kinematics.Pace pace) {
-            return pace.estimate(x != null ? octile(Math.abs(x - nx), Math.abs(z - nz)) : 0, y != null ? y - ny : 0);
+            return x != null ? pace.sprint() * octile(Math.abs(x - nx), Math.abs(z - nz)) : 0;
+        }
+
+        /** 给了高度(某一格、某一高度)就是那一层;只给了列没有范围。 */
+        @Override
+        public Heights heights() {
+            return y != null ? new Heights(y, y) : null;
         }
 
         /** 某一格就是那一格;列与高度没有边。 */
@@ -421,6 +464,9 @@ public final class Goals {
         }
     }
 
+    /** 距离范围的终点格最多枚举到这个半径(格):再大,枚举出的格比搜索要展开的节点还多。 */
+    private static final int ENUMERABLE = 16;
+
     private record Within(Position center, double min, double max) implements Goal {
         @Override
         public boolean contains(int x, int y, int z, Stance stance) {
@@ -429,8 +475,7 @@ public final class Goals {
         }
 
         /**
-         * 太近往外、太远往里,两侧都朝范围带递减。太远时按走到中心的估价、只算伸出范围的那一截的比例:仍朝中心引,
-         * 竖直方向照样按跳与落算。
+         * 太近往外、太远往里,两侧都朝范围带递减。太远时按走到中心的估价、只算伸出范围的那一截的比例:仍朝中心引。
          */
         @Override
         public double estimate(int x, int y, int z, Kinematics.Pace pace) {
@@ -442,6 +487,41 @@ public final class Goals {
                 return center.estimate(x, y, z, pace) * (d - max) / d;
             }
             return 0;
+        }
+
+        /**
+         * 范围里的格:中心是某一格、{@code max} 有限时,中心为心、边长 {@code 2·floor(max)+1} 的方块里满足 {@link #contains} 的每一格
+         * (到了时脚所在的节点只看这一个距离)。范围大到枚举出来比搜索本身还大({@link #ENUMERABLE} 格以外)、或没有边,
+         * 就和别的没有边的目标一样为 null,埋深不加。
+         */
+        @Override
+        public LongSet endCells() {
+            if (!center.cell() || !(max <= ENUMERABLE)) {
+                return null;
+            }
+            int r = (int) Math.floor(max);
+            LongOpenHashSet cells = new LongOpenHashSet();
+            for (int x = center.x() - r; x <= center.x() + r; x++) {
+                for (int y = center.y() - r; y <= center.y() + r; y++) {
+                    for (int z = center.z() - r; z <= center.z() + r; z++) {
+                        double d = center.distanceSqr(x, y, z);
+                        if (d >= min * min && d <= max * max) {
+                            cells.add(BlockPos.asLong(x, y, z));
+                        }
+                    }
+                }
+            }
+            return cells;
+        }
+
+        /** 中心给了高度(某一格、某一高度)、{@code max} 有限时,到了时脚所在的层不会比中心高低过 {@code floor(max)}:一个超集。 */
+        @Override
+        public Heights heights() {
+            if (center.y() == null || Double.isInfinite(max)) {
+                return null;
+            }
+            int r = (int) Math.floor(max);
+            return new Heights(center.y() - r, center.y() + r);
         }
 
         @Override
@@ -477,8 +557,13 @@ public final class Goals {
         }
 
         @Override
+        public Heights heights() {
+            return Goal.heightsOf(endCells());
+        }
+
+        @Override
         public double estimate(int x, int y, int z, Kinematics.Pace pace) {
-            return beyondReach(target, body, x, y, z, pace);
+            return beyondReach(target, x, z, body.blockReach(), pace);
         }
 
         /** 别挖要用的那一格,也别往里放东西;敞开的面前那一格不放方块——放了就把自己要看的那一面堵上了。 */
@@ -516,7 +601,7 @@ public final class Goals {
 
         @Override
         public double estimate(int x, int y, int z, Kinematics.Pace pace) {
-            return beyondReach(target, body, x, y, z, pace);
+            return beyondReach(target, x, z, body.blockReach(), pace);
         }
 
         /**
@@ -525,24 +610,13 @@ public final class Goals {
          */
         @Override
         public LongSet endCells() {
-            double reach = body.blockReach();
-            double eye = body.eyeHeight();
-            int span = (int) Math.ceil(reach + eye) + 1;
-            LongOpenHashSet out = new LongOpenHashSet();
-            for (int x = target.getX() - span; x <= target.getX() + span; x++) {
-                for (int y = target.getY() - span; y <= target.getY() + span; y++) {
-                    for (int z = target.getZ() - span; z <= target.getZ() + span; z++) {
-                        double dx = gap(x + 0.5, target.getX());
-                        double dz = gap(z + 0.5, target.getZ());
-                        // 脚在 [y, y + 1) 里,眼睛在 [y + eye, y + 1 + eye) 里:取离那一格最近的高度
-                        double dy = Math.max(0, Math.max(target.getY() - (y + 1 + eye), y + eye - (target.getY() + 1)));
-                        if (dx * dx + dy * dy + dz * dz < reach * reach) {
-                            out.add(BlockPos.asLong(x, y, z));
-                        }
-                    }
-                }
-            }
-            return out;
+            return cellsReaching(new AABB(target), body.eyeHeight(), body.blockReach());
+        }
+
+        /** 终点格所在的高度范围:{@link #endCells} 里最低与最高的一层。 */
+        @Override
+        public Heights heights() {
+            return heightsReaching(new AABB(target), body.eyeHeight(), body.blockReach());
         }
 
         /**
@@ -620,9 +694,22 @@ public final class Goals {
         public LongSet endCells() {
             LongOpenHashSet all = new LongOpenHashSet();
             for (Dig g : members) {
-                all.addAll(g.endCells());
+                union(all, g.endCells());
             }
             return all;
+        }
+
+        /** 各成员的范围合起来。 */
+        @Override
+        public Heights heights() {
+            int lo = Integer.MAX_VALUE;
+            int hi = Integer.MIN_VALUE;
+            for (Dig g : members) {
+                Heights own = g.heights();
+                lo = Math.min(lo, own.lo());
+                hi = Math.max(hi, own.hi());
+            }
+            return new Heights(lo, hi);
         }
 
         @Override
@@ -658,6 +745,11 @@ public final class Goals {
         }
 
         @Override
+        public Heights heights() {
+            return reach.heights();
+        }
+
+        @Override
         public PositionCosts protection() {
             return PositionCosts.builder().forbid(PositionCosts.Use.PLACE, reach.target().asLong()).build();
         }
@@ -676,7 +768,18 @@ public final class Goals {
 
         @Override
         public double estimate(int x, int y, int z, Kinematics.Pace pace) {
-            return beyondReach(box, range, body, x, y, z, pace);
+            return beyondReach(box, x, z, range, pace);
+        }
+
+        /** 脚在一格里任何高度时眼睛够得着它的格(交互距离是这个目标自己的 {@code range}):与 {@link Dig} 同一份几何。 */
+        @Override
+        public LongSet endCells() {
+            return cellsReaching(box, body.eyeHeight(), range);
+        }
+
+        @Override
+        public Heights heights() {
+            return heightsReaching(box, body.eyeHeight(), range);
         }
 
         @Override
@@ -715,6 +818,17 @@ public final class Goals {
                 sum += 1 / Math.max(ratio, 1.0E-3);
             }
             return sum * ActionCosts.DANGER_BLOCKS * pace.walk();
+        }
+
+        /** 势场,没有固定的终点。 */
+        @Override
+        public LongSet endCells() {
+            return null;
+        }
+
+        @Override
+        public Heights heights() {
+            return null;
         }
 
         @Override
@@ -776,6 +890,22 @@ public final class Goals {
             return in ? min : 0;
         }
 
+        /** 各成员的范围合起来;有一个没有范围,合起来也没有。 */
+        @Override
+        public Heights heights() {
+            int lo = Integer.MAX_VALUE;
+            int hi = Integer.MIN_VALUE;
+            for (Goal g : members) {
+                Heights own = g.heights();
+                if (own == null) {
+                    return null;
+                }
+                lo = Math.min(lo, own.lo());
+                hi = Math.max(hi, own.hi());
+            }
+            return new Heights(lo, hi);
+        }
+
         /** 各成员的合在一起;有一个没有边,合起来也没有。 */
         @Override
         public LongSet endCells() {
@@ -785,7 +915,7 @@ public final class Goals {
                 if (own == null) {
                     return null;
                 }
-                all.addAll(own);
+                union(all, own);
             }
             return all;
         }
@@ -838,6 +968,18 @@ public final class Goals {
         public Sighting sight(int x, int y, int z, Stance stance) {
             for (Goal g : members) {
                 Sighting own = g.sight(x, y, z, stance);
+                if (own != null) {
+                    return own;
+                }
+            }
+            return null;
+        }
+
+        /** 每一个都要到:任何一个成员的就是超集,取第一个有范围的。 */
+        @Override
+        public Heights heights() {
+            for (Goal g : members) {
+                Heights own = g.heights();
                 if (own != null) {
                     return own;
                 }

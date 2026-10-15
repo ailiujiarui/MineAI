@@ -25,14 +25,13 @@ import net.minecraft.world.level.block.SlabBlock;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import static com.dwinovo.numen.pathing.Fixtures.PACE;
 import static com.dwinovo.numen.pathing.Fixtures.search;
 import static com.dwinovo.numen.pathing.Vanilla.SURVIVAL;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 位置目标的估价是下界:从任何一个节点到目标的估价,不高过 A* 求出的真实最优代价(也就不高过任何一条路线的)。
- * 先逐种走法,再随机小地形。估价到处都是下界,A* 才会在预算内给出最优路线。
+ * 位置目标的估价({@link Estimate}:疾跑底价加挖开与升降的额外代价)是下界:从任何一个节点到目标的估价,不高过 A* 求出的真实最优代价
+ * (也就不高过任何一条路线的)。先逐种走法,再随机小地形。估价到处都是下界,A* 才会在预算内给出最优路线。
  */
 class EstimateAdmissibilityTest {
 
@@ -58,8 +57,9 @@ class EstimateAdmissibilityTest {
         return Blocks.OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, facing).setValue(StairBlock.HALF, Half.BOTTOM);
     }
 
-    private static double estimate(BlockPos from, BlockPos to) {
-        return Goals.at(to).estimate(from.getX(), from.getY(), from.getZ(), PACE);
+    /** 这个世界里,脚在 {@code from} 的节点到 {@code goal} 的估价。 */
+    private static double estimate(TestWorld world, CostModel model, BlockPos start, BlockPos from, BlockPos goal) {
+        return Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET).at(from);
     }
 
     /**
@@ -74,12 +74,14 @@ class EstimateAdmissibilityTest {
         List<Route.Leg> legs = route.legs();
         double remaining = route.cost();
         BlockPos at = start;
+        Estimate toGoal = Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET);
         for (Route.Leg leg : legs) {
             BlockPos to = leg.maneuver().to();
             kinds.add(leg.maneuver().kind());
-            assertTrue(estimate(at, to) <= leg.cost() + 1e-9,
-                    scene + ":" + leg.maneuver().kind() + " " + at + "→" + to + " 估价 " + estimate(at, to) + " 高过真实 " + leg.cost());
-            assertTrue(estimate(at, goal) <= remaining + 1e-9, scene + ":" + at + " 到终点估价 " + estimate(at, goal) + " 高过剩下的 " + remaining);
+            double step = estimate(world, model, start, at, to);
+            assertTrue(step <= leg.cost() + 1e-9,
+                    scene + ":" + leg.maneuver().kind() + " " + at + "→" + to + " 估价 " + step + " 高过真实 " + leg.cost());
+            assertTrue(toGoal.at(at) <= remaining + 1e-9, scene + ":" + at + " 到终点估价 " + toGoal.at(at) + " 高过剩下的 " + remaining);
             remaining -= leg.cost();
             at = to;
         }
@@ -198,9 +200,10 @@ class EstimateAdmissibilityTest {
             arrived++;
             double remaining = result.route().cost();
             BlockPos at = start;
+            Estimate toGoal = Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET);
             for (Route.Leg leg : result.route().legs()) {
-                assertTrue(estimate(at, goal) <= remaining + 1e-9,
-                        "第 " + round + " 张:" + at + " 到 " + goal + " 估价 " + estimate(at, goal) + " 高过剩下的 " + remaining);
+                assertTrue(toGoal.at(at) <= remaining + 1e-9,
+                        "第 " + round + " 张:" + at + " 到 " + goal + " 估价 " + toGoal.at(at) + " 高过剩下的 " + remaining);
                 remaining -= leg.cost();
                 at = leg.maneuver().to();
             }

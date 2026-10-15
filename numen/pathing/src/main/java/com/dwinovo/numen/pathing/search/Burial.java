@@ -11,9 +11,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * 埋深:从一个节点走到目标,路上至少还要挖掉多少钱。搜索把它加在 {@link Goal#estimate} 上当估价。
+ * 埋深:从一个节点走到目标,路上至少还要挖掉多少钱。估价({@link Estimate})把它加在水平底价与升降的额外代价上。
  *
- * <p>为什么要它:目标的估价只按身体怎么挪算(水平每格按疾跑、竖直按跳与落),挖一格的真实价钱——挖掘耗时加规格的挖掘罚分
+ * <p>为什么要它:估价的其余两样只按身体怎么挪算(水平每格按疾跑、竖直按跳与落),挖一格的真实价钱——挖掘耗时加规格的挖掘罚分
  * ({@link CostModel#digCost})——是估价里走一格的十几倍。目标埋在石头里时,真实代价远高过估价,A* 要把地面上、连同每一列
  * 往下挖开的几格,凡是比挖过去便宜的节点全展开一遍,才敢认挖下去的那条路:挖正下方十几格的矿,四万个节点也搜不到头。
  *
@@ -53,11 +53,11 @@ final class Burial {
 
     /** 这次搜索的埋深:在 {@code view} 上从 {@code goal} 的终点往外算,到 {@code start} 为止,最多定下 {@code cap} 格。 */
     static Burial of(SearchView view, CostModel model, Goal goal, BlockPos start, int cap) {
-        LongSet ends = goal.endCells();
-        if (ends == null || !model.spec().dig()) {
+        if (!model.spec().dig()) {
             return NONE;
         }
-        return new Field(view, model, start).run(ends, cap);
+        LongSet ends = goal.endCells();
+        return ends == null ? NONE : new Field(view, model, start).run(ends, cap);
     }
 
     /** 一次 Dijkstra 的工作区。 */

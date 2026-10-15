@@ -1,7 +1,6 @@
 package com.dwinovo.numen.pathing.world;
 
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
@@ -55,7 +54,14 @@ final class Boxes {
     private static final AABB[] FULL = {new AABB(0, 0, 0, 1, 1, 1)};
     private static final Shape EMPTY = new Shape(NONE, Fill.EMPTY);
     private static final Shape WHOLE = new Shape(FULL, Fill.WHOLE);
-    private static final ConcurrentHashMap<BlockState, Shape> CACHE = new ConcurrentHashMap<>();
+    /** 表里的记号:这个状态的碰撞箱不能缓存。 */
+    private static final Shape DYNAMIC = new Shape(NONE, null);
+    /**
+     * 每种状态的碰撞箱:与原版给这类状态缓存碰撞箱的是同一次调用,不看世界、不看身体;碰撞箱随世界或身体变的状态
+     * ({@link Semantics#dynamicCollision})记成 {@link #DYNAMIC},每次按坐标与身体现问。
+     */
+    private static final StateTable<Shape> SHAPES = new StateTable<>(state -> Semantics.dynamicCollision(state) ? DYNAMIC
+            : classify(split(state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO))));
 
     private Boxes() {}
 
@@ -79,6 +85,9 @@ final class Boxes {
      */
     static Shape shape(BlockGetter level, BodyStats body, int x, int y, int z, BlockState state, double feetY,
                        boolean sneaking) {
+        if (state.isAir()) {
+            return EMPTY;
+        }
         if (body.walksOnPowderSnow() && state.is(Blocks.POWDER_SNOW)) {
             // 原版 isAbove:脚底高过顶面减去同一个容差
             return feetY > y + 1 - Footing.EPSILON ? WHOLE : EMPTY;
@@ -86,21 +95,20 @@ final class Boxes {
         if (body.frostWalker() && freezes(level, x, y, z, state)) {
             return WHOLE;
         }
-        if (Semantics.dynamicCollision(state)) {
-            return classify(split(state.getCollisionShape(level, new BlockPos(x, y, z), bodyAt(feetY, sneaking))));
+        Shape known = SHAPES.of(state);
+        if (known != DYNAMIC) {
+            return known;
         }
-        return cached(state);
+        return classify(split(state.getCollisionShape(level, new BlockPos(x, y, z), bodyAt(feetY, sneaking))));
     }
 
     /** 碰撞箱不随世界或身体变、而且正好是整格的状态。 */
     static boolean whole(BlockState state) {
-        return !Semantics.dynamicCollision(state) && cached(state).fill() == Fill.WHOLE;
-    }
-
-    /** 与原版给这类状态缓存碰撞箱的是同一次调用:不看世界、不看身体。 */
-    private static Shape cached(BlockState state) {
-        return CACHE.computeIfAbsent(state,
-                s -> classify(split(s.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO))));
+        if (state.isAir()) {
+            return false;
+        }
+        Shape known = SHAPES.of(state);
+        return known != DYNAMIC && known.fill() == Fill.WHOLE;
     }
 
     /** 从碰撞箱推出它是哪一类:只有一个且正好是整格的算整块。 */

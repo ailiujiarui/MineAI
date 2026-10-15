@@ -160,16 +160,6 @@ public interface LlmProvider {
         return "/chat/completions";
     }
 
-    /**
-     * 从一个 SSE chunk 里抽出思考文本增量(方言字段解码),没有则 null。
-     * 供 UI 的实时思考流显示;累积后的权威去重版本在
-     * {@link AssistantTurn#reasoning}(同流双字段的场合以累积侧的
-     * 字段锁定为准)。
-     */
-    default String extractReasoningDelta(JsonObject chunk) {
-        return null;
-    }
-
     // ---- usage accounting ----
 
     /**

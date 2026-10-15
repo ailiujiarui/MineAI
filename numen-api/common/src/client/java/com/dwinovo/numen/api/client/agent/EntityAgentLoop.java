@@ -954,19 +954,12 @@ public final class EntityAgentLoop {
         private java.util.concurrent.CompletableFuture<NumenLlmClient.ChatResult> stream(
                 ModelRequest request, CancelToken cancel, Consumer<Delta> onDelta, Minecraft mc) {
             NumenLlmClient llm = client();
-            return llm.chatStreaming(request.messages(), request.tools(), request.systemPrompt(), cancel, chunk -> {
-                // 增量在 HTTP 线程上按这次调用的服务商方言解开,再按顺序切回主线程
-                String content = com.dwinovo.numen.api.client.voice.VoicePipeline.extractContentDelta(chunk);
-                String reasoning = llm.provider().extractReasoningDelta(chunk);
-                boolean hasContent = content != null && !content.isEmpty();
-                boolean hasReasoning = reasoning != null && !reasoning.isEmpty();
-                if (!hasContent && !hasReasoning) {
-                    return;
-                }
-                Delta delta = new Delta(hasContent ? content : "", hasReasoning ? reasoning : "");
+            return llm.chatStreaming(request.messages(), request.tools(), request.systemPrompt(), cancel, delta -> {
+                // 增量在 HTTP 线程上由累积器给出,再按顺序切回主线程
+                Delta d = new Delta(delta.content(), delta.reasoning());
                 mc.execute(() -> {
                     if (!cancel.isCancelled()) {
-                        onDelta.accept(delta);
+                        onDelta.accept(d);
                     }
                 });
             });
