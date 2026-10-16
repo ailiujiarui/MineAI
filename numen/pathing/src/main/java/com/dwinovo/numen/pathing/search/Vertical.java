@@ -10,6 +10,7 @@ import com.dwinovo.numen.pathing.world.Footing;
 import com.dwinovo.numen.pathing.world.Kinematics;
 
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -21,7 +22,8 @@ import net.minecraft.world.level.block.state.BlockState;
  * "这一步真实代价减去疾跑走完它的水平距离"的下界,各种走法逐一核对过({@link EstimateConsistencyTest}):
  * <ul>
  *   <li><b>往上一个节点</b>:跳上去的一步(上一级)至少一个起跳间隔({@link Kinematics#jumpCycleTicks})加规格的起跳罚分,
- *       水平挪一格,水平底价已经付了一个疾跑一格,剩下的是额外代价(垫柱、攀爬、游往上更贵,都不比它低)。
+ *       水平挪一格,水平底价已经付了一个疾跑一格,剩下的是额外代价(垫柱、攀爬、游往上更贵,都不比它低)。脚那一层泡在水里时,
+ *       游上去的额外代价是起跳的额外代价减掉水里一步的罚分(不低于零)——水里平挪的估价由 {@link Waters} 收。
  *       脚只抬半格也升一个节点的台阶、半砖不用跳,耗时只是一步走路,额外代价为零——只要快照里<b>这一层</b>出现过这样的落脚
  *       (顶面离下一格底不到迈步高度的方块:{@link Footing#tops});规格许跑酷时,跑酷落在高一级上,空中的工夫由跨过的几格水平距离
  *       付了,只剩起跳罚分;</li>
@@ -51,6 +53,8 @@ final class Vertical {
     /** 往上一个节点至少多付的刻数。 */
     private final double jump;
     private final double sprint;
+    /** 水里的每走一格比疾跑底价多出来的部分;水里往上一个节点,游上去比跳便宜这么多,上升的额外代价按它减免(Waters 已经收了这一笔,再收一遍估值就不再是下界)。 */
+    private final double wr;
     private final boolean bucket;
     /** {@code up[y - base]}:节点在第 {@code y} 层(低于 {@code lo})走到 {@code lo} 层至少多花的刻数;只填到 {@code upFrom}。 */
     private final double[] up;
@@ -77,12 +81,14 @@ final class Vertical {
         if (levels == null) {
             this.jump = 0;
             this.sprint = 0;
+            this.wr = 0;
             this.bucket = false;
         } else {
             double penalty = model.spec().jumpPenalty();
             double jumping = Math.max(0, Kinematics.jumpCycleTicks(body, 1.0, body.stepHeight()) + penalty - Kinematics.sprintTicksPerBlock(body));
             this.jump = model.spec().parkour() ? Math.min(jumping, penalty) : jumping;
             this.sprint = Kinematics.sprintTicksPerBlock(body);
+            this.wr = Math.max(0, model.waterStep() - Kinematics.sprintTicksPerBlock(body) * Math.sqrt(2));
             this.bucket = model.body().carriesWaterBucket();
         }
         this.up = new double[Math.max(0, top - base)];
@@ -122,7 +128,8 @@ final class Vertical {
         }
         while (upFrom > y) {
             upFrom--;
-            upSum += levels.smoothRise(upFrom) ? 0 : jump;
+            // 这一层泡在水里:往上游一步比跳便宜 wr,Waters 已经为这一层收了这一笔,上升的额外代价里减掉
+            upSum += levels.smoothRise(upFrom) ? 0 : levels.water(upFrom) ? Math.max(0, jump - wr) : jump;
             up[upFrom - base] = upSum;
         }
         return up[y - base];
@@ -185,6 +192,8 @@ final class Vertical {
         private final double[] fraction;
         /** 这一层有液体或可攀爬的方块。 */
         private final boolean[] bypass;
+        /** 这一层泡在水里(有液体水)。 */
+        private final boolean[] water;
         /** 这一带读过了。 */
         private final boolean[] bandRead;
         private final Map<BlockState, Info> known = new IdentityHashMap<>();
@@ -195,6 +204,7 @@ final class Vertical {
             this.base = view.getMinBuildHeight();
             this.fraction = new double[view.getHeight()];
             this.bypass = new boolean[view.getHeight()];
+            this.water = new boolean[view.getHeight()];
             this.bandRead = new boolean[(view.getHeight() + 15) >> 4];
         }
 
@@ -214,6 +224,14 @@ final class Vertical {
             }
             read(i);
             return bypass[i];
+        }
+
+        /** 这一层泡在水里(有液体水):从这一层往上的额外代价按游上去算。 */
+        boolean water(int y) {
+            int i = y - base;
+            if (i < 0 || i >= water.length) { return false; }
+            read(i);
+            return water[i];
         }
 
         /** 从第 {@code y} 层的节点升到上一层不用跳:这一层有顶面离下一格底不到迈步高度的落脚。 */
@@ -241,6 +259,9 @@ final class Vertical {
                 if (info.bypass() && i >= 0 && i < bypass.length) {
                     bypass[i] = true;
                 }
+                if (info.water() && i >= 0 && i < water.length) {
+                    water[i] = true;
+                }
                 for (double top : info.tops()) {
                     int at = y + (int) Math.floor(top + Footing.EPSILON) - base;
                     if (at >= 0 && at < fraction.length) {
@@ -252,19 +273,20 @@ final class Vertical {
     }
 
     /**
-     * 一种方块状态:碰撞箱顶面的高度、能不能落进去不摔;以及值得逐格找出来的({@code interesting}):顶面有小数(不是整格也不是空),
+     * 一种方块状态:碰撞箱顶面的高度、是不是水、能不能落进去不摔;以及值得逐格找出来的({@code interesting}):顶面有小数(不是整格也不是空),
      * 或落进去不摔。调色板里每种状态每个方块段都问一遍,所以开搜时算定。
      */
-    private record Info(double[] tops, boolean bypass, boolean interesting) {
+    private record Info(double[] tops, boolean bypass, boolean water, boolean interesting) {
 
         static Info of(BodyStats body, BlockState state) {
             boolean bypass = !state.getFluidState().isEmpty() || state.is(BlockTags.CLIMBABLE) || state.getBlock() instanceof TrapDoorBlock;
+            boolean water = state.getFluidState().is(FluidTags.WATER);
             double[] tops = Footing.tops(body, state);
             boolean interesting = bypass;
             for (double top : tops) {
                 interesting |= top - Math.floor(top + Footing.EPSILON) > Footing.EPSILON;
             }
-            return new Info(tops, bypass, interesting);
+            return new Info(tops, bypass, water, interesting);
         }
     }
 }

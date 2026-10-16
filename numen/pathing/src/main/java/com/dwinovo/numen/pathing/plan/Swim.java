@@ -9,7 +9,7 @@ import com.dwinovo.numen.pathing.world.Footing;
 import net.minecraft.core.BlockPos;
 
 /**
- * 游:脚泡在水里时,往上浮一格、往下沉一格,或朝东南西北平挪一格。往上只游进水里(浮到水面再往上是出水,由
+ * 游:脚泡在水里时,往上浮一格、往下沉一格,或平挪一格(含四个斜向)。往上只游进水里(浮到水面再往上是出水,由
  * {@link Ascend} 一步跨上岸);往下、平挪可以落到水底站着。在水里不挖不放,只开关挡路的门。
  *
  * <p>水流不流由第 0 层语义按原版水流判:流水默认被路线规格排除,放开时照样能游,只是执行时会被推着走。
@@ -20,6 +20,7 @@ final class Swim implements Move {
 
     static {
         List<Heading> all = new ArrayList<>(Heading.CARDINAL);
+        all.addAll(Heading.DIAGONAL);
         all.add(Heading.UP);
         all.add(Heading.DOWN);
         HEADINGS = List.copyOf(all);
@@ -64,7 +65,13 @@ final class Swim implements Move {
             // 水底的坎高过迈步高度:那是上一级,不是平挪
             return Premise.fail(to, Reason.TOO_HIGH);
         }
-        Contact contact = new Contact(body, from, f0).column(to.getX(), to.getZ(), f0, landing.feetY());
+        double low = Math.min(f0, landing.feetY());
+        double high = Math.max(f0, landing.feetY());
+        Contact contact = new Contact(body, from, f0).column(to.getX(), to.getZ(), low, high);
+        if (heading.dx() != 0 && heading.dz() != 0) {
+            contact = contact.column(from.getX() + heading.dx(), from.getZ(), low, high)
+                    .column(from.getX(), from.getZ() + heading.dz(), low, high);
+        }
         BlockPos support = landing.support(to.getX(), to.getZ());
         if (!contact.admit(draft, model, support, false)) {
             return draft.failure();
@@ -76,11 +83,21 @@ final class Swim implements Move {
 
     @Override
     public double cost(CostModel model, Maneuver m) {
-        return model.waterStep() + model.overhead(m);
+        return step(model, m) + model.overhead(m);
     }
 
     @Override
     public double ticks(CostModel model, Maneuver m) {
-        return model.waterStep() + model.workTicks(m);
+        return step(model, m) + model.workTicks(m);
+    }
+
+    /**
+     * 一步身体挪动本身的价钱:水里斜向一步实际走 √2 格,价乘 √2。估价把斜线按疾跑每格乘 √2 铺开,若斜向只收正方向一步的
+     * 价,水下移动效率高时真实斜向耗时反而低于估价,估价就不再是不超估的下界;乘 √2 后每格价与正方向一致,与陆上
+     * {@link Diagonal} 的 pace*√2 同理。
+     */
+    private static double step(CostModel model, Maneuver m) {
+        boolean diagonal = m.heading().dx() != 0 && m.heading().dz() != 0;
+        return model.waterStep() * (diagonal ? Math.sqrt(2) : 1);
     }
 }
