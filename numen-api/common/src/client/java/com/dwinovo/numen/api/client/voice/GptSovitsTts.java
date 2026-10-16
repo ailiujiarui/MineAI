@@ -72,8 +72,8 @@ public final class GptSovitsTts implements TtsBackend {
         return VoiceHttp.CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .thenApply(resp -> {
                     if (resp.statusCode() / 100 != 2) {
-                        throw new IllegalStateException(VoiceHttp.humanHttpError("GPT-SoVITS",
-                                resp.statusCode(), new String(resp.body(), StandardCharsets.UTF_8)));
+                        throw VoiceHttp.httpError("GPT-SoVITS",
+                                resp.statusCode(), new String(resp.body(), StandardCharsets.UTF_8));
                     }
                     return resp.body();
                 });

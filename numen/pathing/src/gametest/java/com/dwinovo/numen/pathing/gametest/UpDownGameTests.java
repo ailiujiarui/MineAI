@@ -468,6 +468,33 @@ public class UpDownGameTests {
         }
     }
 
+    /**
+     * 山坡每一格的顶面高度(沿南北方向 z 一路下降,东西方向五列,取自靶场存档里一处实际的陡坡):坡上一级一级的台阶一格宽一格深,
+     * 到底是一道悬崖。
+     */
+    private static final int[][] SLOPE = {
+            {57, 62, 65, 68, 69, 71, 70, 73, 75, 76, 77, 79, 79, 81, 83},
+            {56, 58, 64, 67, 70, 70, 70, 74, 74, 76, 78, 78, 79, 81, 83},
+            {56, 57, 61, 66, 68, 71, 70, 73, 75, 76, 77, 78, 79, 82, 83},
+            {54, 56, 58, 65, 68, 69, 71, 73, 75, 76, 77, 78, 80, 82, 84},
+            {52, 56, 57, 64, 67, 69, 71, 73, 75, 77, 77, 78, 80, 82, 85}};
+
+    /**
+     * 陡坡一级一级往下,坡脚是悬崖:疾跑的冲劲带着身子飘出去,只擦着下一级的边沿落下,下一刻就滑出去,认步认不出落在了哪一步,
+     * 冲劲又没人收,一路冲下去掉进悬崖摔死。步态只在身体压着落点那一列的支撑时才带着冲劲接下一步,擦边的疾跑改平走。
+     */
+    @GameTest(template = Trial.TALL, batch = BATCH, timeoutTicks = 1500)
+    public static void does_not_run_down_a_stepped_slope_off_the_cliff_at_its_foot(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        for (int column = 0; column < SLOPE.length; column++) {
+            for (int row = 0; row < SLOPE[column].length; row++) {
+                t.fill(6 + column, 1, 1 + row, 6 + column, SLOPE[column][row] - 24, 1 + row, Blocks.STONE);
+            }
+        }
+        TestBody body = t.body(8, 59, 14);
+        t.go(body, Goals.at(t.at(6, 34, 1)), RouteSpec.defaults()).arrives().then(UpDownGameTests::unhurt);
+    }
+
     static void unhurt(Trial.Run r) {
         if (r.lowestHealth < r.body.getMaxHealth()) {
             throw new GameTestAssertException("掉了血:最低 " + r.lowestHealth);

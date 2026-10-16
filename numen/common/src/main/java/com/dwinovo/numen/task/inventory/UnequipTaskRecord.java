@@ -1,5 +1,6 @@
 package com.dwinovo.numen.task.inventory;
 
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import com.dwinovo.numen.api.task.TaskRecord;
 import net.minecraft.world.item.Item;
@@ -29,5 +30,11 @@ public final class UnequipTaskRecord extends TaskRecord<com.dwinovo.numen.gear.W
     @Override
     public String describe() {
         return getToolName() + " " + label;
+    }
+
+    /** 给主人看的一句(头顶气泡、档案页),客户端按当前语言翻;{@link #describe()} 是给模型的。 */
+    @Override
+    public Activity activity() {
+        return Activity.of("numen.activity.unequip", label);
     }
 }

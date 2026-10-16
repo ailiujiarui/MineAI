@@ -91,13 +91,13 @@ final class Meter implements Consumer<LoopEvent> {
             case LoopEvent.ToolFinished finished -> finished(finished.call(), finished.resultJson());
             case LoopEvent.ApiCalled api -> called(api.called());
             case LoopEvent.TurnFailed failed -> {
-                apiFailure = failed.words();
-                transcript.write("turn_failed", "words", failed.words());
+                apiFailure = failed.cause().forModel();
+                transcript.write("turn_failed", "words", failed.cause().forModel());
             }
             case LoopEvent.HoldChanged hold -> {
                 if (hold.hold() == Hold.BLOCKED) {
-                    apiFailure = hold.reason();
-                    transcript.write("blocked", "words", String.valueOf(hold.reason()));
+                    apiFailure = hold.cause().forModel();
+                    transcript.write("blocked", "words", hold.cause().forModel());
                 }
             }
             case LoopEvent.RunEnded ended -> transcript.write("run_end", "end", String.valueOf(ended.end()));

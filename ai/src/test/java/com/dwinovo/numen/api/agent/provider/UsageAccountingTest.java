@@ -22,7 +22,7 @@ class UsageAccountingTest {
 
     @Test
     void openAiStyleReadsCachedFromDetails() {
-        Usage u = new OpenAIProvider().usage(usage(
+        Usage u = Wire.chat().usage(usage(
                 "{\"prompt_tokens\":100,\"completion_tokens\":20,"
                 + "\"prompt_tokens_details\":{\"cached_tokens\":80}}"));
         assertEquals(20, u.input());      // 100 全量 - 80 命中
@@ -33,7 +33,7 @@ class UsageAccountingTest {
 
     @Test
     void openAiStyleWithoutDetailsIsAllFreshInput() {
-        Usage u = new OpenAIProvider().usage(usage(
+        Usage u = Wire.chat().usage(usage(
                 "{\"prompt_tokens\":100,\"completion_tokens\":20}"));
         assertEquals(100, u.input());
         assertEquals(0, u.cacheRead());
@@ -41,19 +41,19 @@ class UsageAccountingTest {
     }
 
     @Test
-    void anthropicStyleKeepsCacheWriteSeparate() {
-        // Anthropic 在 mergeUsage 里归一;缓存写单独留着,否则下游再也拆不出来
-        Usage u = new OpenAIProvider().usage(usage(
+    void gatewayStyleKeepsCacheWriteSeparate() {
+        // OpenRouter 等网关把缓存写报在 prompt_tokens_details.cache_write_tokens;单独留着,否则下游再也拆不出来
+        Usage u = Wire.chat().usage(usage(
                 "{\"prompt_tokens\":100,\"completion_tokens\":20,"
-                + "\"prompt_tokens_details\":{\"cached_tokens\":70,\"cache_creation_tokens\":10}}"));
+                + "\"prompt_tokens_details\":{\"cached_tokens\":70,\"cache_write_tokens\":10}}"));
         assertEquals(20, u.input());
         assertEquals(70, u.cacheRead());
         assertEquals(10, u.cacheWrite());
     }
 
     @Test
-    void deepSeekStyleUsesItsOwnHitMissFields() {
-        Usage u = new DeepSeekProvider().usage(usage(
+    void deepSeekHitMissFieldsAreRecognised() {
+        Usage u = Wire.chat().usage(usage(
                 "{\"prompt_tokens\":100,\"completion_tokens\":20,"
                 + "\"prompt_cache_miss_tokens\":30,\"prompt_cache_hit_tokens\":70}"));
         assertEquals(30, u.input());
@@ -62,8 +62,8 @@ class UsageAccountingTest {
     }
 
     @Test
-    void deepSeekWithoutItsFieldsFallsBackToParent() {
-        Usage u = new DeepSeekProvider().usage(usage(
+    void aFrameWithoutHitMissFieldsReadsTheOpenAiShape() {
+        Usage u = Wire.chat().usage(usage(
                 "{\"prompt_tokens\":100,\"completion_tokens\":20,"
                 + "\"prompt_tokens_details\":{\"cached_tokens\":80}}"));
         assertEquals(20, u.input());
@@ -72,7 +72,7 @@ class UsageAccountingTest {
 
     @Test
     void missingUsageIsZeroNotCrash() {
-        assertEquals(Usage.ZERO, new OpenAIProvider().usage(null));
+        assertEquals(Usage.ZERO, Wire.chat().usage(null));
     }
 
     // ---- 推导 ----

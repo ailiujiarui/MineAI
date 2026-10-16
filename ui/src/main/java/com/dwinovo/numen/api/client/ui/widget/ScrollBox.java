@@ -45,6 +45,16 @@ public final class ScrollBox {
         reposition();
     }
 
+    /**
+     * 内容高变了(折叠节开合的过渡里每帧一变):只换内容高,布局账不动。视口也跟着最多露到内容尽头——
+     * 内容比视口矮时,尽头以外的行被裁掉、点不到,折叠起来的那一截才不会露出来。
+     */
+    public void resize(int contentH) {
+        this.contentH = contentH;
+        this.scrollY = Math.min(scrollY, max());
+        reposition();
+    }
+
     /** 回到顶部(换一份内容时用:上一份滚到哪儿了与这份无关)。 */
     public void toTop() {
         scrollY = 0;
@@ -62,12 +72,17 @@ public final class ScrollBox {
 
     /** 这个纵坐标落在视口里吗(视口外的行虽被裁掉,坐标上仍在,点击要按可视区裁决)。 */
     public boolean inside(double my) {
-        return my >= y && my < y + viewH;
+        return my >= y && my < y + shownH();
+    }
+
+    /** 视口露出多高:内容装不满视口时只到内容尽头。 */
+    private int shownH() {
+        return Math.min(viewH, contentH);
     }
 
     /** 进裁剪区:这两句之间画的东西都会被视口裁掉（行控件、宿主手绘的几条）。 */
     public void beginClip(IDrawSurface s) {
-        s.pushScissor(x, y, w + NumenStyle.SCROLLBAR_W, viewH);
+        s.pushScissor(x, y, w + NumenStyle.SCROLLBAR_W, shownH());
     }
 
     public void endClip(IDrawSurface s) {

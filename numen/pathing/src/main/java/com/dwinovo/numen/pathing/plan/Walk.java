@@ -119,6 +119,53 @@ final class Walk implements Move {
         return after <= f1 + Footing.EPSILON ? Stepping.Step.WALK : Stepping.Step.BLOCKED;
     }
 
+    /**
+     * 平地上站着的节点,落点那一列全是空的、脚下是整块,就是平走过去(身体在两列之间每个取样点脚下都是同一个高度);落点那一列身体
+     * 占的格里有整块,是挡着(精确判断会去挖,不许挖的走法过不去);脚下没东西托,要搭桥(要放,没料或不许放就过不去)。四周有半砖、
+     * 水、梯子这类格,几何要碰撞箱说了算,交给精确判断。
+     */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        if (q.stance().kind() == Stance.Kind.SWIMMING) {
+            return Quick.REJECT;
+        }
+        if (!q.plain()) {
+            return Quick.EXACT;
+        }
+        int dx = heading.dx();
+        int dz = heading.dz();
+        boolean blocked = false;
+        for (int dy = 0; dy <= q.top(); dy++) {
+            int flags = q.cell(dx, dy, dz);
+            if (!Quick.simple(flags)) {
+                return Quick.EXACT;
+            }
+            blocked |= Quick.whole(flags);
+        }
+        int floor = q.cell(dx, -1, dz);
+        if (!Quick.simple(floor)) {
+            return Quick.EXACT;
+        }
+        if (Quick.pass(floor)) {
+            return q.mayPlace() ? Quick.EXACT : Quick.REJECT;
+        }
+        if (blocked) {
+            return q.mayDig() ? Quick.EXACT : Quick.REJECT;
+        }
+        if (!q.calm()) {
+            return Quick.EXACT;
+        }
+        q.entering();
+        for (int dy = 0; dy <= q.top(); dy++) {
+            q.enter(dx, dy, dz);
+        }
+        if (q.forbidsPassing() || !q.standsOn(dx, -1, dz, floor)) {
+            return Quick.REJECT;
+        }
+        double move = movement(q.pace(), false, 0);
+        return q.holds(q.x() + dx, q.y(), q.z() + dz, move + q.overhead(dx, -1, dz), move);
+    }
+
     @Override
     public double cost(CostModel model, Maneuver m) {
         return movement(model, m) + (m.jump() ? model.spec().jumpPenalty() : 0) + model.overhead(m);
@@ -131,7 +178,11 @@ final class Walk implements Move {
 
     /** 身体走过去的刻数:一格的步速,要跳的至少是起跳落到那一高度的工夫。 */
     private static double movement(CostModel model, Maneuver m) {
-        double move = Strides.pace(model, m);
-        return m.jump() ? Math.max(move, Strides.jump(model, Strides.rise(m))) : move;
+        return movement(Strides.pace(model, m), m.jump(), m.jump() ? Strides.jump(model, Strides.rise(m)) : 0);
+    }
+
+    /** 同上,步速、要不要跳、起跳落到那一高度的工夫({@code jump} 时才用)已经给出。 */
+    static double movement(double pace, boolean jump, double jumpTicks) {
+        return jump ? Math.max(pace, jumpTicks) : pace;
     }
 }

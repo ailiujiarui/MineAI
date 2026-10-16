@@ -1,7 +1,5 @@
 package com.dwinovo.numen.api.client.skin;
 
-import net.minecraft.client.resources.language.I18n;
-import com.dwinovo.numen.api.data.ModLanguageData;
 import com.dwinovo.numen.api.Constants;
 import com.dwinovo.numen.api.entity.MojangSkins;
 import com.google.gson.JsonArray;
@@ -37,8 +35,8 @@ public final class MojangSkinLookup {
             "https://sessionserver.mojang.com/session/minecraft/profile/";
     private static final Duration TIMEOUT = Duration.ofSeconds(8);
 
-    /** 查询结果。{@code skin} 为 null = 没有可用皮肤;{@code problem} 非 null = 出了错(给主人看)。 */
-    public record Result(MojangSkins.Skin skin, String problem) {
+    /** 查询结果。{@code skin} 为 null = 没有可用皮肤;{@code problem} 非 null = 出了错(给主人看,经 {@link SkinWords} 翻)。 */
+    public record Result(MojangSkins.Skin skin, SkinError problem) {
         public static final Result NONE = new Result(null, null);
     }
 
@@ -64,14 +62,14 @@ public final class MojangSkinLookup {
                 }
                 MojangSkins.Skin skin = fetchTextures(uuid);
                 if (skin == null) {
-                    return remember(playerName, new Result(null, I18n.get(ModLanguageData.Keys.SKIN_PROFILE_NO_SKIN)));
+                    return remember(playerName, new Result(null, SkinError.of(SkinError.NO_SKIN)));
                 }
                 Constants.LOG.info("[numen-skin] 借到 {} 的皮肤", playerName);
                 return remember(playerName, new Result(skin, null));
             } catch (RuntimeException e) {
                 // 网络问题不进缓存:换个网络/开了代理就该能成
-                String why = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-                Constants.LOG.warn("[numen-skin] 查 {} 的皮肤失败: {}", playerName, why);
+                SkinError why = SkinError.fromError(e);
+                Constants.LOG.warn("[numen-skin] 查 {} 的皮肤失败: {}", playerName, why.getMessage());
                 return new Result(null, why);
             }
         });
@@ -89,7 +87,7 @@ public final class MojangSkinLookup {
             return null;
         }
         if (resp.statusCode() != 200) {
-            throw new IllegalStateException("Mojang 档案接口 HTTP " + resp.statusCode());
+            throw SkinError.http("api.mojang.com", resp.statusCode(), "");
         }
         JsonObject o = JsonParser.parseString(resp.body()).getAsJsonObject();
         return o.has("id") ? o.get("id").getAsString() : null;
@@ -99,7 +97,7 @@ public final class MojangSkinLookup {
     private static MojangSkins.Skin fetchTextures(String uuid) {
         HttpResponse<String> resp = send(PROFILE_URL + uuid + "?unsigned=false");
         if (resp.statusCode() != 200) {
-            throw new IllegalStateException("Mojang 会话接口 HTTP " + resp.statusCode());
+            throw SkinError.http("sessionserver.mojang.com", resp.statusCode(), "");
         }
         JsonObject o = JsonParser.parseString(resp.body()).getAsJsonObject();
         JsonArray props = o.getAsJsonArray("properties");
@@ -127,10 +125,10 @@ public final class MojangSkinLookup {
             return ProxiedHttp.client().send(req,
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (java.io.IOException e) {
-            throw new IllegalStateException("连不上 Mojang(检查网络或代理)", e);
+            throw SkinError.of(e, SkinError.NETWORK, "Mojang");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("查询被中断", e);
+            throw SkinError.of(e, SkinError.INTERRUPTED);
         }
     }
 }

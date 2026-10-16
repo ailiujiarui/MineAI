@@ -15,7 +15,8 @@ import net.minecraft.world.phys.Vec3;
  *
  * <p>推算用的量全来自 {@link Kinematics}(规划定价用的是同一份物理):地上的加速度与摩擦、空中的加速度与阻力、落地要几刻。
  *
- * <p>只在脚踏实地时转身;腾空时不回身,按身体此刻朝着的方向前进或后退来修正——空中转过身去,落地就是背对着路。
+ * <p>只在身体有依托时转身({@link #supported}:脚踏实地、泡在水里、攀着);自由飞行时不回身,按身体此刻朝着的方向前进或后退来修正——
+ * 空中转过身去,落地就是背对着路。
  */
 final class Steering {
 
@@ -26,9 +27,17 @@ final class Steering {
 
     private Steering() {}
 
+    /**
+     * 身体有依托,可以转身朝着要去的方向:脚踏实地,或泡在水里、攀在梯子上(水里与梯子上没有"落地背对着路"的事,转身不会带到落点上)。
+     * 自由飞行(跳起来、掉下去)时不转。
+     */
+    static boolean supported(ServerPlayer body) {
+        return body.onGround() || body.isInWater() || body.onClimbable();
+    }
+
     /** 不减速地朝 {@code (x, z)} 走。 */
     static void pass(Rig rig, double x, double z) {
-        if (rig.entity.onGround()) {
+        if (supported(rig.entity) && Math.hypot(x - rig.entity.getX(), z - rig.entity.getZ()) >= AT) {
             rig.look.faceToward(x, z);
         }
         rig.keys.press(Key.FORWARD);
@@ -69,7 +78,7 @@ final class Steering {
      * @return 已经停在那一点上
      */
     static boolean stop(Rig rig, double x, double z, double landingY) {
-        return stop(rig, x, z, landingY, 0, 0);
+        return stop(rig, x, z, landingY, 0, 0, 0, 0);
     }
 
     /**
@@ -79,9 +88,11 @@ final class Steering {
      *
      * @param behind 离那一点还没走到时容许差多远(落点比起步低时,身子要整个离开起步那块的边沿,差不能超过半格减半个身宽)
      * @param beyond 已经走过了那一点时容许超过多远
+     * @param hx     这一步水平方向的前进方向(东南西北之一):那一点已经在这个方向的身后(冲劲带过了头)就不转身回头去够它,松着、或按后退键刹就是;
+     *               容许范围为零时不看
      * @return 已经停在那一点的容许范围内
      */
-    static boolean stop(Rig rig, double x, double z, double landingY, double behind, double beyond) {
+    static boolean stop(Rig rig, double x, double z, double landingY, double behind, double beyond, int hx, int hz) {
         ServerPlayer body = rig.entity;
         Controls keys = rig.keys;
         double dx = x - body.getX();
@@ -94,11 +105,10 @@ final class Steering {
         if (distance < Math.max(AT, Math.min(behind, beyond)) && speed < Kinematics.REST * 10) {
             return true;
         }
-        // 只在地上转身;腾空时不回身,沿身体此刻朝着的方向按前进后退修正。容许范围非零时,那一点已经在身后(冲劲带过了头)就不转身
-        // 回头去够它,松着、或按后退键刹就是
-        double yaw = Math.toRadians(body.getYRot());
         boolean lenient = behind > 0 || beyond > 0;
-        if (distance >= AT && body.onGround() && (!lenient || dx * -Math.sin(yaw) + dz * Math.cos(yaw) > 0)) {
+        boolean passed = lenient && dx * hx + dz * hz <= 0;
+        double yaw = Math.toRadians(body.getYRot());
+        if (distance >= AT && supported(body) && !passed) {
             rig.look.faceToward(x, z);
             yaw = Math.toRadians(body.getYRot());
         }

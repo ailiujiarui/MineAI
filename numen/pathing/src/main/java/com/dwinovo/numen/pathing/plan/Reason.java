@@ -44,6 +44,8 @@ public enum Reason {
     EDIT_RESTRICTED,
     /** 物理上挖不动(基岩这类)。 */
     UNBREAKABLE,
+    /** 手上最好的工具挖这一格也要太久({@link CostModel#MAX_DIG_TICKS}):黑曜石之于空手、木镐。 */
+    TOO_HARD,
     /** 挖了邻格的液体会漏进来。 */
     WOULD_FLOOD,
     /** 挖了上面或旁边悬着的落沙会塌下来。 */
@@ -65,5 +67,17 @@ public enum Reason {
     /** 憋不住气:照身体此刻的氧气,从这一步起的这一段水下游不到换气的地方({@link Breath#lasts})。 */
     OUT_OF_BREATH,
     /** 许可未决:主人不在、到点没答复,这一下既不是放行也不是拒绝。 */
-    PENDING
+    PENDING;
+
+    /**
+     * 这一条说的是缺什么——这一趟不挖不放、没有料、挖不动、权限不让、岩浆、基岩……——而不是这个落点的几何放不放得下(站不住、
+     * 坎太高、没有净空)。路走不通时,收场报告说"缺什么"只取这一类。
+     */
+    public boolean informative() {
+        return switch (this) {
+            case DENIED, NEEDS_CONSENT, NO_DIGGING, NO_PLACING, NO_MATERIALS, UNBREAKABLE, TOO_HARD, WOULD_FLOOD, WOULD_COLLAPSE,
+                    MELTS, INFESTED, EXCLUDED, FORBIDDEN, EDIT_RESTRICTED, OUT_OF_BOUNDS, PENDING -> true;
+            default -> false;
+        };
+    }
 }

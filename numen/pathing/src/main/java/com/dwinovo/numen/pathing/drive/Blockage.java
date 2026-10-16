@@ -28,6 +28,8 @@ public record Blockage(BlockPos cell, BlockState block, MoveKind move, Reason re
         /** 复核时这一步落到的已经不是规划的那个节点(比如脚下的落点变了)。 */
         DIVERTED,
         /** 走着这一步,身体落回了路线上前面一步的起点:这一步没走成。 */
-        FELL_BACK
+        FELL_BACK,
+        /** 走着这一步,身体落在了路线之外的节点上(撞着规划看不见的东西滑到了旁边一行):这一步没把身体带到它的落点。 */
+        LOST
     }
 }

@@ -3,6 +3,7 @@ package com.dwinovo.numen.pathing.plan;
 import java.util.List;
 
 import com.dwinovo.numen.pathing.world.BodyStats;
+import com.dwinovo.numen.pathing.world.CellFlags;
 import com.dwinovo.numen.pathing.world.Footing;
 import com.dwinovo.numen.pathing.world.Semantics;
 import com.dwinovo.numen.pathing.world.Kinematics;
@@ -18,6 +19,8 @@ import net.minecraft.core.BlockPos;
  */
 final class Pillar implements Move {
 
+    private static final List<Heading> HEADINGS = List.of(Heading.UP);
+
     @Override
     public MoveKind kind() {
         return MoveKind.PILLAR;
@@ -25,7 +28,7 @@ final class Pillar implements Move {
 
     @Override
     public List<Heading> headings() {
-        return List.of(Heading.UP);
+        return HEADINGS;
     }
 
 
@@ -66,6 +69,18 @@ final class Pillar implements Move {
         return new Premise.Holds(new Maneuver(MoveKind.PILLAR, heading, from, stance, to, landing, true, false, false, false,
                 Strides.submerged(draft, body, from, stance, to, landing), 1, 0, 0, 0, draft.edits(), contact.cells(), contact.exposure(), support,
                 Strides.reversible(draft, body, from, stance, to, landing)));
+    }
+
+    /**
+     * 垫柱要站着、脚所在的格不泡在流体里;还要放一块:这一趟一块也放不了就不成立。头顶挡着的格精确判断会先去挖(挖之前要瞄,
+     * 瞄的射线读四周的格),所以放不了的只在四周读全了的节点上断定;能放的,放得下放不下、垫上去站不站得住,精确判断。
+     */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        if (!q.stance().grounded() || (q.own() & CellFlags.FLUID) != 0) {
+            return Quick.REJECT;
+        }
+        return !q.mayPlace() && q.plain() ? Quick.REJECT : Quick.EXACT;
     }
 
     @Override

@@ -5,16 +5,9 @@ import com.dwinovo.numen.api.agent.http.CancelToken;
 import com.dwinovo.numen.api.agent.http.HttpLlmTransport;
 import com.dwinovo.numen.api.agent.provider.Usage;
 import com.dwinovo.numen.api.agent.provider.AssistantTurn;
-import com.dwinovo.numen.api.agent.provider.OpenAIResponsesProvider;
-import com.dwinovo.numen.api.agent.provider.ProviderRegistry;
-
-import com.dwinovo.numen.api.agent.provider.AnthropicProvider;
-import com.dwinovo.numen.api.agent.provider.DeepSeekProvider;
 import com.dwinovo.numen.api.agent.provider.IToolSpec;
 import com.dwinovo.numen.api.agent.provider.LlmProvider;
 import com.dwinovo.numen.api.agent.provider.LlmToolCall;
-import com.dwinovo.numen.api.agent.provider.MoonshotProvider;
-import com.dwinovo.numen.api.agent.provider.OpenAIProvider;
 import com.dwinovo.numen.api.agent.provider.StreamAccumulator;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -52,47 +45,32 @@ public final class NumenLlmClient {
 
     private final HttpLlmTransport transport;
     private final LlmProvider provider;
+    private final LlmEndpoint endpoint;
     private final String fullUrl;
-    private final String apiKey;
-    private final String model;
-    /** Reasoning effort: {@code auto}(send nothing) | {@code off}(明确关) | {@code low} | {@code medium} | {@code high}. */
-    private final String reasoningEffort;
-    /** 玩家在用户文件里给该模型配的生成参数(null/0 = 不发,吃服务器默认)。 */
-    private final Double genTemperature;
-    private final int genMaxTokens;
 
     private NumenLlmClient(LlmEndpoint endpoint) {
-        this.provider = pickProvider(endpoint.provider());
-        String siteBase = com.dwinovo.numen.api.agent.provider.ProviderRegistry.baseUrl(endpoint.provider());
-        this.fullUrl = composeUrl(endpoint.baseUrl(), siteBase, provider);
-        this.apiKey = endpoint.apiKey();
-        this.transport = new HttpLlmTransport(endpoint.proxy(),
-                com.dwinovo.numen.api.agent.provider.ProviderRegistry.headers(endpoint.provider()),
+        if (!endpoint.hasUrl()) {
+            throw new IllegalStateException("no base URL for provider '" + endpoint.providerId()
+                    + "': the catalog has none and the profile gives none");
+        }
+        this.endpoint = endpoint;
+        this.provider = LlmProvider.of(endpoint.compat());
+        this.fullUrl = composeUrl(endpoint.baseUrl(), provider.chatPath());
+        this.transport = new HttpLlmTransport(endpoint.proxy(), endpoint.headers(),
                 provider.authHeaders(endpoint.apiKey()));
-        String configured = endpoint.model();
-        this.model = (configured == null || configured.isBlank()) ? "gpt-5.4-mini" : configured;
-        this.reasoningEffort = normalizeReasoning(endpoint.reasoningEffort());
-        ProviderRegistry.Model registered = ProviderRegistry.model(endpoint.provider(), this.model);
-        this.genTemperature = registered == null ? null : registered.temperature();
-        this.genMaxTokens = registered == null ? 0 : registered.maxTokens();
-        AiLog.LOG.info("[numen-llm] client initialised: provider={}, model={}, url={}, streaming={}",
-                provider.name(), model, fullUrl, provider.supportsStreaming());
+        AiLog.LOG.info("[numen-llm] client initialised: provider={}, api={}, model={}, url={}, streaming={}",
+                endpoint.providerId(), endpoint.api().id(), endpoint.model().id(), fullUrl,
+                provider.supportsStreaming());
     }
 
     /**
-     * Compose the chat URL. Base URL precedence: an explicit per-config override wins;
-     * else the site's registered base URL (from {@code numen_providers.json} — so "+ add site" URLs and
-     * adapter-less sites like Gemini/Grok actually take effect); else the adapter's hard-coded default.
-     * Then normalise: trim a trailing slash and append the provider's chat path
-     * ({@code /chat/completions} / {@code /messages}) if absent.
+     * Compose the chat URL: trim a trailing slash from the base and append the protocol's path
+     * ({@code /chat/completions} / {@code /responses} / {@code /messages}) unless the base already ends with it.
      */
-    private static String composeUrl(String userBase, String siteBase, LlmProvider provider) {
-        String base = nonBlank(userBase) ? userBase
-                : nonBlank(siteBase) ? siteBase
-                : provider.defaultBaseUrl();
+    private static String composeUrl(String base, String chatPath) {
         if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-        if (base.endsWith(provider.chatPath())) return base;
-        return base + provider.chatPath();
+        if (base.endsWith(chatPath)) return base;
+        return base + chatPath;
     }
 
     /**
@@ -132,11 +110,6 @@ public final class NumenLlmClient {
      * agent loop's auto-compaction triggers on (no client-side token estimation
      * needed). Zero when the backend sent no usage frame.
      */
-    /** 这一局的出处戳:{@code 服务商类/模型}。回合带着它落盘,换绑之后认得出哪些私货不是自家的。 */
-    private String origin() {
-        return provider.getClass().getSimpleName() + "/" + model;
-    }
-
     public record ChatResult(AssistantTurn turn, Usage usage) {
 
         /** 提示词的完整体量——自动压缩的触发判据(API 数的,不用客户端估)。 */
@@ -169,6 +142,8 @@ public final class NumenLlmClient {
      * @param tools          tool list (provider serialises to wire shape;
      *                       empty = no tools field, e.g. for summarization calls)
      * @param systemPrompt   prepended automatically — pass empty / null to skip
+     * @param sessionId      stable id of the conversation (the companion's uuid), for protocols that route
+     *                       cache lookups by a client key; null = none
      * @param cancel         cancelling it closes the stream: {@code onDelta} is not called again,
      *                       nothing is retried, and the future fails with
      *                       {@link java.util.concurrent.CancellationException}
@@ -180,6 +155,7 @@ public final class NumenLlmClient {
     public CompletableFuture<ChatResult> chatStreaming(List<ConvoState.Msg> messages,
                                                        Collection<? extends IToolSpec> tools,
                                                        String systemPrompt,
+                                                       String sessionId,
                                                        CancelToken cancel,
                                                        Consumer<Delta> onDelta) {
         // -- 1. Build wire-format messages and tool list via provider. The recorded history goes
@@ -193,38 +169,26 @@ public final class NumenLlmClient {
                 // 上一家的私货(思考签名、reasoning_content)只有产它的那家认:换过模型就脱掉再发。
                 // 原样递过去轻则浪费,重则被 400 拒,而换绑模型是面板上一个按钮的事。
                 case ConvoState.Msg.Assistant a -> wire.addAll(provider.assistantToRequestItems(
-                        a.turn().sameOrigin(origin()) ? a.turn() : a.turn().withoutProviderPrivateFields()));
+                        a.turn().sameOrigin(endpoint.origin()) ? a.turn() : a.turn().withoutProviderPrivateFields()));
                 case ConvoState.Msg.Tool t -> wire.add(provider.buildToolResultMessage(t.toolCallId(), t.content()));
                 case ConvoState.Msg.Halt h -> throw new IllegalStateException(
                         "ProtocolView.forWire never emits Halt: " + h.reason());
             }
         }
         JsonArray toolList = provider.buildToolList(tools);
-        JsonObject body = provider.buildRequestBody(model, systemPrompt, wire, toolList);
-
-        // -- 1a. 玩家配置的生成参数(temperature/max_tokens),opt-in 才上盘;
-        //        必须先于思考开关——预算类方言在 max_tokens 之上加码。
-        provider.applyGenerationParams(body, genTemperature, genMaxTokens);
-
-        // -- 1b. Reasoning / deep-thinking: only when the user opted in (never on "auto"), so a
-        //        non-reasoning model is never handed an unexpected parameter it would 400 on.
-        if (!"auto".equals(reasoningEffort)) {
-            provider.applyReasoning(body, reasoningEffort);
-        }
-
-        // -- 2. Enable streaming + usage reporting (protocol-dialect shape).
-        provider.applyStreaming(body);
+        JsonObject body = provider.buildRequestBody(endpoint.model(), systemPrompt, wire, toolList,
+                endpoint.options(), sessionId);
 
         if (AiLog.LOG.isDebugEnabled()) {
             AiLog.LOG.debug("[numen-llm] chat start: provider={}, model={}, msgs={}, tools={}, system_prompt_chars={}",
-                    provider.name(), model, wire.size(), toolList.size(),
+                    endpoint.providerId(), endpoint.model().id(), wire.size(), toolList.size(),
                     systemPrompt == null ? 0 : systemPrompt.length());
         }
 
         // -- 3. Stream the response into an accumulator.
         long t0 = System.nanoTime();
         StreamAccumulator acc = new StreamAccumulator();
-        return transport.postSse(fullUrl, apiKey, body, chunk -> {
+        return transport.postSse(fullUrl, endpoint.apiKey(), body, chunk -> {
             try {
                 int contentFrom = acc.content.length();
                 int reasoningFrom = acc.reasoning.length();
@@ -240,21 +204,18 @@ public final class NumenLlmClient {
                 AiLog.LOG.warn("[numen-llm] accumulator failed on chunk: {}", ex.getMessage());
             }
         }, cancel).thenApply(v -> {
-            AssistantTurn turn = provider.finalizeStream(acc).withOrigin(origin());
-            logCallSummary(t0, acc, turn);
-            return new ChatResult(turn, provider.usage(acc.usage));
+            AssistantTurn turn = provider.finalizeStream(acc).withOrigin(endpoint.origin());
+            Usage usage = provider.usage(acc.usage);
+            logCallSummary(t0, acc, turn, usage);
+            return new ChatResult(turn, usage);
         });
     }
 
-    private void logCallSummary(long t0, StreamAccumulator acc, AssistantTurn turn) {
+    private void logCallSummary(long t0, StreamAccumulator acc, AssistantTurn turn, Usage usage) {
         long elapsedMs = (System.nanoTime() - t0) / 1_000_000;
-        String tokens = "?";
-        if (acc.usage != null) {
-            int in = jsonInt(acc.usage, "prompt_tokens");
-            int out = jsonInt(acc.usage, "completion_tokens");
-            int total = jsonInt(acc.usage, "total_tokens");
-            tokens = in + "/" + out + " (total " + total + ")";
-        }
+        // 各协议的用量字段不同,统一读归一后的四元
+        String tokens = acc.usage == null ? "?"
+                : usage.promptTokens() + "/" + usage.output() + " (total " + usage.total() + ")";
         StringBuilder toolSummary = new StringBuilder();
         for (LlmToolCall tc : turn.toolCalls()) {
             if (toolSummary.length() > 0) toolSummary.append(", ");
@@ -269,70 +230,11 @@ public final class NumenLlmClient {
                 toolSummary, contentSnippet);
     }
 
-    private static boolean nonBlank(String s) { return s != null && !s.isBlank(); }
-
-    /** Coerce a stored reasoning value to auto/off/low/medium/high ("auto" = don't send the parameter,
-     *  "off" = 明确关闭思考——由 provider 按方言翻译,无开关的方言静默)。 */
-    private static String normalizeReasoning(String v) {
-        if (v == null) return "auto";
-        return switch (v.trim().toLowerCase()) {
-            case "off", "low", "medium", "high" -> v.trim().toLowerCase();
-            default -> "auto";
-        };
-    }
-
-    private static int jsonInt(JsonObject o, String key) {
-        if (o == null || !o.has(key) || o.get(key).isJsonNull()) return 0;
-        try { return o.get(key).getAsInt(); } catch (RuntimeException ex) { return 0; }
-    }
-
     private static String truncate(String s, int max) {
         if (s == null) return "";
         return s.length() <= max ? s : s.substring(0, max) + "...";
     }
 
     public LlmProvider provider() { return provider; }
-    public String model() { return model; }
-
-    /**
-     * Map a config {@code provider} string to a concrete {@link LlmProvider}.
-     *
-     * <p>Only backends with genuine behavioural differences get a subclass
-     * (DeepSeek's cache billing, Moonshot's {@code reasoning_content}
-     * fallback). Every other site — zhipu, siliconflow, minimax, volcengine,
-     * dashscope, gemini, grok, "+ add site" customs — is a plain
-     * OpenAI-compatible endpoint whose name and default base URL come from
-     * {@code numen_providers.json} ({@link ProviderRegistry}), the single source
-     * the settings UI reads too — base URL, thinking dialect, and wire
-     * protocol ({@code protocol:"anthropic"} rows get the Anthropic Messages
-     * adapter instead of the OpenAI-compat one). Alias resolution
-     * ({@code kimi}/{@code doubao}/{@code glm}/...) lives in
-     * {@link ProviderRegistry#canonicalId} — the one and only alias table.
-     * Unknown values fall back to {@code openai} with a warning log.
-     */
-    public static LlmProvider pickProvider(String name) {
-        String id = ProviderRegistry.canonicalId(name);
-        if (id.equals(DeepSeekProvider.NAME)) return new DeepSeekProvider();
-        if (id.equals(MoonshotProvider.NAME)) return new MoonshotProvider();
-        if (id.equals(OpenAIProvider.NAME)) return new OpenAIProvider();
-        if (id.equals(OpenAIResponsesProvider.NAME)) return new OpenAIResponsesProvider();
-        if (ProviderRegistry.has(id)) {
-            String baseUrl = ProviderRegistry.baseUrl(id);
-            // 线格式由站点的 protocol 决定,不按型号猜:responses 是条目流,anthropic 是块,其余走 OpenAI 兼容
-            if ("responses".equals(ProviderRegistry.protocol(id))) {
-                return new OpenAIResponsesProvider(id,
-                        baseUrl == null || baseUrl.isBlank() ? OpenAIResponsesProvider.DEFAULT_BASE_URL : baseUrl);
-            }
-            if ("anthropic".equals(ProviderRegistry.protocol(id))) {
-                return new AnthropicProvider(id,
-                        baseUrl == null || baseUrl.isBlank() ? AnthropicProvider.DEFAULT_BASE_URL : baseUrl,
-                        ProviderRegistry.thinkingFormat(id));
-            }
-            return new OpenAIProvider(id,
-                    baseUrl == null || baseUrl.isBlank() ? OpenAIProvider.DEFAULT_BASE_URL : baseUrl,
-                    ProviderRegistry.thinkingFormat(id));
-        }
-        AiLog.LOG.warn("[numen-llm] unknown provider '{}', falling back to openai", name);
-        return new OpenAIProvider();
-    }
+    public LlmEndpoint endpoint() { return endpoint; }
 }

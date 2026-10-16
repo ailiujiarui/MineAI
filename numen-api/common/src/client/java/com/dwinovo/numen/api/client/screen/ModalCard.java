@@ -129,7 +129,7 @@ abstract class ModalCard {
     protected TextField field(int fx, int fy, int fw, String label, TextField field) {
         Label l = ui.add(new Label(label, Label.Role.SECONDARY));
         l.setBounds(fx, fy, fw, 9);
-        ui.add(field.underlined(true).withLabel(l));
+        ui.add(field.withLabel(l));
         field.setBounds(fx, fy + FIELD_LABEL_H, fw, FIELD_H - FIELD_LABEL_H);
         fields.add(field);
         return field;

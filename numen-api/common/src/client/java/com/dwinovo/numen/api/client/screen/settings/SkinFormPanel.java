@@ -76,15 +76,15 @@ public final class SkinFormPanel {
         signing = false;
     }
 
-    public void build(int x, int y, int w, int h) {
+    public void build(int x, int y, int w, int h, UiRoot.Viewport window) {
         ui.clear();
+        ui.setViewport(window);
 
         int ry = y;
         Label nameLabel = labelWidget(x, ry, ModLanguageData.Keys.SKIN_FORM_NAME);
         ry += NumenStyle.LABEL_PITCH;
         nameField = ui.add(new TextField(draft.name, v -> draft.name = v)
                 .placeholder(t("numen.skin.name_placeholder"))   // 规则先说,别等报错才知道
-                .underlined(true)
                 .withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
@@ -105,7 +105,7 @@ public final class SkinFormPanel {
         int pickW = Minecraft.getInstance().font.width(pickLabel) + 14;
         Button pick = ui.add(new Button(pickLabel, Button.Style.NORMAL, onPickFile));
         pick.setBounds(x, ry, pickW, 16);
-        statusLabel = ui.add(new Label("", Label.Role.MUTED));
+        statusLabel = ui.add(new Label("", Label.Role.SECONDARY));
         statusLabel.setBounds(x + pickW + 6, ry + 4, Math.max(0, w - pickW - 6), 9);
         refreshStatus();
 
@@ -159,6 +159,10 @@ public final class SkinFormPanel {
         return ui.keyPressed(keyCode, modifiers);
     }
 
+    public boolean hasOverlay() {
+        return ui.hasOverlay();
+    }
+
     public boolean charTyped(char ch) {
         return ui.charTyped(ch);
     }
@@ -183,7 +187,7 @@ public final class SkinFormPanel {
 
     /** 标签控件本体:会报错的字段用 withLabel 认领它(出错时自动让位)。 */
     private Label labelWidget(int lx, int ly, String key) {
-        Label l = ui.add(new Label(t(key), Label.Role.MUTED));
+        Label l = ui.add(new Label(t(key), Label.Role.SECONDARY));
         l.setBounds(lx, ly, 200, 9);
         return l;
     }
@@ -241,17 +245,13 @@ public final class SkinFormPanel {
                     if (myGen != gen) return;   // 表单已离开/重开:作废
                     signing = false;
                     saveButton.setEnabled(true);
-                    if (err != null || signed == null) {
-                        Throwable cur = err;
-                        while (cur != null && cur.getCause() != null && cur != cur.getCause()) {
-                            cur = cur.getCause();
-                        }
-                        String why = cur == null ? "?" : (cur.getMessage() == null
-                                ? cur.getClass().getSimpleName() : cur.getMessage());
+                    if (err != null) {
                         // 完整原因进日志(胶囊里被截短,排障全靠这行)。
-                        com.dwinovo.numen.api.Constants.LOG.warn("[numen-skin] MineSkin 签名失败: {}", why);
+                        com.dwinovo.numen.api.Constants.LOG.warn("[numen-skin] MineSkin 签名失败: {}",
+                                com.dwinovo.numen.api.client.skin.SkinError.fromError(err).getMessage());
                         resultAlert.show(InlineAlert.Severity.ERROR,
-                                t2(ModLanguageData.Keys.SKIN_SIGN_FAIL, shorten(why)));
+                                t2(ModLanguageData.Keys.SKIN_SIGN_FAIL,
+                                        shorten(com.dwinovo.numen.api.client.skin.SkinWords.text(err))));
                         return;
                     }
                     com.dwinovo.numen.api.Constants.LOG.info("[numen-skin] MineSkin 签名成功: {}", name);

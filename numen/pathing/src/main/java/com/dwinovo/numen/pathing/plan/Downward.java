@@ -16,6 +16,8 @@ import net.minecraft.core.BlockPos;
  */
 final class Downward implements Move {
 
+    private static final List<Heading> HEADINGS = List.of(Heading.DOWN);
+
     @Override
     public MoveKind kind() {
         return MoveKind.DOWNWARD;
@@ -23,7 +25,7 @@ final class Downward implements Move {
 
     @Override
     public List<Heading> headings() {
-        return List.of(Heading.DOWN);
+        return HEADINGS;
     }
 
 
@@ -57,6 +59,18 @@ final class Downward implements Move {
         return new Premise.Holds(new Maneuver(MoveKind.DOWNWARD, heading, from, stance, below, landing, false, false, false,
                 wading, Strides.submerged(draft, body, from, stance, below, landing), 1, drop, damage, 0, draft.edits(), contact.cells(), contact.exposure(), support,
                 Strides.reversible(draft, body, from, stance, below, landing)));
+    }
+
+    /**
+     * 向下挖要站着、脚踩的正是下面那一格,还要许挖。不许挖的,精确判断在拒绝之前要先瞄(射线读四周的格),所以只在四周读全了
+     * 的节点上断定;能挖的,挖不挖得了、落下去摔不摔得起,精确判断。
+     */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        if (!q.stance().grounded() || q.stance().supportY() != q.y() - 1) {
+            return Quick.REJECT;
+        }
+        return !q.mayDig() && q.plain() ? Quick.REJECT : Quick.EXACT;
     }
 
     @Override

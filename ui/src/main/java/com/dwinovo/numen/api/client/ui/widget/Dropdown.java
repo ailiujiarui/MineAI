@@ -1,8 +1,10 @@
 package com.dwinovo.numen.api.client.ui.widget;
 
+import com.dwinovo.numen.api.client.ui.Animation;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
+import com.dwinovo.numen.api.client.ui.TextClip;
 
 import java.util.List;
 import java.util.function.IntConsumer;
@@ -22,20 +24,23 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
     private float hoverT;
     private long lastFrameMs = -1;
     private int popupScroll;   // 弹层滚动(行数)
-    
+    /**
+     * 弹层出入的时长:从贴着字段的那一边长开、收回去。始终是实底,半透明会让底下字段的字透出来;
+     * 长开从这个比例起,第一帧就看得见,不是空的一帧。
+     */
+    private static final long REVEAL_MS = 150;
+    private static final float REVEAL_FROM = 0.2f;
+    /** 弹层开了 / 收了的时刻;-1 = 还没画到那一帧(时间由渲染给,控件不读钟)。 */
+    private long openedAtMs = -1, closedAtMs = -1;
 
-    /** 紧凑模式:收起态只画箭头不画值(窄"选择器"用,值另有输入框承载)。 */
-    private boolean compact;
+
+    /** 底线(字段外观只有这一种,见 {@link FieldLine});下拉开着当聚焦,展开从点击处起。 */
+    private final FieldLine line = new FieldLine();
 
     public Dropdown(List<String> items, int selected, IntConsumer onSelect) {
         this.items = items;
         this.selected = Math.max(0, Math.min(selected, items.size() - 1));
         this.onSelect = onSelect;
-    }
-
-    public Dropdown compact() {
-        this.compact = true;
-        return this;
     }
 
     /** 弹层宽度覆盖(默认与收起态同宽);弹层右缘对齐控件右缘,窄选择器不至于挤爆版面。 */
@@ -63,6 +68,17 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         return this;
     }
 
+    /** 没有可选的项时行上写这句警告色的话,点它做 {@link #onEmpty};null = 空着就是空着。 */
+    private String emptyText;
+    private Runnable onEmpty;
+
+    /** 空列表的出路:行上直接说"没有——去哪儿新建",点一下就去(选择行形态)。 */
+    public Dropdown whenEmpty(String text, Runnable go) {
+        this.emptyText = text;
+        this.onEmpty = go;
+        return this;
+    }
+
     private int popupWidth() {
         if (popupW > 0) return popupW;
         return rowLabel != null && rowPopupW > 0 ? rowPopupW : w;
@@ -72,6 +88,14 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         if (popupW > 0) return x + w - popupW;
         // 选择行:弹层里的字(内缩 5)右缘与行上的当前值对齐
         return rowLabel != null && rowPopupW > 0 ? Math.max(x, x + w - rowInset + 5 - rowPopupW) : x;
+    }
+
+    /** 每一项右边的灰色说明(与条目一一对应);弹层里右对齐,放不下就省略。收起态不显示。 */
+    private List<String> details = List.of();
+
+    public Dropdown details(List<String> details) {
+        this.details = details;
+        return this;
     }
 
     public void setItems(List<String> items, int selected) {
@@ -105,22 +129,17 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
             renderRow(s, c);
             return;
         }
-        // 与输入框同一卡壳形制;展开描边亮 accent(=聚焦态)。悬停是"在底上叠一层"
-        // 而非"换底色"——hover 是亮度感知的半透明叠加色(暗主题偏白/亮主题偏黑),
+        // 一行字 + 右侧箭头 + 底线(和输入框同一种外观,不画框);下拉开着底线亮 accent(=聚焦态)。
+        // 悬停是"在底上叠一层"而非"换底色"——hover 是亮度感知的半透明叠加色(暗主题偏白/亮主题偏黑),
         // 拿它当实底填会整块发黑(真机教训),按进度收放透明度才对。
-        NumenStyle.box(s, x, y, w, h, c.inputBg(),
-                open ? c.accent() : c.inputBorder());
         if (hoverT > 0.01f) {
             int overlay = ((int) (((c.hover() >>> 24) & 0xFF) * hoverT) << 24) | (c.hover() & 0xFFFFFF);
-            s.fillRect(x + 1, y + 1, w - 2, h - 2, overlay);
+            s.fillRect(x, y, w, h - 1, overlay);
         }
-        if (!compact) {
-            s.drawText(selectedItem(), x + 5, y + (h - s.lineHeight()) / 2 + 1,
-                    enabled ? c.textPrimary() : c.textMuted(), false);
-        }
-        int arrowX = compact ? x + (w - s.textWidth("▼")) / 2 : x + w - 11;
-        s.drawText(open ? "▲" : "▼", arrowX, y + (h - s.lineHeight()) / 2 + 1,
-                c.textMuted(), false);
+        line.draw(s, c, x, y, w, h, open, hovered, false, nowMs);
+        s.drawText(TextClip.fit(s, selectedItem(), Math.max(0, w - NumenStyle.FIELD_PAD - 16)), x + NumenStyle.FIELD_PAD,
+                y + (h - s.lineHeight()) / 2 + 1, enabled ? c.textPrimary() : c.textMuted(), false);
+        s.drawText(open ? "▲" : "▼", x + w - 11, y + (h - s.lineHeight()) / 2 + 1, c.textSecondary(), false);
     }
 
     /** 选择行:整行浅底随悬停收放,左标签、右当前值。 */
@@ -132,35 +151,45 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         int ty = y + (h - s.lineHeight()) / 2 + 1;
         s.drawText(rowLabel, x + rowInset, ty, c.textPrimary(), false);
         int room = w - rowInset * 2 - s.textWidth(rowLabel) - 8;
-        String value = com.dwinovo.numen.api.client.ui.TextClip.fit(s, selectedItem(), Math.max(0, room));
+        boolean none = items.isEmpty() && emptyText != null;
+        String value = com.dwinovo.numen.api.client.ui.TextClip.fit(s, none ? emptyText : selectedItem(), Math.max(0, room));
         s.drawText(value, x + w - rowInset - s.textWidth(value), ty,
-                enabled ? c.accent() : c.textMuted(), false);
+                none ? c.warning() : enabled ? c.accent() : c.textMuted(), false);
     }
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        if (button != 0 || !contains(mx, my) || !enabled || items.isEmpty()) return false;
+        if (button != 0 || !contains(mx, my) || !enabled) return false;
+        line.press(mx);
+        if (items.isEmpty()) {
+            if (onEmpty == null) return false;
+            onEmpty.run();
+            return true;
+        }
         open = true;
+        openedAtMs = -1;
         if (root != null) root.openOverlay(this);
         return true;
     }
 
     // ---- 浮层通道 ----
 
-    /** 弹层行数:条目数、行数上限、屏幕底缘剩余空间三者取最小(至少 3 行保可用)。 */
+    /** 弹层摆在哪(往下还是往上、多高、多宽):字段位置、行高、条目数、可见区域一变就跟着变,所以每次现算。 */
+    private PopupPlacement placement() {
+        int want = Math.min(items.size(), NumenStyle.POPUP_MAX_ROWS) * rowHCached;
+        return PopupPlacement.place(y, h, popupX(), popupWidth(), want, rowHCached,
+                root == null ? UiRoot.Viewport.UNBOUNDED : root.viewport());
+    }
+
     private int popupRows() {
-        int byViewport = NumenStyle.POPUP_MAX_ROWS;
-        if (root != null && root.viewportHeight() != Integer.MAX_VALUE) {
-            byViewport = Math.max(3, (root.viewportHeight() - (y + h) - 4) / Math.max(1, rowHCached));
-        }
-        return Math.min(items.size(), Math.min(NumenStyle.POPUP_MAX_ROWS, byViewport));
+        return placement().h() / rowHCached;
     }
 
     private int maxPopupScroll() { return Math.max(0, items.size() - popupRows()); }
 
     private boolean inPopup(double mx, double my) {
-        return mx >= popupX() && mx < popupX() + popupWidth()
-                && my >= y + h && my < y + h + popupRows() * rowHCached;
+        PopupPlacement p = placement();
+        return mx >= p.x() && mx < p.x() + p.w() && my >= p.y() && my < p.y() + p.h();
     }
 
     /** 行高在渲染时缓存,事件处理无画布也能判命中。 */
@@ -168,6 +197,24 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
 
     @Override
     public void renderOverlay(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, long nowMs) {
+        if (openedAtMs < 0) openedAtMs = nowMs;
+        float t = Animation.easeOutCubic(Animation.progress(nowMs - openedAtMs, REVEAL_MS));
+        drawPopup(s, c, mouseX, mouseY, REVEAL_FROM + (1f - REVEAL_FROM) * t);
+    }
+
+    /** 收起后浮层通道已经放手,收回去那几帧由通道的退场画;收回中不接指针,也就不画悬停。 */
+    @Override
+    public boolean renderLeaving(IDrawSurface s, NumenTheme.Colors c, long nowMs) {
+        if (open) return false;
+        if (closedAtMs < 0) closedAtMs = nowMs;
+        float t = Animation.progress(nowMs - closedAtMs, REVEAL_MS);
+        if (t >= 1f) return false;
+        drawPopup(s, c, Integer.MIN_VALUE, Integer.MIN_VALUE, 1f - Animation.easeInCubic(t));
+        return true;
+    }
+
+    /** @param reveal 露出多少(0~1):从贴着字段的那一边起算 */
+    private void drawPopup(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, float reveal) {
         rowHCached = rowH(s);
         if (rowLabel != null) {
             int widest = 0;
@@ -176,9 +223,12 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         }
         popupScroll = Math.min(popupScroll, maxPopupScroll());
         int rows = popupRows();
-        int py = y + h;
-        int px = popupX();
-        int pw = popupWidth();
+        PopupPlacement p = placement();
+        int py = p.y();
+        int px = p.x();
+        int pw = p.w();
+        int shownH = Math.max(1, Math.round(p.h() * reveal));
+        s.pushScissor(px, p.up() ? p.y() + p.h() - shownH : p.y(), pw, shownH);
         s.fillRect(px, py, pw, rows * rowHCached, c.panelBg());
         for (int r = 0; r < rows; r++) {
             int idx = popupScroll + r;
@@ -188,6 +238,11 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
             if (idx == selected) s.fillRect(px, ry, pw, rowHCached, c.selected());
             else if (hov) s.fillRect(px, ry, pw, rowHCached, c.hover());
             s.drawText(items.get(idx), px + 5, ry + 2, c.textPrimary(), false);
+            if (idx < details.size()) {
+                int room = pw - NumenStyle.SCROLLBAR_W - 5 - (5 + s.textWidth(items.get(idx)) + 8);
+                String d = com.dwinovo.numen.api.client.ui.TextClip.fit(s, details.get(idx), Math.max(0, room));
+                s.drawText(d, px + pw - NumenStyle.SCROLLBAR_W - 5 - s.textWidth(d), ry + 2, c.textSecondary(), false);
+            }
         }
         // 装不下全部条目时画滚动拇指——告诉玩家"下面还有,滚轮翻"。
         if (items.size() > rows) {
@@ -197,12 +252,13 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
                     * (double) popupScroll / Math.max(1, maxPopupScroll()));
             s.fillRect(px + pw - NumenStyle.SCROLLBAR_W, thumbY, NumenStyle.SCROLLBAR_W, thumbH, c.divider());
         }
+        s.popScissor();
     }
 
     @Override
     public boolean overlayClicked(double mx, double my, int button) {
         if (!inPopup(mx, my)) return false;
-        int row = (int) ((my - y - h) / rowHCached);
+        int row = (int) ((my - placement().y()) / rowHCached);
         int idx = popupScroll + row;
         if (idx >= 0 && idx < items.size()) {
             selected = idx;
@@ -223,5 +279,6 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
     @Override
     public void closeOverlay() {
         open = false;
+        closedAtMs = -1;
     }
 }

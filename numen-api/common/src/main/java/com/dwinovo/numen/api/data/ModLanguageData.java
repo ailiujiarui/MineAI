@@ -31,7 +31,6 @@ public final class ModLanguageData {
         private Keys() {}
 
         // Settings GUI labels.
-        public static final String GUI_SETTINGS_TITLE       = "numen.gui.settings.title";
         public static final String GUI_SETTINGS_PROVIDER    = "numen.gui.settings.provider";
         public static final String GUI_SETTINGS_API_KEY     = "numen.gui.settings.api_key";
         public static final String GUI_SETTINGS_MODEL       = "numen.gui.settings.model";
@@ -44,23 +43,24 @@ public final class ModLanguageData {
         // 设置界面里服务商/表单那一片。运行时以前直接写字面量,键名散在六个文件里,
         // 数据生成看不见它们,于是那份语言文件只能靠手改 —— 常量收在这里,两边同源。
         public static final String GUI_INLINE_NEED_KEY              = "numen.gui.inline.need_key";
+        public static final String GUI_INLINE_NEED_URL              = "numen.gui.inline.need_url";
         public static final String GUI_INLINE_REQUIRED              = "numen.gui.inline.required";
-        public static final String GUI_PROVIDERS_BADGE_LOCAL        = "numen.gui.providers.badge.local";
         public static final String GUI_PROVIDERS_CHECK              = "numen.gui.providers.check";
         public static final String GUI_PROVIDERS_CHECK_BAD_REQUEST  = "numen.gui.providers.check.bad_request";
         public static final String GUI_PROVIDERS_CHECK_NETWORK      = "numen.gui.providers.check.network";
         public static final String GUI_PROVIDERS_CHECK_NOT_FOUND    = "numen.gui.providers.check.not_found";
         public static final String GUI_PROVIDERS_CHECK_OK           = "numen.gui.providers.check.ok";
         public static final String GUI_PROVIDERS_CHECK_RATE_LIMITED = "numen.gui.providers.check.rate_limited";
+        public static final String GUI_PROVIDERS_CHECK_REPLY        = "numen.gui.providers.check.reply";
         public static final String GUI_PROVIDERS_CHECK_SERVER_ERROR = "numen.gui.providers.check.server_error";
         public static final String GUI_PROVIDERS_CHECK_UNAUTHORIZED = "numen.gui.providers.check.unauthorized";
         public static final String GUI_PROVIDERS_CHECKING           = "numen.gui.providers.checking";
-        public static final String GUI_PROVIDERS_EFFORT             = "numen.gui.providers.effort";
+        public static final String GUI_PROVIDERS_CUSTOM             = "numen.gui.providers.custom";
         public static final String GUI_PROVIDERS_EFFORT_HIGH        = "numen.gui.providers.effort.high";
         public static final String GUI_PROVIDERS_EFFORT_LOW         = "numen.gui.providers.effort.low";
+        public static final String GUI_PROVIDERS_EFFORT_MAX         = "numen.gui.providers.effort.max";
         public static final String GUI_PROVIDERS_EFFORT_MEDIUM      = "numen.gui.providers.effort.medium";
         public static final String GUI_PROVIDERS_PROXY              = "numen.gui.providers.proxy";
-        public static final String GUI_PROVIDERS_PROXY_GLOBAL       = "numen.gui.providers.proxy.global";
         public static final String GUI_PROVIDERS_PROXY_HINT         = "numen.gui.providers.proxy.hint";
         public static final String GUI_PROVIDERS_CTX                = "numen.gui.providers.ctx";
         public static final String GUI_PROVIDERS_CTX_HINT           = "numen.gui.providers.ctx.hint";
@@ -68,6 +68,56 @@ public final class ModLanguageData {
         public static final String GUI_PROVIDERS_THINKING_AUTO      = "numen.gui.providers.thinking.auto";
         public static final String GUI_PROVIDERS_THINKING_OFF       = "numen.gui.providers.thinking.off";
         public static final String GUI_PROVIDERS_THINKING_ON        = "numen.gui.providers.thinking.on";
+        public static final String GUI_PROVIDERS_VENDOR = "numen.gui.providers.vendor";
+        public static final String GUI_PROVIDERS_NOTE_AUTO = "numen.gui.providers.note.auto";
+        public static final String GUI_PROVIDERS_NOTE_OFF = "numen.gui.providers.note.off";
+        public static final String GUI_PROVIDERS_NOTE_ON = "numen.gui.providers.note.on";
+        public static final String GUI_PROVIDERS_NOTE_EFFORT = "numen.gui.providers.note.effort";
+        public static final String GUI_PROVIDERS_NOTE_BUDGET = "numen.gui.providers.note.budget";
+        public static final String GUI_PROVIDERS_MODEL = "numen.gui.providers.model";
+        public static final String GUI_PROVIDERS_BASE_OVERRIDE = "numen.gui.providers.base_override";
+        public static final String GUI_PROVIDERS_URL = "numen.gui.providers.url";
+        public static final String GUI_PROVIDERS_PROTO_CHAT = "numen.gui.providers.proto.chat";
+        public static final String GUI_PROVIDERS_PROTO_RESPONSES = "numen.gui.providers.proto.responses";
+        public static final String GUI_PROVIDERS_PROTO_ANTHROPIC = "numen.gui.providers.proto.anthropic";
+        public static final String GUI_PROVIDERS_TEMP = "numen.gui.providers.temperature";
+        public static final String GUI_PROVIDERS_MAX_OUT = "numen.gui.providers.max_out";
+        public static final String GUI_PROVIDERS_DEFAULT_HINT = "numen.gui.providers.default_hint";
+        public static final String GUI_PROVIDERS_PICK_VENDOR = "numen.gui.providers.pick.vendor";
+        public static final String GUI_PROVIDERS_PICK_VENDOR_HINT = "numen.gui.providers.pick.vendor.hint";
+        public static final String GUI_PROVIDERS_PICK_MODEL = "numen.gui.providers.pick.model";
+        public static final String GUI_PROVIDERS_PICK_MODEL_HINT = "numen.gui.providers.pick.model.hint";
+        public static final String GUI_PROVIDERS_PICK_MODEL_HAND = "numen.gui.providers.pick.model.hand";
+        public static final String GUI_PROVIDERS_PICK_SEARCH = "numen.gui.providers.pick.search";
+        public static final String GUI_PROVIDERS_PICK_KEY_MOVE = "numen.gui.providers.pick.key.move";
+        public static final String GUI_PROVIDERS_PICK_KEY_ENTER = "numen.gui.providers.pick.key.enter";
+        public static final String GUI_PROVIDERS_PICK_KEY_ESC = "numen.gui.providers.pick.key.esc";
+        public static final String GUI_PROVIDERS_PICK_NO_MATCH = "numen.gui.providers.pick.no_match";
+        public static final String GUI_PROVIDERS_PICK_POPULAR = "numen.gui.providers.pick.popular";
+        public static final String GUI_PROVIDERS_PICK_ALL = "numen.gui.providers.pick.all";
+        public static final String GUI_PROVIDERS_PICK_CUSTOM = "numen.gui.providers.pick.custom";
+        public static final String GUI_PROVIDERS_PICK_CUSTOM_DETAIL = "numen.gui.providers.pick.custom.detail";
+        public static final String GUI_PROVIDERS_PICK_TOOLS = "numen.gui.providers.pick.tools";
+        public static final String GUI_PROVIDERS_PICK_NO_TOOLS = "numen.gui.providers.pick.no_tools";
+        public static final String GUI_PROVIDERS_PICK_FREE = "numen.gui.providers.pick.free";
+        public static final String GUI_PROVIDERS_PICK_FREE_TITLE = "numen.gui.providers.pick.free.title";
+        public static final String GUI_PROVIDERS_PICK_FREE_DETAIL = "numen.gui.providers.pick.free.detail";
+        public static final String GUI_PROVIDERS_COL_MODEL = "numen.gui.providers.col.model";
+        public static final String GUI_PROVIDERS_COL_CONTEXT = "numen.gui.providers.col.context";
+        public static final String GUI_PROVIDERS_COL_OUTPUT = "numen.gui.providers.col.output";
+        public static final String GUI_PROVIDERS_COL_THINKING = "numen.gui.providers.col.thinking";
+        public static final String GUI_PROVIDERS_COL_INPUT = "numen.gui.providers.col.input";
+        public static final String GUI_PROVIDERS_MODALITY_TEXT = "numen.gui.providers.modality.text";
+        public static final String GUI_PROVIDERS_MODALITY_IMAGE = "numen.gui.providers.modality.image";
+        public static final String GUI_PROVIDERS_MODALITY_PDF = "numen.gui.providers.modality.pdf";
+        public static final String GUI_PROVIDERS_MODALITY_AUDIO = "numen.gui.providers.modality.audio";
+        public static final String GUI_PROVIDERS_MODALITY_VIDEO = "numen.gui.providers.modality.video";
+        public static final String GUI_PROVIDERS_TAG_CONTEXT = "numen.gui.providers.tag.context";
+        public static final String GUI_PROVIDERS_TAG_OUTPUT = "numen.gui.providers.tag.output";
+        public static final String GUI_PROVIDERS_TAG_THINKING = "numen.gui.providers.tag.thinking";
+        public static final String GUI_PROVIDERS_TAG_MULTIMODAL = "numen.gui.providers.tag.multimodal";
+        public static final String GUI_PROVIDERS_TAG_NO_TOOLS = "numen.gui.providers.tag.no_tools";
+        public static final String GUI_PROVIDERS_TAG_MANUAL = "numen.gui.providers.tag.manual";
         public static final String RESPAWN_BLOCKED                  = "numen.respawn.blocked";
 
         // 征询:同伴等主人点头时对话流里那条带内联按钮的消息(ConsentMessage)与右上角的 toast。
@@ -93,7 +143,7 @@ public final class ModLanguageData {
         public static final String PERMISSION_PLACED_BY   = "numen.permission.placed_by";
         public static final String PERMISSION_UNCOVERED   = "numen.permission.uncovered";
         public static final String CONSENT_SECONDS        = "numen.consent.seconds";
-        public static final String PERMISSION_SEPARATOR   = "numen.permission.separator";
+        public static final String LIST_SEPARATOR         = "numen.list.separator";
         public static final String PERMISSION_A_BLOCK     = "numen.permission.a_block";
 
         /** Hotkey: open the companion roster panel (shown in Controls settings). */
@@ -122,11 +172,6 @@ public final class ModLanguageData {
         public static final String PROVIDER_NO_KEY         = "numen.provider.no_key";
         public static final String PROVIDER_FORM_NAME      = "numen.provider.form_name";
         public static final String PROVIDER_FORM_PROVIDER  = "numen.provider.form_provider";
-        public static final String PROVIDER_FORM_BASE_URL  = "numen.provider.form_base_url";
-
-        // Proxy section (IP + port rows; the section/nav title reuses numen.settings.proxy).
-        public static final String SETTINGS_PROXY_IP   = "numen.settings.proxy_ip";
-        public static final String SETTINGS_PROXY_PORT = "numen.settings.proxy_port";
 
         // Summon page: field labels, placeholder, actions, click-time warnings.
         public static final String SUMMON_NAME             = "numen.summon.name";
@@ -188,7 +233,6 @@ public final class ModLanguageData {
         public static final String SKIN_FORM_VARIANT    = "numen.skin.form_variant";
         public static final String SKIN_VARIANT_CLASSIC = "numen.skin.variant_classic";
         public static final String SKIN_VARIANT_SLIM    = "numen.skin.variant_slim";
-        public static final String SKIN_DROP_HINT       = "numen.skin.drop_hint";
         public static final String SKIN_LOADED          = "numen.skin.loaded";
         /** 皮肤导入的唯一入口:原生文件对话框(FCL 端翻译成安卓文件选择器)。 */
         public static final String SKIN_PICK_FILE       = "numen.skin.pick_file";
@@ -196,8 +240,9 @@ public final class ModLanguageData {
         public static final String SKIN_SIGNING         = "numen.skin.signing";
         public static final String SKIN_SIGN_FAIL       = "numen.skin.sign_fail";
         public static final String SKIN_SIGN_OK         = "numen.skin.sign_ok";
-        public static final String SKIN_WARN_NAME       = "numen.skin.warn_name";
         public static final String SKIN_WARN_IMAGE      = "numen.skin.warn_image";
+        /** 原生选文件对话框的标题。 */
+        public static final String SKIN_PICKER_TITLE    = "numen.skin.picker_title";
         public static final String SKIN_WARN_SIZE       = "numen.skin.warn_size";
         public static final String SKIN_WARN_READ       = "numen.skin.warn_read";
         public static final String SKIN_SIGNED          = "numen.skin.signed";
@@ -206,10 +251,12 @@ public final class ModLanguageData {
         public static final String SUMMON_CREATE           = "numen.summon.create";
         public static final String SUMMON_WARN_NAME        = "numen.summon.warn_name";
         public static final String SUMMON_WARN_PROVIDER    = "numen.summon.warn_provider";
+        public static final String SUMMON_NO_PROVIDER      = "numen.summon.no_provider";
 
         // Endpoint problems: the kernel holds BLOCKED with this text as the reason (EntityAgentLoop#endpointProblem).
         public static final String ENDPOINT_UNBOUND = "numen.endpoint.unbound";
         public static final String ENDPOINT_NO_KEY  = "numen.endpoint.no_key";
+        public static final String ENDPOINT_NO_URL  = "numen.endpoint.no_url";
 
         // Voice (TTS) section: nav label, global switch, entry list/form, preview, bindings.
         public static final String VOICE_TITLE          = "numen.voice.title";
@@ -253,11 +300,10 @@ public final class ModLanguageData {
         public static final String VOICE_TEST_RUNNING   = "numen.voice.test_running";
         public static final String VOICE_TEST_OK        = "numen.voice.test_ok";
         public static final String VOICE_TEST_FAIL      = "numen.voice.test_fail";
-        public static final String VOICE_WARN_NAME      = "numen.voice.warn_name";
-        public static final String VOICE_BIND_LABEL     = "numen.voice.bind_label";
         public static final String VOICE_BIND_NONE      = "numen.voice.bind_none";
         public static final String VOICE_SUMMON_LABEL   = "numen.voice.summon_label";
-        public static final String VOICE_SUMMON_EMPTY   = "numen.voice.summon_empty";
+        /** 声线列表行的副标题:后端 · 型号或参考音频 · 音量。 */
+        public static final String VOICE_LIST_META      = "numen.voice.list_meta";
 
         // STT (voice input)
         public static final String STT_NAV            = "numen.settings.nav.stt";
@@ -311,6 +357,8 @@ public final class ModLanguageData {
         public static final String COMMAND_RULE_NO_ROW       = "numen.command.rule_no_row";
         public static final String COMMAND_RULE_REMOVED      = "numen.command.rule_removed";
         public static final String COMMAND_RULES_RESET       = "numen.command.rules_reset";
+        /** 规则写错了({@code Rule.Mistake}),后接原因码。 */
+        public static final String COMMAND_RULE_MISTAKE_PREFIX = "numen.command.rule_mistake.";
         public static final String COMMAND_CONSENT_ANSWERED  = "numen.command.consent_answered";
         public static final String COMMAND_CONSENT_NOT_OWNER = "numen.command.consent_not_owner";
         public static final String COMMAND_CONSENT_NOT_PENDING = "numen.command.consent_not_pending";
@@ -391,7 +439,6 @@ public final class ModLanguageData {
         public static final String MCP_WAITING_BROWSER = "numen.mcp.waiting_browser";
         public static final String MCP_OAUTH_OK = "numen.mcp.oauth_ok";
         public static final String MCP_OAUTH_FAILED = "numen.mcp.oauth_failed";
-        public static final String SKIN_PROFILE_NO_SKIN = "numen.skin.profile_no_skin";
     }
 
     /** Loader-side providers funnel both English and Simplified Chinese through here. */
@@ -404,7 +451,6 @@ public final class ModLanguageData {
     }
 
     private static void addEn(Adder adder) {
-        adder.add(Keys.GUI_SETTINGS_TITLE,         "Numen Settings");
         adder.add(Keys.GUI_SETTINGS_PROVIDER,      "Provider");
         adder.add(Keys.GUI_SETTINGS_API_KEY,       "API Key");
         adder.add(Keys.GUI_SETTINGS_MODEL,         "Model");
@@ -422,7 +468,6 @@ public final class ModLanguageData {
 
         // --- consolidated into the datagen source (persona / mcp / reasoning / tabs / status ...) ---
         adder.add("numen.tab.settings", "Settings");
-        adder.add("numen.settings.nav.llm", "Models");
         adder.add("numen.settings.nav.mcp", "MCP Tools");
         adder.add("numen.settings.nav.brain", "MCP Brain");
         adder.add("numen.settings.nav.skills", "Skills");
@@ -430,7 +475,6 @@ public final class ModLanguageData {
         // 外接大脑(我们当 MCP 服务器)——与"工具扩展"方向相反的那一半
         adder.add("numen.brain.title", "External Brain (MCP)");
         adder.add("numen.brain.enable", "Enable external brain");
-        adder.add("numen.brain.toggle", "External-brain mode");
         adder.add("numen.brain.start_failed", "Could not start the server: %s");
         adder.add("numen.brain.endpoint", "Endpoint");
         adder.add("numen.brain.token", "Access token");
@@ -472,6 +516,13 @@ public final class ModLanguageData {
         adder.add("numen.brain.port_range", "Port must be between 1 and 65535.");
         adder.add("numen.brain.port_taken", "Port %d is already in use.");
         adder.add(Keys.STT_NAV, "Voice input");
+        // numen_stt.json 里内置服务商的名字与模型栏名写的是这些键(SttProviders.Option.label)
+        adder.add("numen.stt.provider.siliconflow", "SiliconFlow");
+        adder.add("numen.stt.provider.dashscope", "Alibaba Model Studio (realtime)");
+        adder.add("numen.stt.provider.doubao", "Doubao Speech (Volcengine, realtime)");
+        adder.add("numen.stt.provider.stepfun", "StepFun");
+        adder.add("numen.stt.provider.custom", "Custom (OpenAI-compatible)");
+        adder.add("numen.stt.model_label.doubao", "Resource tier (billing mode)");
         adder.add(Keys.STT_MICROPHONE, "Microphone");
         adder.add(Keys.STT_MIC_DEFAULT, "(default microphone)");
         adder.add(Keys.STT_NOT_CONFIGURED, "Voice input not configured — set an STT API key in settings");
@@ -480,31 +531,16 @@ public final class ModLanguageData {
         adder.add(Keys.STT_FAILED, "Voice input failed: %s");
         adder.add("numen.settings.nav.persona", "Persona");
         adder.add("numen.persona.title", "Personas");
-        adder.add("numen.persona.empty", "None · click ＋ New (top-right)");
-        adder.add("numen.persona.add", "＋ New");
+        adder.add("numen.persona.empty", "None · click New");
+        adder.add("numen.persona.add", "New");
         adder.add("numen.persona.preset_badge", "Preset");
         adder.add("numen.persona.form_name", "Name");
         adder.add("numen.persona.form_text", "Persona");
         adder.add("numen.persona.text_placeholder", "Personality, tone, background…");
         adder.add("numen.persona.delete_confirm", "Delete persona \"%s\"?");
-        adder.add("numen.persona.default", "Default");
-        adder.add("numen.summon.persona", "Persona: %s (click to change)");
-        adder.add("numen.status.persona", "%s");
-        adder.add("numen.settings.base_url", "Base URL");
-        adder.add("numen.settings.proxy", "Proxy");
-        adder.add("numen.settings.site_name", "Site name");
-        adder.add("numen.settings.saved", "✔ Saved");
         adder.add("numen.settings.custom_model", "Custom…");
-        adder.add("numen.settings.add_site", "＋ Add site");
-        adder.add("numen.settings.reasoning", "Thinking: %s");
-        adder.add("numen.settings.reasoning.auto", "Auto");
-        adder.add("numen.settings.reasoning.low", "Low");
-        adder.add("numen.settings.reasoning.medium", "Medium");
-        adder.add("numen.settings.reasoning.high", "High");
         adder.add("numen.chat.send", "Send");
-        adder.add("numen.chat.tip.compact", "Compact history");
         adder.add("numen.chat.tip.mic", "Voice input");
-        adder.add("numen.chat.tip.mic_stop", "Stop recording");
         adder.add("numen.chat.tip.stop", "Stop the turn");
         adder.add("numen.chat.hint", "Talk to %s…");
         adder.add("numen.chat.empty", "Say something to %s.");
@@ -513,17 +549,48 @@ public final class ModLanguageData {
         adder.add("numen.chat.cleared", "Context cleared — she starts fresh (chat log kept)");
         adder.add("numen.chat.persona_changed", "Persona switched");
         adder.add("numen.chat.halted", "Interrupted: %s");
+        adder.add("numen.cause.llm.stream_failed", "The reply broke off midway");
+        adder.add("numen.cause.llm.stream_failed_by", "The reply broke off midway: %s");
+        adder.add("numen.cause.llm.empty_reply", "The server returned an empty reply");
+        adder.add("numen.cause.halt.owner_stop", "Stopped by you");
+        adder.add("numen.cause.halt.death", "She died");
+        adder.add("numen.cause.halt.death_by", "She died (%s)");
+        adder.add("numen.cause.halt.disconnect", "You disconnected");
+        adder.add("numen.cause.halt.external", "An external brain took over");
+        adder.add("numen.cause.halt.dispose", "Her brain was reset");
+        adder.add("numen.voice.error.detail", "%1$s: %2$s");
+        adder.add("numen.voice.error.http", "%1$s returned HTTP %2$s");
+        adder.add("numen.voice.error.api", "%1$s reported an error");
+        adder.add("numen.voice.error.reply_missing", "%1$s's reply is missing: %2$s");
+        adder.add("numen.voice.error.reply_bad", "%1$s's reply could not be read (%2$s)");
+        adder.add("numen.voice.error.no_key", "%1$s has no API key set");
+        adder.add("numen.voice.error.no_voice", "%1$s has no voice ID set");
+        adder.add("numen.voice.error.no_url", "The URL is empty");
+        adder.add("numen.voice.error.bad_url", "The URL is invalid: %1$s");
+        adder.add("numen.voice.error.empty_text", "There is nothing to speak");
+        adder.add("numen.voice.error.empty_audio", "The server returned no audio");
+        adder.add("numen.voice.error.closed", "The connection was closed (%1$s)");
+        adder.add("numen.voice.error.bad_wav", "The audio is not a valid WAV (%1$s)");
+        adder.add("numen.voice.error.unknown", "Voice failed (%1$s: %2$s)");
         adder.add("numen.chat.steps", "%s steps");
         adder.add("numen.chat.plan", "Plan %s/%s");
         // Tool-chip labels (convention: numen.tool.<tool name>; unknown/MCP tools fall back to the raw name).
+        // 档案页上下文行的悬停:缓存读 / 缓存写 / 最近一轮命中率的前缀
+        adder.add("numen.profile.usage_read", "R");
+        adder.add("numen.profile.usage_write", "W");
+        adder.add("numen.profile.usage_hit", "CH");
         adder.add("numen.tool.lua", "Run");
+        adder.add("numen.tool.skill", "Skill");
+        adder.add("numen.tool.todo", "To-do");
+        adder.add("numen.tool.memory", "Memory");
+        // 没有自己说法的任务:头顶只说工具名(Activity.DEFAULT_KEY)
+        adder.add("numen.activity.default", "%s");
         adder.add("numen.mcp.title", "Tool Extensions (MCP)");
-        adder.add("numen.mcp.empty", "None · click ＋ Add (top-right)");
-        adder.add("numen.mcp.add", "＋ Add");
+        adder.add("numen.mcp.empty", "None · click Add");
+        adder.add("numen.mcp.add", "Add");
         adder.add("numen.mcp.type_http", "HTTP");
         adder.add("numen.mcp.type_stdio", "stdio");
         adder.add("numen.mcp.form_name", "Name");
-        adder.add("numen.mcp.form_type", "Type");
         adder.add("numen.mcp.form_url", "URL");
         adder.add("numen.mcp.form_command", "Command");
         adder.add("numen.mcp.form_header", "Header (optional)");
@@ -537,7 +604,6 @@ public final class ModLanguageData {
         adder.add("numen.skill.open_dir", "＋ Folder");
         adder.add("numen.skill.no_desc", "(no description)");
         adder.add("numen.summon.title", "Summon a companion");
-        adder.add("numen.summon.name_hint", "New companion name…");
         adder.add("numen.dismiss.delete", "Delete");
         adder.add("numen.dismiss.title", "Delete companion \"%s\"?");
         adder.add("numen.dismiss.warning", "Permanent · backpack, armor and accessories drop in place · cannot be undone");
@@ -548,17 +614,12 @@ public final class ModLanguageData {
 
         // Model-config section
         adder.add(Keys.PROVIDER_TITLE,          "Model Configs");
-        adder.add(Keys.PROVIDER_EMPTY,          "No model config yet — click New (top-right) to create one");
+        adder.add(Keys.PROVIDER_EMPTY,          "No model config yet — click New to create one");
         adder.add(Keys.PROVIDER_ADD,            "New");
         adder.add(Keys.PROVIDER_DELETE_CONFIRM, "Delete \"%s\"? Companions using it can't chat until rebound.");
         adder.add(Keys.PROVIDER_NO_KEY,         "no key");
         adder.add(Keys.PROVIDER_FORM_NAME,      "Name (required)");
         adder.add(Keys.PROVIDER_FORM_PROVIDER,  "API protocol");
-        adder.add(Keys.PROVIDER_FORM_BASE_URL,  "Base URL (optional)");
-
-        // Proxy section
-        adder.add(Keys.SETTINGS_PROXY_IP,   "IP (empty = direct)");
-        adder.add(Keys.SETTINGS_PROXY_PORT, "Port");
 
         // Summon page
         adder.add(Keys.SUMMON_NAME,             "Name");
@@ -605,12 +666,11 @@ public final class ModLanguageData {
         adder.add(Keys.RAIL_NO_MATCH,          "No matches");
         adder.add(Keys.SKIN_TITLE,           "Skins");
         adder.add(Keys.SKIN_ADD,             "New");
-        adder.add(Keys.SKIN_EMPTY,           "No skins yet. Click New, then drag a skin png into the window.");
+        adder.add(Keys.SKIN_EMPTY,           "No skins yet. Click New, then pick a 64×64 skin png.");
         adder.add(Keys.SKIN_FORM_NAME,       "Name (required)");
         adder.add(Keys.SKIN_FORM_VARIANT,    "Arm model");
         adder.add(Keys.SKIN_VARIANT_CLASSIC, "Classic (wide arms)");
         adder.add(Keys.SKIN_VARIANT_SLIM,    "Slim (thin arms)");
-        adder.add(Keys.SKIN_DROP_HINT,       "Drag a skin png (64x64) into the game window");
         adder.add(Keys.SKIN_LOADED,          "Loaded %s ✓ — Save signs it via MineSkin");
         adder.add(Keys.SKIN_PICK_FILE,       "Choose file…");
         adder.add(Keys.SKIN_KEEP_OLD,        "Keeping the current image");
@@ -672,9 +732,8 @@ public final class ModLanguageData {
         adder.add("numen.bubble.doing",      "▸ %s");
         adder.add("numen.gui.list.deleted",  "Deleted \"%s\"");
         adder.add("numen.gui.list.cloned",   "Cloned as an editable copy");
-        adder.add("numen.gui.list.unbound",  "The entry it was using was just deleted — now unbound");
-        adder.add(Keys.SKIN_WARN_NAME,       "Name is required");
-        adder.add(Keys.SKIN_WARN_IMAGE,      "Drag a skin png into the window first");
+        adder.add(Keys.SKIN_WARN_IMAGE,      "Pick a skin png first");
+        adder.add(Keys.SKIN_PICKER_TITLE,    "Numen skin (64x64 PNG)");
         adder.add(Keys.SKIN_WARN_SIZE,       "Skin must be 64x64 (or legacy 64x32), got %s");
         adder.add(Keys.SKIN_WARN_READ,       "Couldn't read the file: %s");
         adder.add(Keys.SKIN_SIGNED,          "signed");
@@ -683,15 +742,17 @@ public final class ModLanguageData {
         adder.add(Keys.SUMMON_CREATE,           "Create");
         adder.add(Keys.SUMMON_WARN_NAME,        "Name is required");
         adder.add(Keys.SUMMON_WARN_PROVIDER,    "No model configs — create one in Settings → Model Configs first");
+        adder.add(Keys.SUMMON_NO_PROVIDER,      "None — create one in Settings");
 
         // Endpoint problems (chat warn line)
         adder.add(Keys.ENDPOINT_UNBOUND, "This companion has no model config bound — pick or create one in Settings → Model Configs");
         adder.add(Keys.ENDPOINT_NO_KEY,  "Model config \"%s\" has no API Key yet — add it in Settings → Model Configs");
+        adder.add(Keys.ENDPOINT_NO_URL,  "Model config \"%s\" has no base URL — add it in Settings → Model Configs");
 
         // Voice (TTS) section
         adder.add(Keys.VOICE_TITLE,          "Voice");
         adder.add(Keys.VOICE_ENABLED,        "Enabled");
-        adder.add(Keys.VOICE_EMPTY,          "No voice yet — click New (top-right) to create one");
+        adder.add(Keys.VOICE_EMPTY,          "No voice yet — click New to create one");
         adder.add(Keys.VOICE_ADD,            "New");
         adder.add(Keys.VOICE_DELETE_CONFIRM, "Delete voice \"%s\"? Companions bound to it fall silent.");
         adder.add(Keys.VOICE_FORM_NAME,      "Name (required)");
@@ -730,39 +791,88 @@ public final class ModLanguageData {
         adder.add(Keys.VOICE_TEST_RUNNING,   "Synthesizing…");
         adder.add(Keys.VOICE_TEST_OK,        "✔ Playing");
         adder.add(Keys.VOICE_TEST_FAIL,      "Preview failed: %s");
-        adder.add(Keys.VOICE_WARN_NAME,      "Name is required");
-        adder.add(Keys.VOICE_BIND_LABEL,     "This companion");
         adder.add(Keys.VOICE_BIND_NONE,      "None (silent)");
         adder.add(Keys.VOICE_SUMMON_LABEL,   "Voice");
-        adder.add(Keys.VOICE_SUMMON_EMPTY,   " (empty — create one in Settings → Voice)");
+        adder.add(Keys.VOICE_LIST_META,      "%s · %s · vol %s");
     
         adder.add(Keys.GUI_INLINE_NEED_KEY,             "API key required");
+        adder.add(Keys.GUI_INLINE_NEED_URL,             "Base URL required");
         adder.add(Keys.GUI_INLINE_REQUIRED,             "Required");
-        adder.add(Keys.GUI_PROVIDERS_BADGE_LOCAL,       "Local");
         adder.add(Keys.GUI_PROVIDERS_CHECK,             "Check");
         adder.add(Keys.GUI_PROVIDERS_CHECK_BAD_REQUEST, "Request rejected");
         adder.add(Keys.GUI_PROVIDERS_CHECK_NETWORK,     "Can't connect — check network, proxy, or base URL");
         adder.add(Keys.GUI_PROVIDERS_CHECK_NOT_FOUND,   "Wrong base URL or model — check both");
         adder.add(Keys.GUI_PROVIDERS_CHECK_OK,          "Connected — the model responded");
         adder.add(Keys.GUI_PROVIDERS_CHECK_RATE_LIMITED, "Rate limited — wait a bit or check your quota");
+        adder.add(Keys.GUI_PROVIDERS_CHECK_REPLY,       "%s replied: %s");
         adder.add(Keys.GUI_PROVIDERS_CHECK_SERVER_ERROR, "Provider-side error — try again later");
         adder.add(Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED, "Invalid key — check it's complete and belongs to this provider");
         adder.add(Keys.GUI_PROVIDERS_CHECKING,          "Checking…");
-        adder.add(Keys.GUI_PROVIDERS_EFFORT,            "Reasoning effort");
+        adder.add(Keys.GUI_PROVIDERS_CUSTOM,            "Custom provider");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_HIGH,       "High");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_LOW,        "Low");
+        adder.add(Keys.GUI_PROVIDERS_EFFORT_MAX,        "Max");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_MEDIUM,     "Medium");
         adder.add(Keys.GUI_PROVIDERS_PROXY,             "Proxy (optional)");
-        adder.add(Keys.GUI_PROVIDERS_PROXY_GLOBAL,      "Global proxy");
         adder.add(Keys.GUI_PROVIDERS_PROXY_HINT,        "host:port, blank = global");
         adder.add(Keys.GUI_PROVIDERS_CTX,               "Context length (optional)");
         adder.add(Keys.GUI_PROVIDERS_CTX_HINT,          "tokens; blank = auto by model");
         adder.add("numen.gui.list.bound",               "Now using: %s");
         adder.add("numen.gui.list.bind_cleared",        "Unbound — back to default");
-        adder.add(Keys.GUI_PROVIDERS_THINKING,          "Reasoning");
+        adder.add(Keys.GUI_PROVIDERS_THINKING,          "Thinking");
         adder.add(Keys.GUI_PROVIDERS_THINKING_AUTO,     "Auto");
         adder.add(Keys.GUI_PROVIDERS_THINKING_OFF,      "Off");
         adder.add(Keys.GUI_PROVIDERS_THINKING_ON,       "On");
+        adder.add(Keys.GUI_PROVIDERS_VENDOR, "Provider");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_AUTO, "Sends nothing; provider default");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_OFF, "No thinking");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_ON, "Provider decides the amount");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_EFFORT, "Level %s");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_BUDGET, "Budget %s tokens");
+        adder.add(Keys.GUI_PROVIDERS_MODEL, "Model");
+        adder.add(Keys.GUI_PROVIDERS_BASE_OVERRIDE, "Base URL override (optional)");
+        adder.add(Keys.GUI_PROVIDERS_URL, "Base URL");
+        adder.add(Keys.GUI_PROVIDERS_PROTO_CHAT, "Chat Completions (OpenAI-compatible)");
+        adder.add(Keys.GUI_PROVIDERS_PROTO_RESPONSES, "OpenAI Responses");
+        adder.add(Keys.GUI_PROVIDERS_PROTO_ANTHROPIC, "Anthropic Messages");
+        adder.add(Keys.GUI_PROVIDERS_TEMP, "Temperature (optional)");
+        adder.add(Keys.GUI_PROVIDERS_MAX_OUT, "Max output (optional)");
+        adder.add(Keys.GUI_PROVIDERS_DEFAULT_HINT, "blank = provider default");
+        adder.add(Keys.GUI_PROVIDERS_PICK_VENDOR, "Choose provider");
+        adder.add(Keys.GUI_PROVIDERS_PICK_VENDOR_HINT, "%s providers");
+        adder.add(Keys.GUI_PROVIDERS_PICK_MODEL, "Choose model");
+        adder.add(Keys.GUI_PROVIDERS_PICK_MODEL_HINT, "%s · %s models");
+        adder.add(Keys.GUI_PROVIDERS_PICK_MODEL_HAND, "enter a model id");
+        adder.add(Keys.GUI_PROVIDERS_PICK_SEARCH, "Search");
+        adder.add(Keys.GUI_PROVIDERS_PICK_KEY_MOVE, "↑↓ Select");
+        adder.add(Keys.GUI_PROVIDERS_PICK_KEY_ENTER, "Enter Confirm");
+        adder.add(Keys.GUI_PROVIDERS_PICK_KEY_ESC, "Esc Close");
+        adder.add(Keys.GUI_PROVIDERS_PICK_NO_MATCH, "Nothing matches \"%s\".");
+        adder.add(Keys.GUI_PROVIDERS_PICK_POPULAR, "Popular");
+        adder.add(Keys.GUI_PROVIDERS_PICK_ALL, "All");
+        adder.add(Keys.GUI_PROVIDERS_PICK_CUSTOM, "Custom provider…");
+        adder.add(Keys.GUI_PROVIDERS_PICK_CUSTOM_DETAIL, "Local (Ollama, LM Studio, vLLM) or any compatible endpoint");
+        adder.add(Keys.GUI_PROVIDERS_PICK_TOOLS, "Tool calling");
+        adder.add(Keys.GUI_PROVIDERS_PICK_NO_TOOLS, "No tool calling (Numen can't use these)");
+        adder.add(Keys.GUI_PROVIDERS_PICK_FREE, "Manual");
+        adder.add(Keys.GUI_PROVIDERS_PICK_FREE_TITLE, "Use \"%s\"");
+        adder.add(Keys.GUI_PROVIDERS_PICK_FREE_DETAIL, "Not in the catalog; capabilities unknown, no thinking option");
+        adder.add(Keys.GUI_PROVIDERS_COL_MODEL, "Model");
+        adder.add(Keys.GUI_PROVIDERS_COL_CONTEXT, "Context");
+        adder.add(Keys.GUI_PROVIDERS_COL_OUTPUT, "Output");
+        adder.add(Keys.GUI_PROVIDERS_COL_THINKING, "Thinking");
+        adder.add(Keys.GUI_PROVIDERS_COL_INPUT, "Input");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_TEXT, "Text");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_IMAGE, "Image");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_PDF, "PDF");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_AUDIO, "Audio");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_VIDEO, "Video");
+        adder.add(Keys.GUI_PROVIDERS_TAG_CONTEXT, "Context %s");
+        adder.add(Keys.GUI_PROVIDERS_TAG_OUTPUT, "Max output %s");
+        adder.add(Keys.GUI_PROVIDERS_TAG_THINKING, "Thinking");
+        adder.add(Keys.GUI_PROVIDERS_TAG_MULTIMODAL, "Multimodal %s");
+        adder.add(Keys.GUI_PROVIDERS_TAG_NO_TOOLS, "No tool calling");
+        adder.add(Keys.GUI_PROVIDERS_TAG_MANUAL, "Manual model");
         adder.add(Keys.RESPAWN_BLOCKED,                 "· waiting for room to land");
         adder.add(Keys.CONSENT_ALLOW,          "Allow");
         adder.add(Keys.CONSENT_ALLOW_REMEMBER, "Always allow");
@@ -805,7 +915,7 @@ public final class ModLanguageData {
         adder.add(Keys.PERMISSION_PLACED_BY,   "placed by %s");
         adder.add(Keys.PERMISSION_UNCOVERED,   "no rule");
         adder.add(Keys.CONSENT_SECONDS,        "%ss");
-        adder.add(Keys.PERMISSION_SEPARATOR,   ", ");
+        adder.add(Keys.LIST_SEPARATOR,         ", ");
         adder.add(Keys.PERMISSION_A_BLOCK,     "a block");
         adder.add(Keys.FOLDER_ALL,   "All");
         adder.add(Keys.FOLDER_SOLO,  "Private");
@@ -843,6 +953,15 @@ public final class ModLanguageData {
         adder.add(Keys.COMMAND_RULE_NO_ROW,       "%s has no row %s (it has %s); /numen permission rules list shows the numbers");
         adder.add(Keys.COMMAND_RULE_REMOVED,      "Removed from %s: %s");
         adder.add(Keys.COMMAND_RULES_RESET,       "Cleared your deny, ask and allow tables; the factory rules still apply");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "shape", "A rule looks like verb(term & term), e.g. break(placed & !block_entity): '%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "verb", "Unknown verb '%1$s' in rule '%2$s'; verbs are %3$s, or * for any");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "empty", "A rule needs at least one term (use * for any): '%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "empty_term", "Empty term in rule '%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "command_name", "Bad command name '%1$s' in rule '%2$s'; write the command's root name without the slash, e.g. command(setblock)");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "tag", "Bad tag '%1$s' in rule '%2$s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "uuid", "Bad entity uuid '%1$s' in rule '%2$s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "id", "Bad id '%1$s' in rule '%2$s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "signal", "Unknown signal '%1$s' in rule '%2$s'; signals are %3$s, or write a namespaced id (minecraft:chest), a tag (#minecraft:beds), entity:<uuid> or *");
         adder.add(Keys.COMMAND_CONSENT_ANSWERED,  "Answered consent request #%s for %s: %s");
         adder.add(Keys.COMMAND_CONSENT_NOT_OWNER, "Consent request #%s belongs to a companion that is not yours");
         adder.add(Keys.COMMAND_CONSENT_NOT_PENDING, "No pending consent request #%s (already answered, expired or replaced)");
@@ -921,11 +1040,19 @@ public final class ModLanguageData {
         adder.add(Keys.MCP_WAITING_BROWSER, "Waiting for browser authorization…");
         adder.add(Keys.MCP_OAUTH_OK, "Numen is authorized; you can close this page.");
         adder.add(Keys.MCP_OAUTH_FAILED, "Authorization failed: %s");
-        adder.add(Keys.SKIN_PROFILE_NO_SKIN, "The profile has no skin data");
+        // 皮肤失败(SkinError)按码翻:numen.skin.error.<码>,原话接在 detail 后面
+        adder.add("numen.skin.error.http", "%s answered HTTP %s");
+        adder.add("numen.skin.error.rate_limited", "%s is rate-limiting requests (free tier: 20 skins a minute), wait a moment and retry");
+        adder.add("numen.skin.error.reply_bad", "%s did not answer with JSON");
+        adder.add("numen.skin.error.reply_missing", "%s answered without any texture data");
+        adder.add("numen.skin.error.network", "Cannot reach %s (check your network or proxy)");
+        adder.add("numen.skin.error.no_skin", "The profile has no skin data");
+        adder.add("numen.skin.error.interrupted", "The lookup was interrupted");
+        adder.add("numen.skin.error.unknown", "Unexpected error (%s): %s");
+        adder.add("numen.skin.error.detail", "%s: %s");
     }
 
     private static void addZh(Adder adder) {
-        adder.add(Keys.GUI_SETTINGS_TITLE,         "Numen 设置");
         adder.add(Keys.GUI_SETTINGS_PROVIDER,      "服务商");
         adder.add(Keys.GUI_SETTINGS_API_KEY,       "API Key");
         adder.add(Keys.GUI_SETTINGS_MODEL,         "模型");
@@ -942,7 +1069,6 @@ public final class ModLanguageData {
 
         // --- consolidated into the datagen source (persona / mcp / reasoning / tabs / status ...) ---
         adder.add("numen.tab.settings", "设置");
-        adder.add("numen.settings.nav.llm", "模型接入");
         adder.add("numen.settings.nav.mcp", "工具扩展");
         adder.add("numen.settings.nav.brain", "外接大脑");
         adder.add("numen.settings.nav.skills", "技能");
@@ -950,7 +1076,6 @@ public final class ModLanguageData {
         // 外接大脑(我们当 MCP 服务器)——与"工具扩展"方向相反的那一半
         adder.add("numen.brain.title", "外接大脑 (MCP)");
         adder.add("numen.brain.enable", "开启外接大脑");
-        adder.add("numen.brain.toggle", "外接大脑模式");
         adder.add("numen.brain.start_failed", "服务器启动失败:%s");
         adder.add("numen.brain.endpoint", "接入端点");
         adder.add("numen.brain.token", "访问令牌");
@@ -990,6 +1115,13 @@ public final class ModLanguageData {
         adder.add("numen.brain.port_range", "端口必须在 1 到 65535 之间。");
         adder.add("numen.brain.port_taken", "端口 %d 已被占用。");
         adder.add(Keys.STT_NAV, "语音输入");
+        // numen_stt.json 里内置服务商的名字与模型栏名写的是这些键(SttProviders.Option.label)
+        adder.add("numen.stt.provider.siliconflow", "硅基流动 SiliconFlow");
+        adder.add("numen.stt.provider.dashscope", "阿里云百炼 (实时)");
+        adder.add("numen.stt.provider.doubao", "豆包语音 (火山引擎 实时)");
+        adder.add("numen.stt.provider.stepfun", "阶跃星辰 StepFun");
+        adder.add("numen.stt.provider.custom", "自定义 (OpenAI 兼容)");
+        adder.add("numen.stt.model_label.doubao", "资源档 (计费方式)");
         adder.add(Keys.STT_MICROPHONE, "麦克风");
         adder.add(Keys.STT_MIC_DEFAULT, "（默认麦克风）");
         adder.add(Keys.STT_NOT_CONFIGURED, "未配置语音输入 —— 请在设置里填入 STT 的 API Key");
@@ -998,31 +1130,16 @@ public final class ModLanguageData {
         adder.add(Keys.STT_FAILED, "语音输入失败：%s");
         adder.add("numen.settings.nav.persona", "人设");
         adder.add("numen.persona.title", "人设库");
-        adder.add("numen.persona.empty", "无 · 点右上「＋ 新建」");
-        adder.add("numen.persona.add", "＋ 新建");
+        adder.add("numen.persona.empty", "无 · 点「新建」");
+        adder.add("numen.persona.add", "新建");
         adder.add("numen.persona.preset_badge", "内置");
         adder.add("numen.persona.form_name", "名称");
         adder.add("numen.persona.form_text", "人设描述");
         adder.add("numen.persona.text_placeholder", "性格、说话风格、背景…");
         adder.add("numen.persona.delete_confirm", "删除人设「%s」？");
-        adder.add("numen.persona.default", "默认");
-        adder.add("numen.summon.persona", "人设：%s（点击切换）");
-        adder.add("numen.status.persona", "%s");
-        adder.add("numen.settings.base_url", "Base URL");
-        adder.add("numen.settings.proxy", "代理");
-        adder.add("numen.settings.site_name", "站点名称");
-        adder.add("numen.settings.saved", "✔ 已保存");
         adder.add("numen.settings.custom_model", "自定义…");
-        adder.add("numen.settings.add_site", "＋ 添加站点");
-        adder.add("numen.settings.reasoning", "深度思考：%s");
-        adder.add("numen.settings.reasoning.auto", "自动");
-        adder.add("numen.settings.reasoning.low", "低");
-        adder.add("numen.settings.reasoning.medium", "中");
-        adder.add("numen.settings.reasoning.high", "高");
         adder.add("numen.chat.send", "发送");
-        adder.add("numen.chat.tip.compact", "压缩对话历史");
         adder.add("numen.chat.tip.mic", "语音输入");
-        adder.add("numen.chat.tip.mic_stop", "停止录音");
         adder.add("numen.chat.tip.stop", "停止当前回合");
         adder.add("numen.chat.hint", "对 %s 说…");
         adder.add("numen.chat.empty", "对 %s 说点什么。");
@@ -1031,17 +1148,48 @@ public final class ModLanguageData {
         adder.add("numen.chat.cleared", "上下文已清除，她从头开始（聊天记录保留）");
         adder.add("numen.chat.persona_changed", "人设已切换");
         adder.add("numen.chat.halted", "已中断：%s");
+        adder.add("numen.cause.llm.stream_failed", "回应中途断了");
+        adder.add("numen.cause.llm.stream_failed_by", "回应中途断了：%s");
+        adder.add("numen.cause.llm.empty_reply", "服务端返回了空回应");
+        adder.add("numen.cause.halt.owner_stop", "被你打断");
+        adder.add("numen.cause.halt.death", "她死了");
+        adder.add("numen.cause.halt.death_by", "她死了(%s)");
+        adder.add("numen.cause.halt.disconnect", "你断线了");
+        adder.add("numen.cause.halt.external", "外接大脑接管了");
+        adder.add("numen.cause.halt.dispose", "她的大脑被重置了");
+        adder.add("numen.voice.error.detail", "%1$s:%2$s");
+        adder.add("numen.voice.error.http", "%1$s 返回 HTTP %2$s");
+        adder.add("numen.voice.error.api", "%1$s 报告了错误");
+        adder.add("numen.voice.error.reply_missing", "%1$s 的回应缺少:%2$s");
+        adder.add("numen.voice.error.reply_bad", "%1$s 的回应读不懂(%2$s)");
+        adder.add("numen.voice.error.no_key", "%1$s 没填 API Key");
+        adder.add("numen.voice.error.no_voice", "%1$s 没填音色 ID");
+        adder.add("numen.voice.error.no_url", "地址没填");
+        adder.add("numen.voice.error.bad_url", "地址无效:%1$s");
+        adder.add("numen.voice.error.empty_text", "没有可念的文字");
+        adder.add("numen.voice.error.empty_audio", "服务端没有返回音频");
+        adder.add("numen.voice.error.closed", "连接被关闭了(%1$s)");
+        adder.add("numen.voice.error.bad_wav", "音频不是有效的 WAV(%1$s)");
+        adder.add("numen.voice.error.unknown", "语音出错了(%1$s:%2$s)");
         adder.add("numen.chat.steps", "%s 步");
         adder.add("numen.chat.plan", "计划 %s/%s");
         // 工具 chip 标签(约定键 numen.tool.<工具名>;未知/MCP 工具回落原名)。
+        // 档案页上下文行的悬停:缓存读 / 缓存写 / 最近一轮命中率的前缀
+        adder.add("numen.profile.usage_read", "读");
+        adder.add("numen.profile.usage_write", "写");
+        adder.add("numen.profile.usage_hit", "命中");
         adder.add("numen.tool.lua", "执行");
+        adder.add("numen.tool.skill", "技能");
+        adder.add("numen.tool.todo", "待办");
+        adder.add("numen.tool.memory", "记忆");
+        // 没有自己说法的任务:头顶只说工具名(Activity.DEFAULT_KEY)
+        adder.add("numen.activity.default", "%s");
         adder.add("numen.mcp.title", "工具扩展 (MCP)");
-        adder.add("numen.mcp.empty", "无 · 点右上「＋ 添加」");
-        adder.add("numen.mcp.add", "＋ 添加");
+        adder.add("numen.mcp.empty", "无 · 点「添加」");
+        adder.add("numen.mcp.add", "添加");
         adder.add("numen.mcp.type_http", "HTTP");
         adder.add("numen.mcp.type_stdio", "stdio");
         adder.add("numen.mcp.form_name", "名称");
-        adder.add("numen.mcp.form_type", "类型");
         adder.add("numen.mcp.form_url", "URL");
         adder.add("numen.mcp.form_command", "命令");
         adder.add("numen.mcp.form_header", "请求头(可选)");
@@ -1055,7 +1203,6 @@ public final class ModLanguageData {
         adder.add("numen.skill.open_dir", "＋ 目录");
         adder.add("numen.skill.no_desc", "(无描述)");
         adder.add("numen.summon.title", "召唤一个同伴");
-        adder.add("numen.summon.name_hint", "新同伴名字…");
         adder.add("numen.dismiss.delete", "删除");
         adder.add("numen.dismiss.title", "删除同伴 \"%s\"？");
         adder.add("numen.dismiss.warning", "永久删除 · 背包与身上的装备、饰品会掉落在原地 · 无法撤销");
@@ -1066,17 +1213,12 @@ public final class ModLanguageData {
 
         // Model-config section
         adder.add(Keys.PROVIDER_TITLE,          "模型配置");
-        adder.add(Keys.PROVIDER_EMPTY,          "还没有模型配置——点右上「新建」创建一条");
+        adder.add(Keys.PROVIDER_EMPTY,          "还没有模型配置——点「新建」创建一条");
         adder.add(Keys.PROVIDER_ADD,            "新建");
         adder.add(Keys.PROVIDER_DELETE_CONFIRM, "删除「%s」?正在使用它的同伴将无法对话,直到重新绑定。");
         adder.add(Keys.PROVIDER_NO_KEY,         "未填Key");
         adder.add(Keys.PROVIDER_FORM_NAME,      "名称(必填)");
         adder.add(Keys.PROVIDER_FORM_PROVIDER,  "接口协议");
-        adder.add(Keys.PROVIDER_FORM_BASE_URL,  "Base URL(可选)");
-
-        // Proxy section
-        adder.add(Keys.SETTINGS_PROXY_IP,   "IP(留空 = 直连)");
-        adder.add(Keys.SETTINGS_PROXY_PORT, "端口");
 
         // Summon page
         adder.add(Keys.SUMMON_NAME,             "名字");
@@ -1123,12 +1265,11 @@ public final class ModLanguageData {
         adder.add(Keys.RAIL_NO_MATCH,          "没有对得上的会话");
         adder.add(Keys.SKIN_TITLE,           "皮肤库");
         adder.add(Keys.SKIN_ADD,             "新建");
-        adder.add(Keys.SKIN_EMPTY,           "还没有皮肤。点右上角\"新建\",再把皮肤 png 拖进游戏窗口。");
+        adder.add(Keys.SKIN_EMPTY,           "还没有皮肤。点\"新建\",再选一张 64×64 的皮肤 png。");
         adder.add(Keys.SKIN_FORM_NAME,       "名称(必填)");
         adder.add(Keys.SKIN_FORM_VARIANT,    "手臂模型");
         adder.add(Keys.SKIN_VARIANT_CLASSIC, "经典(粗手臂)");
         adder.add(Keys.SKIN_VARIANT_SLIM,    "纤细(瘦手臂)");
-        adder.add(Keys.SKIN_DROP_HINT,       "把皮肤 png(64x64)直接拖进游戏窗口");
         adder.add(Keys.SKIN_LOADED,          "已加载 %s ✓——点保存经 MineSkin 签名");
         adder.add(Keys.SKIN_PICK_FILE,       "选择文件…");
         adder.add(Keys.SKIN_KEEP_OLD,        "沿用当前图片");
@@ -1190,9 +1331,8 @@ public final class ModLanguageData {
         adder.add("numen.bubble.doing",      "▸ 正在%s");
         adder.add("numen.gui.list.deleted",  "已删除「%s」");
         adder.add("numen.gui.list.cloned",   "已克隆为可编辑副本");
-        adder.add("numen.gui.list.unbound",  "刚才删掉的条目它正在用,现在已解绑");
-        adder.add(Keys.SKIN_WARN_NAME,       "名称必填");
-        adder.add(Keys.SKIN_WARN_IMAGE,      "先把皮肤 png 拖进游戏窗口");
+        adder.add(Keys.SKIN_WARN_IMAGE,      "先选一张皮肤 png");
+        adder.add(Keys.SKIN_PICKER_TITLE,    "Numen 皮肤(64x64 PNG)");
         adder.add(Keys.SKIN_WARN_SIZE,       "皮肤需为 64x64(或旧版 64x32),拖入的是 %s");
         adder.add(Keys.SKIN_WARN_READ,       "文件读取失败: %s");
         adder.add(Keys.SKIN_SIGNED,          "已签名");
@@ -1201,15 +1341,17 @@ public final class ModLanguageData {
         adder.add(Keys.SUMMON_CREATE,           "创建");
         adder.add(Keys.SUMMON_WARN_NAME,        "请填名字");
         adder.add(Keys.SUMMON_WARN_PROVIDER,    "模型配置为空,请先到 设置 → 模型配置 新建一条");
+        adder.add(Keys.SUMMON_NO_PROVIDER,      "没有——去设置里新建");
 
         // Endpoint problems (chat warn line)
         adder.add(Keys.ENDPOINT_UNBOUND, "这个同伴还没有绑定模型配置——到 设置 → 模型配置 新建/选择一条");
         adder.add(Keys.ENDPOINT_NO_KEY,  "模型配置「%s」还没填 API Key——到 设置 → 模型配置 补上");
+        adder.add(Keys.ENDPOINT_NO_URL,  "模型配置「%s」没有接口地址——到 设置 → 模型配置 补上");
 
         // Voice (TTS) section
         adder.add(Keys.VOICE_TITLE,          "语音");
         adder.add(Keys.VOICE_ENABLED,        "启用");
-        adder.add(Keys.VOICE_EMPTY,          "还没有声线——点右上「新建」创建一条");
+        adder.add(Keys.VOICE_EMPTY,          "还没有声线——点「新建」创建一条");
         adder.add(Keys.VOICE_ADD,            "新建");
         adder.add(Keys.VOICE_DELETE_CONFIRM, "删除声线「%s」?绑定它的同伴将静音。");
         adder.add(Keys.VOICE_FORM_NAME,      "名称(必填)");
@@ -1248,40 +1390,89 @@ public final class ModLanguageData {
         adder.add(Keys.VOICE_TEST_RUNNING,   "合成中…");
         adder.add(Keys.VOICE_TEST_OK,        "✔ 播放中");
         adder.add(Keys.VOICE_TEST_FAIL,      "试听失败:%s");
-        adder.add(Keys.VOICE_WARN_NAME,      "名称必填");
-        adder.add(Keys.VOICE_BIND_LABEL,     "本同伴");
         adder.add(Keys.VOICE_BIND_NONE,      "无(静音)");
         adder.add(Keys.VOICE_SUMMON_LABEL,   "声线");
-        adder.add(Keys.VOICE_SUMMON_EMPTY,   "(空——到 设置 → 语音 新建)");
+        adder.add(Keys.VOICE_LIST_META,      "%s · %s · 音量 %s");
     
         adder.add(Keys.KEY_CATEGORY_NUMEN,              "Numen");
         adder.add(Keys.GUI_INLINE_NEED_KEY,             "请先填写密钥");
+        adder.add(Keys.GUI_INLINE_NEED_URL,             "请先填写接口地址");
         adder.add(Keys.GUI_INLINE_REQUIRED,             "必填");
-        adder.add(Keys.GUI_PROVIDERS_BADGE_LOCAL,       "本地");
         adder.add(Keys.GUI_PROVIDERS_CHECK,             "检测");
         adder.add(Keys.GUI_PROVIDERS_CHECK_BAD_REQUEST, "请求被拒");
         adder.add(Keys.GUI_PROVIDERS_CHECK_NETWORK,     "连不上——检查网络、代理或基址");
         adder.add(Keys.GUI_PROVIDERS_CHECK_NOT_FOUND,   "基址或模型名不对——检查 Base URL 与模型 ID");
         adder.add(Keys.GUI_PROVIDERS_CHECK_OK,          "连接成功,模型响应正常");
         adder.add(Keys.GUI_PROVIDERS_CHECK_RATE_LIMITED, "被限流了——稍等再试,或检查账户额度");
+        adder.add(Keys.GUI_PROVIDERS_CHECK_REPLY,       "%s 回复:%s");
         adder.add(Keys.GUI_PROVIDERS_CHECK_SERVER_ERROR, "服务商侧故障——稍后再试");
         adder.add(Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED, "密钥无效——检查 API Key 是否复制完整、是否属于这家服务商");
         adder.add(Keys.GUI_PROVIDERS_CHECKING,          "检测中…");
-        adder.add(Keys.GUI_PROVIDERS_EFFORT,            "推理强度");
+        adder.add(Keys.GUI_PROVIDERS_CUSTOM,            "自定义厂家");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_HIGH,       "高强度");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_LOW,        "低强度");
+        adder.add(Keys.GUI_PROVIDERS_EFFORT_MAX,        "最高强度");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_MEDIUM,     "中强度");
         adder.add(Keys.GUI_PROVIDERS_PROXY,             "代理（可选）");
-        adder.add(Keys.GUI_PROVIDERS_PROXY_GLOBAL,      "全局代理");
         adder.add(Keys.GUI_PROVIDERS_PROXY_HINT,        "host:port，留空跟随全局");
         adder.add(Keys.GUI_PROVIDERS_CTX,               "上下文长度（可选）");
         adder.add(Keys.GUI_PROVIDERS_CTX_HINT,          "tokens；留空按模型表自动");
         adder.add("numen.gui.list.bound",               "已换用：%s");
         adder.add("numen.gui.list.bind_cleared",        "已解绑，回到默认");
-        adder.add(Keys.GUI_PROVIDERS_THINKING,          "推理");
+        adder.add(Keys.GUI_PROVIDERS_THINKING,          "思考");
         adder.add(Keys.GUI_PROVIDERS_THINKING_AUTO,     "自动");
-        adder.add(Keys.GUI_PROVIDERS_THINKING_OFF,      "关闭");
-        adder.add(Keys.GUI_PROVIDERS_THINKING_ON,       "开启");
+        adder.add(Keys.GUI_PROVIDERS_THINKING_OFF,      "关");
+        adder.add(Keys.GUI_PROVIDERS_THINKING_ON,       "开");
+        adder.add(Keys.GUI_PROVIDERS_VENDOR, "厂家");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_AUTO, "不发参数,按厂家默认");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_OFF, "不思考");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_ON, "用量由厂家决定");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_EFFORT, "档位 %s");
+        adder.add(Keys.GUI_PROVIDERS_NOTE_BUDGET, "预算 %s token");
+        adder.add(Keys.GUI_PROVIDERS_MODEL, "型号");
+        adder.add(Keys.GUI_PROVIDERS_BASE_OVERRIDE, "地址覆盖（可选）");
+        adder.add(Keys.GUI_PROVIDERS_URL, "地址");
+        adder.add(Keys.GUI_PROVIDERS_PROTO_CHAT, "Chat Completions(OpenAI 兼容)");
+        adder.add(Keys.GUI_PROVIDERS_PROTO_RESPONSES, "OpenAI Responses");
+        adder.add(Keys.GUI_PROVIDERS_PROTO_ANTHROPIC, "Anthropic Messages");
+        adder.add(Keys.GUI_PROVIDERS_TEMP, "温度（可选）");
+        adder.add(Keys.GUI_PROVIDERS_MAX_OUT, "输出上限（可选）");
+        adder.add(Keys.GUI_PROVIDERS_DEFAULT_HINT, "留空用厂家默认");
+        adder.add(Keys.GUI_PROVIDERS_PICK_VENDOR, "选择厂家");
+        adder.add(Keys.GUI_PROVIDERS_PICK_VENDOR_HINT, "共 %s 家");
+        adder.add(Keys.GUI_PROVIDERS_PICK_MODEL, "选择型号");
+        adder.add(Keys.GUI_PROVIDERS_PICK_MODEL_HINT, "%s · %s 个");
+        adder.add(Keys.GUI_PROVIDERS_PICK_MODEL_HAND, "手填型号 id");
+        adder.add(Keys.GUI_PROVIDERS_PICK_SEARCH, "搜索");
+        adder.add(Keys.GUI_PROVIDERS_PICK_KEY_MOVE, "↑↓ 选择");
+        adder.add(Keys.GUI_PROVIDERS_PICK_KEY_ENTER, "回车 确定");
+        adder.add(Keys.GUI_PROVIDERS_PICK_KEY_ESC, "Esc 关闭");
+        adder.add(Keys.GUI_PROVIDERS_PICK_NO_MATCH, "没有找到「%s」。");
+        adder.add(Keys.GUI_PROVIDERS_PICK_POPULAR, "常用");
+        adder.add(Keys.GUI_PROVIDERS_PICK_ALL, "全部");
+        adder.add(Keys.GUI_PROVIDERS_PICK_CUSTOM, "自定义厂家…");
+        adder.add(Keys.GUI_PROVIDERS_PICK_CUSTOM_DETAIL, "本地部署(Ollama、LM Studio、vLLM)或任何兼容接口");
+        adder.add(Keys.GUI_PROVIDERS_PICK_TOOLS, "支持工具调用");
+        adder.add(Keys.GUI_PROVIDERS_PICK_NO_TOOLS, "不支持工具调用(Numen 用不了)");
+        adder.add(Keys.GUI_PROVIDERS_PICK_FREE, "手填");
+        adder.add(Keys.GUI_PROVIDERS_PICK_FREE_TITLE, "使用「%s」");
+        adder.add(Keys.GUI_PROVIDERS_PICK_FREE_DETAIL, "目录里没有;能力未知,不出思考选项");
+        adder.add(Keys.GUI_PROVIDERS_COL_MODEL, "型号");
+        adder.add(Keys.GUI_PROVIDERS_COL_CONTEXT, "上下文");
+        adder.add(Keys.GUI_PROVIDERS_COL_OUTPUT, "输出");
+        adder.add(Keys.GUI_PROVIDERS_COL_THINKING, "思考");
+        adder.add(Keys.GUI_PROVIDERS_COL_INPUT, "输入");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_TEXT, "文本");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_IMAGE, "图像");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_PDF, "PDF");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_AUDIO, "音频");
+        adder.add(Keys.GUI_PROVIDERS_MODALITY_VIDEO, "视频");
+        adder.add(Keys.GUI_PROVIDERS_TAG_CONTEXT, "上下文 %s");
+        adder.add(Keys.GUI_PROVIDERS_TAG_OUTPUT, "最大输出 %s");
+        adder.add(Keys.GUI_PROVIDERS_TAG_THINKING, "思考");
+        adder.add(Keys.GUI_PROVIDERS_TAG_MULTIMODAL, "多模态 %s");
+        adder.add(Keys.GUI_PROVIDERS_TAG_NO_TOOLS, "不支持工具调用");
+        adder.add(Keys.GUI_PROVIDERS_TAG_MANUAL, "手填的型号");
         adder.add(Keys.RESPAWN_BLOCKED,                 "· 周围太挤,等一个落脚点");
         adder.add(Keys.CONSENT_ALLOW,          "允许");
         adder.add(Keys.CONSENT_ALLOW_REMEMBER, "以后都允许");
@@ -1324,7 +1515,7 @@ public final class ModLanguageData {
         adder.add(Keys.PERMISSION_PLACED_BY,   "%s 放的");
         adder.add(Keys.PERMISSION_UNCOVERED,   "没有规则");
         adder.add(Keys.CONSENT_SECONDS,        "%s 秒");
-        adder.add(Keys.PERMISSION_SEPARATOR,   "、");
+        adder.add(Keys.LIST_SEPARATOR,         "、");
         adder.add(Keys.PERMISSION_A_BLOCK,     "方块");
         adder.add(Keys.FOLDER_ALL,   "全部");
         adder.add(Keys.FOLDER_SOLO,  "私聊");
@@ -1362,6 +1553,15 @@ public final class ModLanguageData {
         adder.add(Keys.COMMAND_RULE_NO_ROW,       "%s 没有第 %s 行(一共 %s 行);行号用 /numen permission rules list 看");
         adder.add(Keys.COMMAND_RULE_REMOVED,      "已从 %s 删掉:%s");
         adder.add(Keys.COMMAND_RULES_RESET,       "清空了你的 deny、ask、allow 三张表;出厂规则照旧生效");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "shape", "规则要写成 动作(项 & 项),例如 break(placed & !block_entity):'%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "verb", "规则 '%2$s' 里的动作 '%1$s' 不认识;可用的动作有 %3$s,或 * 表示任何动作");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "empty", "规则至少要有一项(任何项写 *):'%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "empty_term", "规则 '%s' 里有空的项");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "command_name", "规则 '%2$s' 里的指令名 '%1$s' 不对;写指令的根名、不带斜杠,例如 command(setblock)");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "tag", "规则 '%2$s' 里的标签 '%1$s' 不对");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "uuid", "规则 '%2$s' 里的实体 uuid '%1$s' 不对");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "id", "规则 '%2$s' 里的 id '%1$s' 不对");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "signal", "规则 '%2$s' 里的信号 '%1$s' 不认识;可用的信号有 %3$s,也可以写带命名空间的 id(minecraft:chest)、标签(#minecraft:beds)、entity:<uuid> 或 *");
         adder.add(Keys.COMMAND_CONSENT_ANSWERED,  "已答复征询 #%s(%s):%s");
         adder.add(Keys.COMMAND_CONSENT_NOT_OWNER, "征询 #%s 属于别人的同伴");
         adder.add(Keys.COMMAND_CONSENT_NOT_PENDING, "没有待答复的征询 #%s(已答复、过期或被顶掉)");
@@ -1440,6 +1640,15 @@ public final class ModLanguageData {
         adder.add(Keys.MCP_WAITING_BROWSER, "等待浏览器授权…");
         adder.add(Keys.MCP_OAUTH_OK, "Numen 授权成功,可以关闭此页面。");
         adder.add(Keys.MCP_OAUTH_FAILED, "授权失败:%s");
-        adder.add(Keys.SKIN_PROFILE_NO_SKIN, "档案里没有皮肤数据");
+        // 皮肤失败(SkinError)按码翻:numen.skin.error.<码>,原话接在 detail 后面
+        adder.add("numen.skin.error.http", "%s 回了 HTTP %s");
+        adder.add("numen.skin.error.rate_limited", "%s 限流了(免费档 20 张/分),稍等再试");
+        adder.add("numen.skin.error.reply_bad", "%s 的回应不是 JSON");
+        adder.add("numen.skin.error.reply_missing", "%s 的回应里没有 texture 数据");
+        adder.add("numen.skin.error.network", "连不上 %s(检查网络或代理)");
+        adder.add("numen.skin.error.no_skin", "档案里没有皮肤数据");
+        adder.add("numen.skin.error.interrupted", "查询被中断");
+        adder.add("numen.skin.error.unknown", "意外错误(%s):%s");
+        adder.add("numen.skin.error.detail", "%s:%s");
     }
 }

@@ -13,7 +13,8 @@ import net.minecraft.core.BlockPos;
  *   <li>水里的额外代价:路上绕不开要泡在水里走的格至少多花多少({@link Waters});</li>
  *   <li>升降的额外代价:要升降几个节点,每个至少比水平底价多花多少({@link Vertical})。</li>
  * </ul>
- * 每一样都在开搜时按世界算一次,之后每个节点只查表加乘法。
+ * 每一样都在开搜时按世界算一次,之后每个节点只查表加乘法。再加上这一趟的记忆里抬高过的增量({@link TripMemory}):
+ * 展开过却没通到这一段终点的节点,估价比原来更远。
  */
 final class Estimate {
 
@@ -22,24 +23,36 @@ final class Estimate {
     private final Burial burial;
     private final Vertical vertical;
     private final Waters waters;
+    private final TripMemory.Frozen memory;
+    /** 估价乘多少:沿旧路打折之后({@link Favoring#floor})每一步的价钱可能低到没折扣时的几分之几,估价同乘才仍是下界。 */
+    private final double scale;
 
-    private Estimate(Goal goal, Kinematics.Pace pace, Burial burial, Vertical vertical, Waters waters) {
+    private Estimate(Goal goal, Kinematics.Pace pace, Burial burial, Vertical vertical, Waters waters,
+                     TripMemory.Frozen memory, double scale) {
         this.goal = goal;
         this.pace = pace;
         this.burial = burial;
         this.vertical = vertical;
         this.waters = waters;
+        this.memory = memory;
+        this.scale = scale;
     }
 
     /** 这次搜索的估价:在 {@code view} 上按 {@code model} 的身体与规格,从 {@code start} 往 {@code goal};埋深最多定下 {@code cap} 格。 */
-    static Estimate of(SearchView view, CostModel model, Goal goal, BlockPos start, int cap) {
+    static Estimate of(SearchView view, CostModel model, Goal goal, BlockPos start, int cap, TripMemory.Frozen memory,
+                       double scale) {
         return new Estimate(goal, Kinematics.pace(model.body().stats()), Burial.of(view, model, goal, start, cap),
-                Vertical.of(view, model, goal), Waters.of(view, model, goal, start, cap));
+                Vertical.of(view, model, goal), Waters.of(view, model, goal, start, cap), memory, scale);
     }
 
     /** 脚在节点 {@code (x, y, z)} 的身体走到目标至少还要多少刻。 */
     double at(int x, int y, int z) {
-        return goal.estimate(x, y, z, pace) + burial.floor(x, y, z) + vertical.floor(y) + waters.floor(x, y, z);
+        return base(x, y, z) + memory.raised(BlockPos.asLong(x, y, z));
+    }
+
+    /** 同上,不含这一趟记忆里抬高的增量:纯粹是这一格相对目标的位置。 */
+    double base(int x, int y, int z) {
+        return scale * (goal.estimate(x, y, z, pace) + burial.floor(x, y, z) + vertical.floor(y) + waters.floor(x, y, z));
     }
 
     double at(BlockPos node) {

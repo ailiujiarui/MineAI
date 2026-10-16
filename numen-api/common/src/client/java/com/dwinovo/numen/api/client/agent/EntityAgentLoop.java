@@ -13,6 +13,7 @@ import com.dwinovo.numen.api.agent.llm.ConvoLog;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
 import com.dwinovo.numen.api.agent.llm.NumenLlmClient;
 import com.dwinovo.numen.api.agent.loop.AgentLoop;
+import com.dwinovo.numen.api.agent.loop.Cause;
 import com.dwinovo.numen.api.agent.loop.HaltReason;
 import com.dwinovo.numen.api.agent.loop.Hold;
 import com.dwinovo.numen.api.agent.loop.HostPort;
@@ -223,13 +224,12 @@ public final class EntityAgentLoop {
     }
 
     /**
-     * 与自动压缩闸门同一口径的模型上下文窗口,真源是<b>这只同伴绑定的档案</b>
-     * ({@link com.dwinovo.numen.api.agent.llm.ProviderLibrary.Entry#contextWindow()})。没绑档案就是不可用
+     * 与自动压缩闸门同一口径的模型上下文窗口,真源是<b>这只同伴绑定的档案解析出的端点</b>
+     * ({@link com.dwinovo.numen.api.agent.llm.LlmEndpoint#contextWindow()})。没绑档案就是不可用
      * (见 {@link #endpointProblem}),没有窗口可言,返回 0。
      */
     public int modelWindow() {
-        var entry = com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().get(providerEntryId);
-        return entry == null ? 0 : entry.contextWindow();
+        return com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().resolve(providerEntryId).contextWindow();
     }
 
     /** 上下文水位百分比(见 {@link Compactor#contextPercent})。 */
@@ -811,17 +811,21 @@ public final class EntityAgentLoop {
     }
 
     /**
-     * 这只同伴现在发不了请求的理由(没绑档案、档案没填 key),给主人看的话;{@code null} = 能发。
+     * 这只同伴现在发不了请求的理由(没绑档案、档案没填 key),结构化的原因;{@code null} = 能发。
      * 只有内核在要发请求时问它({@link ModelPort#unavailable}):不可用就停在 BLOCKED,原因进
      * {@link LoopStatus#holdReason},界面从那里读。
      */
-    private String endpointProblem() {
+    private Cause endpointProblem() {
         var lib = com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance();
         if (providerEntryId == null || lib.get(providerEntryId) == null) {
-            return I18n.get(ModLanguageData.Keys.ENDPOINT_UNBOUND);
+            return Cause.of(Cause.UNBOUND);
         }
-        if (!lib.resolve(providerEntryId).hasApiKey()) {
-            return I18n.get(ModLanguageData.Keys.ENDPOINT_NO_KEY, lib.get(providerEntryId).name());
+        var endpoint = lib.resolve(providerEntryId);
+        if (!endpoint.hasApiKey()) {
+            return Cause.of(Cause.NO_KEY, lib.get(providerEntryId).name());
+        }
+        if (!endpoint.hasUrl()) {
+            return Cause.of(Cause.NO_URL, lib.get(providerEntryId).name());
         }
         return null;
     }
@@ -910,7 +914,7 @@ public final class EntityAgentLoop {
     private final class Model implements ModelPort {
 
         @Override
-        public String unavailable() {
+        public Cause unavailable() {
             return endpointProblem();
         }
 
@@ -942,9 +946,9 @@ public final class EntityAgentLoop {
                 }
                 if (err != null) {
                     // 面向主人的是分类人话;技术细节进日志(传输层还有全量)。
-                    String words = LlmErrorWords.classify(err);
-                    Constants.LOG.warn("[numen-entity#{}] LLM call failed: {} ({})", entityUuid, words, unwrap(err));
-                    onDone.accept(new ModelOutcome.Failed(words, LlmErrorWords.retryable(err)));
+                    Cause cause = Cause.fromError(err);
+                    Constants.LOG.warn("[numen-entity#{}] LLM call failed: {} ({})", entityUuid, cause.forModel(), unwrap(err));
+                    onDone.accept(new ModelOutcome.Failed(cause, cause.retryable()));
                     return;
                 }
                 onDone.accept(new ModelOutcome.Answered(res.turn(), res.usage()));
@@ -954,7 +958,8 @@ public final class EntityAgentLoop {
         private java.util.concurrent.CompletableFuture<NumenLlmClient.ChatResult> stream(
                 ModelRequest request, CancelToken cancel, Consumer<Delta> onDelta, Minecraft mc) {
             NumenLlmClient llm = client();
-            return llm.chatStreaming(request.messages(), request.tools(), request.systemPrompt(), cancel, delta -> {
+            return llm.chatStreaming(request.messages(), request.tools(), request.systemPrompt(),
+                    entityUuid.toString(), cancel, delta -> {
                 // 增量在 HTTP 线程上由累积器给出,再按顺序切回主线程
                 Delta d = new Delta(delta.content(), delta.reasoning());
                 mc.execute(() -> {
@@ -999,8 +1004,12 @@ public final class EntityAgentLoop {
         /** 后台活优先(几十秒的长活,主人得看见她在挖矿而不是卡死了),没有才是手上这一个工具调用。 */
         @Override
         public String activity() {
-            String task = runtime.activity();
-            return task != null ? task : dispatcher.currentToolName();
+            var task = runtime.activity();
+            if (task != null) {
+                return task.text().getString();
+            }
+            String tool = dispatcher.currentToolName();
+            return tool == null ? null : ToolWords.label(tool);
         }
     }
 

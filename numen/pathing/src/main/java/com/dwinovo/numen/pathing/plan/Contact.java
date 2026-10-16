@@ -40,6 +40,8 @@ final class Contact {
     private final int fromHigh;
     /** 新进入的格,按进入的先后。 */
     private final Cells cells = new Cells();
+    /** 斜走擦过的拐角列脚下的格({@link #over})。 */
+    private final Cells beneath = new Cells();
     private int exposure;
 
     /** 身体起步时脚在 {@code (from 那一列, fromFeet)}:它那时占着的格不算新进入的。 */
@@ -61,6 +63,15 @@ final class Contact {
             }
             cells.add(BlockPos.asLong(x, y, z));
         }
+        return this;
+    }
+
+    /**
+     * 斜走擦过 {@code (x, z)} 这一列的拐角:身体的脚底压在它上面,脚在 {@code feet} 高时托着脚的那一格也算踩到了。直着走只踩起步与落点那两列
+     * (落点脚下的由 {@link #admit} 的 {@code support} 管),不会擦到别的列。
+     */
+    Contact over(int x, int z, double feet) {
+        beneath.add(BlockPos.asLong(x, Footing.cellOf(feet) - 1, z));
         return this;
     }
 
@@ -104,6 +115,12 @@ final class Contact {
                 if (!cells.contains(beside) && harmful(draft, pos.set(beside))) {
                     near = Cells.add(near, beside);
                 }
+            }
+        }
+        for (int i = 0; i < beneath.size; i++) {
+            pos.set(beneath.items[i]);
+            if (model.excludes(Semantics.mask(draft, pos))) {
+                return draft.fail(pos, Reason.EXCLUDED);
             }
         }
         if (support != null) {

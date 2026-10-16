@@ -81,6 +81,12 @@ public final class Sprites {
     /** 征询的"说一句再拒绝":输入框上方那条提示栏的图标。 */
     public static final ResourceLocation CANCEL = icon("icon_cancel");
 
+    /** 滚动提示的三角(11×6,同样是纯白):上面还有、下面还有,左栏、查找栏、"回到最新"钮共用。 */
+    public static final int CHEVRON_W = 11;
+    public static final int CHEVRON_H = 6;
+    public static final ResourceLocation CHEVRON_UP = icon("chevron_up");
+    public static final ResourceLocation CHEVRON_DOWN = icon("chevron_down");
+
     public static ResourceLocation icon(String name) {
         return ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, name);
     }
@@ -101,9 +107,14 @@ public final class Sprites {
 
     /** 直接贴一枚(不在控件里的那些,比如头部名字旁的改与删)。 */
     public static void draw(GuiGraphics g, ResourceLocation sprite, int x, int y, int size, int argb) {
+        draw(g, sprite, x, y, size, size, argb);
+    }
+
+    /** 不是方的那几枚(滚动三角)。 */
+    public static void draw(GuiGraphics g, ResourceLocation sprite, int x, int y, int w, int h, int argb) {
         g.setColor((argb >> 16 & 0xFF) / 255f, (argb >> 8 & 0xFF) / 255f, (argb & 0xFF) / 255f,
                 (argb >>> 24) / 255f);
-        g.blitSprite(sprite, x, y, size, size);
+        g.blitSprite(sprite, x, y, w, h);
         g.setColor(1f, 1f, 1f, 1f);
     }
 }

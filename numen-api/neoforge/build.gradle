@@ -18,6 +18,13 @@ sourceSets {
     }
 }
 dependencies {
+    // 聊天气泡的 Markdown 解析库(ui 模块用它)是内嵌的库,不是平铺进来的类:jarJar 随发行 jar 带上,玩家不用另装。
+    jarJar("org.commonmark:commonmark:${commonmark_version}") {
+        version { strictly "[${commonmark_version},0.31)"; prefer commonmark_version }
+    }
+    jarJar("org.commonmark:commonmark-ext-gfm-strikethrough:${commonmark_version}") {
+        version { strictly "[${commonmark_version},0.31)"; prefer commonmark_version }
+    }
     gametestCompileOnly project(':numen-api:common').sourceSets.testFixtures.output
 }
 processGametestResources {

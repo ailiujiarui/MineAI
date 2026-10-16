@@ -1,5 +1,8 @@
 package com.dwinovo.numen.pathing.plan;
 
+import com.dwinovo.numen.pathing.world.CellFlags;
+
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.border.WorldBorder;
 
@@ -19,4 +22,23 @@ public interface WorldView extends BlockGetter {
      * 整段跳过,结论与逐格读一样。
      */
     boolean airSection(int x, int y, int z);
+
+    /** {@code (x, y, z)} 这一格的标志字({@link CellFlags}):由这一格的方块状态推出;搜索的快照另有按层现成的。 */
+    default int cellFlags(int x, int y, int z) {
+        return CellFlags.of(getBlockState(new BlockPos(x, y, z)));
+    }
+
+    /**
+     * 同 {@link #cellFlags(int, int, int)},读同一列从 {@code y} 起往上 {@code n} 格,标志字写进 {@code into} 从 {@code at} 起的
+     * {@code n} 个字节(只存低八位,它们都在八位以内),交回这 {@code n} 个标志字按位或的结果。
+     */
+    default int cellFlags(int x, int y, int z, int n, byte[] into, int at) {
+        int all = 0;
+        for (int i = 0; i < n; i++) {
+            int flags = cellFlags(x, y + i, z);
+            into[at + i] = (byte) flags;
+            all |= flags;
+        }
+        return all;
+    }
 }

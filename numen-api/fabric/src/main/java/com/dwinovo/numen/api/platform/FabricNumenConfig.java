@@ -47,7 +47,6 @@ public final class FabricNumenConfig implements INumenConfig {
     /** Default constructor used by {@code ServiceLoader}. */
     public FabricNumenConfig() {
         this.data = loadOrCreate();
-        logLoadedState();
     }
 
     private ConfigData loadOrCreate() {
@@ -94,8 +93,7 @@ public final class FabricNumenConfig implements INumenConfig {
             try (Writer w = Files.newBufferedWriter(configPath)) {
                 GSON.toJson(defaults, w);
             }
-            Constants.LOG.info("[numen-config] wrote default template to {} — set 'apiKey' and restart",
-                    configPath);
+            Constants.LOG.info("[numen-config] wrote default template to {}", configPath);
         } catch (IOException ex) {
             Constants.LOG.warn("[numen-config] could not write default config to {}: {}",
                     configPath, ex.getMessage());
@@ -122,63 +120,16 @@ public final class FabricNumenConfig implements INumenConfig {
         }
     }
 
-    /**
-     * Log non-sensitive load state for debugging. Logs the API-key length
-     * (not the key itself) so users can immediately see at startup whether
-     * a key was picked up — the single most common config-debugging question.
-     */
-    private void logLoadedState() {
-        String key = data.apiKey == null ? "" : data.apiKey;
-        String model = data.model == null ? "" : data.model;
-        String base = data.baseUrl == null ? "" : data.baseUrl;
-        String prov = data.provider == null ? "" : data.provider;
-        Constants.LOG.info("[numen-config] api_key length={}, provider={}, model={}, base_url={}",
-                key.length(),
-                prov.isEmpty() ? "<empty>" : prov,
-                model.isEmpty() ? "<empty>" : model,
-                base.isEmpty() ? "<default>" : base);
-    }
-
-    @Override
-    public String getApiKey() { return data.apiKey == null ? "" : data.apiKey; }
-
-    @Override
-    public String getBaseUrl() { return data.baseUrl == null ? "" : data.baseUrl; }
-
-    @Override
-    public String getModel() { return data.model == null ? "" : data.model; }
-
     @Override
     public String getSystemPrompt() { return data.systemPrompt == null ? "" : data.systemPrompt; }
 
     @Override
-    public String getProvider() { return data.provider == null ? "openai" : data.provider; }
-
-    @Override
     public String getProxy() { return data.proxy == null ? "" : data.proxy; }
-
-    @Override
-    public String getReasoningEffort() { return data.reasoningEffort == null ? "auto" : data.reasoningEffort; }
 
     // ---- mutations ----
 
     @Override
-    public void setApiKey(String value) { data.apiKey = value == null ? "" : value; }
-
-    @Override
-    public void setBaseUrl(String value) { data.baseUrl = value == null ? "" : value; }
-
-    @Override
-    public void setModel(String value) { data.model = value == null ? "" : value; }
-
-    @Override
-    public void setProvider(String value) { data.provider = value == null ? "openai" : value; }
-
-    @Override
     public void setProxy(String value) { data.proxy = value == null ? "" : value; }
-
-    @Override
-    public void setReasoningEffort(String value) { data.reasoningEffort = value == null ? "auto" : value; }
 
     @Override
     public void setSystemPrompt(String value) { data.systemPrompt = value == null ? "" : value; }
@@ -221,10 +172,7 @@ public final class FabricNumenConfig implements INumenConfig {
             try (Writer w = Files.newBufferedWriter(configPath)) {
                 GSON.toJson(data, w);
             }
-            Constants.LOG.info("[numen-config] saved {} (api_key length={}, provider={}, model={})",
-                    configPath,
-                    data.apiKey == null ? 0 : data.apiKey.length(),
-                    data.provider, data.model);
+            Constants.LOG.info("[numen-config] saved {}", configPath);
         } catch (IOException ex) {
             Constants.LOG.warn("[numen-config] save failed for {}: {}", configPath, ex.getMessage());
         }
@@ -239,13 +187,8 @@ public final class FabricNumenConfig implements INumenConfig {
      */
     public static final class ConfigData {
         /** Free-form note for human readers; ignored by the loader. */
-        public String _readme = "Numen mod configuration. Set 'apiKey' (required). 'provider' picks the wire-format adapter AND its default base URL: openai | deepseek | moonshot (alias kimi) | minimax | volcengine (alias doubao, ark) | dashscope (alias qwen, tongyi, aliyun). Set 'baseUrl' only if you need to override the provider default (e.g. self-hosted proxy or non-default region). 'model' is whatever the backend recognises. Field names are camelCase. Restart for changes to take effect.";
-        public String apiKey = "";
-        public String baseUrl = "";
-        public String model = "gpt-5-2-mini";
-        public String provider = "openai";
+        public String _readme = "Numen mod configuration. Model connections (provider, model, API key) are configured in the in-game settings, not here. Field names are camelCase. Restart for changes to take effect.";
         public String proxy = "";   // optional host:port HTTP proxy for LLM calls
-        public String reasoningEffort = "auto";   // auto | low | medium | high (reasoning-capable models)
         // STT (voice input) — global. provider picks the preset; empty apiKey = disabled.
         public String sttProvider = "siliconflow";
         public String sttApiKey = "";
@@ -266,12 +209,7 @@ public final class FabricNumenConfig implements INumenConfig {
         /** Fill in defaults for missing fields on a partially-populated file. */
         ConfigData applyDefaults() {
             ConfigData d = defaults();
-            if (apiKey == null) apiKey = d.apiKey;
-            if (baseUrl == null) baseUrl = d.baseUrl;
-            if (model == null || model.isBlank()) model = d.model;
-            if (provider == null || provider.isBlank()) provider = d.provider;
             if (proxy == null) proxy = d.proxy;
-            if (reasoningEffort == null || reasoningEffort.isBlank()) reasoningEffort = d.reasoningEffort;
             if (systemPrompt == null) systemPrompt = d.systemPrompt;
             if (sttProvider == null || sttProvider.isBlank()) sttProvider = d.sttProvider;
             if (sttApiKey == null) sttApiKey = d.sttApiKey;

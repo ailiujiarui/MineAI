@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.stt;
 
+import com.dwinovo.numen.api.client.voice.VoiceError;
 import com.dwinovo.numen.api.Constants;
 import com.google.gson.JsonObject;
 
@@ -142,8 +143,7 @@ public final class DoubaoStt implements SttBackend {
 
         private CompletableFuture<WebSocket> connect() {
             if (key.isBlank()) {
-                return CompletableFuture.failedFuture(
-                        new IllegalStateException("豆包语音没填 API Key"));
+                return CompletableFuture.failedFuture(VoiceError.of(VoiceError.NO_KEY, DoubaoFrames.SERVICE));
             }
             WebSocket.Builder builder = CLIENT.newWebSocketBuilder()
                     .header("X-Api-Resource-Id", resourceId)
@@ -225,7 +225,7 @@ public final class DoubaoStt implements SttBackend {
         private void handle(byte[] frame) {
             DoubaoFrames.Reply reply = DoubaoFrames.parse(frame);
             if (reply.error() != null) {
-                fail(new IllegalStateException(reply.error()));
+                fail(reply.error());
                 return;
             }
             if (reply.text() != null) {
@@ -264,8 +264,7 @@ public final class DoubaoStt implements SttBackend {
             public CompletionStage<?> onClose(WebSocket ws, int status, String reason) {
                 // 已经收过最后一包的话 settled 为真,这里就是一次正常收尾;否则算断线失败,
                 // 不把半截转写当成功。
-                fail(new IllegalStateException("连接被关闭 " + status
-                        + (reason == null || reason.isBlank() ? "" : " " + reason)));
+                fail(VoiceError.closed(status, reason));
                 return null;
             }
 

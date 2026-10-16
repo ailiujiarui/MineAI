@@ -4,6 +4,7 @@ import com.dwinovo.numen.api.agent.inbox.EventQueue;
 import com.dwinovo.numen.api.agent.inbox.EventTypes;
 import com.dwinovo.numen.api.network.payload.CompanionListPayload;
 import com.dwinovo.numen.api.network.payload.CurrentTaskPayload;
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.api.network.payload.NumenDeathPayload;
 import com.dwinovo.numen.api.network.payload.NumenEventPayload;
 import com.google.gson.JsonObject;
@@ -121,10 +122,16 @@ class WireTest {
     @Test
     void aTaskDescriptionOrADeathCauseTooBigIsReplacedBySayingSo() {
         String big = "z".repeat(Wire.TO_CLIENT.bytes() + 1);
-        CurrentTaskPayload task = fit(new CurrentTaskPayload(A, "t1", "work dig", big, false, 1200L));
+        CurrentTaskPayload task = fit(new CurrentTaskPayload(A, "t1", "work dig", big,
+                Activity.of("numen.activity.dig", big, 3, 64), false, 1200L));
         assertEquals("t1", task.taskId());
         assertEquals(1200L, task.elapsedMs());
         assertTrue(task.describe().startsWith("Its description came to "), task.describe());
+        assertEquals(Activity.of(Activity.DEFAULT_KEY, "work dig"), task.activity(), "给主人看的那句缩成只说工具名");
+
+        Activity said = Activity.of("numen.activity.dig", "oak_log", 3, 64);
+        assertEquals(said, fit(new CurrentTaskPayload(A, "t1", "work dig", "short", said, false, 1200L)).activity(),
+                "装得下的原样送到");
 
         NumenDeathPayload death = fit(new NumenDeathPayload(A, big));
         assertTrue(death.cause().startsWith("The cause of death came to "), death.cause());

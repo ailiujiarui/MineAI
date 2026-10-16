@@ -12,7 +12,7 @@ public class TerrainGameTests {
 
     private static final String TEMPLATE = "numen_pathing:pathing_empty";
     /** GameTest 自己的时限:比最长的路线时限(见 TerrainRoutes)再多留加载与出生无敌的刻数;各路线的时限由 TerrainRun 自己判。 */
-    private static final int TIMEOUT = 14000;
+    private static final int TIMEOUT = 24000;
 
     @GameTest(template = TEMPLATE, batch = "terrain_flat", timeoutTicks = TIMEOUT)
     public static void flat(GameTestHelper helper) {
@@ -147,5 +147,20 @@ public class TerrainGameTests {
     @GameTest(template = TEMPLATE, batch = "terrain_tunnel_end", timeoutTicks = TIMEOUT)
     public static void tunnel_end(GameTestHelper helper) {
         TerrainRun.start(helper, TerrainRoutes.TUNNEL_END);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_zone_between", timeoutTicks = TIMEOUT)
+    public static void zone_between(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.ZONE_BETWEEN);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_bridge_short", timeoutTicks = TIMEOUT)
+    public static void bridge_short(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.BRIDGE_SHORT);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_obsidian_hand", timeoutTicks = TIMEOUT)
+    public static void obsidian_hand(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.OBSIDIAN_HAND);
     }
 }

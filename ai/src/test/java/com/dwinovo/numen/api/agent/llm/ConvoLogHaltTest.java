@@ -40,6 +40,20 @@ class ConvoLogHaltTest {
     }
 
     @Test
+    void theStructuredCauseSurvivesTheRoundTripAndAnOldRecordHasNone(@TempDir Path dir) throws IOException {
+        ConvoLog log = ConvoLog.atFile(dir.resolve("chat.jsonl"));
+        ConvoState.Msg.Halt failed = new ConvoState.Msg.Halt("这一轮没连上(密钥无效)", "llm.unauthorized",
+                List.of("401", "api.deepseek.com", "Authentication Fails"));
+        log.append(failed, null);
+        log.append(HALT, null);   // 没有结构化原因的切断(旧日志的样子)
+
+        assertEquals(List.of(failed, HALT), log.load(100));
+        ConvoState.Msg.Halt old = (ConvoState.Msg.Halt) log.load(100).get(1);
+        assertEquals(null, old.code(), "没有码:界面照存下来的那句话显示");
+        assertTrue(Files.readString(log.file()).contains("\"code\":\"llm.unauthorized\""));
+    }
+
+    @Test
     void aHaltIsAnEventRecordOnDisk(@TempDir Path dir) throws IOException {
         ConvoLog log = ConvoLog.atFile(dir.resolve("chat.jsonl"));
         log.append(HALT, null);

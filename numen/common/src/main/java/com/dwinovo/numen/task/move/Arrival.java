@@ -1,5 +1,6 @@
 package com.dwinovo.numen.task.move;
 
+import com.dwinovo.numen.api.task.Activity;
 import java.util.List;
 
 import net.minecraft.core.BlockPos;
@@ -109,7 +110,7 @@ public record Arrival(Where to, How how, int range) {
         };
     }
 
-    /** 给主人看的一句(头顶气泡、面板)。 */
+    /** 给模型看的一句({@code MoveToTaskRecord.describe} 印的是它);主人看的是 {@link #activity()}。 */
     public String describe() {
         String where = to.words();
         return switch (how) {
@@ -119,6 +120,19 @@ public record Arrival(Where to, How how, int range) {
             case DIG -> "走到够得着 " + where + " 的地方";
             case PLACE -> "走到够得着 " + where + "、往里放方块的地方";
             case AWAY -> "离开 " + where + " " + range + " 格以外";
+        };
+    }
+
+    /** 给主人看的一句(头顶气泡、档案页),客户端按当前语言翻;{@link #describe()} 是给模型的。 */
+    public Activity activity() {
+        String where = to.words();
+        return switch (how) {
+            case AT -> Activity.of("numen.activity.move_at", where);
+            case NEAR, BESIDE -> Activity.of("numen.activity.move_near", where, range);
+            case USE -> Activity.of("numen.activity.move_use", where);
+            case DIG -> Activity.of("numen.activity.move_dig", where);
+            case PLACE -> Activity.of("numen.activity.move_place", where);
+            case AWAY -> Activity.of("numen.activity.move_away", where, range);
         };
     }
 }

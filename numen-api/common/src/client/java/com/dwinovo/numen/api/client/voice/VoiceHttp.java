@@ -37,29 +37,29 @@ final class VoiceHttp {
     }
 
     /**
-     * 拼好的请求 URL → {@link URI}。空/无 host 时抛人话 {@link IllegalStateException}
+     * 拼好的请求 URL → {@link URI}。空/无 host 时抛 {@link VoiceError}
      * ——各后端的 {@code synthesize} 把它接成 failedFuture 走统一的失败通道
      * （表单红字/语音跳过），绝不允许同步炸出去。
      */
     static URI uriOf(String url) {
         String u = url == null ? "" : url.strip();
         if (u.isEmpty() || u.startsWith("/")) {
-            throw new IllegalStateException("TTS URL 未填写");
+            throw VoiceError.of(VoiceError.NO_URL);
         }
         URI uri = URI.create(u);
         if (uri.getHost() == null || uri.getScheme() == null) {
-            throw new IllegalStateException("TTS URL 无效: " + u);
+            throw VoiceError.of(VoiceError.BAD_URL, u);
         }
         return uri;
     }
 
     /**
-     * HTTP 错误体 → 人话:响应是 JSON 时挖出 {@code message}/{@code msg}/{@code detail}/
-     * {@code error(.message)} 字段直接展示(如 Fish 402 的 "Insufficient API credit…"),
-     * 挖不到才退回截断的原文——表单红字放不下一坨 JSON。
+     * HTTP 错误 → {@link VoiceError#HTTP}:响应是 JSON 时挖出 {@code message}/{@code msg}/{@code detail}/
+     * {@code error(.message)} 字段当厂家的原话(如 Fish 402 的 "Insufficient API credit…"),
+     * 挖不到才退回截断的原文——界面放不下一坨 JSON。
      */
-    static String humanHttpError(String provider, int status, String body) {
-        return provider + " HTTP " + status + ": " + extractMessage(body);
+    static VoiceError httpError(String service, int status, String body) {
+        return VoiceError.http(service, status, extractMessage(body));
     }
 
     private static String extractMessage(String body) {

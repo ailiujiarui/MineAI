@@ -1,5 +1,6 @@
 package com.dwinovo.numen.task.wait;
 
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import com.dwinovo.numen.api.task.TaskRecord;
 
@@ -27,5 +28,12 @@ public final class WaitTaskRecord extends TaskRecord<Double> {
     @Override
     public String describe() {
         return getToolName() + " " + seconds + "s";
+    }
+
+    /** 给主人看的一句(头顶气泡、档案页),客户端按当前语言翻;{@link #describe()} 是给模型的。 */
+    @Override
+    public Activity activity() {
+        Object shown = seconds == Math.rint(seconds) ? (Object) (long) seconds : (Object) seconds;
+        return Activity.of("numen.activity.wait", shown);
     }
 }

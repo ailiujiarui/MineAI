@@ -10,12 +10,13 @@ import net.minecraft.world.level.block.state.BlockState;
 public sealed interface Halt {
 
     /**
-     * 搜索没交出能走的路:{@code stop} 是它为什么停,{@code breathless} 是它有没有因为憋不住气丢下过步子,{@code search} 是那次
-     * 搜索的全部输入(快照、成本模型、起点、目标、预算),门面在同一份快照上诊断为什么没路。
+     * 搜索没交出能走的路,或这一趟的总预算用完了({@code stop} 是 BUDGET):{@code stop} 是它为什么停,{@code breathless} 是它有没有因为
+     * 憋不住气丢下过步子,{@code search} 是最后那次搜索的全部输入(快照、成本模型、起点、目标、预算),门面在同一份快照上诊断为什么
+     * 没路,{@code blocking} 是那次搜索里离目标最近的节点上朝目标的步子为什么被拒(没有为 null)。
      */
-    record Searched(SearchResult.Stop stop, boolean breathless, Search search) implements Halt {}
+    record Searched(SearchResult.Stop stop, boolean breathless, Search search, SearchResult.Blocking blocking) implements Halt {}
 
-    /** 一步走不下去,重搜也绕不过去,或同一步几次都走不下去。 */
+    /** 一步走不下去,从这里重搜把能走的都搜过了还是没路:没路的原因就是那一步。 */
     record Blocked(Blockage blockage) implements Halt {}
 
     /** 动手被拒:{@code reason} 是拒绝方({@link com.dwinovo.numen.api.entity.Mouse.Refusal})自己的理由,模块不解读。 */

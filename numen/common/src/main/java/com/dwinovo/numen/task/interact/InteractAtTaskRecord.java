@@ -1,4 +1,5 @@
 package com.dwinovo.numen.task.interact;
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.task.MouseButton;
 
 import com.dwinovo.numen.api.sdk.ServerCall;
@@ -74,5 +75,13 @@ public final class InteractAtTaskRecord extends TaskRecord<com.dwinovo.numen.too
                 + (item != null ? " " + BuiltInRegistries.ITEM.getKey(item).getPath() : "")
                 + (aim != null ? " @" + aim.getX() + "," + aim.getY() + "," + aim.getZ() : " (forward)")
                 + (holdTicks != 0 ? " hold=" + holdTicks : "") + (sneak ? " sneak" : "");
+    }
+
+    /** 给主人看的一句(头顶气泡、档案页),客户端按当前语言翻;{@link #describe()} 是给模型的。 */
+    @Override
+    public Activity activity() {
+        String side = button == MouseButton.LEFT ? "left" : "right";
+        return aim == null ? Activity.of("numen.activity.click_ahead_" + side)
+                : Activity.of("numen.activity.click_block_" + side, aim.getX(), aim.getY(), aim.getZ());
     }
 }

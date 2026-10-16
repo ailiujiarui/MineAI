@@ -21,12 +21,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
  */
 public final class NeoForgeNumenConfig implements INumenConfig {
 
-    public static final ModConfigSpec.ConfigValue<String> API_KEY;
-    public static final ModConfigSpec.ConfigValue<String> BASE_URL;
-    public static final ModConfigSpec.ConfigValue<String> MODEL;
-    public static final ModConfigSpec.ConfigValue<String> PROVIDER;
     public static final ModConfigSpec.ConfigValue<String> PROXY;
-    public static final ModConfigSpec.ConfigValue<String> REASONING_EFFORT;
     public static final ModConfigSpec.ConfigValue<String> SYSTEM_PROMPT;
     public static final ModConfigSpec.ConfigValue<String> STT_PROVIDER;
     public static final ModConfigSpec.ConfigValue<String> STT_API_KEY;
@@ -37,35 +32,10 @@ public final class NeoForgeNumenConfig implements INumenConfig {
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
-        b.comment("OpenAI / OpenAI-compatible API settings.").push("openai");
-
-        API_KEY = b.comment("API key (sk-...) sent as the bearer token. Required.")
-                .define("api_key", "");
-        BASE_URL = b.comment("Base URL override. Leave empty for OpenAI's default endpoint.",
-                "Examples: https://api.deepseek.com, http://localhost:11434 (Ollama)")
-                .define("base_url", "");
-        MODEL = b.comment("Model id sent as the `model` field. Backend-defined.")
-                .define("model", "gpt-5-2-mini");
-        PROVIDER = b.comment("Wire-format adapter AND default base URL selector.",
-                "openai      → api.openai.com/v1 (default; also generic OpenAI-compat fallback)",
-                "deepseek    → api.deepseek.com/beta (preserves reasoning_content for V4 thinking)",
-                "moonshot    → api.moonshot.ai/v1 (Kimi; fill_reasoning_content safety net)",
-                "  (alias: kimi)",
-                "minimax     → api.minimax.io/v1",
-                "volcengine  → ark.cn-beijing.volces.com/api/v3 (Doubao)",
-                "  (aliases: doubao, ark)",
-                "dashscope   → dashscope.aliyuncs.com/compatible-mode/v1 (Alibaba Qwen / Tongyi)",
-                "  (aliases: qwen, tongyi, aliyun)",
-                "Override 'base_url' below to use a different host (proxy / region split).")
-                .define("provider", "openai");
+        // 段名沿用 openai:代理在玩家的 toml 里一直住在这一段,改名就丢了他们填的值。
+        b.comment("Network settings for LLM calls.").push("openai");
         PROXY = b.comment("Optional HTTP proxy for LLM calls as host:port (empty = direct).")
                 .define("proxy", "");
-        REASONING_EFFORT = b.comment(
-                "Reasoning / deep-thinking effort for reasoning-capable models.",
-                "auto (default; send nothing — backend decides) | low | medium | high.",
-                "When not 'auto', sends the OpenAI-dialect `reasoning_effort` request parameter.")
-                .define("reasoning_effort", "auto");
-
         b.pop();
         b.comment("Behaviour tuning.").push("agent");
         // Deliberately short. The planning behaviour (the todo tool for
@@ -100,40 +70,13 @@ public final class NeoForgeNumenConfig implements INumenConfig {
     public NeoForgeNumenConfig() {}
 
     @Override
-    public String getApiKey() {
-        return safe(API_KEY);
-    }
-
-    @Override
-    public String getBaseUrl() {
-        return safe(BASE_URL);
-    }
-
-    @Override
-    public String getModel() {
-        return safe(MODEL);
-    }
-
-    @Override
     public String getSystemPrompt() {
         return safe(SYSTEM_PROMPT);
     }
 
     @Override
-    public String getProvider() {
-        String s = safe(PROVIDER);
-        return s.isEmpty() ? "openai" : s;
-    }
-
-    @Override
     public String getProxy() {
         return safe(PROXY);
-    }
-
-    @Override
-    public String getReasoningEffort() {
-        String s = safe(REASONING_EFFORT);
-        return s.isEmpty() ? "auto" : s;
     }
 
     @Override
@@ -165,33 +108,8 @@ public final class NeoForgeNumenConfig implements INumenConfig {
     // ---- mutations ----
 
     @Override
-    public void setApiKey(String value) {
-        API_KEY.set(value == null ? "" : value);
-    }
-
-    @Override
-    public void setBaseUrl(String value) {
-        BASE_URL.set(value == null ? "" : value);
-    }
-
-    @Override
-    public void setModel(String value) {
-        MODEL.set(value == null ? "" : value);
-    }
-
-    @Override
-    public void setProvider(String value) {
-        PROVIDER.set(value == null ? "openai" : value);
-    }
-
-    @Override
     public void setProxy(String value) {
         PROXY.set(value == null ? "" : value);
-    }
-
-    @Override
-    public void setReasoningEffort(String value) {
-        REASONING_EFFORT.set(value == null ? "auto" : value);
     }
 
     @Override
@@ -231,7 +149,7 @@ public final class NeoForgeNumenConfig implements INumenConfig {
      * {@link ModConfigSpec#save()} eventually". Without this explicit save an
      * in-game settings change is lost on shutdown (the values revert to
      * whatever was last on disk), which is exactly the "reverts to default"
-     * bug players hit after changing provider / key in the GUI.
+     * bug players hit after changing a setting in the GUI.
      *
      * <p>Guarded by {@link ModConfigSpec#isLoaded()}: {@code save()} throws if
      * the spec hasn't been bound to a config file yet (e.g. called absurdly
@@ -243,9 +161,7 @@ public final class NeoForgeNumenConfig implements INumenConfig {
         if (SPEC.isLoaded()) {
             SPEC.save();
         }
-        com.dwinovo.numen.api.Constants.LOG.info(
-                "[numen-config] saved (api_key length={}, provider={}, model={})",
-                safe(API_KEY).length(), safe(PROVIDER), safe(MODEL));
+        com.dwinovo.numen.api.Constants.LOG.info("[numen-config] saved");
     }
 
     /**

@@ -59,7 +59,7 @@ class EstimateAdmissibilityTest {
 
     /** 这个世界里,脚在 {@code from} 的节点到 {@code goal} 的估价。 */
     private static double estimate(TestWorld world, CostModel model, BlockPos start, BlockPos from, BlockPos goal) {
-        return Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET).at(from);
+        return Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET, TripMemory.Frozen.NONE, 1).at(from);
     }
 
     /**
@@ -74,7 +74,7 @@ class EstimateAdmissibilityTest {
         List<Route.Leg> legs = route.legs();
         double remaining = route.cost();
         BlockPos at = start;
-        Estimate toGoal = Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET);
+        Estimate toGoal = Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET, TripMemory.Frozen.NONE, 1);
         for (Route.Leg leg : legs) {
             BlockPos to = leg.maneuver().to();
             kinds.add(leg.maneuver().kind());
@@ -200,7 +200,7 @@ class EstimateAdmissibilityTest {
             arrived++;
             double remaining = result.route().cost();
             BlockPos at = start;
-            Estimate toGoal = Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET);
+            Estimate toGoal = Estimate.of(world, model, Goals.at(goal), start, Fixtures.BUDGET, TripMemory.Frozen.NONE, 1);
             for (Route.Leg leg : result.route().legs()) {
                 assertTrue(toGoal.at(at) <= remaining + 1e-9,
                         "第 " + round + " 张:" + at + " 到 " + goal + " 估价 " + toGoal.at(at) + " 高过剩下的 " + remaining);

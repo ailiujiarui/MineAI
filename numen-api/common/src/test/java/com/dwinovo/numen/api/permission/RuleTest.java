@@ -79,6 +79,17 @@ class RuleTest {
                 .getMessage().contains("bad entity uuid"));
     }
 
+    @Test
+    void mistakesCarryTheirCodeAndWords() {
+        Rule.Mistake verb = assertThrows(Rule.Mistake.class, () -> Rule.parse("chew(placed)"));
+        assertEquals("verb", verb.code());
+        assertEquals("chew", verb.args().get(0));
+        assertEquals("chew(placed)", verb.args().get(1));
+        Rule.Mistake signal = assertThrows(Rule.Mistake.class, () -> Rule.parse("break(haunted)"));
+        assertEquals("signal", signal.code());
+        assertEquals("haunted", signal.args().get(0));
+    }
+
     // ==================== 匹配 ====================
 
     @Test

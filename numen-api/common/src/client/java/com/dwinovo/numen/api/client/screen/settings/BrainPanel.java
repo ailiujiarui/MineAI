@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.screen.settings;
 
+import com.dwinovo.numen.api.data.ModLanguageData;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
@@ -8,6 +9,7 @@ import com.dwinovo.numen.api.client.ui.widget.Badge;
 import com.dwinovo.numen.api.client.ui.widget.Button;
 import com.dwinovo.numen.api.client.ui.widget.ConfirmDialog;
 import com.dwinovo.numen.api.client.ui.widget.Disclosure;
+import com.dwinovo.numen.api.client.ui.widget.Reveal;
 import com.dwinovo.numen.api.client.ui.widget.InlineAlert;
 import com.dwinovo.numen.api.client.ui.widget.ScrollBox;
 import com.dwinovo.numen.api.client.ui.widget.TextField;
@@ -66,8 +68,10 @@ public final class BrainPanel {
     private final InlineAlert notice = new InlineAlert();
     private final ConfirmDialog confirm = new ConfirmDialog();
 
-    /** 高级设置开着没有——状态在这儿,控件只是照着画。 */
-    private boolean advanced;
+    /** 高级设置开合的进度——状态在这儿,控件只是照着画;跨重建保留,过渡不被打断。 */
+    private final Reveal advanced = new Reveal();
+    /** 高级设置收着时内容到哪(相对滚动层顶)、全开时到哪;每帧按 {@link #advanced} 在两者之间取。 */
+    private int baseH, fullH;
     /** 四份草稿;null = 跟着配置走(首次进来、以及保存成功之后)。 */
     private String portText, timeoutText, hiddenText;
     private Boolean lanOn;
@@ -153,77 +157,77 @@ public final class BrainPanel {
         SettingsRows.gap(ui, x, ry, w);
         ry += SettingsRows.GAP_H;
 
-        Disclosure adv = ui.add(new Disclosure(t("numen.brain.advanced"), advanced, () -> {
-            advanced = !advanced;
-            scroll.toTop();     // 换了一份内容,上一份滚到哪儿了与这份无关
-            build(this.x, this.y, this.w, this.h);
-        }));
+        Disclosure adv = ui.add(new Disclosure(t("numen.brain.advanced"), advanced));
         adv.setBounds(x, SettingsRows.controlY(ry, NumenStyle.CONTROL_H), w, NumenStyle.CONTROL_H);
-        int bottom = ry + SettingsRows.ROW_H;
+        baseH = ry + SettingsRows.ROW_H - top;
 
-        if (advanced) {
-            ry += SettingsRows.ROW_H;
-            // 端口与「允许局域网」= 上面那条地址的两截。后者是 host 的人话面:关=127.0.0.1,
-            // 开=0.0.0.0。玩家不必知道那五个字符,想绑具体网卡的高级用户改
-            // config/numen/mcp_server.json —— 配置文件就是逃生舱。
-            SettingsRows.label(ui, t("numen.brain.port"), x, ry, w - NUM_FIELD_W - 8);
-            portText = portText != null ? portText : String.valueOf(cfg.port());
-            portField = ui.add(new TextField(portText, v -> {
-                portText = v;
-                refreshSaveState();
-            }).numeric().underlined(true));
-            portField.setBounds(x + w - RIGHT_INSET - NUM_FIELD_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
-                    NUM_FIELD_W, NumenStyle.CONTROL_H);
-            ry += SettingsRows.ROW_H;
-
-            lanRow = ry;
-            SettingsRows.label(ui, t("numen.brain.lan"), x, ry, w - 28);
-            Toggle lan = ui.add(new Toggle(lanNow(), on -> {
-                lanOn = on;
-                refreshSaveState();
-            }));
-            lan.setBounds(x + w - 24, SettingsRows.controlY(ry, 11), 22, 11);
-            ry = noteBelow(lanRow) + 9 + 3;
-
-            SettingsRows.label(ui, t("numen.brain.timeout"), x, ry, w - NUM_FIELD_W - 8);
-            timeoutText = timeoutText != null ? timeoutText
-                    : String.valueOf(cfg.callTimeoutSeconds());
-            TextField timeoutField = ui.add(new TextField(timeoutText, v -> timeoutText = v)
-                    .numeric().underlined(true));
-            timeoutField.setBounds(x + w - RIGHT_INSET - NUM_FIELD_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
-                    NUM_FIELD_W, NumenStyle.CONTROL_H);
-            ry += SettingsRows.ROW_H;
-
-            SettingsRows.label(ui, t("numen.brain.hidden_tools"), x, ry, HIDDEN_LABEL_W);
-            hiddenText = hiddenText != null ? hiddenText : String.join(", ", cfg.hiddenTools());
-            int hiddenW = w - RIGHT_INSET - HIDDEN_LABEL_W - 8;
-            TextField hiddenField = ui.add(new TextField(hiddenText, v -> hiddenText = v)
-                    .placeholder(t("numen.brain.hidden_hint")).underlined(true));
-            hiddenField.setBounds(x + w - RIGHT_INSET - hiddenW, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
-                    hiddenW, NumenStyle.CONTROL_H);
-            ry += SettingsRows.ROW_H;
-
-            saveButton = ui.add(new Button(saveLabel(), Button.Style.NORMAL, this::save));
-            saveButton.setBounds(x + w - RIGHT_INSET - SAVE_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
-                    SAVE_W, NumenStyle.CONTROL_H);
+        // 高级设置的行一直摆着,开合只是露出多高(见 revealedH):行不重建,没保存的输入也不丢
+        ry += SettingsRows.ROW_H;
+        // 端口与「允许局域网」= 上面那条地址的两截。后者是 host 的人话面:关=127.0.0.1,
+        // 开=0.0.0.0。玩家不必知道那五个字符,想绑具体网卡的高级用户改
+        // config/numen/mcp_server.json —— 配置文件就是逃生舱。
+        SettingsRows.label(ui, t("numen.brain.port"), x, ry, w - NUM_FIELD_W - 8);
+        portText = portText != null ? portText : String.valueOf(cfg.port());
+        portField = ui.add(new TextField(portText, v -> {
+            portText = v;
             refreshSaveState();
-            ry += SettingsRows.ROW_H;
+        }).numeric());
+        portField.setBounds(x + w - RIGHT_INSET - NUM_FIELD_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
+                NUM_FIELD_W, NumenStyle.CONTROL_H);
+        ry += SettingsRows.ROW_H;
 
-            // 上面那四行要点保存才算数,下面这个拨了就算——分成两组,中间一道宽缝,别让人以为还得保存。
-            SettingsRows.gap(ui, x, ry, w);
-            ry += SettingsRows.GAP_H;
+        lanRow = ry;
+        SettingsRows.label(ui, t("numen.brain.lan"), x, ry, w - 28);
+        Toggle lan = ui.add(new Toggle(lanNow(), on -> {
+            lanOn = on;
+            refreshSaveState();
+        }));
+        lan.setBounds(x + w - 24, SettingsRows.controlY(ry, 11), 22, 11);
+        ry = noteBelow(lanRow) + 9 + 3;
 
-            SettingsRows.label(ui, I18n.get("numen.brain.quiet_toggle", McpMode.QUIET_AFTER_MS / 60_000L),
-                    x, ry, w - 28);
-            Toggle quiet = ui.add(new Toggle(cfg.quietFallback(),
-                    McpMode.instance()::setQuietFallback));
-            quiet.setBounds(x + w - 24, SettingsRows.controlY(ry, 11), 22, 11);
-            bottom = ry + SettingsRows.ROW_H;
-        }
+        SettingsRows.label(ui, t("numen.brain.timeout"), x, ry, w - NUM_FIELD_W - 8);
+        timeoutText = timeoutText != null ? timeoutText
+                : String.valueOf(cfg.callTimeoutSeconds());
+        TextField timeoutField = ui.add(new TextField(timeoutText, v -> timeoutText = v)
+                .numeric());
+        timeoutField.setBounds(x + w - RIGHT_INSET - NUM_FIELD_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
+                NUM_FIELD_W, NumenStyle.CONTROL_H);
+        ry += SettingsRows.ROW_H;
+
+        SettingsRows.label(ui, t("numen.brain.hidden_tools"), x, ry, HIDDEN_LABEL_W);
+        hiddenText = hiddenText != null ? hiddenText : String.join(", ", cfg.hiddenTools());
+        int hiddenW = w - RIGHT_INSET - HIDDEN_LABEL_W - 8;
+        TextField hiddenField = ui.add(new TextField(hiddenText, v -> hiddenText = v)
+                .placeholder(t("numen.brain.hidden_hint")));
+        hiddenField.setBounds(x + w - RIGHT_INSET - hiddenW, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
+                hiddenW, NumenStyle.CONTROL_H);
+        ry += SettingsRows.ROW_H;
+
+        saveButton = ui.add(new Button(saveLabel(), Button.Style.NORMAL, this::save));
+        saveButton.setBounds(x + w - RIGHT_INSET - SAVE_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
+                SAVE_W, NumenStyle.CONTROL_H);
+        refreshSaveState();
+        ry += SettingsRows.ROW_H;
+
+        // 上面那四行要点保存才算数,下面这个拨了就算——分成两组,中间一道宽缝,别让人以为还得保存。
+        SettingsRows.gap(ui, x, ry, w);
+        ry += SettingsRows.GAP_H;
+
+        SettingsRows.label(ui, I18n.get("numen.brain.quiet_toggle", McpMode.QUIET_AFTER_MS / 60_000L),
+                x, ry, w - 28);
+        Toggle quiet = ui.add(new Toggle(cfg.quietFallback(),
+                McpMode.instance()::setQuietFallback));
+        quiet.setBounds(x + w - 24, SettingsRows.controlY(ry, 11), 22, 11);
+        fullH = ry + SettingsRows.ROW_H - top;
 
         // 视口到话筒那一行为止;内容装不下就滚,装得下连拇指都不画。
         // 视口左右各放宽一圈内边距:组间宽缝铺满整页宽,不能被裁在内容边上。
-        scroll.measure(ui, x - NumenStyle.PAD, top, w + NumenStyle.PAD * 2, msgRow - 4 - top, bottom - top);
+        scroll.measure(ui, x - NumenStyle.PAD, top, w + NumenStyle.PAD * 2, msgRow - 4 - top, revealedH());
+    }
+
+    /** 此刻露出的内容高:随高级设置的开合在 baseH 与 fullH 之间走。 */
+    private int revealedH() {
+        return baseH + Math.round((fullH - baseH) * advanced.value());
     }
 
     /** 地址、令牌两行标签的宽:值从右往左排,标签只要自己那几个字。 */
@@ -328,7 +332,7 @@ public final class BrainPanel {
     private void askRegenerate() {
         confirm.open(fixedUi, dimX, dimY, dimW, dimH,
                 t("numen.brain.regen_confirm_title") + "\n" + t("numen.brain.regen_confirm_body"),
-                t("numen.gui.settings.cancel"), t("numen.brain.regenerate"),
+                t(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), t("numen.brain.regenerate"),
                 () -> {
                     McpConfig cfg = McpMode.instance().config();
                     McpMode.instance().applySettings(cfg.host(), cfg.port(),
@@ -347,6 +351,7 @@ public final class BrainPanel {
 
     public void render(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, long nowMs) {
         McpMode mcp = McpMode.instance();
+        if (advanced.step(nowMs)) scroll.resize(revealedH());
 
         scroll.beginClip(s);
         int dy = -scroll.offset();
@@ -355,7 +360,7 @@ public final class BrainPanel {
         rightValue(s, mcp.endpoint(), valueX, x + w - ICON_BTN - 4, endpointRow + dy, c.accent());
         rightValue(s, tokenText(), valueX, x + w - ICON_BTN - ICON_PITCH - 4, tokenRow + dy,
                 mcp.token().isBlank() ? c.textMuted() : c.accent());
-        if (advanced) {
+        if (advanced.value() > 0f) {
             // 绑到所有网卡这件事本身会成功,只是降级——按自家判据是 warning 不是 danger。
             // 但令牌为空时它就变成"这次保存不该发生",那才是 danger。
             if (lanNow()) {
@@ -380,7 +385,7 @@ public final class BrainPanel {
         s.drawText(TextClip.fit(s, t("numen.brain.prompt_warn"), w - promptW - 8),
                 x + promptW + 8,
                 NumenStyle.centerIn(footerRow, NumenStyle.CONTROL_H, s.lineHeight()),
-                c.textMuted(), false);
+                c.textSecondary(), false);
         // 话筒那一行平时空着,只有起服失败时说话(回执胶囊也落在这儿)。
         String err = mcp.lastError();
         if (err != null) {

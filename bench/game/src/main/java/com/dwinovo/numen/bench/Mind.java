@@ -4,6 +4,7 @@ import com.dwinovo.numen.api.agent.http.CancelToken;
 import com.dwinovo.numen.api.agent.http.LlmHttpException;
 import com.dwinovo.numen.api.agent.llm.LlmEndpoint;
 import com.dwinovo.numen.api.agent.llm.NumenLlmClient;
+import com.dwinovo.numen.api.agent.loop.Cause;
 import com.dwinovo.numen.api.agent.loop.ModelOutcome;
 import com.dwinovo.numen.api.agent.loop.ModelRequest;
 import com.dwinovo.numen.api.agent.provider.AssistantTurn;
@@ -24,7 +25,7 @@ import java.util.function.Consumer;
 interface Mind {
 
     /** 现在发不了请求的理由;能发是 null。 */
-    String unavailable();
+    Cause unavailable();
 
     /** 答这一次。{@code done} 恰好调一次,可以在任何线程上;取消之后调不调都行,调了也会被丢掉。 */
     void ask(ModelRequest request, CancelToken cancel, Consumer<ModelOutcome> done);
@@ -47,10 +48,6 @@ interface Mind {
             String b = body.toLowerCase(java.util.Locale.ROOT);
             return status == 400 && b.contains("context") && (b.contains("length") || b.contains("maximum"));
         }
-
-        String words() {
-            return status == 0 ? "network: " + body : "HTTP " + status + ": " + body;
-        }
     }
 
     /** 真实模型:产品同一个客户端({@link NumenLlmClient}),同一种调用。 */
@@ -64,8 +61,8 @@ interface Mind {
         }
 
         @Override
-        public String unavailable() {
-            return endpoint.hasApiKey() ? null : "没有 API key(环境变量 " + Settings.KEY_ENV + ")";
+        public Cause unavailable() {
+            return endpoint.hasApiKey() ? null : Cause.of(Cause.NO_KEY, "环境变量 " + Settings.KEY_ENV);
         }
 
         /** 不要流式增量:评测不落思考,正文等整条回复。 */
@@ -74,7 +71,7 @@ interface Mind {
             CompletableFuture<NumenLlmClient.ChatResult> result;
             try {
                 result = NumenLlmClient.forEndpoint(endpoint).chatStreaming(request.messages(), request.tools(),
-                        request.systemPrompt(), cancel, null);
+                        request.systemPrompt(), null, cancel, null);
             } catch (RuntimeException ex) {
                 result = CompletableFuture.failedFuture(ex);
             }
@@ -82,7 +79,7 @@ interface Mind {
                 if (err != null) {
                     Failure failure = failure(err);
                     lastFailure = failure;
-                    done.accept(new ModelOutcome.Failed(failure.words(), false));
+                    done.accept(new ModelOutcome.Failed(Cause.fromError(err), false));
                     return;
                 }
                 done.accept(new ModelOutcome.Answered(res.turn(), res.usage()));
@@ -123,7 +120,7 @@ interface Mind {
         }
 
         @Override
-        public String unavailable() {
+        public Cause unavailable() {
             return null;
         }
 

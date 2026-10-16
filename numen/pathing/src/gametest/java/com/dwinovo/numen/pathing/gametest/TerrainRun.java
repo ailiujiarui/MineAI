@@ -12,6 +12,10 @@ import com.dwinovo.numen.pathing.drive.Journal;
 import com.dwinovo.numen.pathing.plan.Threats;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import com.dwinovo.numen.pathing.plan.Permit;
+import com.dwinovo.numen.pathing.plan.TerrainPolicy;
 import net.minecraft.world.level.block.Blocks;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -50,6 +54,10 @@ final class TerrainRun {
     private TestBody body;
     private Navigation navigation;
     private int waited;
+    /** 下令那一刻的墙钟,与身体头一次挪动那一刻的墙钟(下令到开始走用了多久)。 */
+    private long orderedNanos;
+    private long movedNanos;
+    private net.minecraft.world.phys.Vec3 startedAt;
     private float lowestHealth = Float.MAX_VALUE;
     /** 开跑前挖空的格子原来的样子。 */
     private final Map<BlockPos, BlockState> carved = new LinkedHashMap<>();
@@ -105,6 +113,14 @@ final class TerrainRun {
                             level.setBlock(cell, Blocks.AIR.defaultBlockState(), 2);
                         }
                     }
+                    if (route.stage() != null) {
+                        for (TerrainRoutes.Fill fill : route.stage().fills()) {
+                            for (BlockPos cell : BlockPos.betweenClosed(fill.box().min(), fill.box().max())) {
+                                carved.putIfAbsent(cell.immutable(), level.getBlockState(cell));
+                                level.setBlock(cell, fill.block().defaultBlockState(), 2);
+                            }
+                        }
+                    }
                     if (route.buried() && !sealedInRock(route.to())) {
                         helper.fail("路线常量过期:终点 " + route.to().toShortString() + " 不是封闭在实心方块里的一格");
                         restore();
@@ -125,7 +141,9 @@ final class TerrainRun {
             case SPAWNED -> {
                 // 出生无敌期里摔落不掉血,等过了再走,记的最低血量才有意义
                 if (++waited > Trial.SPAWN_INVULNERABILITY) {
-                    Navigator navigator = Navigator.of(body, new Ports(Trial.ALLOW_ALL, Trial.NO_MATERIALS, Threats.NONE));
+                    Navigator navigator = Navigator.of(body, ports());
+                    startedAt = body.position();
+                    orderedNanos = System.nanoTime();
                     navigation = navigator.drive(NavRequest.to(route.goal(), WALKING));
                     phase = Phase.WALKING;
                 }
@@ -168,6 +186,37 @@ final class TerrainRun {
         return true;
     }
 
+    /** 许可与垫路料:悬空场地的路线带自己的禁区与圆石,别的路线什么都放行、身上什么料都没有。 */
+    private Ports ports() {
+        TerrainRoutes.Stage stage = route.stage();
+        if (stage == null) {
+            return new Ports(Trial.ALLOW_ALL, Trial.NO_MATERIALS, Threats.NONE);
+        }
+        TerrainPolicy policy = stage.noEdit().isEmpty() ? Trial.ALLOW_ALL : (change, pos, state, view) -> {
+            for (TerrainRoutes.Box zone : stage.noEdit()) {
+                if (pos.getX() >= zone.min().getX() && pos.getX() <= zone.max().getX() && pos.getY() >= zone.min().getY()
+                        && pos.getY() <= zone.max().getY() && pos.getZ() >= zone.min().getZ() && pos.getZ() <= zone.max().getZ()) {
+                    return Permit.deny("forbidden zone");
+                }
+            }
+            return Permit.ALLOW;
+        };
+        if (stage.cobblestone() == 0) {
+            return new Ports(policy, Trial.NO_MATERIALS, Threats.NONE);
+        }
+        body.getInventory().add(new ItemStack(Items.COBBLESTONE, stage.cobblestone()));
+        return new Ports(policy, Trial.carried(body, Blocks.COBBLESTONE), Threats.NONE);
+    }
+
+    /** 到了才算过;悬空场地的硬挡路线,没到、收场的结局满足它自己写的预期才算过。 */
+    private boolean passed(NavStatus status) {
+        TerrainRoutes.Stage stage = route.stage();
+        if (stage == null) {
+            return status.state() == NavStatus.State.ARRIVED;
+        }
+        return status.state() == NavStatus.State.FAILED && stage.expected().test(status.outcome());
+    }
+
     private void walk() {
         NavStatus status = navigation.tick();
         while (navigation.waiting()) {
@@ -175,6 +224,9 @@ final class TerrainRun {
             status = navigation.tick();
         }
         lowestHealth = Math.min(lowestHealth, body.getHealth());
+        if (movedNanos == 0 && body.position().distanceToSqr(startedAt) > 0.05 * 0.05) {
+            movedNanos = System.nanoTime();
+        }
         boolean overdue = status.running() && navigation.report().ticks() >= route.limit();
         if (status.running() && !overdue) {
             return;
@@ -188,10 +240,10 @@ final class TerrainRun {
         body.leave();
         restore();
         summarize(record);
-        if (status.state() == NavStatus.State.ARRIVED) {
+        if (passed(status)) {
             helper.succeed();
         } else {
-            helper.fail((overdue ? "超时 " + route.limit() + " 刻没走到:" : "没走到:") + status.state() + " " + status.outcome()
+            helper.fail((overdue ? "超时 " + route.limit() + " 刻没收场:" : route.stage() != null ? "结局不是预期的:" : "没走到:") + status.state() + " " + status.outcome()
                     + ",身体在 " + body.blockPosition().toShortString());
         }
     }
@@ -222,7 +274,15 @@ final class TerrainRun {
         o.addProperty("ticks", report.ticks());
         o.addProperty("limit", route.limit());
         o.addProperty("searches", journal.searches());
-        o.addProperty("budgetStops", journal.budgetStops());
+        o.addProperty("learned", journal.learned());
+        o.addProperty("routeCost", Math.round(journal.routeCost() * 10) / 10.0);
+        JsonArray searchMs = new JsonArray();
+        journal.searchNanos().forEach(n -> searchMs.add(Math.round(n / 1e5) / 10.0));
+        o.add("searchMs", searchMs);
+        JsonArray gaps = new JsonArray();
+        journal.gaps().forEach(g -> gaps.add(Double.isNaN(g) ? -1 : Math.round(g * 100) / 100.0));
+        o.add("gaps", gaps);
+        o.addProperty("startMs", movedNanos == 0 ? -1 : Math.round((movedNanos - orderedNanos) / 1e5) / 10.0);
         JsonArray expansions = new JsonArray();
         journal.expansions().forEach(expansions::add);
         o.add("expansions", expansions);
@@ -258,12 +318,12 @@ final class TerrainRun {
                 return;
             }
             LOG.info("[terrain-table] {}", String.format("%-14s %-8s %6s %5s %5s %6s %6s %6s %7s %7s %7s %6s %5s %5s", "route", "arrived",
-                    "dist", "rise", "limit", "ticks", "search", "budget", "expand", "replan", "blocked", "stuck", "steps", "hp"));
+                    "dist", "rise", "limit", "ticks", "search", "learned", "expand", "replan", "blocked", "stuck", "steps", "hp"));
             for (JsonObject o : DONE) {
                 LOG.info("[terrain-table] {}", String.format("%-14s %-8s %6.1f %5d %5d %6d %6d %6d %7d %7d %7d %6d %5d %5.1f",
                         o.get("route").getAsString(), o.get("state").getAsString(), o.get("distance").getAsDouble(),
                         o.get("rise").getAsInt(), o.get("limit").getAsInt(), o.get("ticks").getAsInt(),
-                        o.get("searches").getAsInt(), o.get("budgetStops").getAsInt(), o.get("expanded").getAsInt(), o.get("replans").getAsInt(), o.get("blocked").getAsInt(),
+                        o.get("searches").getAsInt(), o.get("learned").getAsInt(), o.get("expanded").getAsInt(), o.get("replans").getAsInt(), o.get("blocked").getAsInt(),
                         o.get("stuck").getAsInt(), o.get("steps").getAsInt(), o.get("lowestHealth").getAsFloat()));
             }
             DONE.clear();

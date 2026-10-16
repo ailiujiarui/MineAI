@@ -1,40 +1,62 @@
 package com.dwinovo.numen.api.client.screen.settings;
 
+import com.dwinovo.numen.api.agent.catalog.Api;
+import com.dwinovo.numen.api.agent.catalog.Catalog;
+import com.dwinovo.numen.api.agent.catalog.ModelInfo;
+import com.dwinovo.numen.api.agent.catalog.ProviderInfo;
+import com.dwinovo.numen.api.agent.catalog.ThinkingLevel;
+import com.dwinovo.numen.api.agent.llm.ConnectionProfile;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
 import com.dwinovo.numen.api.agent.llm.LlmEndpoint;
 import com.dwinovo.numen.api.agent.llm.NumenLlmClient;
-import com.dwinovo.numen.api.agent.provider.LlmProvider;
-import com.dwinovo.numen.api.agent.provider.ProviderRegistry;
-import com.dwinovo.numen.api.client.agent.LlmErrorWords;
+import com.dwinovo.numen.api.agent.llm.ProviderLibrary;
+import com.dwinovo.numen.api.agent.provider.ThinkingPlan;
+import com.dwinovo.numen.api.agent.loop.Cause;
+import com.dwinovo.numen.api.client.agent.CauseWords;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
+import com.dwinovo.numen.api.client.ui.TokenFormat;
 import com.dwinovo.numen.api.client.ui.widget.Button;
+import com.dwinovo.numen.api.client.ui.widget.Disclosure;
 import com.dwinovo.numen.api.client.ui.widget.Dropdown;
 import com.dwinovo.numen.api.client.ui.widget.InlineAlert;
 import com.dwinovo.numen.api.client.ui.widget.Label;
+import com.dwinovo.numen.api.client.ui.widget.PickField;
+import com.dwinovo.numen.api.client.ui.widget.PickerBox;
+import com.dwinovo.numen.api.client.ui.widget.Reveal;
 import com.dwinovo.numen.api.client.ui.widget.ScrollBox;
+import com.dwinovo.numen.api.client.ui.widget.TagRow;
 import com.dwinovo.numen.api.client.ui.widget.TextField;
 import com.dwinovo.numen.api.client.ui.widget.UiRoot;
-import com.dwinovo.numen.api.platform.Services;
+import com.dwinovo.numen.api.data.ModLanguageData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * 模型配置(档案)的编辑表单——NumenUI 版的瓤,替换旧表单缺的全套:
  * 检测按钮、思考开关、推理强度、toast、分类报错。档案思想不变:多份具名
  * 配置,创建同伴时自选。编辑的是 {@link Draft} 草稿,保存才落库(与旧表单
  * 同语义);检测直接测草稿当前值,存不存都能先试。
+ *
+ * <p>表单只组装:厂家、型号是长列表,点开是通用的 {@link PickerBox},列什么、怎么排由这里从目录取了交给它;
+ * 能力(上下文、思考档位)一律取自目录或 {@link ProviderLibrary#resolve} 的解析结果,这里不另算。
+ * 草稿一变就整张表单按草稿重排({@link #relayout}),输入框的值本来就在草稿里,不会丢。
  */
-import com.dwinovo.numen.api.data.ModLanguageData;
-
 public final class ProfileFormPanel {
 
-    /** 表单草稿:与 ProviderLibrary.Entry 的字段一一对应(id 由宿主管理)。 */
+    /**
+     * 表单草稿:与档案({@link ConnectionProfile})一一对应(id 由宿主管理)。界面不开放编辑的档案字段
+     * (兼容项覆盖)原样带着走,保存不丢。
+     */
     public static final class Draft {
         public String name = "";
         public String provider = "";
@@ -42,9 +64,55 @@ public final class ProfileFormPanel {
         public String apiKey = "";
         public String baseUrl = "";
         public String reasoningEffort = "";
-        /** 上下文长度(tokens);空 = 按模型表自动。 */
+        /** 上下文长度(tokens);空 = 按型号目录自动。 */
         public String ctx = "";
         public String proxy = "";
+        /** 温度;空 = 不发。 */
+        public String temperature = "";
+        /** 输出上限(tokens);空 = 不发。 */
+        public String maxTokens = "";
+        private String protocol = "";
+        private com.google.gson.JsonObject compat;
+
+        public static Draft of(String name, ConnectionProfile p) {
+            Draft d = new Draft();
+            d.name = nz(name);
+            d.provider = nz(p.provider());
+            d.model = nz(p.model());
+            d.apiKey = nz(p.apiKey());
+            d.baseUrl = nz(p.baseUrl());
+            d.reasoningEffort = nz(p.reasoningEffort());
+            d.ctx = p.ctx() > 0 ? String.valueOf(p.ctx()) : "";
+            d.proxy = nz(p.proxy());
+            d.protocol = nz(p.protocol());
+            d.temperature = p.temperature() == null ? "" : String.valueOf(p.temperature());
+            d.maxTokens = p.maxTokens() > 0 ? String.valueOf(p.maxTokens()) : "";
+            d.compat = p.compat();
+            return d;
+        }
+
+        public ConnectionProfile toProfile() {
+            return new ConnectionProfile(provider, protocol, model, apiKey, baseUrl, proxy, reasoningEffort,
+                    parseCount(ctx), parseTemperature(temperature), parseCount(maxTokens), compat);
+        }
+
+        /** 个数输入:空/非数字/非正数一律 0(= 没填)。 */
+        private static int parseCount(String raw) {
+            try {
+                return Math.max(0, Integer.parseInt(raw == null ? "" : raw.trim()));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+
+        /** 温度输入:空/不是数字 = null(不发)。 */
+        private static Double parseTemperature(String raw) {
+            try {
+                return Double.valueOf(raw == null ? "" : raw.trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
     }
 
     /** 滚动根:表单行(进裁剪区,可上下滚);固定根:结果胶囊/按钮行(不动)。 */
@@ -57,19 +125,23 @@ public final class ProfileFormPanel {
     private final ScrollBox scroll = new ScrollBox();
 
     private Draft draft = new Draft();
-    private List<ProviderRegistry.Provider> sites = List.of();
 
-    private TextField nameField, keyField, modelField, baseUrlField, proxyField, ctxField;
-    private Dropdown sitePick, modelDropdown, thinkingPick;
-    private Button modelBackBtn;
-    private Label thinkingLabel;
-    private boolean thinkingToggleOnly;
+    /** 最近一次 build 的几何:草稿变了要按同样的几何重排。 */
+    private int x, y, w, h;
+    /** 设置窗口与屏幕相交的可见部分,由宿主给:选择框的遮罩、下拉的可用区域都按它算。 */
+    private UiRoot.Viewport window = UiRoot.Viewport.UNBOUNDED;
+    /** 高级一节开合的进度;跨重排保留,过渡不被打断。 */
+    private final Reveal advanced = new Reveal();
+    /** 高级一节收着时内容到哪(相对表单顶)、全开时到哪;每帧按 {@link #advanced} 在两者之间取。 */
+    private int baseH, fullH;
+    /** 厂家、型号共用的选择框;随每次重排换新(它的搜索框是屏幕上的真输入框,屏幕重建时一起没了)。 */
+    private PickerBox picker = new PickerBox();
+
+    private TextField nameField, keyField, baseUrlField;
     private Button checkButton;
     private InlineAlert resultAlert;
     private volatile boolean checking;
-    /** 模型行双态:预设下拉(含"自定义…") ↔ 自由输入(▾ 可回预设)。 */
-    private boolean customModel;
-    private List<String> siteModelIds = List.of();
+    private List<ThinkingLevel> thinkingLevels = List.of(ThinkingLevel.AUTO);
 
     public ProfileFormPanel(Consumer<Draft> onSave, Runnable onCancel) {
         this.onSave = onSave;
@@ -85,101 +157,168 @@ public final class ProfileFormPanel {
     /** 载入待编辑的草稿(新建=空草稿;编辑=从条目拷来)。宿主随后 build。 */
     public void open(Draft d) {
         this.draft = d;
+        this.advanced.snap(false);
     }
 
-    private int formW;
+    /** 下拉与选择框不得越出的区域(通常是整个设置窗口)。在 build 之前给。 */
+    public void setWindow(UiRoot.Viewport window) {
+        this.window = window;
+    }
 
-    public void build(int x, int y, int w, int h, int viewportBottom) {
-        this.formW = w;
+    public void build(int x, int y, int w, int h) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
         ui.clear();
         fixedUi.clear();
-        ui.setViewportHeight(viewportBottom);
+        ui.setViewport(window);
+        picker = new PickerBox();
 
-        sites = new ArrayList<>(ProviderRegistry.providers());
         if (draft.provider == null || draft.provider.isBlank()) {
-            if (!sites.isEmpty()) adaptToSite(sites.get(0), false);
+            List<ProviderInfo> popular = catalog().popular();
+            adaptToVendor(popular.isEmpty() ? ConnectionProfile.CUSTOM : popular.get(0).id());
         }
+        ProviderInfo vendor = vendor();
+        ModelInfo model = model();
 
         int ry = y;
-        Label nameLabel = labelWidget(x, ry, "numen.provider.form_name");
+        Label nameLabel = labelWidget(x, ry, ModLanguageData.Keys.PROVIDER_FORM_NAME);
         ry += NumenStyle.LABEL_PITCH;
-        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).underlined(true).withLabel(nameLabel));
+        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
-        ry = label(x, ry, "numen.provider.form_provider");
-        List<String> siteNames = new ArrayList<>();
-        for (ProviderRegistry.Provider p : sites) siteNames.add(p.name());
-        sitePick = ui.add(new Dropdown(siteNames, indexOfSite(draft.provider), this::onSitePicked));
-        sitePick.setBounds(x, ry, w, NumenStyle.CONTROL_H);
+        ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_VENDOR);
+        PickField vendorField = ui.add(new PickField(vendorName(vendor),
+                vendor == null ? "" : vendor.host(), this::openVendorPicker));
+        vendorField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
-        Label keyLabel = labelWidget(x, ry, "numen.gui.settings.api_key");
+        baseUrlField = null;
+        if (vendor == null) {
+            // 自定义厂家(或目录里已经没有的厂家):地址和协议全由档案给
+            ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_URL);
+            baseUrlField = addBaseUrlField(x, ry);
+            ry += NumenStyle.ROW_PITCH;
+
+            ry = label(x, ry, ModLanguageData.Keys.PROVIDER_FORM_PROVIDER);
+            List<String> protocols = List.of(t(ModLanguageData.Keys.GUI_PROVIDERS_PROTO_CHAT),
+                    t(ModLanguageData.Keys.GUI_PROVIDERS_PROTO_RESPONSES),
+                    t(ModLanguageData.Keys.GUI_PROVIDERS_PROTO_ANTHROPIC));
+            Dropdown protocol = ui.add(new Dropdown(protocols, protocolIndex(), i -> draft.protocol = Api.values()[i].id()));
+            protocol.setBounds(x, ry, w, NumenStyle.CONTROL_H);
+            ry += NumenStyle.ROW_PITCH;
+        }
+
+        ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_MODEL);
+        PickField modelField = ui.add(new PickField(model == null ? draft.model : model.name(), draft.model,
+                this::openModelPicker).placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL)));
+        modelField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
+        List<TagRow.Tag> tags = modelTags(model);
+        var font = Minecraft.getInstance().font;
+        int tagsH = TagRow.height(font::width, font.lineHeight + 2, tags, w);
+        if (tagsH > 0) {
+            TagRow row = ui.add(new TagRow(tags));
+            row.setBounds(x, ry + NumenStyle.CONTROL_H + 3, w, tagsH);
+            ry += NumenStyle.CONTROL_H + 3 + tagsH + 5;
+        } else {
+            ry += NumenStyle.ROW_PITCH;
+        }
+
+        Label keyLabel = labelWidget(x, ry, ModLanguageData.Keys.GUI_SETTINGS_API_KEY);
         ry += NumenStyle.LABEL_PITCH;
-        keyField = ui.add(new TextField(draft.apiKey, v -> draft.apiKey = v).masked(true).underlined(true)
+        keyField = ui.add(new TextField(draft.apiKey, v -> draft.apiKey = v).masked(true)
                 .withLabel(keyLabel));
         keyField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
-        // 模型行双态:有预设的站点默认整宽下拉(预设+自定义…);选"自定义…"
-        // 切换成输入框,▾ 按钮随时回预设。无预设的站点(本地/自建)直接输入框。
-        ry = label(x, ry, "numen.gui.settings.model");
-        modelDropdown = ui.add(new Dropdown(List.of(), 0, this::onModelDropdownPicked));
-        modelDropdown.setBounds(x, ry, w, NumenStyle.CONTROL_H);
-        modelField = ui.add(new TextField(draft.model, v -> draft.model = v).underlined(true));
-        modelField.setBounds(x, ry, w - 17, NumenStyle.CONTROL_H);
-        modelBackBtn = ui.add(new Button("▾", Button.Style.NORMAL, this::onModelBackToPresets));
-        modelBackBtn.setBounds(x + w - 15, ry, 15, NumenStyle.CONTROL_H);
-        ry += NumenStyle.ROW_PITCH;
+        // 单一自适应思考控件:列哪几档、每档右边的说明都来自解析出的端点的思考计划——请求体写的也是它,
+        // 所以选得到的每一档都真会改变请求。计划里只剩自动(型号不支持、手填的型号、这个端点发不出)时整栏不出。
+        ThinkingPlan plan = preview().thinkingPlan();
+        thinkingLevels = plan.steps().stream().map(ThinkingPlan.Step::level).toList();
+        if (!plan.autoOnly()) {
+            ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_THINKING);
+            List<String> levelNames = new ArrayList<>();
+            List<String> levelNotes = new ArrayList<>();
+            for (ThinkingPlan.Step step : plan.steps()) {
+                levelNames.add(levelLabel(step));
+                levelNotes.add(levelNote(step.wire()));
+            }
+            Dropdown thinking = ui.add(new Dropdown(levelNames,
+                    thinkingLevels.indexOf(plan.effective(ThinkingLevel.byId(draft.reasoningEffort))),
+                    this::onThinkingPicked).details(levelNotes));
+            thinking.setBounds(x, ry, Math.min(w, 260), NumenStyle.CONTROL_H);
+            ry += NumenStyle.ROW_PITCH;
+        }
 
-        ry = label(x, ry, "numen.gui.settings.base_url");
-        baseUrlField = ui.add(new TextField(draft.baseUrl, v -> draft.baseUrl = v).underlined(true));
-        baseUrlField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
-        ry += NumenStyle.ROW_PITCH;
-
-        // 上下文长度:自定义端点/表里没有的模型才需要填;空着按模型表走,查不到 64k。
-        // 压缩闸门与面板水位都按这个窗口算——填错太小会提前压缩,填错太大会顶爆上游。
-        ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_CTX);
-        ctxField = ui.add(new TextField(draft.ctx, v -> draft.ctx = v).numeric()
-                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_CTX_HINT)).underlined(true));
-        ctxField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
-        ry += NumenStyle.ROW_PITCH;
-
+        Disclosure adv = ui.add(new Disclosure(t("numen.brain.advanced"), advanced));
+        adv.setBounds(x, ry, w, NumenStyle.CONTROL_H);
+        baseH = ry + NumenStyle.CONTROL_H - y;
+        // 高级一节的行一直摆着,开合只是露出多高(见 applyReveal):行不重建,输入框里的字也不丢
+        ry += NumenStyle.CONTROL_H + 4;
+        if (vendor != null) {
+            // 自定义厂家的地址已经在上面,这里不再放第二个入口
+            ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_BASE_OVERRIDE);
+            baseUrlField = addBaseUrlField(x, ry);
+            ry += NumenStyle.ROW_PITCH;
+        }
         // 代理按档案走:国内外站点常需不同走线,留空跟随全局(/numen 里设)。
         ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_PROXY);
-        proxyField = ui.add(new TextField(draft.proxy, v -> draft.proxy = v)
-                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_PROXY_HINT)).underlined(true));
+        TextField proxyField = ui.add(new TextField(draft.proxy, v -> draft.proxy = v)
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_PROXY_HINT)));
         proxyField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
-        // 单一自适应思考控件(主流形态):力度型站点出 自动/关闭/低/中/高,
-        // 开关型出 自动/开启/关闭,常开型隐藏——后端两参数的复杂度不泄漏给用户。
-        thinkingLabel = ui.add(new Label(t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING), Label.Role.MUTED));
-        thinkingLabel.setBounds(x, ry, 100, 9);
-        ry += NumenStyle.LABEL_PITCH;
-        thinkingPick = ui.add(new Dropdown(List.of(), 0, this::onThinkingPicked));
-        thinkingPick.setBounds(x, ry, 110, NumenStyle.CONTROL_H);
+        // 上下文长度:压缩闸门与面板水位都按这个窗口算——填错太小会提前压缩,填错太大会顶爆上游。
+        ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_CTX);
+        TextField ctxField = ui.add(new TextField(draft.ctx, v -> draft.ctx = v).numeric()
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_CTX_HINT)));
+        ctxField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
+        ry += NumenStyle.ROW_PITCH;
 
-        // ---- 滚动记账:视口到收尾行上方为止,内容高按最后一行的底边算 ----
+        // 温度与输出上限并排:都是“不填用厂家默认”的生成参数
+        int half = (w - 8) / 2;
+        labelWidgetAt(x, ry, half, ModLanguageData.Keys.GUI_PROVIDERS_TEMP);
+        labelWidgetAt(x + half + 8, ry, half, ModLanguageData.Keys.GUI_PROVIDERS_MAX_OUT);
+        ry += NumenStyle.LABEL_PITCH;
+        TextField temp = ui.add(new TextField(draft.temperature, v -> draft.temperature = v)
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)));
+        temp.setBounds(x, ry, half, NumenStyle.CONTROL_H);
+        TextField maxOut = ui.add(new TextField(draft.maxTokens, v -> draft.maxTokens = v).numeric()
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)));
+        maxOut.setBounds(x + half + 8, ry, half, NumenStyle.CONTROL_H);
+        fullH = ry + NumenStyle.CONTROL_H - y;
+
+        // ---- 滚动记账:视口到收尾行上方为止,内容高随高级一节的开合在 baseH 与 fullH 之间走 ----
         scroll.measure(ui, x, y, w,
                 NumenStyle.footerTop(y, h) - NumenStyle.HEADER_GAP - y,
-                (ry + NumenStyle.CONTROL_H) - y);
+                revealedH());
 
         // ---- 固定层:结果胶囊/按钮行——不随滚动 ----
-        // 页面级 Alert:表单区左右居中、垂直偏上悬浮——操作结果的家(字段错误才内联)。
+        // 页面级 Alert:贴在收尾行上方悬浮,和检测、保存同在表单底部——操作结果的家(字段错误才内联)。
         resultAlert = fixedUi.add(new InlineAlert());
-        resultAlert.setBounds(x, y + 2, w, 24);
+        resultAlert.setBounds(x, NumenStyle.footerTop(y, h) - 30, w, 24);
         checkButton = DialogButtons.left(fixedUi, x, y, h, this::runConnectivityCheck,
                 t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK), t(ModLanguageData.Keys.GUI_PROVIDERS_CHECKING));
         DialogButtons.cancelSave(fixedUi, x, y, w, h, onCancel, this::save);
+    }
 
-        refreshSiteDependent();
+    /** 草稿变了:按同样的几何整张重排(控件的值都从草稿来)。 */
+    private void relayout() {
+        build(x, y, w, h);
     }
 
     // ---- 宿主转发面 ----
 
+    /** 此刻露出的内容高。 */
+    private int revealedH() {
+        return baseH + Math.round((fullH - baseH) * advanced.value());
+    }
+
     public void render(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, long nowMs) {
-        // 表单行进裁剪区(滚出视口的部分不画);下拉弹层与固定层在裁剪区外。
+        if (advanced.step(nowMs)) scroll.resize(revealedH());
+        // 表单行进裁剪区(滚出视口的部分不画);下拉弹层、选择框与固定层在裁剪区外。
         scroll.beginClip(s);
         ui.renderContent(s, c, mouseX, mouseY, nowMs);
         scroll.endClip(s);
@@ -212,7 +351,7 @@ public final class ProfileFormPanel {
         return ui.hasOverlay() || fixedUi.hasOverlay();
     }
 
-    // ---- 内部 ----
+    // ---- 版式件 ----
 
     private int label(int lx, int ly, String key) {
         labelWidget(lx, ly, key);
@@ -221,139 +360,249 @@ public final class ProfileFormPanel {
 
     /** 标签控件本体:会报错的字段用 withLabel 认领它(出错时自动让位)。 */
     private Label labelWidget(int lx, int ly, String key) {
-        Label l = ui.add(new Label(t(key), Label.Role.MUTED));
-        l.setBounds(lx, ly, 200, 9);
+        return labelWidgetAt(lx, ly, 200, key);
+    }
+
+    private Label labelWidgetAt(int lx, int ly, int lw, String key) {
+        Label l = ui.add(new Label(t(key), Label.Role.SECONDARY));
+        l.setBounds(lx, ly, lw, 9);
         return l;
     }
 
-    private int indexOfSite(String providerId) {
-        String canon = ProviderRegistry.canonicalId(providerId);
-        for (int i = 0; i < sites.size(); i++) {
-            if (sites.get(i).id().equals(canon)) return i;
-        }
-        return sites.isEmpty() ? -1 : 0;
+    /** 地址输入:占位是目录给的缺省地址(不含档案里的覆盖)。 */
+    private TextField addBaseUrlField(int fx, int fy) {
+        TextField f = ui.add(new TextField(draft.baseUrl, v -> draft.baseUrl = v));
+        f.placeholder(preview().baseUrl());
+        f.setBounds(fx, fy, w, NumenStyle.CONTROL_H);
+        return f;
     }
 
-    private ProviderRegistry.Provider selectedSite() {
-        int idx = sitePick == null ? indexOfSite(draft.provider) : sitePick.selectedIndex();
-        return idx >= 0 && idx < sites.size() ? sites.get(idx) : null;
+    // ---- 目录与草稿 ----
+
+    private static Catalog catalog() {
+        return ProviderLibrary.instance().catalog();
     }
 
-    private void onSitePicked(int index) {
-        if (index < 0 || index >= sites.size()) return;
-        adaptToSite(sites.get(index), true);
-        refreshSiteDependent();
+    /** 草稿里的厂家;自定义厂家和目录里没有的厂家给 null。 */
+    private ProviderInfo vendor() {
+        return catalog().provider(nz(draft.provider));
     }
 
-    /** 站点变了:档案跟着换成该站默认模型;基址清空回站点默认(占位符提示)。 */
-    private void adaptToSite(ProviderRegistry.Provider site, boolean resetModel) {
-        draft.provider = site.id();
-        if (resetModel || draft.model == null || draft.model.isBlank()) {
-            draft.model = site.models().isEmpty() ? "" : site.models().get(0).id();
-            if (modelField != null) modelField.setValue(draft.model);
-        }
+    /** 草稿里的型号;目录里没有的(手填的、已弃用的)给 null。 */
+    private ModelInfo model() {
+        return catalog().model(nz(draft.provider), nz(draft.model));
+    }
+
+    private String vendorName(ProviderInfo vendor) {
+        if (vendor != null) return vendor.name();
+        return ConnectionProfile.CUSTOM.equals(draft.provider) ? t(ModLanguageData.Keys.GUI_PROVIDERS_CUSTOM)
+                : nz(draft.provider);
+    }
+
+    private int protocolIndex() {
+        Api api = Api.byId(draft.protocol);
+        return api == null ? 0 : api.ordinal();
+    }
+
+    /** 厂家变了:型号换成该厂家第一个能调工具的,思考回自动,地址与厂家专属的覆盖项清空回目录缺省。 */
+    private void adaptToVendor(String vendorId) {
+        draft.provider = vendorId;
+        draft.protocol = ConnectionProfile.CUSTOM.equals(vendorId) ? Api.CHAT.id() : "";
+        draft.compat = null;
+        draft.model = defaultModelId(vendorId);
+        draft.reasoningEffort = "";
         draft.baseUrl = "";
-        if (baseUrlField != null) baseUrlField.setValue("");
     }
 
-    /** 站点相关的联动刷新:模型候选、基址占位、思考控件按方言换形态。 */
-    private void refreshSiteDependent() {
-        ProviderRegistry.Provider site = selectedSite();
-        if (site == null) return;
+    private static String defaultModelId(String vendorId) {
+        ProviderInfo vendor = catalog().provider(vendorId);
+        if (vendor == null || vendor.models().isEmpty()) return "";
+        for (ModelInfo m : vendor.models()) {
+            if (m.toolCall()) return m.id();
+        }
+        return vendor.models().get(0).id();
+    }
 
-        siteModelIds = new ArrayList<>();
-        for (ProviderRegistry.Model m : site.models()) siteModelIds.add(m.id());
-        // 编辑既有档案:存的模型不在预设里 → 以自定义态打开(旧表单同语义)。
-        customModel = !siteModelIds.isEmpty() && draft.model != null
-                && !draft.model.isBlank() && !siteModelIds.contains(draft.model);
-        List<String> items = new ArrayList<>(siteModelIds);
-        items.add(t("numen.settings.custom_model"));
-        int sel = Math.max(0, siteModelIds.indexOf(draft.model));
-        modelDropdown.setItems(items, customModel ? items.size() - 1 : sel);
-        refreshModelRow();
-        baseUrlField.placeholder(site.baseUrl());
+    /** 草稿现在对应的端点,不含地址覆盖:取目录给的缺省地址与型号能力来展示。 */
+    private LlmEndpoint preview() {
+        return ProviderLibrary.instance().resolve(draft.toProfile().withBaseUrl(""));
+    }
 
-        String format = ProviderPanel.effectiveThinkingFormat(site);
-        boolean none = LlmProvider.THINKING_NONE.equals(format);
-        boolean toggleOnly = LlmProvider.THINKING_TYPE.equals(format)
-                || LlmProvider.THINKING_ENABLE_BOOL.equals(format);
-        thinkingLabel.setVisible(!none);
-        thinkingPick.setVisible(!none);
-        thinkingToggleOnly = toggleOnly;
-        if (!none) {
-            if (toggleOnly) {
-                thinkingPick.setItems(List.of(
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_AUTO),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_ON),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_OFF)),
-                        switch (nz(draft.reasoningEffort)) {
-                            case "off" -> 2;
-                            case "low", "medium", "high" -> 1;
-                            default -> 0;
-                        });
-            } else {
-                thinkingPick.setItems(List.of(
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_AUTO),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_OFF),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_LOW),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MEDIUM),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_HIGH)),
-                        switch (nz(draft.reasoningEffort)) {
-                            case "off" -> 1;
-                            case "low" -> 2;
-                            case "medium" -> 3;
-                            case "high" -> 4;
-                            default -> 0;
-                        });
+    /** 型号下面的能力小标签,数字和能力取自解析结果与目录;目录里没有的型号只标“手填的型号”。 */
+    private List<TagRow.Tag> modelTags(ModelInfo m) {
+        List<TagRow.Tag> tags = new ArrayList<>();
+        if (m == null) {
+            if (!nz(draft.model).isBlank()) tags.add(new TagRow.Tag(t(ModLanguageData.Keys.GUI_PROVIDERS_TAG_MANUAL), false));
+            return tags;
+        }
+        int ctx = preview().contextWindow();
+        if (ctx > 0) {
+            tags.add(new TagRow.Tag(t(ModLanguageData.Keys.GUI_PROVIDERS_TAG_CONTEXT, TokenFormat.capacity(ctx)), false));
+        }
+        if (m.maxOutput() > 0) {
+            tags.add(new TagRow.Tag(t(ModLanguageData.Keys.GUI_PROVIDERS_TAG_OUTPUT, TokenFormat.capacity(m.maxOutput())), false));
+        }
+        if (reasons(m)) tags.add(new TagRow.Tag(t(ModLanguageData.Keys.GUI_PROVIDERS_TAG_THINKING), false));
+        if (!m.inputs().isEmpty()) {
+            tags.add(new TagRow.Tag(t(ModLanguageData.Keys.GUI_PROVIDERS_TAG_MULTIMODAL,
+                    m.inputs().stream().map(ProfileFormPanel::modality).collect(Collectors.joining(" · "))), false));
+        }
+        if (!m.toolCall()) tags.add(new TagRow.Tag(t(ModLanguageData.Keys.GUI_PROVIDERS_TAG_NO_TOOLS), true));
+        return tags;
+    }
+
+    /** 能控制思考的型号:档位表里除了自动还有别的。 */
+    private static boolean reasons(ModelInfo m) {
+        return m.thinking().levels().size() > 1;
+    }
+
+    private static String modality(String id) {
+        return switch (id) {
+            case "text" -> t(ModLanguageData.Keys.GUI_PROVIDERS_MODALITY_TEXT);
+            case "image" -> t(ModLanguageData.Keys.GUI_PROVIDERS_MODALITY_IMAGE);
+            case "pdf" -> t(ModLanguageData.Keys.GUI_PROVIDERS_MODALITY_PDF);
+            case "audio" -> t(ModLanguageData.Keys.GUI_PROVIDERS_MODALITY_AUDIO);
+            case "video" -> t(ModLanguageData.Keys.GUI_PROVIDERS_MODALITY_VIDEO);
+            default -> id;
+        };
+    }
+
+    // ---- 选择框 ----
+
+    private void openVendorPicker() {
+        Catalog catalog = catalog();
+        Set<String> popularIds = catalog.popular().stream().map(ProviderInfo::id).collect(Collectors.toSet());
+        PickerBox.Labels labels = new PickerBox.Labels(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_VENDOR),
+                t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_VENDOR_HINT, catalog.providers().size()),
+                t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_SEARCH), pickerKeys(),
+                q -> t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_NO_MATCH, q));
+        picker.open(ui, window.left(), window.top(), window.right() - window.left(),
+                window.bottom() - window.top(), labels, null, q -> {
+            String lq = q.toLowerCase(Locale.ROOT);
+            List<PickerBox.Item> popular = catalog.popular().stream()
+                    .filter(p -> matches(lq, p.name(), p.id(), p.host())).map(this::vendorRow).toList();
+            List<PickerBox.Item> rest = catalog.providers().stream().filter(p -> !popularIds.contains(p.id()))
+                    .filter(p -> matches(lq, p.name(), p.id(), p.host()))
+                    .sorted(Comparator.comparing(ProviderInfo::name, String.CASE_INSENSITIVE_ORDER))
+                    .map(this::vendorRow).toList();
+            PickerBox.Item custom = new PickerBox.Item(ConnectionProfile.CUSTOM,
+                    t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_CUSTOM),
+                    t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_CUSTOM_DETAIL), List.of(), vendor() == null);
+            List<PickerBox.Item> customRow = matches(lq, custom.title(), custom.id(), custom.detail())
+                    ? List.of(custom) : List.of();
+            if (!q.isEmpty()) {   // 搜索时不分节
+                List<PickerBox.Item> all = new ArrayList<>(popular);
+                all.addAll(rest);
+                all.addAll(customRow);
+                return List.of(new PickerBox.Section("", all));
             }
+            return List.of(new PickerBox.Section(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_POPULAR), popular),
+                    new PickerBox.Section(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_ALL), rest),
+                    new PickerBox.Section("", customRow));
+        }, null, item -> {
+            if (item.id().equals(draft.provider)) return;
+            adaptToVendor(item.id());
+            relayout();
+        });
+    }
+
+    private PickerBox.Item vendorRow(ProviderInfo p) {
+        return new PickerBox.Item(p.id(), p.name(), p.host(), List.of(), p.id().equals(draft.provider));
+    }
+
+    private void openModelPicker() {
+        ProviderInfo vendor = vendor();
+        List<ModelInfo> models = vendor == null ? List.of() : vendor.models();
+        PickerBox.Labels labels = new PickerBox.Labels(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL),
+                vendor == null ? t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL_HAND)
+                        : t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL_HINT, vendor.name(), models.size()),
+                t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_SEARCH), pickerKeys(),
+                // 没搜时列表就是空的(自定义厂家没有目录):提示该手填,而不是“没有找到「」”
+                q -> q.isEmpty() ? t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL_HAND)
+                        : t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_NO_MATCH, q));
+        PickerBox.Table table = new PickerBox.Table(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_MODEL), List.of(
+                new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_CONTEXT), 5, true),
+                new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_OUTPUT), 4, true),
+                new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_THINKING), 3, false),
+                new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_INPUT), 11, false)), 380);
+        PickerBox.FreeEntry free = new PickerBox.FreeEntry(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_FREE),
+                q -> t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_FREE_TITLE, q),
+                t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_FREE_DETAIL));
+        // 发布日期新的在前;没写日期的排在后面(同日期保持目录里的顺序)
+        Comparator<ModelInfo> newestFirst = Comparator.comparing(ModelInfo::releaseDate).reversed();
+        picker.open(ui, window.left(), window.top(), window.right() - window.left(),
+                window.bottom() - window.top(), labels, table, q -> {
+            String lq = q.toLowerCase(Locale.ROOT);
+            List<ModelInfo> hit = models.stream().filter(m -> matches(lq, m.name(), m.id()))
+                    .sorted(newestFirst).toList();
+            List<PickerBox.Item> withTools = hit.stream().filter(ModelInfo::toolCall).map(this::modelRow).toList();
+            List<PickerBox.Item> without = hit.stream().filter(m -> !m.toolCall()).map(this::modelRow).toList();
+            boolean sectioned = q.isEmpty();   // 搜索时不分节
+            return List.of(
+                    new PickerBox.Section(sectioned ? t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_TOOLS) : "", withTools),
+                    new PickerBox.Section(sectioned ? t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_NO_TOOLS) : "", without));
+        }, free, item -> {
+            if (item.id().equals(draft.model)) return;
+            draft.model = item.id();
+            draft.reasoningEffort = "";
+            relayout();
+        });
+    }
+
+    private PickerBox.Item modelRow(ModelInfo m) {
+        String none = "—";
+        String inputs = (m.inputs().isEmpty() ? "" : " ")
+                + m.inputs().stream().map(ProfileFormPanel::modality).collect(Collectors.joining(" "));
+        return new PickerBox.Item(m.id(), m.name(), m.id(), List.of(
+                m.contextWindow() > 0 ? TokenFormat.capacity(m.contextWindow()) : none,
+                m.maxOutput() > 0 ? TokenFormat.capacity(m.maxOutput()) : none,
+                reasons(m) ? "✓" : none,
+                modality("text") + inputs), m.id().equals(draft.model));
+    }
+
+    private List<String> pickerKeys() {
+        return List.of(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_KEY_MOVE),
+                t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_KEY_ENTER), t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_KEY_ESC));
+    }
+
+    /** 搜索词(已小写)是否出现在任一字段里;没搜就都匹配。 */
+    private static boolean matches(String lowerQuery, String... fields) {
+        if (lowerQuery.isEmpty()) return true;
+        for (String f : fields) {
+            if (f != null && f.toLowerCase(Locale.ROOT).contains(lowerQuery)) return true;
         }
+        return false;
     }
 
-    /** 双态显隐:预设态整宽下拉;自定义态输入框+回预设按钮;无预设站点纯输入框。 */
-    private void refreshModelRow() {
-        boolean hasPresets = !siteModelIds.isEmpty();
-        modelDropdown.setVisible(hasPresets && !customModel);
-        modelField.setVisible(!hasPresets || customModel);
-        modelBackBtn.setVisible(hasPresets && customModel);
-        modelField.setBounds(modelField.x(), modelField.y(),
-                hasPresets && customModel ? formW - 17 : formW, NumenStyle.CONTROL_H);
+    // ---- 思考 ----
+
+    private static String levelLabel(ThinkingPlan.Step step) {
+        if (step.wire().kind() == ThinkingPlan.Wire.Kind.ON) return t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_ON);
+        return t(switch (step.level()) {
+            case AUTO -> ModLanguageData.Keys.GUI_PROVIDERS_THINKING_AUTO;
+            case OFF -> ModLanguageData.Keys.GUI_PROVIDERS_THINKING_OFF;
+            case LOW -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_LOW;
+            case MEDIUM -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MEDIUM;
+            case HIGH -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_HIGH;
+            case MAX -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MAX;
+        });
     }
 
-    private void onModelDropdownPicked(int index) {
-        if (index >= siteModelIds.size()) {           // 末项 = 自定义…
-            customModel = true;
-            draft.model = "";
-            modelField.setValue("");
-            refreshModelRow();
-            return;
-        }
-        draft.model = siteModelIds.get(index);
-        modelField.setValue(draft.model);
-    }
-
-    private void onModelBackToPresets() {
-        customModel = false;
-        draft.model = siteModelIds.isEmpty() ? "" : siteModelIds.get(0);
-        modelField.setValue(draft.model);
-        List<String> items = new ArrayList<>(siteModelIds);
-        items.add(t("numen.settings.custom_model"));
-        modelDropdown.setItems(items, 0);
-        refreshModelRow();
+    /** 一档右边的灰色说明,取自思考计划给出的“实际会发什么”。 */
+    private static String levelNote(ThinkingPlan.Wire wire) {
+        return switch (wire.kind()) {
+            case AUTO -> t(ModLanguageData.Keys.GUI_PROVIDERS_NOTE_AUTO);
+            case OFF -> t(ModLanguageData.Keys.GUI_PROVIDERS_NOTE_OFF);
+            case ON -> t(ModLanguageData.Keys.GUI_PROVIDERS_NOTE_ON);
+            case EFFORT -> t(ModLanguageData.Keys.GUI_PROVIDERS_NOTE_EFFORT, wire.effort());
+            case BUDGET -> t(ModLanguageData.Keys.GUI_PROVIDERS_NOTE_BUDGET, wire.tokens());
+        };
     }
 
     private void onThinkingPicked(int index) {
-        draft.reasoningEffort = thinkingValue(thinkingToggleOnly, index);
-    }
-
-    /** 单控件选项下标 → 存储值(开关型的"开启"取 medium 档)。 */
-    static String thinkingValue(boolean toggleOnly, int index) {
-        if (toggleOnly) {
-            return switch (index) { case 1 -> "medium"; case 2 -> "off"; default -> "auto"; };
+        if (index >= 0 && index < thinkingLevels.size()) {
+            draft.reasoningEffort = thinkingLevels.get(index).id();
         }
-        return switch (index) {
-            case 1 -> "off"; case 2 -> "low"; case 3 -> "medium"; case 4 -> "high";
-            default -> "auto";
-        };
     }
 
     private static String nz(String s) { return s == null ? "" : s; }
@@ -373,16 +622,19 @@ public final class ProfileFormPanel {
             keyField.setError(t(ModLanguageData.Keys.GUI_INLINE_NEED_KEY));
             return;
         }
+        // 检测用档案当前的设置,只是思考不发(检测只关心连得通、密钥对不对)
+        LlmEndpoint ep = ProviderLibrary.instance().resolve(draft.toProfile().withReasoningEffort("auto"));
+        if (!ep.hasUrl()) {
+            advanced.setOpen(true);   // 目录厂家没有固定地址:地址覆盖在高级里,展开它再标错
+            baseUrlField.setError(t(ModLanguageData.Keys.GUI_INLINE_NEED_URL));
+            return;
+        }
         checking = true;
         checkButton.setEnabled(false);
         checkButton.setLabel(t(ModLanguageData.Keys.GUI_PROVIDERS_CHECKING));
         resultAlert.show(InlineAlert.Severity.INFO, t(ModLanguageData.Keys.GUI_PROVIDERS_CHECKING));
-        String proxy = draft.proxy != null && !draft.proxy.isBlank()
-                ? draft.proxy : Services.CONFIG.getProxy();
-        LlmEndpoint ep = new LlmEndpoint(draft.provider, draft.model, draft.apiKey,
-                draft.baseUrl, proxy, "auto");
         NumenLlmClient.forEndpoint(ep)
-                .chatStreaming(List.of(new ConvoState.Msg.User("ping")), List.of(), "",
+                .chatStreaming(List.of(new ConvoState.Msg.User("ping")), List.of(), "", null,
                         new com.dwinovo.numen.api.agent.http.CancelToken(), null)
                 .whenComplete((result, error) -> Minecraft.getInstance().execute(() -> {
                     checking = false;
@@ -393,12 +645,12 @@ public final class ProfileFormPanel {
                         resultAlert.show(InlineAlert.Severity.SUCCESS,
                                 t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_OK), 2_500);
                     } else {
-                        resultAlert.show(InlineAlert.Severity.ERROR, LlmErrorWords.classify(error));
+                        resultAlert.show(InlineAlert.Severity.ERROR, CauseWords.text(Cause.fromError(error)));
                     }
                 }));
     }
 
-    private static String t(String key) {
-        return Component.translatable(key).getString();
+    private static String t(String key, Object... args) {
+        return Component.translatable(key, args).getString();
     }
 }

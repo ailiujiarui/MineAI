@@ -4,6 +4,7 @@ import java.util.function.ObjIntConsumer;
 import java.util.function.Predicate;
 
 import com.dwinovo.numen.pathing.plan.WorldView;
+import com.dwinovo.numen.pathing.world.CellFlags;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -16,6 +17,13 @@ public interface SearchView extends WorldView {
 
     /** {@code (x, z)} 这一列所在的区块在快照里。 */
     boolean isLoaded(int x, int z);
+
+    /** 同 {@link WorldView#cellFlags},这一列不在快照里的格带 {@link CellFlags#UNLOADED}。 */
+    @Override
+    default int cellFlags(int x, int y, int z) {
+        BlockState state = loadedBlockState(new BlockPos(x, y, z));
+        return state == null ? CellFlags.UNLOADED : CellFlags.of(state);
+    }
 
     /** 一格的方块状态;这一列不在快照里为 null(读{@link #getBlockState}是空气,不是测量)。读一格问一次,比先问 {@link #isLoaded} 再读省一趟查区块。 */
     default BlockState loadedBlockState(BlockPos pos) {

@@ -1,5 +1,6 @@
 package com.dwinovo.numen.experiment;
 
+import com.dwinovo.numen.api.agent.catalog.Catalog;
 import com.dwinovo.numen.api.agent.http.CancelToken;
 import com.dwinovo.numen.api.agent.llm.*;
 import com.dwinovo.numen.task.move.*;
@@ -91,17 +92,29 @@ public final class RuntimeMeasurements {
                 .filter(e -> e.get("id").getAsString().equals(request.get("provider_id").getAsString()))
                 .findFirst().orElseThrow(() -> new IllegalArgumentException("provider entry not found"));
         secret = field(entry, "api_key");
-        endpoint = new LlmEndpoint(field(entry, "provider"), field(entry, "model"), secret,
-                field(entry, "base_url"), field(entry, "proxy"), field(entry, "reasoning_effort"));
-        if (secret.isBlank() || endpoint.model().isBlank()) throw new IllegalArgumentException("provider is incomplete");
-        write("model.json", Map.of("provider", endpoint.provider(), "model", endpoint.model(),
-                "reasoning_effort", endpoint.reasoningEffort()));
+        if (secret.isBlank() || field(entry, "model").isBlank()) throw new IllegalArgumentException("provider is incomplete");
+        endpoint = EndpointResolver.resolve(profile(entry, secret), Catalog.bundled(), "");
+        write("model.json", Map.of("provider", endpoint.providerId(), "model", endpoint.model().id(),
+                "reasoning_effort", field(entry, "reasoning_effort")));
         initialized = true;
         beginTrial(server);
     }
 
     private static String field(JsonObject obj, String key) {
         return obj.has(key) && !obj.get(key).isJsonNull() ? obj.get(key).getAsString() : "";
+    }
+
+    /** 档案条目(与 {@code config/numen/providers.json} 的条目同形) → 一次请求要的解析结果。 */
+    private static ConnectionProfile profile(JsonObject entry, String secret) {
+        return new ConnectionProfile(field(entry, "provider"), field(entry, "protocol"),
+                field(entry, "model"), secret, field(entry, "base_url"), field(entry, "proxy"),
+                field(entry, "reasoning_effort"),
+                entry.has("ctx") && entry.get("ctx").isJsonPrimitive() ? entry.get("ctx").getAsInt() : 0,
+                entry.has("temperature") && entry.get("temperature").isJsonPrimitive()
+                        ? entry.get("temperature").getAsDouble() : null,
+                entry.has("max_tokens") && entry.get("max_tokens").isJsonPrimitive()
+                        ? entry.get("max_tokens").getAsInt() : 0,
+                entry.has("compat") && entry.get("compat").isJsonObject() ? entry.getAsJsonObject("compat") : null);
     }
 
     private void beginTrial(MinecraftServer server) {

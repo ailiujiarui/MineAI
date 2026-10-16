@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.agent.provider;
 
+import com.dwinovo.numen.api.agent.http.ProviderReply;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -10,10 +11,9 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Reference implementation of the OpenAI chat completions wire protocol.
- * Used directly for OpenAI itself and inherited from by lightly-extending
- * subclasses ({@link DeepSeekProvider}) that only need to override
- * response parsing / assistant-message reconstruction.
+ * Chat Completions 线协议(POST /v1/chat/completions)的实现,OpenAI 官方与绝大多数
+ * OpenAI 兼容端点共用。厂家之间的差异不分子类,由 {@link ChatCompat} 承载:思考参数怎么写、
+ * 输出上限的字段名、是否要回传 {@code reasoning_content}、流式带不带用量。
  *
  * <h2>Schema reference</h2>
  * Targets the {@code POST /v1/chat/completions} shape from OpenAI's API
@@ -27,72 +27,50 @@ import java.util.List;
  * (re-emit verbatim). Backends differ here and we trust the LLM's own
  * output verbatim.
  */
-public class OpenAIProvider implements LlmProvider {
+public final class OpenAIProvider implements LlmProvider {
 
-    public static final String NAME = "openai";
-    public static final String DEFAULT_BASE_URL = "https://api.openai.com/v1";
+    /** 带工具调用的助手消息缺 {@code reasoning_content} 时补的值:API 接受的最小非空串。 */
+    private static final String EMPTY_REASONING = " ";
 
     private static final Gson GSON = new Gson();
 
-    private final String name;
-    private final String defaultBaseUrl;
-    private final String thinkingFormat;
+    private final ChatCompat compat;
 
-    public OpenAIProvider() {
-        this(NAME, DEFAULT_BASE_URL);
-    }
-
-    public OpenAIProvider(String name, String defaultBaseUrl) {
-        this(name, defaultBaseUrl, LlmProvider.THINKING_EFFORT);
+    public OpenAIProvider(ChatCompat compat) {
+        this.compat = compat;
     }
 
     /**
-     * 纯 OpenAI 兼容后端只差站点名、缺省端点与思考开关方言——用这个构造
-     * 按站点参数化,不必再为每个站点新建子类。三者的真源是
-     * {@code numen_providers.json}({@code ProviderRegistry});只有真有行为差异
-     * 的后端(DeepSeek 的缓存计费、Moonshot 的 reasoning_content 兜底)
-     * 才配一个子类。
+     * 思考参数:这一档发不发、带什么,已经由 {@link ThinkingPlan} 定好(玩家选得到的档位都真会写进请求);
+     * 这里只管按兼容项的 thinkingFormat 把它写成这个端点认的字段。
      */
-    public OpenAIProvider(String name, String defaultBaseUrl, String thinkingFormat) {
-        this.name = name;
-        this.defaultBaseUrl = defaultBaseUrl;
-        this.thinkingFormat = thinkingFormat == null || thinkingFormat.isBlank()
-                ? LlmProvider.THINKING_EFFORT : thinkingFormat;
-    }
-
-    @Override public String name() { return name; }
-    @Override public String defaultBaseUrl() { return defaultBaseUrl; }
-
-    /** 本站思考开关的方言家族(见 {@code LlmProvider.THINKING_*})。 */
-    public String thinkingFormat() { return thinkingFormat; }
-
-    /**
-     * 力度 → 本站方言的翻译。{@code off} 只有带开关的方言能表达;effort
-     * 形态对 off 静默(没有"关"的线格式)。{@code none} 家族永不发参数——
-     * 思考型号常开/不可控的站点,多发只会 400 或被无视。
-     */
-    @Override
-    public void applyReasoning(JsonObject body, String effort) {
-        boolean off = "off".equals(effort);
-        switch (thinkingFormat) {
-            case LlmProvider.THINKING_NONE -> { }
-            case LlmProvider.THINKING_TYPE -> {
-                JsonObject t = new JsonObject();
-                t.addProperty("type", off ? "disabled" : "enabled");
-                body.add("thinking", t);
+    private void applyThinking(JsonObject body, ThinkingPlan.Wire wire) {
+        if (wire.kind() == ThinkingPlan.Wire.Kind.AUTO) return;
+        boolean off = wire.kind() == ThinkingPlan.Wire.Kind.OFF;
+        switch (compat.thinkingFormat()) {
+            case NONE -> { }
+            case ZAI -> body.add("thinking", thinkingType(!off));
+            case DEEPSEEK -> {
+                body.add("thinking", thinkingType(!off));
+                if (wire.kind() == ThinkingPlan.Wire.Kind.EFFORT) body.addProperty("reasoning_effort", wire.effort());
             }
-            case LlmProvider.THINKING_ENABLE_BOOL -> body.addProperty("enable_thinking", !off);
-            case LlmProvider.THINKING_EFFORT_NESTED -> {
-                if (off) return;
+            case QWEN -> body.addProperty("enable_thinking", !off);
+            case OPENROUTER -> {
+                if (wire.effort() == null) return;
                 JsonObject r = new JsonObject();
-                r.addProperty("effort", effort);
+                r.addProperty("effort", wire.effort());
                 body.add("reasoning", r);
             }
-            default -> {
-                if (off) return;
-                body.addProperty("reasoning_effort", effort);
+            case OPENAI -> {
+                if (wire.effort() != null) body.addProperty("reasoning_effort", wire.effort());
             }
         }
+    }
+
+    private static JsonObject thinkingType(boolean enabled) {
+        JsonObject t = new JsonObject();
+        t.addProperty("type", enabled ? "enabled" : "disabled");
+        return t;
     }
 
     @Override
@@ -103,8 +81,7 @@ public class OpenAIProvider implements LlmProvider {
         return m;
     }
 
-    @Override
-    public JsonObject buildSystemMessage(String content) {
+    private static JsonObject buildSystemMessage(String content) {
         JsonObject m = new JsonObject();
         m.addProperty("role", "system");
         m.addProperty("content", content == null ? "" : content);
@@ -126,7 +103,7 @@ public class OpenAIProvider implements LlmProvider {
     }
 
     /** chat/completions 家族里,一条助手回合就是一条消息。方言差异覆写这里。 */
-    protected JsonObject assistantMessage(AssistantTurn turn) {
+    private JsonObject assistantMessage(AssistantTurn turn) {
         JsonObject m = new JsonObject();
         m.addProperty("role", "assistant");
         // Content can be null in OpenAI assistant turns when there are only
@@ -144,6 +121,9 @@ public class OpenAIProvider implements LlmProvider {
         // so we copy each top-level entry onto m.
         for (var e : turn.extras().entrySet()) {
             m.add(e.getKey(), e.getValue());
+        }
+        if (compat.replayReasoningContent() && m.has("tool_calls") && !m.has("reasoning_content")) {
+            m.addProperty("reasoning_content", EMPTY_REASONING);
         }
         return m;
     }
@@ -165,21 +145,33 @@ public class OpenAIProvider implements LlmProvider {
     }
 
     @Override
-    public JsonObject buildRequestBody(String model, String systemPrompt,
-                                        List<JsonObject> messages, JsonArray tools) {
+    public JsonObject buildRequestBody(ModelSpec model, String systemPrompt, List<JsonObject> messages,
+                                       JsonArray tools, RequestOptions options, String sessionId) {
         JsonObject body = new JsonObject();
-        body.addProperty("model", model);
+        body.addProperty("model", model.id());
 
         JsonArray msgs = new JsonArray();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             msgs.add(buildSystemMessage(systemPrompt));
         }
         for (JsonObject m : messages) msgs.add(m);
-        body.add("messages", msgs);
+        body.add("messages", compat.anthropicCacheControl() ? ChatCacheControl.markMessages(msgs) : msgs);
 
         if (tools != null && !tools.isEmpty()) {
-            body.add("tools", tools);
+            body.add("tools", compat.anthropicCacheControl() ? ChatCacheControl.markLastTool(tools) : tools);
             body.addProperty("parallel_tool_calls", true);
+        }
+
+        Double temperature = options.temperatureFor(model);
+        if (temperature != null) body.addProperty("temperature", temperature);
+        if (options.maxTokens() > 0) body.addProperty(compat.maxTokensField().wire(), options.maxTokens());
+        applyThinking(body, ThinkingPlan.of(model.thinking(), compat).wireFor(options.thinking()));
+
+        body.addProperty("stream", true);
+        if (compat.streamUsage()) {
+            JsonObject streamOpts = new JsonObject();
+            streamOpts.addProperty("include_usage", true);
+            body.add("stream_options", streamOpts);
         }
         return body;
     }
@@ -203,7 +195,7 @@ public class OpenAIProvider implements LlmProvider {
     }
 
     /** Pull {@code choices[0].message} out of the response body. */
-    protected JsonObject extractMessage(JsonObject body) {
+    private JsonObject extractMessage(JsonObject body) {
         if (!body.has("choices")) {
             throw new IllegalArgumentException("response has no 'choices' field: " + body);
         }
@@ -219,7 +211,7 @@ public class OpenAIProvider implements LlmProvider {
     }
 
     /** Pull and decode tool_calls from an assistant message. */
-    protected List<LlmToolCall> parseToolCalls(JsonObject msg) {
+    private List<LlmToolCall> parseToolCalls(JsonObject msg) {
         if (!msg.has("tool_calls") || !msg.get("tool_calls").isJsonArray()) {
             return List.of();
         }
@@ -239,15 +231,15 @@ public class OpenAIProvider implements LlmProvider {
      *
      * <p>Every unknown field on a response gets preserved automatically. With
      * this baseline behaviour, OpenAI-compatible backend variants
-     * ({@link DeepSeekProvider} for {@code reasoning_content}, future
-     * providers for whatever they invent) don't need to override anything
-     * to keep their extensions intact across turns.
+     * (DeepSeek's {@code reasoning_content}, future
+     * vendors' whatever they invent) need no vendor-specific code to keep
+     * their extensions intact across turns.
      *
      * <p>Pure OpenAI responses contain only the standard fields, so this
      * captures nothing and the extras bag stays empty — no behaviour change
      * for standard OpenAI.
      */
-    protected JsonObject extractExtras(JsonObject msg) {
+    private JsonObject extractExtras(JsonObject msg) {
         JsonObject extras = new JsonObject();
         for (var e : msg.entrySet()) {
             if (!STANDARD_MESSAGE_FIELDS.contains(e.getKey())) {
@@ -277,6 +269,12 @@ public class OpenAIProvider implements LlmProvider {
             acc.usage = chunk.getAsJsonObject("usage");
         }
 
+        // 流中途的错误帧({"error":{...}}):厂家在 200 之后才出的错,和 HTTP 错误体同一批写法
+        if (chunk.has("error") && !chunk.get("error").isJsonNull()) {
+            String reply = ProviderReply.of(chunk);
+            acc.failure = reply != null ? reply : chunk.get("error").toString();
+            return;
+        }
         if (!chunk.has("choices")) return;
         JsonArray choices = chunk.getAsJsonArray("choices");
         if (choices.isEmpty()) return;
@@ -284,9 +282,19 @@ public class OpenAIProvider implements LlmProvider {
         if (!first.isJsonObject()) return;
         JsonObject choice = first.getAsJsonObject();
 
-        // finish_reason
+        // 有的厂家(Moonshot)把用量放在 choice 里而不是顶层
+        if (!chunk.has("usage") && choice.has("usage") && choice.get("usage").isJsonObject()) {
+            acc.usage = choice.getAsJsonObject("usage");
+        }
+
+        // finish_reason 是本协议的收尾;正常收尾之外的取值(content_filter、network_error、没见过的)算流失败
         if (choice.has("finish_reason") && !choice.get("finish_reason").isJsonNull()) {
-            acc.finishReason = choice.get("finish_reason").getAsString();
+            String finish = choice.get("finish_reason").getAsString();
+            acc.finishReason = finish;
+            acc.ended = true;
+            if (!NORMAL_FINISH.contains(finish)) {
+                acc.failure = "Provider finish_reason: " + finish;
+            }
         }
 
         // delta — body of the chunk's payload
@@ -329,7 +337,7 @@ public class OpenAIProvider implements LlmProvider {
      * itself; OpenAI-compat backends get their extensions
      * (e.g. {@code reasoning_content}) preserved automatically.
      */
-    protected void captureChunkExtras(JsonObject delta, StreamAccumulator acc) {
+    private void captureChunkExtras(JsonObject delta, StreamAccumulator acc) {
         for (var e : delta.entrySet()) {
             if (STANDARD_DELTA_FIELDS.contains(e.getKey())) continue;
             var el = e.getValue();
@@ -344,12 +352,15 @@ public class OpenAIProvider implements LlmProvider {
         }
     }
 
+    private static final java.util.Set<String> NORMAL_FINISH =
+            java.util.Set.of("stop", "end", "length", "tool_calls", "function_call");
+
     /** 思考方言字段,按优先序;首个非空者在流内锁定(有的后端双字段同文,防重复计入)。 */
     private static final List<String> REASONING_FIELDS =
             List.of("reasoning_content", "reasoning", "reasoning_text");
 
     /** 从 delta 抽思考增量;负责字段锁定语义。无思考返回 null。 */
-    protected String reasoningDelta(JsonObject delta, StreamAccumulator acc) {
+    private String reasoningDelta(JsonObject delta, StreamAccumulator acc) {
         if (acc.reasoningField != null) {
             return stringField(delta, acc.reasoningField);
         }
@@ -367,11 +378,6 @@ public class OpenAIProvider implements LlmProvider {
         var el = o.get(key);
         return el != null && el.isJsonPrimitive() && el.getAsJsonPrimitive().isString()
                 ? el.getAsString() : null;
-    }
-
-    /** Set of delta fields we treat as "standard" — subclasses use this for partition. */
-    protected static java.util.Set<String> standardDeltaFields() {
-        return STANDARD_DELTA_FIELDS;
     }
 
     private static void accumulateToolCallDelta(JsonObject tc, StreamAccumulator acc) {
@@ -395,6 +401,7 @@ public class OpenAIProvider implements LlmProvider {
 
     @Override
     public AssistantTurn finalizeStream(StreamAccumulator acc) {
+        acc.requireEnded();
         acc.endContent();
         List<LlmToolCall> calls = new ArrayList<>(acc.toolCalls.size());
         for (StreamAccumulator.ToolCallBuilder b : acc.toolCalls.values()) {

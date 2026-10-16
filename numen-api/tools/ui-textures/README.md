@@ -38,7 +38,7 @@ cp renders/<name>/frame_000001.png ../../common/src/main/resources/assets/numen/
   band, 4px black border, tilted yellow corner badge). → `assets/numen/textures/gui/panel.png`
 - `eye.png` / `eye_off.png` / `chevron_up.png` / `chevron_down.png` (`eye.html` / `eye_off.html` /
   `chevron.html`) — Cottage (WARM) palette icons: a square amber block + brown border + square pupil
-  (eye), a brown diagonal slash (eye_off), amber scroll triangles (chevron). **Explicit pixel grid**
+  (eye), a brown diagonal slash (eye_off), white scroll triangles (chevron, tinted by the theme at draw time). **Explicit pixel grid**
   (tip.html technique — 1px divs), rendered transparent via `render --format png-sequence`, then the
   alpha is snapped to 0/255 and colours to the palette: **pixel art with NO antialias / gradient
   edge** (a gradient on a low-res sprite looks awful). → `assets/numen/textures/gui/sprites/`

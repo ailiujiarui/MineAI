@@ -81,14 +81,16 @@ final class Draft extends EditedView {
     /**
      * 先清掉准星从眼睛到 {@code pos} 的路上挡着的软遮挡(脚下格里的草、花、单层雪……:没有碰撞、有轮廓,准星先碰上它,
      * 原版玩家也得先打掉才点得到后面那一格,{@link Sight#cover}),按视线上的先后一格格挖,和执行时挖到的先后一致。
+     * 够得着的每个瞄点都隔着软遮挡以外的东西(压力板、绊线这类不是软遮挡,又碰得上准星)时,执行里准星落不到它上面,记 {@link Reason#OUT_OF_REACH}。
      */
     private boolean uncover(BlockPos pos, int bx, double feetY, int bz, boolean grounded) {
         List<BlockPos> cover = Sight.cover(this, body.eye(bx, feetY, bz), body.blockReach(), pos);
-        if (cover != null) {
-            for (BlockPos cell : cover) {
-                if (!cut(cell, bx, feetY, bz, grounded)) {
-                    return false;
-                }
+        if (cover == null) {
+            return fail(pos, Reason.OUT_OF_REACH);
+        }
+        for (int i = 0; i < cover.size(); i++) {
+            if (!cut(cover.get(i), bx, feetY, bz, grounded)) {
+                return false;
             }
         }
         return true;
@@ -224,6 +226,10 @@ final class Draft extends EditedView {
                 }
                 record(new Edit.Door(cell.immutable(), state));
                 toggle(cell);
+                if (!Clearance.fits(this, body, bx, feetY, bz)) {
+                    // 翻过来的门板落进了身体此刻站着的这一格(开着的活板门关上,门板压在头顶):身体就卡在原地
+                    return fail(cell, Reason.NO_CLEARANCE);
+                }
             } else if (!mayDig) {
                 return fail(cell, Reason.NO_CLEARANCE);
             } else if (!dig(cell, bx, feetY, bz, grounded)) {

@@ -95,8 +95,8 @@ public final class FishAudioTts implements TtsBackend {
         return VoiceHttp.CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .thenApply(resp -> {
                     if (resp.statusCode() / 100 != 2) {
-                        throw new IllegalStateException(VoiceHttp.humanHttpError("Fish Audio",
-                                resp.statusCode(), new String(resp.body(), StandardCharsets.UTF_8)));
+                        throw VoiceHttp.httpError("Fish Audio",
+                                resp.statusCode(), new String(resp.body(), StandardCharsets.UTF_8));
                     }
                     return resp.body();
                 });

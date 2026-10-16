@@ -53,6 +53,25 @@ class CostModelTest {
         return new TestWorld().set(FREE, STONE).set(ASK, STONE).set(DENY, STONE);
     }
 
+    /** 挖一格手上最好的工具要一分钟以上就是挖不动:黑曜石空手、石镐不行(没有路),铁镐(四十秒)、钻石镐行;估价里挖它是无穷大。 */
+    @Test
+    void aBlockThatTakesOverAMinuteWithTheBestToolIsTooHardToDig() {
+        BlockState obsidian = Blocks.OBSIDIAN.defaultBlockState();
+        TestWorld world = new TestWorld().set(FREE, obsidian);
+        RouteSpec dig = RouteSpec.defaults().edit().changes(true).build();
+        for (net.minecraft.world.item.Item pick : List.of(Items.STONE_PICKAXE, Items.WOODEN_PICKAXE)) {
+            CostModel weak = CostModel.of(dig, Fixtures.carrying(0, new ItemStack(pick)), POLICY, Fixtures.COBBLE, Threats.NONE);
+            assertEquals(Reason.TOO_HARD, weak.admitDig(world, FREE, obsidian).refused(), pick.toString());
+            assertTrue(Double.isInfinite(weak.digFloor(obsidian)));
+        }
+        assertEquals(Reason.TOO_HARD, model(true, true).admitDig(world, FREE, obsidian).refused(), "空手");
+        for (net.minecraft.world.item.Item pick : List.of(Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE)) {
+            CostModel strong = CostModel.of(dig, Fixtures.carrying(0, new ItemStack(pick)), POLICY, Fixtures.COBBLE, Threats.NONE);
+            assertNull(strong.admitDig(world, FREE, obsidian).refused(), pick.toString());
+            assertTrue(Double.isFinite(strong.digFloor(obsidian)));
+        }
+    }
+
     @Test
     void noChangesRefusesEverythingAWalledConsentRefusesWhatNeedsAskingAndOtherwiseItIsAdmitted() {
         TestWorld world = stones();

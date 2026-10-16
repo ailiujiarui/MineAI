@@ -5,6 +5,7 @@ import com.dwinovo.numen.api.client.screen.UiTheme;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
+import com.dwinovo.numen.api.client.ui.TextWrap;
 import com.dwinovo.numen.api.client.ui.widget.Label;
 import com.dwinovo.numen.api.client.ui.widget.ListView;
 import com.dwinovo.numen.api.client.ui.widget.Slider;
@@ -48,22 +49,19 @@ public final class ThemePanel {
         Toggle hint = ui.add(new Toggle(com.dwinovo.numen.api.client.data.ClientPrefs.talkHint(),
                 com.dwinovo.numen.api.client.data.ClientPrefs::setTalkHint));
         hint.setBounds(x, hy, 22, 11);
-        String label = I18n.get(ModLanguageData.Keys.THEME_TALK_HINT);
-        Label hintLabel = ui.add(new Label(label, Label.Role.SECONDARY));
-        hintLabel.setBounds(x + 28, hy + 1, Minecraft.getInstance().font.width(label), 9);
+        int hintH = wrapped(I18n.get(ModLanguageData.Keys.THEME_TALK_HINT), x + 28, hy + 1, w - 28, Label.Role.SECONDARY);
 
         // 消息通知开关行(默认开:她说了话、主人没在面板里看着那个会话时,右下角弹一张卡)。
-        int ny = hy + NumenStyle.ROW_PITCH;
+        int ny = hy + Math.max(NumenStyle.ROW_PITCH, hintH + 6);
         Toggle notices = ui.add(new Toggle(com.dwinovo.numen.api.client.data.ClientPrefs.messageNotices(),
                 com.dwinovo.numen.api.client.data.ClientPrefs::setMessageNotices));
         notices.setBounds(x, ny, 22, 11);
-        String noticesText = t(com.dwinovo.numen.api.data.ModLanguageData.Keys.SETTINGS_MESSAGE_NOTICES);
-        Label noticesLabel = ui.add(new Label(noticesText, Label.Role.SECONDARY));
-        noticesLabel.setBounds(x + 28, ny + 1, Minecraft.getInstance().font.width(noticesText), 9);
+        int noticesH = wrapped(t(com.dwinovo.numen.api.data.ModLanguageData.Keys.SETTINGS_MESSAGE_NOTICES),
+                x + 28, ny + 1, w - 28, Label.Role.SECONDARY);
 
         // 主动性:她多久把攒下的世界变化说一次。这是"及时性"的旋钮,不是"话多话少"——
         // 拉小知道得及时、token 烧得快,拉大知道得晚、省。默认 3。
-        int sy = ny + NumenStyle.ROW_PITCH;
+        int sy = ny + Math.max(NumenStyle.ROW_PITCH, noticesH + 6);
         String initiativeText = I18n.get(ModLanguageData.Keys.THEME_INITIATIVE);
         Label initTitle = ui.add(new Label(initiativeText, Label.Role.SECONDARY));
         initTitle.setBounds(x, sy + 1, Minecraft.getInstance().font.width(initiativeText), 9);
@@ -73,10 +71,21 @@ public final class ThemePanel {
                 v -> com.dwinovo.numen.api.client.data.ClientPrefs.setInitiativeLevel((int) v),
                 v -> String.valueOf((int) v)));
         initiative.setBounds(x + 44, sy, Math.min(140, w - 44), NumenStyle.CONTROL_H);
-        String hintText = I18n.get(ModLanguageData.Keys.THEME_INITIATIVE_HINT);
-        Label initHint = ui.add(new Label(hintText, Label.Role.MUTED));
-        initHint.setBounds(x, sy + NumenStyle.CONTROL_H + 3,
-                Minecraft.getInstance().font.width(hintText), 9);
+        wrapped(I18n.get(ModLanguageData.Keys.THEME_INITIATIVE_HINT), x, sy + NumenStyle.CONTROL_H + 3, w, Label.Role.SECONDARY);
+    }
+
+    /**
+     * 一段说明折进 {@code width} 宽,每行一个 {@link Label} 自上而下排,返回这段占的高。
+     * 英文比中文长得多,放不下的字不能交给页面的裁剪框去切。
+     */
+    private int wrapped(String text, int lx, int ly, int width, Label.Role role) {
+        var font = Minecraft.getInstance().font;
+        int lineH = font.lineHeight + 1;
+        java.util.List<String> lines = TextWrap.wrap(text, width, font::width, 0);
+        for (int i = 0; i < lines.size(); i++) {
+            ui.add(new Label(lines.get(i), role)).setBounds(lx, ly + i * lineH, width, 9);
+        }
+        return Math.max(1, lines.size()) * lineH;
     }
 
     private void renderRow(IDrawSurface s, NumenTheme.Colors c, UiTheme t, int index,
@@ -87,9 +96,10 @@ public final class ThemePanel {
         s.fillRect(rx + 2, ry + 5, 10, 14, t.ground());
         s.fillRect(rx + 12, ry + 5, 10, 14, t.band());
         s.fillRect(rx + 22, ry + 5, 10, 14, t.cta());
-        s.drawText(t.label(), rx + 40, ry + 8, cur ? c.textPrimary() : c.textMuted(), false);
+        String name = I18n.get(t.isDark() ? "numen.menu.night" : "numen.menu.day");   // 主题名与 ☰ 菜单里同一份语言键
+        s.drawText(name, rx + 40, ry + 8, cur ? c.textPrimary() : c.textSecondary(), false);
         if (cur) {
-            s.drawText("✔", rx + 40 + s.textWidth(t.label()) + 6, ry + 8, c.success(), false);
+            s.drawText("✔", rx + 40 + s.textWidth(name) + 6, ry + 8, c.success(), false);
         }
     }
 

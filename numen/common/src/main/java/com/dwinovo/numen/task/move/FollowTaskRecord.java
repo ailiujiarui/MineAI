@@ -1,5 +1,6 @@
 package com.dwinovo.numen.task.move;
 
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.nav.Walked;
 import com.dwinovo.numen.api.permission.ConsentDesk;
 import com.dwinovo.numen.api.sdk.ServerCall;
@@ -67,12 +68,20 @@ public final class FollowTaskRecord extends TaskRecord<Walked> {
     }
 
     /**
-     * 一行人话 —— 这是<b>给主人看的</b>:头顶气泡、面板、task status 印的都是它。
+     * 一行人话 —— 这是<b>给模型看的</b>:{@code <current_task>} 与 task status 印的是它,主人看的是 {@link #activity()}。
      * 工具 id 不写进来,需要它的地方(运行时状态的 tool 属性、派发回执)本来就有。
      */
     @Override
     public String describe() {
         String who = target == null ? "你" : targetName;
         return "跟着" + who + ",保持 " + (int) keepWithin + " 米,跟 " + forTicks / 20 + " 秒";
+    }
+
+    /** 给主人看的一句(头顶气泡、档案页),客户端按当前语言翻;{@link #describe()} 是给模型的。 */
+    @Override
+    public Activity activity() {
+        return target == null
+                ? Activity.of("numen.activity.follow_owner", (int) keepWithin, forTicks / 20)
+                : Activity.of("numen.activity.follow", targetName, (int) keepWithin, forTicks / 20);
     }
 }

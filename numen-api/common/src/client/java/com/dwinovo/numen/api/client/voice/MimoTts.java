@@ -110,7 +110,7 @@ public final class MimoTts implements TtsBackend {
     /**
      * 解析 Mimo Chat Completions 响应，取出 base64 编码的音频并解码为 WAV 字节。
      * <p>响应结构：{@code choices[0].message.audio.data}（base64 字符串）。
-     * 缺字段或解析失败时抛 {@link IllegalStateException}。
+     * 缺字段或解析失败时抛 {@link VoiceError}。
      */
     static byte[] extractAudio(String responseJson) {
         JsonObject root = JsonParser.parseString(responseJson).getAsJsonObject();
@@ -119,35 +119,35 @@ public final class MimoTts implements TtsBackend {
         if (root.has("error")) {
             JsonObject error = root.getAsJsonObject("error");
             String msg = error.has("message") ? error.get("message").getAsString() : "?";
-            throw new IllegalStateException("Mimo API error: " + msg);
+            throw VoiceError.of(VoiceError.API, "Mimo TTS", msg);
         }
 
         if (!root.has("choices") || !root.get("choices").isJsonArray()) {
-            throw new IllegalStateException("Mimo 响应缺少 choices 数组");
+            throw VoiceError.of(VoiceError.REPLY_MISSING, "Mimo TTS", "choices");
         }
         JsonArray choices = root.getAsJsonArray("choices");
         if (choices.isEmpty()) {
-            throw new IllegalStateException("Mimo 响应 choices 为空");
+            throw VoiceError.of(VoiceError.REPLY_BAD, "Mimo TTS", "choices is empty");
         }
 
         JsonObject choice = choices.get(0).getAsJsonObject();
         if (!choice.has("message") || !choice.get("message").isJsonObject()) {
-            throw new IllegalStateException("Mimo 响应缺少 message 字段");
+            throw VoiceError.of(VoiceError.REPLY_MISSING, "Mimo TTS", "message");
         }
         JsonObject message = choice.getAsJsonObject("message");
 
         if (!message.has("audio") || !message.get("audio").isJsonObject()) {
-            throw new IllegalStateException("Mimo 响应缺少 audio 字段");
+            throw VoiceError.of(VoiceError.REPLY_MISSING, "Mimo TTS", "audio");
         }
         JsonObject audio = message.getAsJsonObject("audio");
 
         if (!audio.has("data") || audio.get("data").isJsonNull()) {
-            throw new IllegalStateException("Mimo 响应缺少 audio.data 字段");
+            throw VoiceError.of(VoiceError.REPLY_MISSING, "Mimo TTS", "audio.data");
         }
 
         String b64 = audio.get("data").getAsString();
         if (b64 == null || b64.isBlank()) {
-            throw new IllegalStateException("Mimo audio.data 为空");
+            throw VoiceError.of(VoiceError.REPLY_BAD, "Mimo TTS", "audio.data is empty");
         }
         return Base64.getDecoder().decode(b64);
     }
@@ -172,8 +172,7 @@ public final class MimoTts implements TtsBackend {
         return VoiceHttp.CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
                 .thenApply(resp -> {
                     if (resp.statusCode() / 100 != 2) {
-                        throw new IllegalStateException(VoiceHttp.humanHttpError("Mimo-TTS",
-                                resp.statusCode(), resp.body()));
+                        throw VoiceHttp.httpError("Mimo TTS", resp.statusCode(), resp.body());
                     }
                     return extractAudio(resp.body());
                 });

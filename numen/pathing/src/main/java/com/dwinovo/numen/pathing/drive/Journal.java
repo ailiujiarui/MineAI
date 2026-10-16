@@ -9,7 +9,7 @@ import java.util.Map;
 import com.dwinovo.numen.pathing.plan.MoveKind;
 
 /**
- * 这次导航的行程:段状态机一路上搜了几次、几次因节点预算停下交出半程、几次扔掉路重搜、几步走不下去、几步卡住、复核了几次前提。
+ * 这次导航的行程:段状态机一路上搜了几次、几次没搜到这一段的终点(抬高了估价)、几次扔掉路重搜、几步走不下去、几步卡住、复核了几次前提。
  * 每种走法走完的步数、实际共用的刻数与最短耗时共多少刻,看得出哪种走法实际比几何最短慢。
  * 计数记在事件发生的那一处——与写日志的是同一处——不另行推算;随实际账({@link EditLedger},含实际走完的各种步)一起交出。
  */
@@ -17,7 +17,10 @@ public final class Journal {
 
     private int searches;
     private final List<Integer> expansions = new ArrayList<>();
-    private int budgetStops;
+    private final List<Long> searchNanos = new ArrayList<>();
+    private final List<Double> gaps = new ArrayList<>();
+    private int learned;
+    private double routeCost;
     private int replans;
     private int blockages;
     private int stuck;
@@ -33,12 +36,17 @@ public final class Journal {
      */
     public record Timing(int steps, double ticks, double estimated) {}
 
-    /** 一次搜索有了结论;{@code budgetStop} 是它因节点预算停下(交出半程路线,接着再搜),{@code expanded} 是它展开了几个节点。 */
-    void searched(boolean budgetStop, int expanded) {
+    /**
+     * 一次搜索有了结论;{@code expanded} 是它展开了几个节点,{@code nanos} 是它在工作线程上跑了多久,{@code learned} 是它没搜到这一段的终点、
+     * 展开过的格子的估价抬高了,{@code gap} 是交出的路线证到的界({@link com.dwinovo.numen.pathing.search.SearchResult#gap})。
+     */
+    void searched(int expanded, long nanos, boolean learned, double gap) {
         searches++;
         expansions.add(expanded);
-        if (budgetStop) {
-            budgetStops++;
+        searchNanos.add(nanos);
+        gaps.add(gap);
+        if (learned) {
+            this.learned++;
         }
     }
 
@@ -62,6 +70,11 @@ public final class Journal {
         rechecks++;
     }
 
+    /** 走完了一步,它在规划里的代价是 {@code cost}。 */
+    void walked(double cost) {
+        routeCost += cost;
+    }
+
     /** 一步 {@code kind} 走完:实际用了 {@code ticks} 刻,几何最短耗时是 {@code estimated} 刻。 */
     void timed(MoveKind kind, double ticks, double estimated) {
         timings.merge(kind, new Timing(1, ticks, estimated),
@@ -78,9 +91,24 @@ public final class Journal {
         return Collections.unmodifiableList(expansions);
     }
 
-    /** 其中因节点预算停下的次数。 */
-    public int budgetStops() {
-        return budgetStops;
+    /** 每次搜索在工作线程上跑了多少纳秒,按先后。 */
+    public List<Long> searchNanos() {
+        return Collections.unmodifiableList(searchNanos);
+    }
+
+    /** 每次搜索证到的界(路线的价钱 ÷ 这一段最优价的下界;没交出整段为 NaN),按先后。 */
+    public List<Double> gaps() {
+        return Collections.unmodifiableList(gaps);
+    }
+
+    /** 实际走完的各步按规划算的代价之和:这条路线值多少钱。 */
+    public double routeCost() {
+        return routeCost;
+    }
+
+    /** 其中没搜到这一段的终点、抬高了估价往边界推进的次数。 */
+    public int learned() {
+        return learned;
     }
 
     /** 扔掉路重搜的次数。 */
@@ -88,7 +116,7 @@ public final class Journal {
         return replans;
     }
 
-    /** 走不下去的次数(同一步三次就收场)。 */
+    /** 走不下去的次数(每一步在这一趟里记为不通,以后的搜索不再走它)。 */
     public int blockages() {
         return blockages;
     }

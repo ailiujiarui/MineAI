@@ -35,6 +35,8 @@ public final class MultilineTextField extends Widget {
     private int goalX = -1;
     private int scrollY;
     private boolean dragging;
+    /** 底线(字段外观只有这一种,见 {@link FieldLine});聚焦的展开从点击处起。 */
+    private final FieldLine line = new FieldLine();
 
     /** 最近一次 render 的画布——度量真源(MC 字体宽度渲染/交互一致)。 */
     private IDrawSurface measure;
@@ -104,9 +106,7 @@ public final class MultilineTextField extends Widget {
         }
         reflowIfNeeded();
 
-        // 统一的框:描边+内衬底;聚焦/错误只换描边色(与单行 TextField 同制)。
-        int border = error != null ? c.danger() : isFocused() ? c.accent() : c.inputBorder();
-        NumenStyle.box(s, x, y, w, h, c.inputBg(), border);
+        line.draw(s, c, x, y, w, h, isFocused(), contains(mouseX, mouseY), error != null, nowMs);
         if (labelWidget != null) labelWidget.setVisible(error == null);   // 出错时标签让位
         if (error != null) {
             s.drawText(error, x + w - s.textWidth(error), y - 10, c.danger(), false);
@@ -162,8 +162,14 @@ public final class MultilineTextField extends Widget {
     // ---- 鼠标 ----
 
     @Override
+    public void onFocusLost() {
+        line.release();
+    }
+
+    @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (button != 0 || !contains(mx, my)) return false;
+        line.press(mx);
         cursor = indexAt(mx, my);
         anchor = cursor;   // 点击收起选区,拖动再展开
         goalX = -1;

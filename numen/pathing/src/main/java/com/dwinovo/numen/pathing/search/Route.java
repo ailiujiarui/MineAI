@@ -7,6 +7,7 @@ import com.dwinovo.numen.pathing.plan.Breath;
 import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.Maneuver;
+import com.dwinovo.numen.pathing.plan.Move;
 import com.dwinovo.numen.pathing.plan.Moves;
 import com.dwinovo.numen.pathing.plan.Stance;
 
@@ -23,9 +24,10 @@ import net.minecraft.core.BlockPos;
 public record Route(BlockPos start, Stance startStance, List<Leg> legs) {
 
     /**
-     * 一步:这一步的事实、它按成本模型算出的代价,与走完这一步时身体憋气的样子(搜索沿路推算的,{@link Breath#after})。
+     * 一步:这一步的事实、它按成本模型算出的代价、身体真做完它几何上最短要几刻({@link Move#ticks},按搜索用的那份成本模型算,
+     * 路线定下之后不再随身体变),与走完这一步时身体憋气的样子(搜索沿路推算的,{@link Breath#after})。
      */
-    public record Leg(Maneuver maneuver, double cost, Breath.Air air) {}
+    public record Leg(Maneuver maneuver, double cost, double ticks, Breath.Air air) {}
 
     /**
      * 路线上连着几步眼睛都换不了气的一段水下({@link Maneuver#submerged}):从哪一步的起点下去、到哪一步的落点,几步,
@@ -105,7 +107,7 @@ public record Route(BlockPos start, Stance startStance, List<Leg> legs) {
         for (Leg leg : legs) {
             Maneuver m = leg.maneuver();
             air = breath.after(air, m.submerged(), Moves.of(m.kind()).ticks(model, m));
-            out.add(new Leg(m, leg.cost(), air));
+            out.add(new Leg(m, leg.cost(), leg.ticks(), air));
         }
         return new Route(start, startStance, out);
     }

@@ -28,7 +28,6 @@ import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import com.dwinovo.numen.api.client.skin.CompanionFace;
 import com.dwinovo.numen.api.network.NumenNetwork;
@@ -74,7 +73,8 @@ public final class NumenScreen extends Screen {
     // ——行宽超过阅读舒适区就不再跟了。
     // 不学原版的固定尺寸(箱子/工作台从不随窗口伸缩):那样大窗口下是大面板稀内容,
     // 字的视觉占比被稀释,显小显散。
-    private static final int PANEL_MIN_W = 300;
+    // 下限 280:原版 GUI 最小是 320×240,窄栏(40)加最窄的正文刚好装满,再大右边的 ⋮、发送键就落到屏幕外了。
+    private static final int PANEL_MIN_W = 280;
     private static final int PANEL_MIN_H = 232;
     private static final int PANEL_MAX_W = 380;
     private static final int PANEL_MAX_H = PANEL_MIN_H;
@@ -89,12 +89,13 @@ public final class NumenScreen extends Screen {
     /** 抬头两行:名字一行、状态一行(Telegram 的"在线 / 正在输入…"),页签在右侧居中。 */
     private static final int HEADER_H = 30;
     private static final int INPUT_H = 18;
-    /** Text fields are inset inside their field box: the EditBox is shrunk by this much
-     *  (so vanilla's top-left unbordered text lands padded + centred) and the card is
-     *  inflated back out to the full frame. */
-    private static final int FIELD_INSET_X = 5;
-    private static final int FIELD_INSET_Y = 4;
     private static final int PAD = 8;
+    /**
+     * 上层压在下层之上的深度差。原版字体的删除线、下划线是深度往前 0.01 画的,同一深度后画的方块盖不住它,
+     * 对话里划掉的计划项、@ 名字的下划线就会穿透模态卡、菜单、滑进来的页;每一层比下面一层再往前这么多,
+     * 后画的才真盖得住。
+     */
+    private static final int Z_LAYER = 100;
     private static final int LINE_H = 10;
     private static final int MAX_PROMPT = 1024;
 
@@ -120,9 +121,6 @@ public final class NumenScreen extends Screen {
         OK = t.ok();
         RUN = t.run();
         FAIL = t.fail();
-    }
-    private static net.minecraft.resources.ResourceLocation railSpr(String n) {
-        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(com.dwinovo.numen.api.Constants.MOD_ID, n);
     }
     /** 图标格边长:与名字那一行的字齐高。 */
     private static final int ICON_N = com.dwinovo.numen.api.client.ui.mc.Sprites.SIZE;
@@ -245,8 +243,6 @@ public final class NumenScreen extends Screen {
         return (argb & 0xFFFFFF) | (a << 24);
     }
 
-    private static final net.minecraft.resources.ResourceLocation CHEVRON_UP = railSpr("chevron_up");
-    private static final net.minecraft.resources.ResourceLocation CHEVRON_DOWN = railSpr("chevron_down");
 
     /**
      * 面板对着的会话(左栏切换就地换);null = 空面板(没同伴,或只开设置页)。
@@ -629,8 +625,8 @@ public final class NumenScreen extends Screen {
                 : (chatView.matchAt() < 0 ? "" : (chatView.matchAt() + 1) + "/") + n;
         txt(g, Component.literal(count), findBtnX(0) - 4 - font.width(count), y + (FIND_H - 8) / 2, TXT_MUTED);
         int hot = slide == 0 ? findButtonAt(mouseX, mouseY) : -1;
-        chevron(g, findBtnX(0) + 6, y + 5, true);
-        chevron(g, findBtnX(1) + 6, y + 5, false);
+        chevron(g, findBtnX(0) + 6, y + 5, true, TXT_MUTED);
+        chevron(g, findBtnX(1) + 6, y + 5, false, TXT_MUTED);
         if (hot == 0 || hot == 1) g.fill(findBtnX(hot), y + 1, findBtnX(hot) + 12, y + FIND_H - 1, 0x30FFFFFF);
         txt(g, Component.literal("×"), findBtnX(2) + (12 - font.width("×")) / 2, y + (FIND_H - 8) / 2, hot == 2 ? TXT : TXT_MUTED);
         g.pose().popPose();
@@ -780,7 +776,8 @@ public final class NumenScreen extends Screen {
                             // 去处是聊天框而不是卡上的提示行:召唤卡这会儿已经关了,
                             // 而且他多半过一会儿才注意到皮肤不对,那时要能翻得到原因。
                             com.dwinovo.numen.api.client.chat.ChatLines.notice(d.name,
-                                    I18n.get("numen.summon.skin_failed", r.problem()));
+                                    I18n.get("numen.summon.skin_failed",
+                                            com.dwinovo.numen.api.client.skin.SkinWords.text(r.problem())));
                         }
                         var skin = r.skin();
                         sendSummon(d, skin == null ? "" : skin.value(),
@@ -805,6 +802,13 @@ public final class NumenScreen extends Screen {
             // 有 gamemode 权限(等级 2,原版已同步到客户端)才给下拉自选。
             return minecraft != null && minecraft.player != null
                     && minecraft.player.hasPermissions(2);
+        }
+
+        @Override public void onNoProvider() {
+            closeCard();
+            selectTab(Tab.SETTINGS);
+            settings.showProviders();
+            settings.beginNewProvider();
         }
 
         @Override public boolean ownerCreative() {
@@ -954,7 +958,8 @@ public final class NumenScreen extends Screen {
                     .thenAccept(r -> Minecraft.getInstance().execute(() -> {
                         if (r.problem() != null) {
                             com.dwinovo.numen.api.client.chat.ChatLines.notice(n,
-                                    I18n.get("numen.summon.skin_failed", r.problem()));
+                                    I18n.get("numen.summon.skin_failed",
+                                            com.dwinovo.numen.api.client.skin.SkinWords.text(r.problem())));
                         }
                         var skin = r.skin();
                         sendSkin(target, skin == null ? "" : skin.value(),
@@ -980,7 +985,7 @@ public final class NumenScreen extends Screen {
         dismissDialog.open(overlayUi, railX, top, railW + panelW, panelH,
                 I18n.get("numen.dismiss.title", nameFor(target)),
                 I18n.get("numen.dismiss.warning"),
-                I18n.get("numen.gui.settings.cancel"), I18n.get("numen.dismiss.delete"),
+                I18n.get(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), I18n.get("numen.dismiss.delete"),
                 () -> {
                     NumenNetwork.sendToServer(
                             new com.dwinovo.numen.api.network.payload.DismissRequestPayload(target));
@@ -999,7 +1004,7 @@ public final class NumenScreen extends Screen {
                 I18n.get(ModLanguageData.Keys.CONVO_DISSOLVE_TITLE,
                         target.displayName(NumenRoster.instance()::name)),
                 I18n.get(ModLanguageData.Keys.CONVO_DISSOLVE_WARNING),
-                I18n.get("numen.gui.settings.cancel"), I18n.get(ModLanguageData.Keys.CONVO_DISSOLVE),
+                I18n.get(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), I18n.get(ModLanguageData.Keys.CONVO_DISSOLVE),
                 () -> {
                     Conversations.instance().dissolve(target);
                     if (sameAs(target, conv)) {   // 解散的是当前这个:跳到另一个会话/回空屏
@@ -1031,7 +1036,7 @@ public final class NumenScreen extends Screen {
         int bodyTop = top + HEADER_H, bodyBottom = top + panelH - 3;
         g.enableScissor(left + 3, bodyTop, left + panelW - 3, bodyBottom);
         g.pose().pushPose();
-        g.pose().translate(dx, 0, 0);
+        g.pose().translate(dx, 0, Z_LAYER);   // 盖着的页在对话之上,见 Z_LAYER
         UiTheme t = UiTheme.current();
         g.fill(left + 3, bodyTop, left + panelW - 3, bodyBottom, t.band());   // 盖着的页是窗口底色(Telegram 资料页、设置页),盖住下面的对话
         if (overlayKind == Tab.SETTINGS) {
@@ -1044,6 +1049,13 @@ public final class NumenScreen extends Screen {
         g.pose().popPose();
         g.disableScissor();
         overlayDx = dx;
+        if (overlayKind == Tab.SETTINGS) {
+            // 设置里的表单卡盖住整个面板:在页的裁剪框与滑动之外画,且在页之上
+            g.pose().pushPose();
+            g.pose().translate(0, 0, Z_LAYER);
+            settings.renderCard(g, mouseX, mouseY);
+            g.pose().popPose();
+        }
     }
 
     /** 盖着的那页这一帧偏了多少(滑动中);设置页的真控件跟着它画。 */
@@ -1464,14 +1476,6 @@ public final class NumenScreen extends Screen {
                 && my >= top + 3 && my < top + HEADER_H - 2;
     }
     private int nameRight;
-
-    /** Shadowless placeholder for an empty, unfocused field — the EditBox's own hint renders with a shadow. */
-    private void placeholder(GuiGraphics g, EditBox f, String text) {
-        if (f != null && f.visible && f.getValue().isEmpty() && !f.isFocused()
-                && text != null && !text.isEmpty()) {
-            txt(g, Component.literal(text), f.getX(), f.getY(), TXT_FAINT);
-        }
-    }
 
     /** 皮肤 png 从系统拖进游戏窗口——皮肤表单打开时由 SettingsView 接住。 */
     @Override
@@ -1990,8 +1994,11 @@ public final class NumenScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
         // 崩溃护栏:面板渲染的任何异常都不许带走游戏——降级成一行红字
-        if (!com.dwinovo.numen.api.client.ui.SafeUi.run("panel-render",
-                () -> renderInner(g, mouseX, mouseY, partial))) {
+        g.pose().pushPose();   // renderInner 为分层把深度一路往前推,画完把干净的位姿还给后画的(通知卡、别的模组)
+        boolean drawn = com.dwinovo.numen.api.client.ui.SafeUi.run("panel-render",
+                () -> renderInner(g, mouseX, mouseY, partial));
+        g.pose().popPose();
+        if (!drawn) {
             g.drawString(font, I18n.get(ModLanguageData.Keys.SCREEN_RENDER_FAILED),
                     left + 10, top + 10, 0xFFFF6B6B, true);
         }
@@ -2063,6 +2070,7 @@ public final class NumenScreen extends Screen {
         }
         // 抬头以下所有页共用一段:页面本身,再往上是模态卡、浮层、提示——盖着的页上开的卡也得画得出来
         renderOverlayPage(g, mouseX, mouseY);
+        g.pose().translate(0, 0, Z_LAYER);   // 之后画的一切(模态卡、菜单、确认卡)都在盖着的页之上
         if (narrow()) renderSearch(g, mouseX, mouseY);   // 窄栏的搜索框浮在抬头左边,压在页面上
         // 对话里悬停的那张脸:提示能点开资料
         if (tab == Tab.CHAT && !modalOpen() && !overlayOpen() && chatView.faceAt(mouseX, mouseY) != null) {
@@ -2093,21 +2101,6 @@ public final class NumenScreen extends Screen {
         }
 
 
-        // Widgets render LAST, on top of the panel background (fixes the "dim fields" — the panel fill
-        // used to paint over the auto-rendered widgets). Text fields are borderless EditBoxes, so draw
-        // the shared field box behind each before it renders its text.
-        for (AbstractWidget w : overlay) {
-            // visible 检查:声线表单滚出视口的 EditBox 隐藏了自己,框也必须跟着消失
-            // (否则空框越过面板边缘悬在世界上)。
-            if (w instanceof EditBox eb && eb.visible) {
-                // 所有文本字段与气泡同款的框;聚焦的字段边框亮 CTA。
-                com.dwinovo.numen.api.client.ui.NumenStyle.box(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font),
-                        eb.getX() - FIELD_INSET_X, eb.getY() - FIELD_INSET_Y,
-                        eb.getWidth() + FIELD_INSET_X * 2, eb.getHeight() + FIELD_INSET_Y * 2,
-                        UiTheme.current().aiFill(),
-                        eb.isFocused() ? UiTheme.current().cta() : UiTheme.current().aiBorder());
-            }
-        }
         boolean sliding = tab == Tab.SETTINGS && overlayDx != 0;
         if (sliding) {
             g.enableScissor(left + 3, top + HEADER_H, left + panelW - 3, top + panelH - 3);
@@ -2207,8 +2200,8 @@ public final class NumenScreen extends Screen {
         g.disableScissor();
         // scroll cues — chevrons when the list overflows in either direction
         int cx = railX + railW / 2;
-        if (railScroll > 0) chevron(g, cx, top + 1, true);
-        if (railScroll < maxRailScroll()) chevron(g, cx, railBottomEdge() + 2, false);
+        if (railScroll > 0) chevron(g, cx, top + 1, true, TXT_MUTED);
+        if (railScroll < maxRailScroll()) chevron(g, cx, railBottomEdge() + 2, false, TXT_MUTED);
     }
 
     /**
@@ -2436,9 +2429,13 @@ public final class NumenScreen extends Screen {
         };
     }
 
-    /** 这个分组里有几个会话有未读——Telegram 标签上的数是"几个会话",不是几条。 */
+    /**
+     * 这个分组里有几个会话有未读——Telegram 标签上的数是"几个会话",不是几条。内置的三个(全部、私聊、群聊)
+     * 不挂数:数只在会话行上,栏窄时标签得完整装得下;自建的分组才挂。
+     */
     private int folderUnread(String id) {
         Conversations convos = Conversations.instance();
+        if (convos.customFolder(id) == null) return 0;
         int n = 0;
         for (Conversation c : convos.all()) {
             if (convos.inFolder(id, c) && railUnread(c) > 0) n++;
@@ -2580,7 +2577,7 @@ public final class NumenScreen extends Screen {
         dismissDialog.open(overlayUi, railX, top, railW + panelW, panelH,
                 I18n.get(ModLanguageData.Keys.FOLDER_DELETE_TITLE, folder.name()),
                 I18n.get(ModLanguageData.Keys.FOLDER_DELETE_WARNING),
-                I18n.get("numen.gui.settings.cancel"), I18n.get(ModLanguageData.Keys.FOLDER_DELETE),
+                I18n.get(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), I18n.get(ModLanguageData.Keys.FOLDER_DELETE),
                 () -> {
                     if (folder.id().equals(Conversations.instance().folder())) selectFolder(ChatFolders.ALL);
                     Conversations.instance().deleteFolder(folder.id());
@@ -2678,9 +2675,11 @@ public final class NumenScreen extends Screen {
 
     /** Scroll-affordance chevron sprite (amber pixel-art triangle, up = more above / down = more below).
      *  Blitted at its native 11×6 so the pixels stay crisp (no scaling, no AA). */
-    private void chevron(GuiGraphics g, int cx, int y, boolean up) {
-        g.blitSprite(
-                up ? CHEVRON_UP : CHEVRON_DOWN, cx - 5, y, 11, 6);
+    private void chevron(GuiGraphics g, int cx, int y, boolean up, int color) {
+        com.dwinovo.numen.api.client.ui.mc.Sprites.draw(g,
+                up ? com.dwinovo.numen.api.client.ui.mc.Sprites.CHEVRON_UP : com.dwinovo.numen.api.client.ui.mc.Sprites.CHEVRON_DOWN,
+                cx - 5, y, com.dwinovo.numen.api.client.ui.mc.Sprites.CHEVRON_W,
+                com.dwinovo.numen.api.client.ui.mc.Sprites.CHEVRON_H, color);
     }
 
     /** 最后一行的底边最多到哪(下面留一道缝给箭头)。 */
@@ -2869,7 +2868,8 @@ public final class NumenScreen extends Screen {
         }
         // 没绑模型/没填 key:她停在 BLOCKED,原因一直挂在输入行上面,绑好了自己消失
         if (blocked && !compacting) {
-            txt(g, Component.literal(lp.status().holdReason()), left + PAD, dockY, FAIL);
+            txt(g, Component.literal(com.dwinovo.numen.api.client.agent.CauseWords.text(lp.status().holdReason())),
+                    left + PAD, dockY, FAIL);
         }
         // 整理记忆:一条随摘要流回来的字数逼近满格的进度条。摘要多长事先不知道,所以它
         // 报的是"还在动",不是"完成了百分之几"——永远差一点,收尾时整条消失。

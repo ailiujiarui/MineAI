@@ -17,11 +17,19 @@ public sealed interface Outcome {
     /** 到了:身体停在目标里,目标要求看得见的那一格也看得见。 */
     record Arrived() implements Outcome {}
 
-    /** 按这次的规格走得到的地方都搜过了,没有路。 */
-    record NoRoute() implements Outcome {}
+    /**
+     * 按这次的规格走得到的地方都搜过了,没有路。
+     *
+     * @param cause 离目标最近的地方,朝目标的一步被什么挡住了(挖不动、基岩、岩浆、权限……);没有为 null
+     */
+    record NoRoute(Blockage cause) implements Outcome {}
 
-    /** 展开节点的预算用完了还没搜完:不能证明没路。 */
-    record OutOfBudget() implements Outcome {}
+    /**
+     * 这一趟的总预算(展开的节点数)用完了还没到:不能证明没路。
+     *
+     * @param cause 搜到的最近的地方,朝目标的一步被什么挡住了;没有为 null
+     */
+    record OutOfBudget(Blockage cause) implements Outcome {}
 
     /** 路伸进了没加载的区块,那边是什么不知道。 */
     record Unloaded() implements Outcome {}
@@ -50,8 +58,12 @@ public sealed interface Outcome {
         }
     }
 
-    /** 要垫方块才有路,身上没有能垫的料。 */
-    record NoMaterials() implements Outcome {}
+    /**
+     * 要垫方块才有路,身上没有能垫的料。
+     *
+     * @param needed 有料的话那条路要放几块
+     */
+    record NoMaterials(int needed) implements Outcome {}
 
     /** 规格的改动预算不够:最便宜的那条路要改 {@code needed} 格。 */
     record OverAlterBudget(int needed) implements Outcome {}

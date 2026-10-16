@@ -30,13 +30,14 @@ public final class HostThemeColors {
         return new NumenTheme.Colors(
                 th.surface(),                          // panelBg(下拉弹层底=宿主纸面)
                 th.cardFill(), th.surfaceBorder(),     // sectionBg / divider
-                th.text(), th.textDim(), th.faint(),   // 文字三级(跟主题——黑字是 LIGHT 主题的事)
+                th.text(), th.textDim(), th.faint(),   // 文字三级:正文;次级(标签、副标题、说明);最淡的只给占位字、时间戳、置灰
                 th.cta(), th.fail(), th.ok(), th.run(),   // accent/danger/success/warning(主题琥珀)
                 th.aiFill(), th.aiBorder(),            // 输入底/描边(STT 字段=全线基准:奶油底浅灰边)
                 // hover:指针反馈的叠加色(不是实底)。chipFill 只有 13% 不透明,铺在
                 // 8.6% 的控件底上前后差值肉眼不可辨,动效等于白做;改取主题文字色作
-                // 叠加基色——亮主题文字深/暗主题文字浅,亮度感知自动成立。
-                (th.text() & 0xFFFFFF) | 0x38000000,
+                // 叠加基色——亮主题文字深/暗主题文字浅,亮度感知自动成立。不透明度取 11%:
+                // 再深整行就压成一块灰,行里的淡字(副标题、人设摘要)落在上面看不清。
+                (th.text() & 0xFFFFFF) | 0x1C000000,
                 (th.cta() & 0xFFFFFF) | 0x30000000,    // selected:金色淡染,与宿主选中语言一致
                 th.field(), th.text(),                 // badge 底/字
                 dark ? mix(th.ok(), 0xFF000000, 0.62f)    // toast info:绿系(正常=成功语义)

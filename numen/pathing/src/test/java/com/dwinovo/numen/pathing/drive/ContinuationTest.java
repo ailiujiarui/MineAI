@@ -2,8 +2,6 @@ package com.dwinovo.numen.pathing.drive;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dwinovo.numen.pathing.Fixtures;
@@ -11,7 +9,6 @@ import com.dwinovo.numen.pathing.TestWorld;
 import com.dwinovo.numen.pathing.Vanilla;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.search.Route;
-import com.dwinovo.numen.pathing.search.SearchResult;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import com.dwinovo.numen.pathing.plan.Stance;
 import net.minecraft.core.BlockPos;
@@ -47,7 +44,7 @@ class ContinuationTest {
         Route route = Fixtures.search(world, Fixtures.model(RouteSpec.defaults()), new BlockPos(0, Y, 0),
                 Goals.at(new BlockPos(3, Y + 7, 0))).route();
         Course course = new Course();
-        course.install(route, false, m -> 10);
+        course.install(TrackerTest.paced(route, 10), false);
         return course;
     }
 
@@ -95,7 +92,7 @@ class ContinuationTest {
         Continuation continuation = new Continuation();
         assertFalse(continuation.due(TrackerTest.straightCourse(true, 2)), "已到目标");
         Course course = TrackerTest.straightCourse(false, 2);
-        continuation.splice(course, null, false, m -> 2);
+        continuation.splice(course, null, false);
         assertFalse(continuation.due(course), "接不上之后不再提前搜");
         assertTrue(continuation.failed());
     }
@@ -122,7 +119,7 @@ class ContinuationTest {
         open.advanceTo(open.size() - 1);
         Continuation continuation = new Continuation();
         assertFalse(continuation.settled(open));
-        continuation.splice(open, null, false, m -> 10);
+        continuation.splice(open, null, false);
         assertTrue(continuation.settled(open), "确认接不上,末尾几步照走(到终点再从脚下搜)");
     }
 
@@ -134,7 +131,7 @@ class ContinuationTest {
         assertFalse(continuation.settled(course));
         Route next = nextSegment(course);
         int before = course.size();
-        assertTrue(continuation.splice(course, next, true, m -> 10));
+        assertTrue(continuation.splice(course, next, true));
         assertEquals(before + next.legs().size(), course.size());
         assertTrue(course.complete(), "接上的一段到了目标");
         assertEquals(next.end(), course.end());
@@ -149,30 +146,10 @@ class ContinuationTest {
         Route elsewhere = Fixtures.search(world, Fixtures.model(RouteSpec.defaults()), new BlockPos(0, Y, 2),
                 Goals.at(new BlockPos(6, Y, 2))).route();
         int before = course.size();
-        assertFalse(continuation.splice(course, elsewhere, true, m -> 10));
+        assertFalse(continuation.splice(course, elsewhere, true));
         assertEquals(before, course.size());
         assertTrue(continuation.failed());
         continuation.reset();
         assertFalse(continuation.failed(), "换了新路线重新开始");
-    }
-
-    @Test
-    void aNextSegmentThatFoundNoRouteIsTheConclusionOfTheWholeTrip() {
-        // 走到终点后从脚下再搜,起点、目标、规格、世界都一样,结果必然相同:不再派第二次
-        Continuation continuation = new Continuation();
-        SearchResult budget = new SearchResult(SearchResult.Stop.BUDGET, null, 40_000, false, Double.NaN);
-        assertNull(continuation.unfound());
-        continuation.unfound(budget, null);
-        assertSame(budget, continuation.unfound().result());
-        continuation.reset();
-        assertNull(continuation.unfound(), "换了新路线重新开始");
-    }
-
-    @Test
-    void aNextSegmentThatRanIntoUnloadedChunksIsSearchedAgainOnceTheBodyIsThere() {
-        // 走近了区块会加载,那时再搜的结果不一样
-        Continuation continuation = new Continuation();
-        continuation.unfound(new SearchResult(SearchResult.Stop.UNLOADED, null, 900, false, Double.NaN), null);
-        assertNull(continuation.unfound());
     }
 }

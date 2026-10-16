@@ -2,18 +2,19 @@ package com.dwinovo.numen.pathing.api;
 
 import java.util.function.BooleanSupplier;
 
+import com.dwinovo.numen.pathing.drive.Blockage;
 import com.dwinovo.numen.pathing.plan.Breath;
 import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.Permit;
 import com.dwinovo.numen.pathing.plan.TerrainPolicy;
 import com.dwinovo.numen.pathing.search.AStar;
-import com.dwinovo.numen.pathing.search.Favoring;
 import com.dwinovo.numen.pathing.search.Route;
 import com.dwinovo.numen.pathing.search.Search;
 import com.dwinovo.numen.pathing.search.SearchResult;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 
 /**
@@ -25,10 +26,10 @@ import net.minecraft.world.level.block.Blocks;
  *   <li>规格不许挖或不许放:两样都许就有路 → {@link Outcome.NeedsChanges};要问主人的格当墙时,再把它们算能走才有路
  *       → 同样是 {@link Outcome.NeedsChanges}(那条路的改动里有要问的格);都连同那条路要做的改动;</li>
  *   <li>挖与放都许、要问的格当墙:把要问的格算能走就有路 → {@link Outcome.NeedsChanges};</li>
- *   <li>身上没料:有料就有路 → {@link Outcome.NoMaterials};</li>
+ *   <li>身上没料:有料就有路 → {@link Outcome.NoMaterials},连同那条路要放几块;</li>
  *   <li>设了改动预算:不限预算就有路 → {@link Outcome.OverAlterBudget},连同最便宜那条要改几格;</li>
  *   <li>许可拒绝的格放行就有路 → {@link Outcome.Denied},连同路上第一格被拒的格与许可给的理由;</li>
- *   <li>都没有 → {@link Outcome.NoRoute}。</li>
+ *   <li>都没有 → {@link Outcome.NoRoute},连同搜索里离目标最近的地方朝目标的一步被什么挡住了(挖不动、基岩、岩浆……)。</li>
  * </ol>
  * "许的改动不够"总是先报,身上有没有料不提:不许挖或不许放时问的是"都许又有料";都许而要问的格当墙时问的是"要问的格也算能走,
  * 料照身上的"——设想出来的料会让一条只缺料的路冒充成要主人同意的路。换条件的搜索与原来的同一个预算;它也搜不完,
@@ -43,17 +44,28 @@ final class Diagnosis {
 
     /**
      * @param breathless 失败的那次搜索因为憋不住气丢下过步子({@link SearchResult#breathless})
+     * @param blocking   失败的那次搜索里,离目标最近的节点上朝目标的步子为什么被拒({@link SearchResult#blocking});没有为 null
      */
-    static Outcome of(SearchResult.Stop stop, boolean breathless, Search failed, BooleanSupplier cancelled) {
+    static Outcome of(SearchResult.Stop stop, boolean breathless, Search failed, SearchResult.Blocking blocking,
+                      BooleanSupplier cancelled) {
         return switch (stop) {
-            case BUDGET -> new Outcome.OutOfBudget();
+            case BUDGET -> new Outcome.OutOfBudget(cause(failed, blocking));
             case UNLOADED -> new Outcome.Unloaded();
             case STRANDED -> new Outcome.Stranded(failed.start(), failed.view().getBlockState(failed.start()));
-            case EXHAUSTED, CANCELLED, ARRIVED -> {
+            case EXHAUSTED, CANCELLED, ARRIVED, SEGMENT -> {
                 Outcome breath = breathless ? breathless(failed, cancelled) : null;
-                yield breath != null ? breath : exhausted(failed, cancelled);
+                yield breath != null ? breath : exhausted(failed, cause(failed, blocking), cancelled);
             }
         };
+    }
+
+    /** 搜索里被拒的那一步,说成一条阻碍(哪一格、什么方块、哪种走法、哪一条前提)。 */
+    private static Blockage cause(Search failed, SearchResult.Blocking blocking) {
+        if (blocking == null) {
+            return null;
+        }
+        BlockPos cell = blocking.fails().cell();
+        return new Blockage(cell, failed.view().getBlockState(cell), blocking.move(), blocking.fails().reason(), null);
     }
 
     /**
@@ -77,7 +89,7 @@ final class Diagnosis {
         return null;
     }
 
-    private static Outcome exhausted(Search failed, BooleanSupplier cancelled) {
+    private static Outcome exhausted(Search failed, Blockage cause, BooleanSupplier cancelled) {
         CostModel model = failed.model();
         RouteSpec spec = model.spec();
         boolean hadMaterials = model.placing().isPresent();
@@ -88,7 +100,7 @@ final class Diagnosis {
                 route = find(failed, withMaterials(model).withSpec(changing.edit().consent(true).build()), cancelled);
             }
             return route != null ? new Outcome.NeedsChanges(route.edits().stream().filter(Edit::alters).toList())
-                    : new Outcome.NoRoute();
+                    : new Outcome.NoRoute(cause);
         }
         if (!spec.consent()) {
             Route route = find(failed, model.withSpec(spec.edit().consent(true).build()), cancelled);
@@ -96,8 +108,11 @@ final class Diagnosis {
                 return new Outcome.NeedsChanges(route.edits().stream().filter(Edit::alters).toList());
             }
         }
-        if (!hadMaterials && find(failed, withMaterials(model), cancelled) != null) {
-            return new Outcome.NoMaterials();
+        if (!hadMaterials) {
+            Route route = find(failed, withMaterials(model), cancelled);
+            if (route != null) {
+                return new Outcome.NoMaterials((int) route.edits().stream().filter(e -> e instanceof Edit.Place).count());
+            }
         }
         if (spec.budgeted()) {
             Route route = find(failed, model.withSpec(spec.edit().alterBudget(RouteSpec.UNLIMITED).build()), cancelled);
@@ -125,17 +140,16 @@ final class Diagnosis {
                 }
             }
         }
-        return new Outcome.NoRoute();
+        return new Outcome.NoRoute(cause);
     }
 
     private static CostModel withMaterials(CostModel model) {
         return model.placing().isPresent() ? model : model.withPlacing(ANY_BLOCK);
     }
 
-    /** 同一份快照、同一个起点(连同接在哪一步后面、那时憋气的样子)、目标与预算,按这份成本模型搜到底;到了就交出路。 */
+    /** 同一份快照、同一个起点(连同接在哪一步后面、那时憋气的样子)、目标与预算,按这份成本模型搜;到了这次要去的地方就交出路。 */
     private static Route find(Search failed, CostModel model, BooleanSupplier cancelled) {
-        SearchResult result = AStar.run(new Search(failed.view(), model, failed.start(), failed.goal(),
-                failed.budget(), Favoring.NONE, failed.budget(), failed.arrival(), failed.air()), cancelled);
-        return result.arrived() ? result.route() : null;
+        SearchResult result = AStar.run(failed.under(model), cancelled);
+        return result.reached() ? result.route() : null;
     }
 }

@@ -5,7 +5,6 @@ import com.dwinovo.numen.api.agent.loop.LoopEvent;
 import com.dwinovo.numen.api.agent.loop.RunEnd;
 import com.dwinovo.numen.api.agent.memory.NoteBook;
 import com.dwinovo.numen.api.agent.prompt.NumenPrompts;
-import com.dwinovo.numen.api.agent.provider.ProviderRegistry;
 import com.dwinovo.numen.api.agent.request.BodySnapshot;
 import com.dwinovo.numen.api.agent.request.SystemPromptComposer;
 import com.dwinovo.numen.bench.report.EndReason;
@@ -184,8 +183,7 @@ final class Attempt {
             case NOOP -> new Mind.Scripted(null, "好的。");
             case LIVE -> new Mind.Live(settings.endpoint());
         };
-        int window = ProviderRegistry.contextWindow(ProviderRegistry.canonicalId(settings.provider()),
-                settings.model());
+        int window = settings.endpoint().contextWindow();
         brain = new Brain(her.getUUID(), mind, home.resolve("chat.jsonl"), window, mail,
                 () -> meter.turns <= scenario.budget().turns(), level::getDayTime);
         brain.subscribe(meter);

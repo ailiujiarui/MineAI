@@ -34,7 +34,7 @@ import java.util.List;
  *                     {@code content}, {@code tool_calls} in OpenAI's schema).
  * @param reasoning    dialect-decoded thinking text for display (empty when
  *                     the model didn't think or the backend doesn't expose it)
- * @param origin       哪家模型产的这条回合({@code 服务商/模型}),{@code null} = 不知道(老存档)。
+ * @param origin       哪家模型产的这条回合({@code 协议/厂家/型号},见 {@code LlmEndpoint#origin}),{@code null} = 不知道(老存档)。
  *                     {@link #extras} 与 {@link #reasoning} 是那一家的私货,换了模型就不能原样回塞:
  *                     DeepSeek 的 {@code reasoning_content} 递给别家会被 400 拒,Anthropic 的思考
  *                     签名更是只有它自己认。所以回合要记得自己的出处,见 {@link #sameOrigin}。

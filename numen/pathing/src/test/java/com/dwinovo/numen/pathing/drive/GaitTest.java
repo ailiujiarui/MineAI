@@ -131,8 +131,8 @@ class GaitTest {
     }
 
     @Test
-    void aDropRightAfterADropRunsOnBecauseTheExtraFallStaysOnTheRoute() {
-        // 每级只一格宽:疾跑飘出去,身子落过了这一列的外沿,一直落到后面连着的下一级上。多落的那一格本来就在路线上,不收脚
+    void aStaircaseOfOneWideStepsIsWalkedBecauseSprintingOnlyGrazesEachEdge() {
+        // 每级只一格宽:疾跑落一格,身子擦着这一级的外沿落下去、下一刻就滑出去,认不出落在了哪一级;平走压着这一级的支撑,认得出,不收脚
         TestWorld world = flat();
         for (int k = 0; k < 4; k++) {
             world.fill(k, Y, -8, k, Y + 3 - k, 8, Blocks.STONE.defaultBlockState());
@@ -143,28 +143,11 @@ class GaitTest {
         for (int i = 0; i + 1 < steps.size(); i++) {
             if (steps.get(i).kind() == MoveKind.DESCEND && steps.get(i + 1).kind() == MoveKind.DESCEND) {
                 drops++;
-                assertTrue(strides.get(i).sprint(), "第 " + i + " 步之后紧接着又是下一级,照跑");
-                assertTrue(strides.get(i).flows(), "第 " + i + " 步冲劲带着往下落,不收脚");
+                assertFalse(strides.get(i).sprint(), "第 " + i + " 步疾跑只擦着下一级的边沿落,改平走");
+                assertTrue(strides.get(i).flows(), "第 " + i + " 步平走压着这一级的支撑落下去,冲劲带着往下落,不收脚");
             }
         }
         assertTrue(drops >= 2, "路线里连着几级下坡");
-    }
-
-    @Test
-    void anExtraFallThatTheBodyCannotBearIsNotRun() {
-        // 下一级之后是落两格:疾跑飘出去会一直落到那里,合起来落三格。规格许落三格就疾跑着落,只许落两格就改成平走(平走飘得近,落在这一列里)
-        TestWorld world = flat().fill(0, Y, -8, 0, Y + 3, 8, Blocks.STONE.defaultBlockState())
-                .fill(1, Y, -8, 1, Y + 2, 8, Blocks.STONE.defaultBlockState()).fill(2, Y, -8, 2, Y, 8, Blocks.STONE.defaultBlockState());
-        List<Maneuver> steps = route(world, new BlockPos(0, Y + 4, 0), new BlockPos(4, Y, 0));
-        int at = steps.indexOf(firstOf(MoveKind.DESCEND, steps));
-        assertEquals(MoveKind.FALL, steps.get(at + 1).kind(), "下一级之后落两格");
-        List<Maneuver> window = steps.subList(at, steps.size());
-        Gait.Stride loose = Gait.stride(world, model(true), null, window);
-        assertTrue(loose.sprint() && loose.flows());
-        RouteSpec tight = RouteSpec.defaults().edit().maxFallHeightNoWater(2).build();
-        Gait.Stride walking = Gait.stride(world, Fixtures.model(tight), null, window);
-        assertFalse(walking.sprint());
-        assertTrue(walking.flows());
     }
 
     @Test

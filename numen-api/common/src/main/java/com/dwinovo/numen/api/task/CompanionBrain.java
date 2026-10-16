@@ -232,7 +232,7 @@ final class CompanionBrain {
             long startedTick = Math.max(0, rec.getStartedGameTime());
             long elapsedMs = Math.max(0, companion.level().getGameTime() - startedTick) * 50L;
             msg = new com.dwinovo.numen.api.network.payload.CurrentTaskPayload(
-                    companion.getUUID(), id, rec.getToolName(), desc,
+                    companion.getUUID(), id, rec.getToolName(), desc, rec.activity(),
                     rec.getDeadlineGameTime() >= TaskRecord.NO_DEADLINE, elapsedMs);
         }
         com.dwinovo.numen.api.network.NumenNetwork.sendToPlayer(owner, msg);

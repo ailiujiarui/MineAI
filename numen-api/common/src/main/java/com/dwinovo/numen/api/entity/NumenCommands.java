@@ -333,8 +333,9 @@ public final class NumenCommands {
         Rule rule;
         try {
             rule = Rule.parse(StringArgumentType.getString(ctx, "rule"));
-        } catch (IllegalArgumentException mistake) {
-            ctx.getSource().sendFailure(Component.literal(mistake.getMessage()));
+        } catch (Rule.Mistake mistake) {
+            ctx.getSource().sendFailure(Component.translatable(Keys.COMMAND_RULE_MISTAKE_PREFIX + mistake.code(),
+                    mistake.args().toArray()));
             return 0;
         }
         boolean added = PermissionStore.of(owner.getServer(), owner.getUUID()).add(table, rule);

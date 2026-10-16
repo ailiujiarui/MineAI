@@ -58,6 +58,47 @@ final class Strides {
         return Semantics.isAny(level, feet, WATERS);
     }
 
+    /**
+     * 泡在水里的身体从 {@code from} 这个节点出水,脚最高能上到多高:从 {@code from} 往上数到这一列水面(最上面一格水的液面),再加迈步高度。
+     * 依据原版 {@code LivingEntity.travel}:水里顶着岸沿、头上有空处时每刻往上蹿 0.3,蹿出水面后靠冲劲再升一小截,实测(顶着岸沿按住跳往前)
+     * 脚升到水面之上 0.7 格左右;迈步高度(0.6)是留了余量的取值。岸沿(落点脚高)更高的,游不上去。
+     */
+    static double exitCeiling(BlockGetter level, BodyStats body, BlockPos from) {
+        BlockPos.MutableBlockPos cell = new BlockPos.MutableBlockPos(from.getX(), from.getY(), from.getZ());
+        while (inWater(level, cell.setY(cell.getY() + 1))) {
+            // 往上数到最上面一格水
+        }
+        cell.setY(cell.getY() - 1);
+        return cell.getY() + level.getFluidState(cell).getHeight(level, cell) + body.stepHeight();
+    }
+
+    /**
+     * 从高处落下去的落点站得下:不是站着的(水、梯子)不看;站着的,落点那一列里沿前进方向的滑行余量({@link Stepping#slideRoom})不比
+     * {@link Stepping#MIN_LANDING_ROOM} 小——炼药锅、堆肥桶、漏斗里只比身体宽一点点,身子从上面落进去,冲劲收不住,弹出来。
+     * 平着走进去的不看这个:步态已经为窄落点收了脚({@code Gait})。
+     */
+    static boolean roomyLanding(BlockGetter level, BodyStats body, BlockPos to, Stance landing, Heading heading) {
+        return !landing.grounded() || Stepping.slideRoom(level, body, to.getX(), landing.feetY(), to.getZ(), heading.dx(), heading.dz())
+                >= Stepping.MIN_LANDING_ROOM;
+    }
+
+    /**
+     * 落点是个坑:某个水平轴向上,两头滑出去都不到 {@link Stepping#MIN_LANDING_ROOM} 就撞上(炼药锅、漏斗、堆肥桶)。直着走进去步态为它收脚
+     * ({@code Gait}),斜着进去两个轴向上都带着冲劲,停不稳。
+     */
+    static boolean pit(BlockGetter level, BodyStats body, BlockPos to, Stance landing) {
+        if (!landing.grounded()) {
+            return false;
+        }
+        for (int[] axis : new int[][] {{1, 0}, {0, 1}}) {
+            if (Stepping.slideRoom(level, body, to.getX(), landing.feetY(), to.getZ(), axis[0], axis[1]) < Stepping.MIN_LANDING_ROOM
+                    && Stepping.slideRoom(level, body, to.getX(), landing.feetY(), to.getZ(), -axis[0], -axis[1]) < Stepping.MIN_LANDING_ROOM) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** 起步与落点两处脚下步速系数的平均:各管半程。 */
     static double speedFactor(BlockGetter level, BlockPos from, double fromFeet, BlockPos to, double toFeet) {
         return (Semantics.speedFactor(level, from.getX(), fromFeet, from.getZ())
@@ -69,17 +110,22 @@ final class Strides {
      * 每一步按它物理上能达到的最快步态定价,步态({@code Gait})只要能跑就跑,两者只在起步、收脚处有偏差;其余平走;再按脚下的步速系数放慢。
      */
     static double pace(CostModel model, Maneuver m) {
-        if (m.wading()) {
+        return pace(model, m.wading(), m.sneak(), m.runnable(), m.speedFactor());
+    }
+
+    /** 同上,这一步的事实已经拆开给出,用不着 {@link Maneuver}。 */
+    static double pace(CostModel model, boolean wading, boolean sneak, boolean runnable, double speedFactor) {
+        if (wading) {
             return model.waterStep();
         }
         BodyStats body = model.body().stats();
-        double pace = m.sneak() ? Kinematics.sneakTicksPerBlock(body)
-                : model.maySprint() && m.runnable() ? Kinematics.sprintTicksPerBlock(body) : Kinematics.walkTicksPerBlock(body);
-        return pace / m.speedFactor();
+        double pace = sneak ? Kinematics.sneakTicksPerBlock(body)
+                : model.maySprint() && runnable ? Kinematics.sprintTicksPerBlock(body) : Kinematics.walkTicksPerBlock(body);
+        return pace / speedFactor;
     }
 
     /**
-     * 不改地形,身体能不能从落点 {@code to} 回到起点 {@code from}(交出半程路线的一截只能停在回得了头的节点上)。判据全是运动学与第 0 层的几何:
+     * 不改地形,身体能不能从落点 {@code to} 回到起点 {@code from}(没搜到这一段的终点时,往边界推进的一截只能停在回得了头的节点上)。判据全是运动学与第 0 层的几何:
      * <ul>
      *   <li>起点不是站着的(攀着、浮着):回去是爬上去、游上去,都回得去;</li>
      *   <li>站着落在站着的地方,落差(起点的脚高减落点的)不超过迈步高度,回去只是走上去,回得去;更高就看回去那一步
@@ -142,12 +188,22 @@ final class Strides {
 
     /** 从 {@code drop} 高处落到这个落点的耗时:下落,至少要走回列中心那一截。 */
     static double landing(CostModel model, Maneuver m) {
-        return Kinematics.fallLandingTicks(model.body().stats(), m.drop());
+        return landing(model, m.drop());
+    }
+
+    /** 同上,落差已经给出。 */
+    static double landing(CostModel model, double drop) {
+        return Kinematics.fallLandingTicks(model.body().stats(), drop);
     }
 
     /** 落地摔疼的折价:掉的血按 {@link ActionCosts#FALL_DAMAGE_PER_POINT} 折成刻。 */
     static double bruise(Maneuver m) {
-        return m.fallDamage() * ActionCosts.FALL_DAMAGE_PER_POINT;
+        return bruise(m.fallDamage());
+    }
+
+    /** 同上,摔掉的血已经给出。 */
+    static double bruise(int damage) {
+        return damage * ActionCosts.FALL_DAMAGE_PER_POINT;
     }
 
     /**

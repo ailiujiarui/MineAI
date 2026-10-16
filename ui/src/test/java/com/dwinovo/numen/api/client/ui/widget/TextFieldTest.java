@@ -81,7 +81,7 @@ class TextFieldTest {
     @Test
     void anUnderlinedFieldDrawsOnlyItsBottomLine() {
         UiRoot root = new UiRoot();
-        TextField f = root.add(new TextField("", s -> {}).placeholder("告诉她该怎么做").underlined(true));
+        TextField f = root.add(new TextField("", s -> {}).placeholder("告诉她该怎么做"));
         f.setBounds(10, 20, 100, 14);
         WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
         f.render(s, WidgetTestSupport.C, 0, 0, 0);
@@ -106,6 +106,59 @@ class TextFieldTest {
         WidgetTestSupport.FakeSurface typed = new WidgetTestSupport.FakeSurface();
         f.render(typed, WidgetTestSupport.C, 0, 0, 0);
         assertTrue(!typed.texts.contains("默认基址"), "打了字占位让开");
+    }
+
+    @Test
+    void aPlaceholderLongerThanTheFieldIsClippedToIt() {
+        UiRoot root = new UiRoot();
+        TextField f = root.add(new TextField("", s -> {}).placeholder("a placeholder that is far too long for the box"));
+        f.setBounds(0, 0, 60, 14);
+        WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
+        f.render(s, WidgetTestSupport.C, 0, 0, 0);
+        assertEquals(1, s.texts.size());
+        assertTrue(s.texts.get(0).length() * 6 <= 60, "占位不越出框(假度量每字 6 像素)");
+        assertTrue(s.texts.get(0).endsWith("…"));
+    }
+
+    private static int[] accentLine(WidgetTestSupport.FakeSurface s) {
+        return s.rects.stream().filter(r -> r[3] == 2).findFirst().orElse(null);
+    }
+
+    @Test
+    void theFocusLineGrowsFromTheClickAndRetractsWhenFocusIsLost() {
+        UiRoot root = new UiRoot();
+        TextField f = root.add(new TextField("", s -> {}));
+        f.setBounds(0, 0, 100, 14);
+        WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
+        f.render(s, WidgetTestSupport.C, -1, -1, 0);
+        assertEquals(null, accentLine(s), "没聚焦:只有一道细线");
+
+        root.mouseClicked(20, 5, 0);
+        s.reset();
+        f.render(s, WidgetTestSupport.C, 20, 5, 50);
+        int[] part = accentLine(s);
+        assertTrue(part != null && part[2] > 0 && part[2] < 100, "刚聚焦:强调色的线只展开了一截");
+        assertTrue(part[0] <= 20 && part[0] + part[2] > 20, "展开的那一截含着点击的位置");
+
+        s.reset();
+        f.render(s, WidgetTestSupport.C, 20, 5, 1000);
+        assertArrayEquals(new int[]{0, 12, 100, 2}, accentLine(s), "走满:整条");
+
+        root.mouseClicked(500, 500, 0);   // 点空白,失焦
+        s.reset();
+        f.render(s, WidgetTestSupport.C, -1, -1, 2000);
+        assertEquals(null, accentLine(s), "收回去了");
+    }
+
+    @Test
+    void anErrorShowsADangerLineInstead() {
+        UiRoot root = new UiRoot();
+        TextField f = root.add(new TextField("", s -> {}));
+        f.setBounds(0, 0, 100, 14);
+        f.setError("必填");
+        WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
+        f.render(s, WidgetTestSupport.C, -1, -1, 0);
+        assertArrayEquals(new int[]{0, 12, 100, 2}, accentLine(s), "出错:整条粗线,不等聚焦");
     }
 
     @Test

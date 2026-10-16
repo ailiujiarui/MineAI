@@ -2,8 +2,6 @@ package com.dwinovo.numen.pathing.drive;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.ToDoubleFunction;
-
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.Stance;
 import com.dwinovo.numen.pathing.search.Route;
@@ -23,27 +21,27 @@ final class Course {
     private BlockPos start;
     private Stance startStance;
 
-    /** 换成一条新路线,从第一步起;{@code arrived}:这条路线的终点在目标里。{@code ticks} 给每一步的最短耗时。 */
-    void install(Route route, boolean arrived, ToDoubleFunction<Maneuver> ticks) {
+    /** 换成一条新路线,从第一步起;{@code arrived}:这条路线的终点在目标里。 */
+    void install(Route route, boolean arrived) {
         legs.clear();
         minimum.clear();
         cur = 0;
         start = route.start();
         startStance = route.startStance();
         complete = arrived;
-        append(route, ticks);
+        append(route);
     }
 
     /** 接在末尾的一段;{@code arrived}:接上之后终点在目标里。 */
-    void extend(Route next, boolean arrived, ToDoubleFunction<Maneuver> ticks) {
-        append(next, ticks);
+    void extend(Route next, boolean arrived) {
+        append(next);
         complete = arrived;
     }
 
-    private void append(Route route, ToDoubleFunction<Maneuver> ticks) {
+    private void append(Route route) {
         for (Route.Leg leg : route.legs()) {
             legs.add(leg);
-            minimum.add(ticks.applyAsDouble(leg.maneuver()));
+            minimum.add(leg.ticks());
         }
     }
 
@@ -133,6 +131,11 @@ final class Course {
             left += minimum.get(i);
         }
         return left;
+    }
+
+    /** 第 {@code index} 步按成本模型算出的代价(含罚分)。 */
+    double costAt(int index) {
+        return legs.get(index).cost();
     }
 
     /** 第 {@code index} 步几何上最短要几刻。 */

@@ -75,7 +75,7 @@ public final class MiniMaxTts implements TtsBackend {
     /**
      * 解析 t2a_v2 的 JSON 响应,取出 hex 编码的音频并解码为 WAV 字节。
      * {@code base_resp.status_code != 0} 或缺 {@code data.audio} 时抛
-     * {@link IllegalStateException},错误原文(status_msg)进消息。
+     * {@link VoiceError},错误原文(status_msg)当厂家的原话。
      */
     static byte[] extractAudio(String responseJson) {
         JsonObject root = JsonParser.parseString(responseJson).getAsJsonObject();
@@ -84,28 +84,28 @@ public final class MiniMaxTts implements TtsBackend {
             int code = br.has("status_code") ? br.get("status_code").getAsInt() : 0;
             if (code != 0) {
                 String msg = br.has("status_msg") ? br.get("status_msg").getAsString() : "?";
-                throw new IllegalStateException("MiniMax status_code " + code + ": " + msg);
+                throw VoiceError.of(VoiceError.API, "MiniMax", code + ": " + msg);
             }
         }
         if (!root.has("data") || !root.get("data").isJsonObject()
                 || !root.getAsJsonObject("data").has("audio")) {
-            throw new IllegalStateException("MiniMax 响应缺少 data.audio 字段");
+            throw VoiceError.of(VoiceError.REPLY_MISSING, "MiniMax", "data.audio");
         }
         return hexDecode(root.getAsJsonObject("data").get("audio").getAsString());
     }
 
-    /** hex 字符串 → 字节。非偶数长度 / 非 hex 字符抛 {@link IllegalStateException}。 */
+    /** hex 字符串 → 字节。非偶数长度 / 非 hex 字符抛 {@link VoiceError}。 */
     static byte[] hexDecode(String hex) {
         String s = hex == null ? "" : hex.strip();
         if ((s.length() & 1) != 0) {
-            throw new IllegalStateException("hex 音频长度为奇数(" + s.length() + ")");
+            throw VoiceError.of(VoiceError.REPLY_BAD, "MiniMax", "audio hex has odd length " + s.length());
         }
         byte[] out = new byte[s.length() / 2];
         for (int i = 0; i < out.length; i++) {
             int hi = Character.digit(s.charAt(i * 2), 16);
             int lo = Character.digit(s.charAt(i * 2 + 1), 16);
             if (hi < 0 || lo < 0) {
-                throw new IllegalStateException("hex 音频含非法字符(位置 " + i * 2 + ")");
+                throw VoiceError.of(VoiceError.REPLY_BAD, "MiniMax", "audio hex has an illegal character at " + i * 2);
             }
             out[i] = (byte) ((hi << 4) | lo);
         }
@@ -131,8 +131,7 @@ public final class MiniMaxTts implements TtsBackend {
         return VoiceHttp.CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
                 .thenApply(resp -> {
                     if (resp.statusCode() / 100 != 2) {
-                        throw new IllegalStateException(VoiceHttp.humanHttpError("MiniMax",
-                                resp.statusCode(), resp.body()));
+                        throw VoiceHttp.httpError("MiniMax", resp.statusCode(), resp.body());
                     }
                     return extractAudio(resp.body());
                 });

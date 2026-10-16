@@ -41,4 +41,14 @@ class TokenFormatTest {
         assertEquals("100.0", TokenFormat.percent1(1.0));
         assertEquals("0.0", TokenFormat.percent1(0));
     }
+
+    @Test
+    void capacityFollowsTheCatalogColumns() {
+        assertEquals("1M", TokenFormat.capacity(1_000_000));
+        assertEquals("1M", TokenFormat.capacity(1_048_576));
+        assertEquals("1.1M", TokenFormat.capacity(1_100_000));
+        assertEquals("128K", TokenFormat.capacity(128_000));
+        assertEquals("131K", TokenFormat.capacity(131_072));
+        assertEquals("999", TokenFormat.capacity(999));
+    }
 }

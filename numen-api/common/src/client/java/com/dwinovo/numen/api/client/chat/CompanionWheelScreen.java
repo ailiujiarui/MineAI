@@ -13,6 +13,7 @@ import com.dwinovo.numen.api.client.screen.chat.ConversationPreview;
 import com.dwinovo.numen.api.client.screen.chat.UnreadBadge;
 import com.dwinovo.numen.api.client.ui.Anim;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
+import com.dwinovo.numen.api.client.ui.TextWrap;
 import com.dwinovo.numen.api.client.ui.mc.McDrawSurface;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -270,8 +271,13 @@ public class CompanionWheelScreen extends Screen {
             g.disableScissor();
 
             // 直接压在游戏画面上的操作提示:白字半透明,和原版 HUD 字一样对比世界背景,不跟主题
-            String hint = I18n.get(Keys.WHEEL_HINT);
-            Nb.text(g, this.font, hint, cx - this.font.width(hint) / 2, cy + r + 30, 0xB0FFFFFF);
+            // 英文提示比窗口还宽:折进窗口宽度里,一行一行居中
+            int hintY = cy + r + 30;
+            for (String line : TextWrap.wrap(I18n.get(Keys.WHEEL_HINT), this.width - 16,
+                    this.font::width, 0)) {
+                Nb.text(g, this.font, line, cx - this.font.width(line) / 2, hintY, 0xB0FFFFFF);
+                hintY += this.font.lineHeight + 1;
+            }
         }
 
         // 悬浮名字:和面板里的悬停提示同一个样子(顶槽住客的名字已在名牌上,不重复)

@@ -51,20 +51,25 @@ public final class DigRules {
                 return Reason.INFESTED;
             }
         }
-        if (!state.getFluidState().isEmpty() || !view.getFluidState(pos.above()).isEmpty()) {
+        // 上面、四周与它们下面的格都用同一个可变坐标读(每个挖的候选都问一遍,不为每格建一个 BlockPos)
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        at.setWithOffset(pos, Direction.UP);
+        if (!state.getFluidState().isEmpty() || !view.getFluidState(at).isEmpty()) {
             return Reason.WOULD_FLOOD;
         }
-        if (Semantics.is(view, pos.above(), Kind.FALLING)) {
+        if (Semantics.is(view, at, Kind.FALLING)) {
             return Reason.WOULD_COLLAPSE;
         }
         for (Direction side : Direction.Plane.HORIZONTAL) {
-            BlockPos neighbor = pos.relative(side);
-            if (flowsIn(view, neighbor)) {
+            at.setWithOffset(pos, side);
+            if (flowsIn(view, at)) {
                 return Reason.WOULD_FLOOD;
             }
-            if (view.getBlockState(neighbor).getBlock() instanceof FallingBlock
-                    && FallingBlock.isFree(view.getBlockState(neighbor.below()))) {
-                return Reason.WOULD_COLLAPSE;
+            if (view.getBlockState(at).getBlock() instanceof FallingBlock) {
+                at.move(Direction.DOWN);
+                if (FallingBlock.isFree(view.getBlockState(at))) {
+                    return Reason.WOULD_COLLAPSE;
+                }
             }
         }
         return null;

@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.stt;
 
+import com.dwinovo.numen.api.client.voice.VoiceError;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -31,6 +32,9 @@ import java.util.zip.GZIPOutputStream;
  * <p>纯 JVM,不碰 Minecraft,也不碰网络。
  */
 final class DoubaoFrames {
+    /** 界面上说的服务名(商标,不翻译)。 */
+    static final String SERVICE = "Doubao STT";
+
 
     private DoubaoFrames() {}
 
@@ -86,15 +90,15 @@ final class DoubaoFrames {
      * 服务端的一帧。
      *
      * @param last  最后一包——这一帧的 {@code text} 就是最终转写
-     * @param error 出错原因;{@code null} 表示这帧正常
+     * @param error 出错原因({@link VoiceError});{@code null} 表示这帧正常
      * @param text  到目前为止的完整转写;这一帧没带就是 {@code null}
      */
-    record Reply(boolean last, String error, String text) {}
+    record Reply(boolean last, VoiceError error, String text) {}
 
     /** 读一帧。读不动就当出错——半截转写不能当成功。 */
     static Reply parse(byte[] frame) {
         if (frame == null || frame.length < 4) {
-            return new Reply(false, "回包太短", null);
+            return new Reply(false, VoiceError.of(VoiceError.REPLY_BAD, SERVICE, "frame too short"), null);
         }
         int headerBytes = (frame[0] & 0x0F) * 4;
         int messageType = (frame[1] & 0xF0) >>> 4;
@@ -104,7 +108,7 @@ final class DoubaoFrames {
         boolean last = (flags & FLAG_LAST_PACKAGE) != 0;
 
         if (headerBytes > frame.length) {
-            return new Reply(last, "回包头长越界", null);
+            return new Reply(last, VoiceError.of(VoiceError.REPLY_BAD, SERVICE, "header length out of range"), null);
         }
         ByteBuffer buf = ByteBuffer.wrap(frame, headerBytes, frame.length - headerBytes);
         if ((flags & FLAG_HAS_SEQUENCE) != 0) {
@@ -118,7 +122,7 @@ final class DoubaoFrames {
         }
         if (buf.remaining() < 4) {
             return errorCode == null ? new Reply(last, null, null)
-                    : new Reply(last, "服务端错误 " + errorCode, null);
+                    : new Reply(last, VoiceError.of(VoiceError.API, SERVICE, errorCode), null);
         }
 
         int declared = buf.getInt();
@@ -129,10 +133,10 @@ final class DoubaoFrames {
         try {
             body = new String(compression == GZIP ? gunzip(payload) : payload, StandardCharsets.UTF_8);
         } catch (UncheckedIOException e) {
-            return new Reply(last, "回包解压失败:" + e.getMessage(), null);
+            return new Reply(last, VoiceError.of(e, VoiceError.REPLY_BAD, SERVICE, "gunzip failed"), null);
         }
         if (errorCode != null) {
-            return new Reply(last, "服务端错误 " + errorCode + ":" + body, null);
+            return new Reply(last, VoiceError.of(VoiceError.API, SERVICE, errorCode + ": " + body), null);
         }
         if (serialization != JSON) {
             return new Reply(last, null, body.isBlank() ? null : body);

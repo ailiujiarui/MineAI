@@ -234,7 +234,7 @@ The script stopped at line 1 (move.to) after 1 call: your owner spoke; t12 keeps
 
 ### 命令层(10-01)
 
-细节与新旧对照表在 `docs/cli.md` 附录 J。
+细节与新旧对照表在已删除的 `docs/cli.md` 附录 J(`git show 8bc2fa7f9:docs/cli.md`)。
 
 - 十条里的 2、4、5、6、10 写进登记处(`CommandGroup.checkParams`、`Param`、`FlagsArgument`):位置参数只有一类对象,可以不写的
   参数都写明默认,开关不收值,标志名 `_`/`-` 同一,时长是秒;违反的在登记时抛出,插件同样。
@@ -667,7 +667,7 @@ public static Pending<Switched> task(ServerCall call, Task args) {
 
 `RunProgramPayload`(上行:程序编号、程序、`ModuleSet`)→ `ProgramResultPayload`(下行:一段 JSON,要么 `{missing:[指纹]}`,要么 `{receipt, status, error_kind, calls, used, stopped_for}`,回执只有成败与文字,`return` 的值原样不在里面);
 `StopProgramPayload`(上行:停在调用之间或当场停下);`ClientCallPayload` / `ClientCallResultPayload`(反向请求与它的答复,答复里在函数改了
-她的模块时带上新清单与新正文)。单包上限上行 32767 字节、下行 1 MB,超过的程序、反向请求与答复在载荷层分片,对端拼回(整条消息至多 8 MiB,`Wire` 与 `Fragments`,见 `docs/cli.md` 附录 H)。
+她的模块时带上新清单与新正文)。单包上限上行 32767 字节、下行 1 MB,超过的程序、反向请求与答复在载荷层分片,对端拼回(整条消息至多 8 MiB,见下一节)。
 
 ### 反向请求有时限,程序结束即撤销
 
@@ -696,6 +696,20 @@ public static Pending<Switched> task(ServerCall call, Task args) {
 多少字);大表在进这些栏之前先经渲染器缩略(§四"回执");每次调用的结局只带写成的文字(超长的头部加摘要)。
 所以一张回执远小于下行 1 MB,`ProgramResultPayload` 是内容有界的包:装不下就是代码错,当场抛,不再有"装不下缩成失败"。
 身体活的账本身在生成处也已归堆计数(`NavText`:同类方块合并成"N 个 + 几处例子")。
+
+### 线上的上限与分片
+
+- **唯一来源** `network.Wire`,按方向的单包上限:下行 1048576 字节,上行 32767 字节;整条消息至多 `Wire.MESSAGE_BYTES`(8 MiB),每个连接同时拼装的消息至多
+  `Wire.ASSEMBLING`(8 条)。下行的数是原版 `ClientboundCustomPayloadPacket` 的 `MAX_PAYLOAD_SIZE`(`WireTest` 反射读它,改了版本先红);上行的 32767 是
+  NeoForge(`GenericPacketSplitter`)、Fabric(`registerLarge`)与 CC: Tweaked 共同当作客户端到服务端一个包的安全线。真正的硬顶是帧:三字节长度前缀,一帧至多
+  2097151 字节(`Wire.FRAME_BYTES`);判据是每个方向的单包上限加包头仍在一帧以内。
+- **超过单包上限就在自己的载荷层分片**(`network.Fragments`、`FragmentPayload`):随数据变长的包(程序上行、反向请求与答复)实现 `Wire.Fragmentable`,
+  编码后的字节切成带编号的片连续发出,对端每个连接一个收件箱,收齐拼回原包交给原来的处理器。不用加载器的分片器(三个加载器行为不一、Forge 1.20.1 没有),
+  也不碰 Netty 流水线(要 mixin `Connection`,各分支写法不同);先例是 CC: Tweaked 的 `UploadFileMessage`。
+- **防滥用**:拼装中的消息超过整条上限、片数或编号不对、除最后一片外不是满的,当场丢弃;同一连接同时拼装多过 8 条拒收新的;断线清掉残片。拒收只写一行警告,不答复。
+- **送出只有一条路** `NumenNetwork.sendToPlayer` / `sendToServer`:先用包自己的编解码器量字节。装得下照发;可分片的分片;内容随数据长、装不下就缩的包实现
+  `Wire.Oversized`,缩成如实说明的样子;别的包内容本来有界,装不下是代码错,当场抛,不交给 Netty 去断开连接。
+- 上行的程序连整条消息的上限都装不下才不送,客户端就地给模型一条失败;下行的回执在生成处有界(见上一节),装不下当场抛。
 
 ### 线程
 

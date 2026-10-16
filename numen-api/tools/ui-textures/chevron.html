@@ -6,9 +6,9 @@
 style="position:relative;width:11px;height:6px;overflow:hidden">
 <div class="clip" data-start="0" data-duration="1" data-track-index="1" style="position:absolute;inset:0" id="grid"></div></div>
 <script>window.__timelines=window.__timelines||{};window.__timelines["main"]=gsap.timeline({paused:true});
-// Down chevron, explicit pixel grid (tip.html technique): K=#352818 outline, A=#E3A23A amber fill.
-var PAL={".":null,"K":"#352818","A":"#E3A23A"};
-var PAT=["KKKKKKKKKKK",".KAAAAAAAK.","..KAAAAAK..","...KAAAK...","....KAK....",".....K....."];
+// Down chevron, explicit pixel grid (tip.html technique): pure white — tinted by the theme when drawn (Sprites.draw).
+var PAL={".":null,"A":"#FFFFFF"};
+var PAT=["AAAAAAAAAAA",".AAAAAAAAA.","..AAAAAAA..","...AAAAA...","....AAA....",".....A....."];
 var grid=document.getElementById('grid');
 for(var y=0;y<PAT.length;y++){var row=PAT[y];for(var x=0;x<row.length;x++){var col=PAL[row[x]];if(col){var d=document.createElement('div');d.className='px';d.style.left=x+'px';d.style.top=y+'px';d.style.background=col;grid.appendChild(d);}}}
 </script></body></html>

@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.stt;
 
+import com.dwinovo.numen.api.client.voice.VoiceError;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -23,6 +24,9 @@ import java.util.Base64;
  * (16k/16bit/单声道 s16le,{@link SttAudio#FORMAT})与它的 pcm 格式声明逐项一致,零转换。
  */
 public final class StepFunStt implements SttBackend {
+    /** 界面上说的服务名(商标,不翻译)。 */
+    private static final String SERVICE = "StepFun ASR";
+
 
     private static final String SUFFIX = "/audio/asr/sse";
     public static final String DEFAULT_BASE = "https://api.stepfun.com";
@@ -147,8 +151,7 @@ public final class StepFunStt implements SttBackend {
                         if (resp.statusCode() / 100 != 2) {
                             StringBuilder sb = new StringBuilder();
                             resp.body().limit(20).forEach(l -> sb.append(l).append('\n'));
-                            listener.onError(new IllegalStateException(
-                                    "StepFun ASR HTTP " + resp.statusCode() + ": " + sb.toString().strip()));
+                            listener.onError(VoiceError.http(SERVICE, resp.statusCode(), sb.toString().strip()));
                             return;
                         }
                         SseTranscript t = new SseTranscript(new SseTranscript.Sink() {
@@ -158,8 +161,8 @@ public final class StepFunStt implements SttBackend {
                             @Override public void done(String text) {
                                 if (!cancelled) listener.onFinal(text);
                             }
-                            @Override public void error(String message) {
-                                if (!cancelled) listener.onError(new IllegalStateException(message));
+                            @Override public void error(VoiceError error) {
+                                if (!cancelled) listener.onError(error);
                             }
                         });
                         resp.body().forEach(t::acceptLine);
@@ -184,7 +187,7 @@ public final class StepFunStt implements SttBackend {
 
             void done(String text);
 
-            void error(String message);
+            void error(VoiceError error);
         }
 
         private final Sink sink;
@@ -218,7 +221,8 @@ public final class StepFunStt implements SttBackend {
         void end() {
             if (!finished) {
                 finished = true;
-                sink.error("StepFun ASR SSE 流结束但没有 transcript.text.done;最后一条: " + lastRaw);
+                sink.error(VoiceError.of(VoiceError.REPLY_BAD, SERVICE,
+                        "stream ended without transcript.text.done; last: " + lastRaw));
             }
         }
 
@@ -228,7 +232,7 @@ public final class StepFunStt implements SttBackend {
                 data = JsonParser.parseString(raw).getAsJsonObject();
             } catch (RuntimeException e) {
                 finished = true;
-                sink.error("StepFun ASR 事件不是 JSON: " + raw);
+                sink.error(VoiceError.of(VoiceError.REPLY_BAD, SERVICE, "event is not JSON: " + raw));
                 return;
             }
             switch (ev) {
@@ -242,14 +246,14 @@ public final class StepFunStt implements SttBackend {
                     finished = true;
                     String text = textOf(data);
                     if (text == null) {
-                        sink.error("StepFun ASR done 事件里找不到文本字段: " + raw);
+                        sink.error(VoiceError.of(VoiceError.REPLY_MISSING, SERVICE, "text"));
                     } else {
                         sink.done(text);
                     }
                 }
                 case "error" -> {
                     finished = true;
-                    sink.error("StepFun ASR 报错: " + raw);
+                    sink.error(VoiceError.of(VoiceError.API, SERVICE, raw));
                 }
                 default -> { /* 心跳/未知事件:忽略,等 done */ }
             }

@@ -24,6 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** 循环内核的行为。假端口与喂回调的小工具在 {@link LoopHarness}。 */
 class AgentLoopTest extends LoopHarness {
 
+    private static final Cause NETWORK = Cause.of(Cause.NETWORK);
+    private static final Cause UNBOUND = Cause.of(Cause.UNBOUND);
+
     // ---- 开 run 的时机 ----
 
     @Nested
@@ -117,14 +120,14 @@ class AgentLoopTest extends LoopHarness {
 
         @Test
         void blockedEndpointKeepsTheWordsQueuedAndSaysWhyOnce() {
-            model.unavailable = "没绑模型";
+            model.unavailable = UNBOUND;
             ownerSays("你好");
 
             assertTrue(model.calls.isEmpty());
             assertEquals(Hold.BLOCKED, loop.hold());
             LoopEvent.HoldChanged blocked = eventsOf(LoopEvent.HoldChanged.class).get(0);
             assertEquals(Hold.BLOCKED, blocked.hold());
-            assertEquals("没绑模型", blocked.reason(), "原因随事件交出去");
+            assertEquals(UNBOUND, blocked.cause(), "原因随事件交出去");
             assertEquals(1, inbox.count(EventTypes.QUERY), "没发出去的话还在队里");
             assertTrue(transcript.snapshot().isEmpty(), "端点检查在注入之前");
 
@@ -145,7 +148,7 @@ class AgentLoopTest extends LoopHarness {
 
         @Test
         void ownerSpeakingAgainRetriesTheEndpointAndSaysWhyAgain() {
-            model.unavailable = "没填 key";
+            model.unavailable = Cause.of(Cause.NO_KEY, "测试档案");
             ownerSays("你好");
             ownerSays("在吗");
 
@@ -157,8 +160,8 @@ class AgentLoopTest extends LoopHarness {
         @Test
         void failedIsReleasedByUrgentInputButNotByAmbientInput() {
             ownerSays("挖矿");
-            model.last().fail("网络断了");
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
+            model.last().fail(NETWORK);
             assertEquals(Hold.FAILED, loop.hold());
 
             worldEvent("刮风了", false);
@@ -595,8 +598,8 @@ class AgentLoopTest extends LoopHarness {
         @Test
         void overheardTalkDoesNotReleaseAFailedHold() {
             ownerSays("挖矿");
-            model.last().fail("网络断了");
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
+            model.last().fail(NETWORK);
             assertEquals(Hold.FAILED, loop.hold());
 
             overhears("[阿岚] 在吗");
@@ -788,7 +791,7 @@ class AgentLoopTest extends LoopHarness {
         @Test
         void aFailedCallIsRetriedOnceThenHolds() {
             ownerSays("挖矿");
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
 
             assertEquals(2, model.calls.size(), "重试一次");
             assertEquals(2, model.turnRequests, "重试重新组装请求,走的是同一个 startRun");
@@ -797,32 +800,35 @@ class AgentLoopTest extends LoopHarness {
             assertTrue(eventsOf(LoopEvent.TurnStarted.class).get(1).ownerSpoke(), "重试时主人的话同样还没回");
             assertTrue(transcript.snapshot().stream().noneMatch(m -> m instanceof ConvoState.Msg.Assistant),
                     "失败的回应不进历史");
-            assertEquals("这一轮没连上(网络断了)", ((ConvoState.Msg.Halt) lastMessage()).reason());
+            ConvoState.Msg.Halt cut = (ConvoState.Msg.Halt) lastMessage();
+            assertEquals("这一轮没连上(连不上)", cut.reason(), "给模型的那句");
+            assertEquals(Cause.NETWORK, cut.code(), "给界面的是结构化原因,不是翻好的话");
             assertTrue(eventsOf(LoopEvent.TurnFailed.class).isEmpty(), "重试前不打扰主人");
 
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
 
             assertEquals(2, model.calls.size(), "一条链只重试一次");
-            assertEquals(List.of(new LoopEvent.TurnFailed("网络断了")), eventsOf(LoopEvent.TurnFailed.class));
+            assertEquals(List.of(new LoopEvent.TurnFailed(NETWORK)), eventsOf(LoopEvent.TurnFailed.class));
             assertEquals(Hold.FAILED, loop.hold());
         }
 
         @Test
         void aNonRetryableFailureIsNotRerun() {
             ownerSays("挖矿");
-            model.last().fail("参数错了", false);
+            Cause refusal = Cause.llm(Cause.BAD_REQUEST, 400, "", "参数错了");
+            model.last().fail(refusal, false);
 
             assertEquals(1, model.calls.size(), "确定性失败不重试");
-            assertEquals(List.of(new LoopEvent.TurnFailed("参数错了")), eventsOf(LoopEvent.TurnFailed.class));
+            assertEquals(List.of(new LoopEvent.TurnFailed(refusal)), eventsOf(LoopEvent.TurnFailed.class));
             assertEquals(Hold.FAILED, loop.hold());
         }
 
         @Test
         void theRetryPassesTheEndpointCheck() {
             ownerSays("挖矿");
-            model.unavailable = "档案被删了";
+            model.unavailable = UNBOUND;
 
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
 
             assertEquals(1, model.calls.size());
             assertEquals(Hold.BLOCKED, loop.hold(), "重试同样过端点检查");
@@ -833,7 +839,7 @@ class AgentLoopTest extends LoopHarness {
             ownerSays("挖矿");
             memory.due = true;
 
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
 
             assertEquals(List.of(true), memory.compactions, "重试同样先看自动压缩");
             model.last().say("<summary>摘要</summary>");
@@ -843,10 +849,10 @@ class AgentLoopTest extends LoopHarness {
         @Test
         void anAnsweredCallGivesTheChainAFreshRetry() {
             ownerSays("挖矿");
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
             model.last().callTools(tool("c1"));
             tools.finish("c1");
-            model.last().fail("网络又断了");
+            model.last().fail(NETWORK);
 
             assertEquals(4, model.calls.size(), "回过话之后再失败,又有一次重试");
             assertNull(loop.hold());
@@ -858,17 +864,17 @@ class AgentLoopTest extends LoopHarness {
             model.last().say("");
 
             assertEquals(1, model.calls.size());
-            assertEquals(List.of(new LoopEvent.TurnFailed(AgentLoop.EMPTY_REPLY)), eventsOf(LoopEvent.TurnFailed.class));
+            assertEquals(List.of(new LoopEvent.TurnFailed(Cause.of(Cause.EMPTY_REPLY))), eventsOf(LoopEvent.TurnFailed.class));
             assertEquals(Hold.FAILED, loop.hold());
         }
 
         @Test
         void urgentInputQueuedDuringTheFailureMeansNoHold() {
             ownerSays("挖矿");
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
             ownerSays("还在吗");   // 重试在飞时主人又开口
 
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
 
             assertEquals(1, eventsOf(LoopEvent.TurnFailed.class).size());
             assertNull(loop.hold(), "排着急件时不停牌");
@@ -884,11 +890,11 @@ class AgentLoopTest extends LoopHarness {
 
         @Test
         void blockedCarriesItsReasonUntilTheBindingIsFixed() {
-            model.unavailable = "没绑模型";
+            model.unavailable = UNBOUND;
             ownerSays("在吗");
 
             assertEquals(Hold.BLOCKED, loop.hold());
-            assertEquals("没绑模型", loop.status().holdReason(), "界面从快照里读得到为什么不动");
+            assertEquals(UNBOUND, loop.status().holdReason(), "界面从快照里读得到为什么不动");
             assertTrue(model.calls.isEmpty());
 
             model.unavailable = null;
@@ -900,7 +906,7 @@ class AgentLoopTest extends LoopHarness {
 
         @Test
         void aQueuedCompactionWaitsForTheEndpointInsteadOfFailing() {
-            model.unavailable = "没绑模型";
+            model.unavailable = UNBOUND;
             control(EventTypes.COMPACT);
 
             assertTrue(model.calls.isEmpty(), "整理要发请求,端点不可用就不发");
@@ -920,7 +926,7 @@ class AgentLoopTest extends LoopHarness {
 
         @Test
         void clearingNeedsNoModelSoItHappensEvenWhenBlocked() {
-            model.unavailable = "没绑模型";
+            model.unavailable = UNBOUND;
             transcript.addUser("旧话");
             control(EventTypes.CLEAR);
 
@@ -953,13 +959,13 @@ class AgentLoopTest extends LoopHarness {
 
         @Test
         void anUnusableEndpointFailsWithoutCallingTheModel() {
-            model.unavailable = "没绑模型";
+            model.unavailable = UNBOUND;
             List<ModelOutcome> outcomes = new ArrayList<>();
             loop.consult(LoopEvent.Purpose.GOAL, new ModelRequest(List.of(), List.of(), "judge"),
                     new CancelToken(), outcomes::add);
 
             assertTrue(model.calls.isEmpty());
-            assertEquals("没绑模型", assertInstanceOf(ModelOutcome.Failed.class, outcomes.get(0)).words());
+            assertEquals(UNBOUND, assertInstanceOf(ModelOutcome.Failed.class, outcomes.get(0)).cause());
             assertNull(loop.hold(), "旁路调用不进停牌");
         }
     }
@@ -994,9 +1000,9 @@ class AgentLoopTest extends LoopHarness {
             memory.due = true;
             ownerSays("挖矿");
 
-            model.last().fail("网络断了");
+            model.last().fail(NETWORK);
 
-            assertEquals(List.of("网络断了"), memory.failures);
+            assertEquals(List.of("连不上"), memory.failures);
             assertEquals(2, model.calls.size(), "历史不动,照原样调模型");
             assertTrue(model.last().lastUser().contains("挖矿"));
         }

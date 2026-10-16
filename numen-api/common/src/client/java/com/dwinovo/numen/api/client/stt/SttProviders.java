@@ -6,6 +6,8 @@ import com.dwinovo.numen.api.platform.services.INumenConfig;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import net.minecraft.client.resources.language.I18n;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +51,23 @@ public final class SttProviders {
         public boolean hasModelLabel() {
             return modelLabel != null && !modelLabel.isBlank();
         }
+
+        /**
+         * 设置里显示的服务商名。内置的名字是语言键({@code numen.stt.provider.<id>}),按当前语言翻;
+         * 用户自己加的写什么显示什么。
+         */
+        public String label() {
+            return shown(displayName);
+        }
+
+        /** 模型那一栏的名字,规则同 {@link #label}。 */
+        public String modelFieldLabel() {
+            return shown(modelLabel);
+        }
+
+        private static String shown(String nameOrKey) {
+            return I18n.exists(nameOrKey) ? I18n.get(nameOrKey) : nameOrKey;
+        }
     }
 
     private static volatile List<Option> PROVIDERS = load();
@@ -72,7 +91,7 @@ public final class SttProviders {
             }
         }
         return PROVIDERS.isEmpty()
-                ? new Option("custom", "Custom (OpenAI-compatible)", BACKEND_WHISPER_HTTP, "", List.of(), "")
+                ? new Option("custom", "numen.stt.provider.custom", BACKEND_WHISPER_HTTP, "", List.of(), "")
                 : PROVIDERS.get(0);
     }
 

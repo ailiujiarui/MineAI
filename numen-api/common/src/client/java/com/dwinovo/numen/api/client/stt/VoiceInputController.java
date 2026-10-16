@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.stt;
 
+import com.dwinovo.numen.api.client.voice.VoiceWords;
 import com.dwinovo.numen.api.data.ModLanguageData;
 import com.dwinovo.numen.api.platform.services.INumenConfig;
 
@@ -58,7 +59,7 @@ public final class VoiceInputController {
             public void onError(Throwable error) {
                 onMain(() -> {
                     active = false;
-                    onStatus.accept(I18n.get(ModLanguageData.Keys.STT_FAILED, rootMessage(error)));
+                    onStatus.accept(I18n.get(ModLanguageData.Keys.STT_FAILED, VoiceWords.text(error)));
                 });
             }
         });
@@ -146,7 +147,7 @@ public final class VoiceInputController {
             @Override
             public void onError(Throwable error) {
                 onMain(() -> {
-                    onStatus.accept(I18n.get(ModLanguageData.Keys.STT_FAILED, rootMessage(error)));
+                    onStatus.accept(I18n.get(ModLanguageData.Keys.STT_FAILED, VoiceWords.text(error)));
                     active = false;
                 });
             }
@@ -168,14 +169,5 @@ public final class VoiceInputController {
         } else {
             r.run();
         }
-    }
-
-    private static String rootMessage(Throwable t) {
-        Throwable c = t;
-        while (c.getCause() != null && c.getCause() != c) {
-            c = c.getCause();
-        }
-        String m = c.getMessage();
-        return m == null || m.isBlank() ? c.getClass().getSimpleName() : m;
     }
 }

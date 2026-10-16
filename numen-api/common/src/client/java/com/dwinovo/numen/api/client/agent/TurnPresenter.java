@@ -83,10 +83,10 @@ final class TurnPresenter {
                     endTurn();   // 失败或被切断:半截文字作废、语音收尾(说完了的回复在落库时已经收过)
                 }
             }
-            case LoopEvent.TurnFailed failed -> showFailure(failed.words());
+            case LoopEvent.TurnFailed failed -> showFailure(CauseWords.text(failed.cause()));
             case LoopEvent.HoldChanged changed -> {
                 if (changed.hold() == Hold.BLOCKED) {
-                    showBlocked(changed.reason());
+                    showBlocked(CauseWords.text(changed.cause()));
                 }
             }
             case LoopEvent.Halted halted -> {
@@ -210,11 +210,20 @@ final class TurnPresenter {
      * <p>内脑回复与外脑 say 走同一条——"她说了什么"只能有一个出处,
      * 否则旁听到的和主人听见的会开始对不上。
      */
-    private void spoke(String shown) {
+    private void spoke(String said) {
+        String shown = compact(said);
         SpeechBubbles.say(entityUuid, shown);
         ChatLines.companion(speakerName(), shown);
         com.dwinovo.numen.api.client.agent.Conversations.instance().heard(entityUuid, shown);
         com.dwinovo.numen.api.client.notify.MessageNotices.spoke(entityUuid, shown);
+    }
+
+    /**
+     * 头顶气泡、聊天框、通知这些寸土寸金的地方:段落间的空行折成单换行(空行只是模型的排版习惯)。
+     * 对话面板不折——它要靠空行认出 Markdown 的块。
+     */
+    private static String compact(String text) {
+        return text.replaceAll("\\n\\s*\\n+", "\n");
     }
 
     /** 调用失败而且不再重试:必须让主人看见——沉进日志就是"已读不回"。 */
@@ -247,7 +256,7 @@ final class TurnPresenter {
         if (status.get().phase() != Phase.MODEL || livePartial.length() == 0) {
             return;
         }
-        String filtered = ChatDisplayModes.current().assistantText(livePartial.toString());
+        String filtered = compact(ChatDisplayModes.current().assistantText(livePartial.toString()));
         if (filtered.isBlank() || filtered.equals(lastStreamedPartial)) {
             return;
         }

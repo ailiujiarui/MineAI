@@ -52,6 +52,10 @@ repositories {
 }
 
 dependencies {
+    // 聊天气泡里的 Markdown:只有 markdown 包的适配器用得到它,富文本模型与排版不认识它。
+    // 发行 jar 里它是内嵌的库(NeoForge jarJar / Fabric include,见两个 numen-api 加载器的构建脚本)。
+    implementation "org.commonmark:commonmark:${commonmark_version}"
+    implementation "org.commonmark:commonmark-ext-gfm-strikethrough:${commonmark_version}"
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

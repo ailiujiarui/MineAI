@@ -1,14 +1,11 @@
 package com.dwinovo.numen.api.client.screen.settings;
 
-import com.dwinovo.numen.api.agent.provider.ProviderRegistry;
-import com.dwinovo.numen.api.agent.llm.NumenLlmClient;
 
 import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
 import com.dwinovo.numen.api.client.agent.EntityAgentLoop;
-import com.dwinovo.numen.api.client.screen.Dropdown;
-import com.dwinovo.numen.api.client.screen.LlmProviders;
 import com.dwinovo.numen.api.client.screen.Nb;
 import com.dwinovo.numen.api.client.screen.UiTheme;
+import com.dwinovo.numen.api.client.ui.widget.UiRoot;
 import com.dwinovo.numen.api.data.ModLanguageData;
 import com.dwinovo.numen.api.mcp.server.McpMode;
 import com.dwinovo.numen.api.persona.PersonaLibrary;
@@ -95,8 +92,6 @@ public final class SettingsView {
             {Section.THEME}};
     private static final int ITEM_H = 20;
     private static final int GROUP_GAP = 7;
-    /** 未被模态屏蔽的真实鼠标坐标(表单卡内的 NumenUI 悬停用)。 */
-    private int rawMouseX = -10000, rawMouseY = -10000;
 
     // ---- 模型配置表单:NumenUI ProfileFormPanel(检测/思考/强度/toast/分类报错) ----
     private ProfileFormPanel providerForm;
@@ -121,9 +116,10 @@ public final class SettingsView {
                     ModLanguageData.Keys.PROVIDER_EMPTY,
                     () -> com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().list(),
                     e -> {
-                        boolean hasKey = nb(e.apiKey());
-                        String meta = (nb(e.provider()) ? e.provider() : "?") + " · "
-                                + (nb(e.model()) ? e.model() : "?")
+                        var p = e.profile();
+                        boolean hasKey = nb(p.apiKey());
+                        String meta = (nb(p.provider()) ? p.provider() : "?") + " · "
+                                + (nb(p.model()) ? p.model() : "?")
                                 + (hasKey ? "" : " · " + I18n.get(ModLanguageData.Keys.PROVIDER_NO_KEY));
                         // 行尾勾 = 当前同伴走这份档案(召唤后也能换,即时生效)
                         Boolean marked = host.uuid() == null ? null : e.id().equals(
@@ -134,12 +130,7 @@ public final class SettingsView {
                     e -> Component.translatable(ModLanguageData.Keys.PROVIDER_DELETE_CONFIRM,
                             e.name() == null ? "" : e.name()).getString(),
                     e -> com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().remove(e.id()),
-                    () -> {
-                        addingProvider = true;
-                        providerEditId = null;
-                        providerDraft = new ProfileFormPanel.Draft();
-                        host.rebuild();
-                    },
+                    this::beginNewProvider,
                     this::beginEditProvider)
                     // 换绑走 setProviderEntry(下一次请求即生效);不许解绑——同伴必须有端点
                     .withBind(e -> {
@@ -165,8 +156,8 @@ public final class SettingsView {
                         if (e.isSovits()) detail = nb(e.refAudio()) ? e.refAudio() : "?";
                         else if (e.isMiniMax() || e.isFishAudio()) detail = nb(e.voice()) ? e.voice() : "?";
                         else detail = nb(e.model()) ? e.model() : "?";
-                        String meta = (nb(e.backend()) ? e.backend() : "openai") + " · " + detail
-                                + " · vol " + Math.round(e.volume() * 5.0f);
+                        String meta = I18n.get(ModLanguageData.Keys.VOICE_LIST_META,
+                                nb(e.backend()) ? e.backend() : "openai", detail, Math.round(e.volume() * 5.0f));
                         // 行尾勾 = 本同伴正在用的声线;右键菜单里换绑,或不再使用(闭嘴)。
                         Boolean marked = host.uuid() == null ? null : e.id().equals(
                                 com.dwinovo.numen.api.client.agent.CompanionHome.binding(host.uuid()).voiceId());
@@ -207,14 +198,11 @@ public final class SettingsView {
 
     private void onProfileSave(ProfileFormPanel.Draft d) {
         var lib = com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance();
-        int ctx = parseCtx(d.ctx);
         if (providerEditId != null) {
             lib.update(new com.dwinovo.numen.api.agent.llm.ProviderLibrary.Entry(
-                    providerEditId, d.name.trim(), d.provider, d.model.trim(),
-                    d.apiKey.trim(), d.baseUrl.trim(), d.reasoningEffort, d.proxy.trim(), ctx));
+                    providerEditId, d.name.trim(), d.toProfile()));
         } else {
-            lib.create(d.name.trim(), d.provider, d.model.trim(),
-                    d.apiKey.trim(), d.baseUrl.trim(), d.reasoningEffort, d.proxy.trim(), ctx);
+            lib.create(d.name.trim(), d.toProfile());
         }
         addingProvider = false;
         providerEditId = null;
@@ -323,6 +311,21 @@ public final class SettingsView {
     private int secBottom() { return innerBottom() - INNER; }
     private int secH() { return secBottom() - secY0(); }
 
+    /**
+     * 下拉与选择框能用的区域,窗口比面板小时以窗口为界(缩小游戏窗口后弹层仍整块可见):
+     * 表单卡盖住整个面板,所以是整个面板;分区页画在自己的裁剪框里,弹层出了内容区就被切掉,所以是内容区。
+     */
+    private UiRoot.Viewport formWindow() {
+        var win = Minecraft.getInstance().getWindow();
+        return UiRoot.Viewport.clip(left(), top(), panelW(), panelH(), win.getGuiScaledWidth(), win.getGuiScaledHeight());
+    }
+
+    private UiRoot.Viewport pageWindow() {
+        var win = Minecraft.getInstance().getWindow();
+        return UiRoot.Viewport.clip(innerLeft(), secY0(), innerRight() - innerLeft(), innerBottom() - secY0(),
+                win.getGuiScaledWidth(), win.getGuiScaledHeight());
+    }
+
     // ---- form modal (add/edit forms float on a card over the dimmed list) ----
 
     /** 任一新建/编辑表单在场(表单模态)——屏幕据此屏蔽背景交互。 */
@@ -330,9 +333,18 @@ public final class SettingsView {
         return addingProvider || addingVoice || addingSkin || addingPersona || addingMcp;
     }
 
+    /** 在场的那张表单里有下拉或选择框开着。人设、MCP 表单没有弹层。 */
+    private boolean formOverlayOpen() {
+        return addingProvider && providerForm().hasOverlay()
+                || addingVoice && voiceForm().hasOverlay()
+                || addingSkin && skinForm().hasOverlay();
+    }
+
     /** Esc while a form modal is up: close it back to the list (same as the card's 取消). */
     public boolean cancelForm() {
         if (!formActive()) return false;
+        // 表单里的选择框、下拉开着时 Esc 只收它们(由表单自己的浮层通道处理),不收整张表单
+        if (formOverlayOpen()) return false;
         addingProvider = false; providerEditId = null;
         addingVoice = false; voiceEditId = null;
         if (voiceForm != null) voiceForm.cancelPendingTest();
@@ -377,12 +389,26 @@ public final class SettingsView {
                     int mouseX, int mouseY, long nowMs);
     }
 
-    /** 表单卡在场时,分区列表画完后压上这张卡(按开卡后过了多久淡入)。 */
-    private void formCard(GuiGraphics g, Component title, CardBody body) {
+    /** 表单卡在场时,分区页每帧登记这一张(画在 {@link #renderCard})。 */
+    private void formCard(Component title, CardBody body) {
         cardTitle = title;
         cardBody = body;
-        float p = Math.min(1f, (System.currentTimeMillis() - cardShownAt) / (float) CARD_SHOW_MS);
-        drawCard(g, com.dwinovo.numen.api.client.ui.Anim.easeOutCubic(p), rawMouseX, rawMouseY);
+    }
+
+    /**
+     * 画表单卡:开卡后淡入,收卡后照最后那一帧淡出(卡已不接指针)。卡盖住整个面板(连左栏),
+     * 不能画在分区页里——页会滑动、带裁剪框,卡的顶边与标题行会被抬头切掉;所以分区页画完、
+     * 屏幕撤掉页的裁剪框之后才调这里。
+     */
+    public void renderCard(GuiGraphics g, int mouseX, int mouseY) {
+        if (cardBody == null) return;
+        long now = System.currentTimeMillis();
+        if (cardUp) {
+            float p = Math.min(1f, (now - cardShownAt) / (float) CARD_SHOW_MS);
+            drawCard(g, com.dwinovo.numen.api.client.ui.Anim.easeOutCubic(p), mouseX, mouseY);
+        } else if (now - cardHiddenAt < CARD_HIDE_MS) {
+            drawCard(g, 1f - (now - cardHiddenAt) / (float) CARD_HIDE_MS, -10000, -10000);
+        }
     }
 
     /** 暗幕 + 近全幅的卡 + 卡里的表单,整体乘上 {@code alpha}。 */
@@ -521,7 +547,7 @@ public final class SettingsView {
                 brainPanel().setDimBounds(left(), top(), panelW(), panelH());
                 brainPanel().build(secX(), secY0(), secW(), secH());
             }
-            case STT -> sttPanel().build(secX(), secY0(), secW(), secH());
+            case STT -> sttPanel().build(secX(), secY0(), secW(), secH(), pageWindow());
             case THEME -> themePanel().build(secX(), secY0(), secW(), secH());
         }
     }
@@ -539,8 +565,8 @@ public final class SettingsView {
     /** 表单卡里的 NumenUI 表单(检测/思考/强度/toast 齐备);卡壳照旧 formModal。 */
     private void buildProviderFormNew() {
         providerForm().open(providerDraft);
-        providerForm().build(fx(), fy0(), fw(), fBottom() - fy0(),
-                top() + panelH() - 2);
+        providerForm().setWindow(formWindow());
+        providerForm().build(fx(), fy0(), fw(), fBottom() - fy0());
     }
 
 
@@ -550,7 +576,7 @@ public final class SettingsView {
     /** 表单卡里的 NumenUI 声线表单(后端切行/滚动/试听/胶囊);卡壳照旧 formModal。 */
     private void buildVoiceForm() {
         voiceForm().open(voiceDraft);
-        voiceForm().build(fx(), fy0(), fw(), fBottom() - fy0(), top() + panelH() - 2);
+        voiceForm().build(fx(), fy0(), fw(), fBottom() - fy0(), formWindow());
     }
 
     private VoiceFormPanel voiceForm() {
@@ -597,7 +623,7 @@ public final class SettingsView {
     private void renderVoiceSection(GuiGraphics g, int mouseX, int mouseY) {
         voiceListPanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
-        if (addingVoice) formCard(g, Component.translatable(ModLanguageData.Keys.VOICE_TITLE), voiceForm()::render);
+        if (addingVoice) formCard(Component.translatable(ModLanguageData.Keys.VOICE_TITLE), voiceForm()::render);
     }
 
     private void beginEditVoice(com.dwinovo.numen.api.client.voice.VoiceLibrary.Entry e) {
@@ -945,7 +971,7 @@ public final class SettingsView {
     /** 表单卡里的 NumenUI 皮肤表单(名称/手臂模型/文件导入/签名);卡壳照旧 formModal。 */
     private void buildSkinForm() {
         skinForm().open(skinDraft);
-        skinForm().build(fx(), fy0(), fw(), fBottom() - fy0());
+        skinForm().build(fx(), fy0(), fw(), fBottom() - fy0(), formWindow());
     }
 
     private SkinFormPanel skinForm() {
@@ -984,7 +1010,7 @@ public final class SettingsView {
     private void renderSkinSection(GuiGraphics g, int mouseX, int mouseY) {
         skinListPanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
-        if (addingSkin) formCard(g, Component.translatable(ModLanguageData.Keys.SKIN_TITLE), skinForm()::render);
+        if (addingSkin) formCard(Component.translatable(ModLanguageData.Keys.SKIN_TITLE), skinForm()::render);
     }
 
     /** 皮肤 png 从系统拖进游戏窗口(皮肤表单打开时)。64×64 或旧版 64×32。 */
@@ -1006,7 +1032,7 @@ public final class SettingsView {
                 var filters = stack.mallocPointer(1);
                 filters.put(stack.UTF8("*.png")).flip();
                 chosen = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
-                        "Numen skin (64x64 png)", null, filters, "PNG", false);
+                        I18n.get(ModLanguageData.Keys.SKIN_PICKER_TITLE), null, filters, "PNG", false);
             } catch (Throwable t) {
                 com.dwinovo.numen.api.Constants.LOG.warn("[numen-skin] native file dialog unavailable", t);
             }
@@ -1116,10 +1142,7 @@ public final class SettingsView {
     private void renderSection(GuiGraphics g, int mouseX, int mouseY) {
         // 任一模态(确认卡/表单卡)在场时整体屏蔽悬停坐标——暗幕下的列表行
         // 不该亮悬停底,MCP 行 tooltip 也不该浮到暗幕上。
-        // 但表单卡自己是活的:真实坐标另存一份,供卡内的 NumenUI 表单用
-        // (否则表单里的下拉/按钮悬停被误杀)。
-        rawMouseX = mouseX;
-        rawMouseY = mouseY;
+        // 表单卡自己是活的,拿的是屏幕给 renderCard 的真实坐标。
         if (formActive()) {
             mouseX = -10000;
             mouseY = -10000;
@@ -1147,42 +1170,32 @@ public final class SettingsView {
             case THEME -> themePanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()),
                     HostThemeColors.current(), mouseX, mouseY, net.minecraft.Util.getMillis());
         }
-        // 刚收起的表单卡:照最后那一帧再画几帧,淡出(卡已不接指针)
-        long sinceHidden = System.currentTimeMillis() - cardHiddenAt;
-        if (!cardUp && cardBody != null && sinceHidden < CARD_HIDE_MS) {
-            drawCard(g, 1f - sinceHidden / (float) CARD_HIDE_MS, -10000, -10000);
-        }
     }
 
     private void renderProviderSection(GuiGraphics g, int mouseX, int mouseY) {
         profileList().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
-        if (addingProvider) formCard(g, Component.translatable(ModLanguageData.Keys.PROVIDER_TITLE), providerForm()::render);
+        if (addingProvider) formCard(Component.translatable(ModLanguageData.Keys.PROVIDER_TITLE), providerForm()::render);
+    }
+
+    /** 新建模型配置:打开空白表单卡。召唤卡上"没有——去设置里新建"也走这里(设置页先由屏幕切到模型配置)。 */
+    public void beginNewProvider() {
+        addingProvider = true;
+        providerEditId = null;
+        providerDraft = new ProfileFormPanel.Draft();
+        host.rebuild();
+    }
+
+    /** 直接落在模型配置分区(别处要把人送到这儿新建模型配置时用)。 */
+    public void showProviders() {
+        selectSection(Section.PROVIDER);
     }
 
     private void beginEditProvider(com.dwinovo.numen.api.agent.llm.ProviderLibrary.Entry e) {
         addingProvider = true;
         providerEditId = e.id();
-        providerDraft = new ProfileFormPanel.Draft();
-        providerDraft.name = e.name() == null ? "" : e.name();
-        providerDraft.provider = e.provider() == null ? "" : e.provider();
-        providerDraft.model = e.model() == null ? "" : e.model();
-        providerDraft.apiKey = e.apiKey() == null ? "" : e.apiKey();
-        providerDraft.baseUrl = e.baseUrl() == null ? "" : e.baseUrl();
-        providerDraft.reasoningEffort = e.reasoningEffort() == null ? "" : e.reasoningEffort();
-        providerDraft.proxy = e.proxy() == null ? "" : e.proxy();
-        providerDraft.ctx = e.ctx() > 0 ? String.valueOf(e.ctx()) : "";
+        providerDraft = ProfileFormPanel.Draft.of(e.name(), e.profile());
         host.rebuild();
-    }
-
-    /** 档案的上下文长度输入:空/非数字/非正数一律 0(= 按模型表自动)。 */
-    private static int parseCtx(String raw) {
-        try {
-            int v = Integer.parseInt(raw == null ? "" : raw.trim());
-            return Math.max(0, v);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
     }
 
     // ---- MCP section: external server list with a live on/off switch per row ----
@@ -1191,7 +1204,7 @@ public final class SettingsView {
         mcpListPanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
         if (addingMcp) {
-            formCard(g, Component.translatable("numen.mcp.title"), mcpForm()::render);
+            formCard(Component.translatable("numen.mcp.title"), mcpForm()::render);
             return;
         }
         // 悬停行体 → tooltip:工具名 + url/命令 + 错误(行尾开关上不弹)。
@@ -1224,7 +1237,7 @@ public final class SettingsView {
         lines.add(Component.literal(h.name()));
         var spec = com.dwinovo.numen.api.mcp.client.McpClientManager.spec(h.name());
         if (spec != null) {
-            lines.add(Nb.colored(spec.isStdio() ? spec.command() : spec.url(), TXT_FAINT));
+            lines.add(Nb.colored(spec.isStdio() ? spec.command() : spec.url(), TXT_MUTED));
         }
         if (h.status() == com.dwinovo.numen.api.mcp.client.McpClientManager.Status.FAILED && !h.error().isBlank()) {
             lines.add(Nb.colored(h.error(), FAIL));
@@ -1243,7 +1256,7 @@ public final class SettingsView {
     private void renderPersonaSection(GuiGraphics g, int mouseX, int mouseY) {
         personaListPanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
-        if (addingPersona) formCard(g, Component.translatable("numen.persona.title"), personaForm()::render);
+        if (addingPersona) formCard(Component.translatable("numen.persona.title"), personaForm()::render);
     }
 
     private void beginEditPersona(PersonaLibrary.Persona p) {

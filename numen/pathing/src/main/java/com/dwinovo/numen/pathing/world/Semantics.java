@@ -108,6 +108,19 @@ public final class Semantics {
         return state.isAir() ? 0 : STATE_KINDS.of(state) & ~(WATERLOGGED | TRAPDOOR);
     }
 
+    /** 这个状态含着水(静水、流水、含水的方块):{@link #mask} 会给它水的种类,{@code Strides.inWater} 问的就是它。 */
+    public static boolean wet(BlockState state) {
+        return !state.isAir() && (STATE_KINDS.of(state) & WATERLOGGED) != 0;
+    }
+
+    /**
+     * 这个状态可能是可攀爬的格:本身可攀爬,或是活板门(接没接在同向梯子上要看下面一格,{@link #mask} 才给得出)。
+     * 答否的状态,{@link #mask} 一定不含 {@link Kind#CLIMBABLE}。
+     */
+    public static boolean mayClimb(BlockState state) {
+        return !state.isAir() && (STATE_KINDS.of(state) & (bit(Kind.CLIMBABLE) | TRAPDOOR)) != 0;
+    }
+
     /** 缓存位掩码里种类之外的两位,只用来省掉每次问的标签与类型检查:含着水(流不流要看这一格的水流),是活板门(接没接梯子要看下面一格)。 */
     private static final int WATERLOGGED = 1 << 30;
     private static final int TRAPDOOR = 1 << 29;

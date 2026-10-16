@@ -33,7 +33,7 @@ public final class LlmGoalJudge implements GoalJudge {
                 List.of(), GoalPrompts.evaluatorSystem());
         loop.consult(LoopEvent.Purpose.GOAL, request, cancel, outcome -> {
             switch (outcome) {
-                case ModelOutcome.Failed failed -> onDone.accept(Outcome.failed(failed.words()));
+                case ModelOutcome.Failed failed -> onDone.accept(Outcome.failed(failed.cause().forModel()));
                 case ModelOutcome.Answered answered -> onDone.accept(
                         Outcome.of(GoalPrompts.readVerdict(answered.turn().content()), answered.usage().fresh()));
             }

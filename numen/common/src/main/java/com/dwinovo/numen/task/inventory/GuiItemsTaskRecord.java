@@ -1,5 +1,6 @@
 package com.dwinovo.numen.task.inventory;
 
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import com.dwinovo.numen.api.task.TaskRecord;
 
@@ -29,5 +30,13 @@ public final class GuiItemsTaskRecord extends TaskRecord<Integer> {
     @Override
     public String describe() {
         return getToolName() + " " + BuiltInRegistries.ITEM.getKey(item).getPath() + (count == null ? "" : " " + count);
+    }
+
+    /** 给主人看的一句(头顶气泡、档案页),客户端按当前语言翻;{@link #describe()} 是给模型的。 */
+    @Override
+    public Activity activity() {
+        String name = BuiltInRegistries.ITEM.getKey(item).getPath();
+        String key = "numen.activity." + (put ? "gui_put" : "gui_take") + (count == null ? "_all" : "");
+        return count == null ? Activity.of(key, name) : Activity.of(key, name, count);
     }
 }

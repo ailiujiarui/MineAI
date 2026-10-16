@@ -81,32 +81,32 @@ class WavCodecTest {
 
     @Test
     void rejectsNonRiffBytes() {
-        assertThrows(IOException.class, () -> WavCodec.decode("not a wav at all".repeat(4).getBytes()));
-        assertThrows(IOException.class, () -> WavCodec.decode(new byte[10]));
-        assertThrows(IOException.class, () -> WavCodec.decode(null));
+        assertThrows(VoiceError.class, () -> WavCodec.decode("not a wav at all".repeat(4).getBytes()));
+        assertThrows(VoiceError.class, () -> WavCodec.decode(new byte[10]));
+        assertThrows(VoiceError.class, () -> WavCodec.decode(null));
     }
 
     @Test
     void rejectsFloatFormat() {
-        assertThrows(IOException.class,
+        assertThrows(VoiceError.class,
                 () -> WavCodec.decode(wav(3, 1, 24_000, 32, new byte[8])));
     }
 
     @Test
     void rejectsUnsupportedBitDepth() {
-        assertThrows(IOException.class,
+        assertThrows(VoiceError.class,
                 () -> WavCodec.decode(wav(1, 1, 24_000, 24, new byte[6])));
     }
 
     @Test
     void rejectsAbsurdSampleRates() {
-        assertThrows(IOException.class, () -> WavCodec.decode(wav(1, 1, 4_000, 16, samples16((short) 1))));
-        assertThrows(IOException.class, () -> WavCodec.decode(wav(1, 1, 96_000, 16, samples16((short) 1))));
+        assertThrows(VoiceError.class, () -> WavCodec.decode(wav(1, 1, 4_000, 16, samples16((short) 1))));
+        assertThrows(VoiceError.class, () -> WavCodec.decode(wav(1, 1, 96_000, 16, samples16((short) 1))));
     }
 
     @Test
     void rejectsMoreThanTwoChannels() {
-        assertThrows(IOException.class,
+        assertThrows(VoiceError.class,
                 () -> WavCodec.decode(wav(1, 6, 24_000, 16, new byte[24])));
     }
 

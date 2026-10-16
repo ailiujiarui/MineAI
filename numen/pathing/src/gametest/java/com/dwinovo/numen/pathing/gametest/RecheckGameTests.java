@@ -6,8 +6,8 @@ import com.dwinovo.numen.pathing.api.NavRequest;
 import com.dwinovo.numen.pathing.api.Outcome;
 import com.dwinovo.numen.pathing.api.PlanQuery;
 import com.dwinovo.numen.pathing.drive.Blockage;
+import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.MoveKind;
-import com.dwinovo.numen.pathing.plan.Reason;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
@@ -41,8 +41,9 @@ public class RecheckGameTests {
     }
 
     /**
-     * 先规划出穿过走廊的路,再往走廊正中放一块石头,然后照规划的那条路走:走到石头跟前那一步复核不成立,停下;别处没有路,
-     * 结局是"受阻",点出那一格、那块石头、平走,前提是"要改地形而规格不许"。世界除了那块石头一格不变。
+     * 先规划出穿过走廊的路,再往走廊正中放一块石头,然后照规划的那条路走:走到石头跟前那一步复核不成立,这一步记为不通,从那里
+     * 重搜,别处没有路。没路是因为规格不许挖——诊断点出许了挖就有路,要挖的正是那块石头("缺什么"比"受阻"更说明问题)。世界除了那块
+     * 石头一格不变。
      */
     @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 500)
     public static void stops_where_the_world_changed_after_planning(GameTestHelper helper) {
@@ -57,11 +58,10 @@ public class RecheckGameTests {
             }
             t.change(12, 1, 5, Blocks.STONE.defaultBlockState());
             t.go(body, request.following(plan.route())).within(400)
-                    .fails(Outcome.Blocked.class, o -> {
-                        Blockage b = o.blockage();
-                        if (!b.cell().equals(stone) || !b.block().is(Blocks.STONE) || b.move() != MoveKind.WALK
-                                || b.reason() != Reason.NO_DIGGING || b.hitch() != null) {
-                            throw new GameTestAssertException("结局没点对:" + b);
+                    .fails(Outcome.NeedsChanges.class, o -> {
+                        if (o.changes().size() != 1 || !o.changes().get(0).pos().equals(stone)
+                                || !(o.changes().get(0) instanceof Edit.Dig dig) || !dig.state().is(Blocks.STONE)) {
+                            throw new GameTestAssertException("结局没点对:" + o.changes());
                         }
                     })
                     .then(Scenes::unaltered);
@@ -70,7 +70,7 @@ public class RecheckGameTests {
 
     /**
      * 走廊正中停着一条船(规划只看方块,看不见它;船比走廊宽,被两边的墙卡住推不走,又矮得身体踩上去就顶头):那一步走不
-     * 过去,重搜还是同一条路,同一步三次走不下去就收场。结局是"受阻",点出船所在的那一格(她碰上船时把它往前顶了一点,
+     * 过去,这一步记为不通,重搜没有别的路,收场。结局是"受阻",点出船所在的那一格(她碰上船时把它往前顶了一点,
      * 以船最后停的那一格为准)、平走、"卡住"。
      */
     @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 900)

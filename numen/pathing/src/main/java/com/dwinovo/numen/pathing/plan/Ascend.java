@@ -51,6 +51,10 @@ final class Ascend implements Move {
                 return Premise.fail(to, Reason.NO_FOOTING);
             }
         }
+        if (stance.kind() == Stance.Kind.SWIMMING && f1 > Strides.exitCeiling(draft, body, from) + Footing.EPSILON) {
+            // 从水里出水:岸沿比水面高得多,蹿不上去
+            return Premise.fail(to, Reason.TOO_HIGH);
+        }
         Stepping.Step step = geometry(draft, body, from, f0, grounded, heading, f1);
         if (step == Stepping.Step.BLOCKED) {
             // 身体在落点的脚高上从起步那一列挪到落点:途中与落定后挡着的格,连同起跳时头顶那一格
@@ -90,7 +94,57 @@ final class Ascend implements Move {
                                           Heading heading, double f1) {
         return grounded
                 ? Stepping.between(draft, body, from.getX(), f0, from.getZ(), heading.dx(), heading.dz(), f1)
-                : Stepping.fromHold(draft, body, from.getX(), f0, from.getZ(), heading.dx(), heading.dz(), f1);
+                : Stepping.fromHold(draft, body, from.getX(), f0, from.getZ(), heading.dx(), heading.dz(), f1,
+                        // 从水里出水的身体靠冲劲蹿出岸沿,梯子上爬上去不用
+                        Strides.inWater(draft, from) ? Stepping.WATER_EXIT_LIFT : 0);
+    }
+
+    /**
+     * 平地上站着的节点,要踏上去的那一格是整块、它上面身体要占的格与起步那一列头顶都是空的,就是起跳上去;上面有整块挡着,
+     * 起跳也过不去(要挖,不许挖的走法过不去);要踏的那一格是空的,要垫一块台阶(要放,没料或不许放就过不去)。
+     */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        if (!q.plain()) {
+            return Quick.EXACT;
+        }
+        int dx = heading.dx();
+        int dz = heading.dz();
+        int step = q.cell(dx, 0, dz);
+        if (!Quick.simple(step)) {
+            return Quick.EXACT;
+        }
+        boolean blocked = false;
+        for (int dy = 1; dy <= q.top() + 1; dy++) {
+            int flags = q.cell(dx, dy, dz);
+            if (!Quick.simple(flags)) {
+                return Quick.EXACT;
+            }
+            blocked |= Quick.whole(flags);
+        }
+        int head = q.cell(0, q.top() + 1, 0);
+        if (!Quick.simple(head)) {
+            return Quick.EXACT;
+        }
+        if (Quick.pass(step)) {
+            return q.mayPlace() ? Quick.EXACT : Quick.REJECT;
+        }
+        if (blocked || Quick.whole(head)) {
+            return q.mayDig() ? Quick.EXACT : Quick.REJECT;
+        }
+        if (!q.calm()) {
+            return Quick.EXACT;
+        }
+        q.entering();
+        for (int dy = 0; dy <= q.top() + 1; dy++) {
+            q.enter(dx, dy, dz);
+        }
+        q.enter(0, q.top() + 1, 0);
+        if (q.forbidsPassing() || !q.standsOn(dx, 0, dz, step)) {
+            return Quick.REJECT;
+        }
+        double move = movement(q.pace(), true, q.stepJump(), true, 0);
+        return q.holds(q.x() + dx, q.y() + 1, q.z() + dz, move + q.jumpPenalty() + q.overhead(dx, 0, dz), move);
     }
 
     @Override
@@ -105,10 +159,15 @@ final class Ascend implements Move {
 
     /** 身体上去的刻数:一格的步速;跳上去的至少是起跳落到那一高度的工夫,从水里、梯子上够上去的另加爬一格。 */
     private static double movement(CostModel model, Maneuver m) {
-        double move = Strides.pace(model, m);
-        if (m.jump()) {
-            return Math.max(move, Strides.jump(model, Strides.rise(m)));
+        return movement(Strides.pace(model, m), m.jump(), m.jump() ? Strides.jump(model, Strides.rise(m)) : 0, m.start().grounded(),
+                !m.jump() && !m.start().grounded() ? Kinematics.climbUpTicksPerBlock(model.body().stats()) : 0);
+    }
+
+    /** 同上,步速、要不要跳、起跳落到那一高度的工夫({@code jump} 时才用)、起步时是不是站着、爬一格的工夫(攀着浮着起步时才用)已经给出。 */
+    static double movement(double pace, boolean jump, double jumpTicks, boolean grounded, double climbUp) {
+        if (jump) {
+            return Math.max(pace, jumpTicks);
         }
-        return m.start().grounded() ? move : move + Kinematics.climbUpTicksPerBlock(model.body().stats());
+        return grounded ? pace : pace + climbUp;
     }
 }

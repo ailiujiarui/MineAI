@@ -5,8 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
-
 import com.dwinovo.numen.pathing.Fixtures;
 import com.dwinovo.numen.pathing.TestWorld;
 import com.dwinovo.numen.pathing.Vanilla;
@@ -64,7 +62,6 @@ class HandOverTest {
         Route route = full(cliff(), new BlockPos(8, Y, 0), new BlockPos(18, Y - 3, 0));
         assertEquals(MoveKind.FALL, route.legs().get(0).maneuver().kind());
         assertNull(HandOver.cut(route));
-        assertNull(HandOver.pick(List.of(route)));
     }
 
     @Test

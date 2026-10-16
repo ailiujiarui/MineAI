@@ -33,7 +33,7 @@ import java.util.List;
  * @param botKbRipple 按下内联按钮时漾开的那一圈(msgBotKbRippleBg)
  */
 public record UiTheme(
-        String id, String label,
+        String id,
         int ground, int dot, int band, int onBand, int border,
         int text, int textDim, int field,
         int cta, int onCta, int accent,
@@ -43,7 +43,7 @@ public record UiTheme(
         int serviceBg, int serviceFg, int botKbOver, int botKbRipple) {
 
     /** 日间:Telegram 的 Day(蓝色版),聊天区用浅一档的蓝灰,淡字在上面照样读得清。 */
-    public static final UiTheme LIGHT = new UiTheme("light", "Day",
+    public static final UiTheme LIGHT = new UiTheme("light",
             0xFFD7E3EC, 0x142B5278, 0xFFFFFFFF, 0xFF000000, 0xFFAEBBC6,
             0xFF000000, 0xFF8A8F94, 0xFFF1F1F1,
             0xFF40A7E3, 0xFFFFFFFF, 0xFF168ACD,
@@ -53,7 +53,7 @@ public record UiTheme(
             0x59005180, 0xFFFFFFFF, 0x20FFFFFF, 0x20000000);
 
     /** 夜间:Telegram 的 night 主题原值。 */
-    public static final UiTheme DARK = new UiTheme("dark", "Night",
+    public static final UiTheme DARK = new UiTheme("dark",
             0xFF0E1621, 0x0CFFFFFF, 0xFF17212B, 0xFFF5F5F5, 0xFF0B1118,
             0xFFF5F5F5, 0xFF708499, 0xFF242F3D,
             0xFF5288C1, 0xFFFFFFFF, 0xFF6AB3F3,

@@ -96,6 +96,49 @@ public final class Footing {
         return here >= below ? y : y - 1;
     }
 
+    /**
+     * 站在节点 {@code (x, y, z)}、脚在 {@code feetY} 的身体朝 {@code (dx, dz)} 一直走到格边,脚下托着脚的碰撞箱(顶面就是 {@code feetY})
+     * 是不是一直铺到那条格边:楼梯背朝空隙时,靠空隙的那半是低一级的台阶,身子走不到边就先下了一级。跑酷起跳点要踩在边上。
+     */
+    public static boolean reachesEdge(BlockGetter level, BodyStats body, int x, int y, int z, double feetY, int dx, int dz) {
+        double half = body.width() / 2 - Clearance.DEFLATE;
+        for (int cy = y - 1; cy <= y; cy++) {
+            for (AABB box : Boxes.at(level, body, x, cy, z, level.getBlockState(new BlockPos(x, cy, z)), feetY)) {
+                if (Math.abs(cy + box.maxY - feetY) > EPSILON
+                        || box.maxX <= 0.5 - half || box.minX >= 0.5 + half || box.maxZ <= 0.5 - half || box.minZ >= 0.5 + half) {
+                    continue;
+                }
+                boolean toEdge = dx > 0 ? box.maxX >= 1 - EPSILON : dx < 0 ? box.minX <= EPSILON
+                        : dz > 0 ? box.maxZ >= 1 - EPSILON : box.minZ <= EPSILON;
+                if (toEdge) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 一块托着脚的碰撞箱至少要有身宽的这么多成,才算落得上去(栅栏的立柱、铁栏杆的细柱只有一指宽,身子落上去站不住)。 */
+    private static final double BROAD = 0.8;
+
+    /**
+     * 站在节点 {@code (x, y, z)}、脚在 {@code feetY} 的身体,脚下托着脚的碰撞箱里有没有一块两个水平方向都不比身宽窄多少:
+     * 落点要的是一块能站上去的地方。
+     */
+    public static boolean broad(BlockGetter level, BodyStats body, int x, int y, int z, double feetY) {
+        double half = body.width() / 2 - Clearance.DEFLATE;
+        for (int cy = y - 1; cy <= y; cy++) {
+            for (AABB box : Boxes.at(level, body, x, cy, z, level.getBlockState(new BlockPos(x, cy, z)), feetY)) {
+                if (Math.abs(cy + box.maxY - feetY) <= EPSILON && box.maxX > 0.5 - half && box.minX < 0.5 + half
+                        && box.maxZ > 0.5 - half && box.minZ < 0.5 + half
+                        && box.getXsize() >= body.width() * BROAD && box.getZsize() >= body.width() * BROAD) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** 身体脚底往下这么厚的一层里碰得到碰撞形状的方块,就是正托着它的。 */
     private static final double SOLE = 0.1;
 

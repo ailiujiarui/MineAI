@@ -31,8 +31,14 @@ class TrackerTest {
                 Goals.at(new BlockPos(12, Y, 0))).route();
         assertEquals(12, route.legs().size(), "平地笔直十二步");
         Course course = new Course();
-        course.install(route, arrived, m -> ticksPerStep);
+        course.install(paced(route, ticksPerStep), arrived);
         return course;
+    }
+
+    /** 同一条路线,每一步几何上最短都要 {@code ticks} 刻(测接续的时机时,由测试定每步多久)。 */
+    static Route paced(Route route, double ticks) {
+        return new Route(route.start(), route.startStance(), route.legs().stream()
+                .map(leg -> new Route.Leg(leg.maneuver(), leg.cost(), ticks, leg.air())).toList());
     }
 
     @Test

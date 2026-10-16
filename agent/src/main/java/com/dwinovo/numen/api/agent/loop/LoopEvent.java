@@ -44,7 +44,7 @@ public sealed interface LoopEvent {
     record RunEnded(long runId, RunEnd end) implements LoopEvent {}
 
     /** 调用失败而且不再重试——该让主人看见了。 */
-    record TurnFailed(String words) implements LoopEvent {}
+    record TurnFailed(Cause cause) implements LoopEvent {}
 
     /**
      * 执行了一次 {@link AgentLoop#halt}。不管当时有没有 run 都发:停止键在闲时同样要让语音闭嘴、
@@ -56,9 +56,9 @@ public sealed interface LoopEvent {
      * 停牌变了。
      *
      * @param hold   新的停牌;{@code null} = 解开了
-     * @param reason 进入这个停牌时给主人看的原因(端点不可用时是那句话);其余为 {@code null}
+     * @param cause  进入这个停牌时的原因(端点不可用、调用失败);其余为 {@code null}
      */
-    record HoldChanged(Hold hold, String reason) implements LoopEvent {}
+    record HoldChanged(Hold hold, Cause cause) implements LoopEvent {}
 
     /** 一次模型调用报回了用量。 */
     record ModelUsed(Usage usage, Purpose purpose) implements LoopEvent {}

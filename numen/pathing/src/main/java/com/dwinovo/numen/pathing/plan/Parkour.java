@@ -3,6 +3,7 @@ package com.dwinovo.numen.pathing.plan;
 import java.util.List;
 
 import com.dwinovo.numen.pathing.world.BodyStats;
+import com.dwinovo.numen.pathing.world.CellFlags;
 import com.dwinovo.numen.pathing.world.Clearance;
 import com.dwinovo.numen.pathing.world.Footing;
 import com.dwinovo.numen.pathing.world.Semantics;
@@ -99,6 +100,27 @@ final class Parkour implements Move {
         if (to == null) {
             return Premise.fail(from.offset(dx * longest, 0, dz * longest), Reason.NO_FOOTING);
         }
+        // 起跳点:跑到格边上起跳。脚下托着脚的碰撞箱要铺到格边(背朝空隙的楼梯,靠空隙那半低一级,身子走不到边就先下了一级),
+        // 摩擦要是常规的(黏液块、冰上加速、刹车都不是规划按的那一份)
+        BlockPos takeoff = stance.support(x, z);
+        if (!Footing.reachesEdge(view, body, x, y, z, f0, dx, dz)
+                || view.getBlockState(takeoff).getBlock().getFriction() != (float) Kinematics.DEFAULT_FRICTION) {
+            return Premise.fail(takeoff, Reason.NO_FOOTING);
+        }
+        if (!Footing.broad(view, body, to.getX(), to.getY(), to.getZ(), landing.feetY())) {
+            return Premise.fail(to, Reason.NO_FOOTING);
+        }
+        // 空中一列一列飞过去,途中、尤其是越过列与列的交界时,身体的盒(升到最高点的、落地时的)不能撞上交界处的门板、薄板
+        for (int d = 0; d < span; d++) {
+            // 最后一跳落在落点那一列:落点比起跳高时,在起跳的脚高上身体的盒本来就压在落点的方块里,从落点的脚高起看
+            double low = d == span - 1 ? Math.max(f0, landing.feetY()) : f0;
+            for (double h : new double[] {low, peak}) {
+                List<BlockPos> blockers = Clearance.blockers(view, body, x + dx * d, h, z + dz * d, dx, dz);
+                if (!blockers.isEmpty()) {
+                    return Premise.fail(blockers.get(0), Reason.NO_CLEARANCE);
+                }
+            }
+        }
         boolean ascend = landing.feetY() > f0 + Footing.EPSILON;
         // 不助跑跳不过去:落到第 4 列,或落点比起跳时高
         boolean runUp = span == 4 || ascend;
@@ -127,6 +149,15 @@ final class Parkour implements Move {
                 span, draft.edits(), contact.cells(), contact.exposure(), support,
                 // 跳回去的跨距与落差不比去时难:落点不比起点低
                 true));
+    }
+
+    /** 规格不许跑酷,一步也不成立;要站着、脚所在的格不泡在流体里;其余精确判断。 */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        if (!q.model().spec().parkour() || !q.stance().grounded() || (q.own() & CellFlags.FLUID) != 0) {
+            return Quick.REJECT;
+        }
+        return Quick.EXACT;
     }
 
     @Override

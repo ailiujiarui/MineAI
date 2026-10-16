@@ -1,6 +1,5 @@
 package com.dwinovo.numen.api.client.screen.chat;
 
-import com.dwinovo.numen.api.Constants;
 import com.dwinovo.numen.api.agent.llm.ConvoLog;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
 import com.dwinovo.numen.api.agent.conversation.Conversation;
@@ -8,6 +7,8 @@ import com.dwinovo.numen.api.agent.conversation.Mentions;
 import com.dwinovo.numen.api.agent.conversation.Quote;
 import com.dwinovo.numen.api.agent.conversation.Transcript;
 import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
+import com.dwinovo.numen.api.client.agent.CauseWords;
+import com.dwinovo.numen.api.client.agent.ToolWords;
 import com.dwinovo.numen.api.agent.provider.AssistantTurn;
 import com.dwinovo.numen.api.agent.provider.LlmToolCall;
 import com.dwinovo.numen.api.client.agent.Conversations;
@@ -21,6 +22,9 @@ import com.dwinovo.numen.api.client.screen.Nb;
 import com.dwinovo.numen.api.client.screen.UiTheme;
 import com.dwinovo.numen.api.client.ui.Anim;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
+import com.dwinovo.numen.api.client.ui.markdown.Markdown;
+import com.dwinovo.numen.api.client.ui.richtext.Doc;
+import com.dwinovo.numen.api.client.ui.richtext.RichLayout;
 import com.dwinovo.numen.api.mcp.server.McpMode;
 import com.dwinovo.numen.api.mcp.server.McpTranscript;
 import net.minecraft.client.gui.Font;
@@ -29,7 +33,7 @@ import com.dwinovo.numen.api.client.skin.CompanionFace;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import com.dwinovo.numen.api.client.ui.mc.Sprites;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.time.Instant;
@@ -132,11 +136,6 @@ public final class ChatView {
         SERVICE_FG = t.serviceFg();
     }
 
-    private static ResourceLocation spr(String n) {
-        return ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, n);
-    }
-    private static final ResourceLocation SCROLL_THUMB = spr("scroll_thumb");
-    private static final ResourceLocation CHEVRON_DOWN = spr("chevron_down");
     /**
      * 回到最新的浮钮(Telegram 翻上去时右下角那枚):边长、离右缘和底边的距离,
      * 以及露出的进度 0..1(趋近)——它从底边下面滑上来,被对话流裁掉,不是原地淡入。
@@ -209,7 +208,9 @@ public final class ChatView {
 
     private static final class Live {
         float revealed;
+        /** 已经露出来的正文;光标不在里面(光标是排在正文后面的一小段字,不参与 Markdown 解析)。 */
         String shown = "";
+        boolean caret;
     }
     /** Completed tool-call groups the user clicked open (keyed by the group's first call id). */
     private final Set<String> expandedGroups = new HashSet<>();
@@ -238,6 +239,26 @@ public final class ChatView {
 
     private List<FormattedCharSequence> split(Component text, int width) {
         return splits.computeIfAbsent(new SplitKey(text, width), k -> font.split(k.text(), k.width()));
+    }
+
+    /** 气泡正文的 Markdown 解析缓存(同一段字只解析一次)与排版缓存(同一份富文本、同一宽度只排一次),同样 LRU。 */
+    private final java.util.Map<String, Doc> parsed = new java.util.LinkedHashMap<>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, Doc> e) {
+            return size() > 512;
+        }
+    };
+    private final java.util.Map<LayKey, RichLayout.Laid> laid = new java.util.LinkedHashMap<>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<LayKey, RichLayout.Laid> e) {
+            return size() > 1024;
+        }
+    };
+
+    private record LayKey(Doc doc, int width) {}
+
+    private RichLayout.Laid lay(Doc doc, int width) {
+        return laid.computeIfAbsent(new LayKey(doc, width), k -> RichLayout.layout(k.doc(), k.width(), this::richWidth));
     }
     // geometry of the last render, for click / wheel hit-testing
     private int gx, gy, gw, gh;
@@ -283,6 +304,7 @@ public final class ChatView {
         expandedGroups.clear();
         ticked.clear();
         splits.clear();
+        laid.clear();
         flattened.clear();
         born.clear();
     }
@@ -380,7 +402,8 @@ public final class ChatView {
         g.enableScissor(x, y, right, y + h);
         NumenStyle.box(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font), jumpX, jumpY, JUMP, JUMP,
                 AI_FILL, AI_BORDER);
-        g.blitSprite(CHEVRON_DOWN, jumpX + (JUMP - 11) / 2, jumpY + (JUMP - 6) / 2, 11, 6);
+        Sprites.draw(g, Sprites.CHEVRON_DOWN, jumpX + (JUMP - Sprites.CHEVRON_W) / 2, jumpY + (JUMP - Sprites.CHEVRON_H) / 2,
+                Sprites.CHEVRON_W, Sprites.CHEVRON_H, MUTED);
         if (unread > 0) {
             String n = UnreadBadge.label(unread);
             int bw = UnreadBadge.width(font, n);
@@ -470,9 +493,9 @@ public final class ChatView {
                 && (overBody || barDragging || frameNow - lastScrollMs < 800 || Math.abs(scrollPos - scrollTarget) > 0.5f);
         barShown = Anim.approach(barShown, wantBar ? 8f : 0f, 14f, dt);
         if (barShown > 0.5f && lastMaxScroll > 0) {
-            g.setColor(1f, 1f, 1f, barShown / 8f);
-            g.blitSprite(SCROLL_THUMB, barX(), thumbY(), SB_W, thumbH());   // 只有滑块,没有槽,贴正文区右缘(Telegram)
-            g.setColor(1f, 1f, 1f, 1f);
+            // 只有滑块,没有槽,贴正文区右缘;半透明的灰(Telegram 的滚动条),随出没淡入淡出
+            int a = Math.round(0x80 * Math.min(1f, barShown / 8f));
+            g.fill(barX(), thumbY(), barX() + SB_W, thumbY() + thumbH(), (a << 24) | (MUTED & 0xFFFFFF));
         }
     }
 
@@ -523,13 +546,13 @@ public final class ChatView {
         for (McpTranscript.Line ln : McpTranscript.view(id)) {
             switch (ln.kind()) {
                 case OWNER -> {
-                    out.add(bubble(true, null, rich(ln.text(), List.of()), OWN_FILL,
+                    out.add(bubble(true, null, rich(ln.text(), false), TXT, OWN_FILL,
                             innerW, null, null, -1, ln.text(), null));
                     last = OWNER;
                 }
                 case SAY -> {
                     boolean first = !id.equals(last);
-                    out.add(bubble(false, first ? label(id) : null, rich(ln.text(), List.of()),
+                    out.add(bubble(false, first ? label(id) : null, rich(ln.text(), false), TXT,
                             AI_FILL, innerW, id, null, -1, ln.text(), null));
                     last = id;
                 }
@@ -559,7 +582,7 @@ public final class ChatView {
                         + (mcp.token().isBlank() ? I18n.get("numen.brain.token_none") : mcp.maskedToken()),
                 cx, cy + 26, MUTED);
         int ty = cy + 44;
-        for (FormattedCharSequence l : font.split(Nb.colored(I18n.get("numen.brain.guide_step"), FAINT), cw)) {
+        for (FormattedCharSequence l : font.split(Nb.colored(I18n.get("numen.brain.guide_step"), MUTED), cw)) {
             draw(g, l, cx, ty);
             ty += LINE_H + 2;
         }
@@ -604,10 +627,12 @@ public final class ChatView {
             lastScrollMs = System.currentTimeMillis();
             return true;
         }
-        net.minecraft.network.chat.Style link = linkAt(mx, my);
+        String link = linkAt(mx, my);
         if (link != null) {
             // 点链接走原版聊天那一套:看"聊天链接"选项、按需先弹确认框,确认完回到这个面板
-            net.minecraft.client.Minecraft.getInstance().screen.handleComponentClicked(link);
+            net.minecraft.client.Minecraft.getInstance().screen.handleComponentClicked(net.minecraft.network.chat.Style.EMPTY
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent(
+                            net.minecraft.network.chat.ClickEvent.Action.OPEN_URL, link)));
             return true;
         }
         if (McpMode.instance().driving()) return false;   // 现场视图没有可折叠的块
@@ -647,12 +672,16 @@ public final class ChatView {
      *  {@code who} = the companion whose face goes on it (null on the owner's side);
      *  {@code time} = 时间戳贴在气泡右下角(Telegram),放得进最后一行右侧就 {@code timeInline},
      *  放不进单独占一小行;{@code entry} = 归并后的记录序号,新来的按它飞入(-1 = 不飞)。 */
-    private record Bubble(boolean own, String label, List<FormattedCharSequence> lines,
+    private record Bubble(boolean own, String label, RichLayout.Laid text, int ink,
                           int maxLineW, int fill,
                           boolean runEnd, UUID who, String time, boolean timeInline, int entry,
                           String raw, Quote quote) implements Block {
         Bubble withRunEnd(boolean on) {
-            return new Bubble(own, label, lines, maxLineW, fill, on, who, time, timeInline, entry, raw, quote);
+            return new Bubble(own, label, text, ink, maxLineW, fill, on, who, time, timeInline, entry, raw, quote);
+        }
+
+        int rows() {
+            return text.rows().size();
         }
     }
 
@@ -722,20 +751,15 @@ public final class ChatView {
         return null;
     }
 
-    /** 指针下那个链接的样式(带着打开网址的点击事件);不在链接上是 null。只认对话流可见区里的气泡正文。 */
-    private net.minecraft.network.chat.Style linkAt(double mx, double my) {
+    /** 指针下那个链接的网址;不在链接上是 null。只认对话流可见区里的气泡正文。 */
+    private String linkAt(double mx, double my) {
         if (mx < gx || mx >= gx + gw || my < gy || my >= gy + gh) return null;
         for (Hit h : hits) {
             Bubble b = h.b();
             int textTop = h.y() + PAD_V + 1 + (b.quote() != null ? QUOTE_H : 0);
             if (mx < h.x() + PAD_H || mx >= h.x() + h.w() || my < textTop) continue;
-            int row = (int) ((my - textTop) / LINE_H);
-            if (row >= b.lines().size()) continue;
-            var st = font.getSplitter().componentStyleAtWidth(b.lines().get(row), (int) (mx - h.x() - PAD_H));
-            if (st != null && st.getClickEvent() != null
-                    && st.getClickEvent().getAction() == net.minecraft.network.chat.ClickEvent.Action.OPEN_URL) {
-                return st;
-            }
+            String url = b.text().linkAt((int) ((my - textTop) / LINE_H), (int) (mx - h.x() - PAD_H));
+            if (url != null) return url;
         }
         return null;
     }
@@ -788,7 +812,7 @@ public final class ChatView {
     private int heightOf(Block b) {
         return switch (b) {
             case Bubble bb -> (bb.label() != null ? LABEL_H : 0) + (bb.quote() != null ? QUOTE_H : 0)
-                    + bb.lines().size() * LINE_H + PAD_V * 2
+                    + bb.rows() * LINE_H + PAD_V * 2
                     + (bb.time() != null && !bb.timeInline() ? TIME_H : 0);
             case Checklist c -> (c.label() != null ? LABEL_H : 0) + checklistH(c);
             case Chip c -> (c.label() != null ? LABEL_H : 0) + c.rows().size() * LINE_H + PAD_V * 2;
@@ -1001,8 +1025,7 @@ public final class ChatView {
                     String shown = ownerText(u.content());   // owner's words only, never injected content
                     if (shown.isEmpty()) continue;
                     Quote q = Quote.parse(shown);   // 引用回复:第一行画成气泡顶上的引用条
-                    out.add(bubble(true, null,
-                            rich(q.body(), Mentions.spans(q.body(), Conversations.instance().named(conv.get()))),
+                    out.add(bubble(true, null, rich(q.body(), true), TXT,
                             OWN_FILL, innerW, null,
                             clock(entry.ts()), msgIndex, q.body(), q.quoted() ? q : null));
                     f.last = OWNER;
@@ -1027,7 +1050,7 @@ public final class ChatView {
                         }
                         boolean first = !who.equals(f.last);
                         out.add(bubble(false, first ? label(who) : null,
-                                rich(spoken, List.of()), AI_FILL, innerW, who,
+                                rich(spoken, false), TXT, AI_FILL, innerW, who,
                                 clock(entry.ts()), msgIndex, spoken, null));
                         f.last = who;
                     }
@@ -1043,7 +1066,10 @@ public final class ChatView {
                 case ConvoState.Msg.Tool ignored -> { /* result drives done/fail, not a block */ }
                 case ConvoState.Msg.Halt h -> {
                     flushProcess(f, done, failed, bubbleMaxW);
-                    notice(out, I18n.get("numen.chat.halted", h.reason()), bubbleMaxW);
+                    // 有结构化原因就按当前语言说;老日志只有当时存下的那句
+                    String why = h.code() == null ? h.reason()
+                            : CauseWords.text(new com.dwinovo.numen.api.agent.loop.Cause(h.code(), h.args()));
+                    notice(out, I18n.get("numen.chat.halted", why), bubbleMaxW);
                     f.last = null;
                 }
             }
@@ -1063,10 +1089,12 @@ public final class ChatView {
             if (!liveReasoning.isBlank()) addPiece(f, her, -1, new Piece(liveReasoning, true, null));
             // The in-flight reply, typed out live (chunk stream → EntityAgentLoop.livePartial).
             Live l = live.get(her);
-            if (l != null && !l.shown.isEmpty()) {
+            if (l != null && (!l.shown.isEmpty() || l.caret)) {
                 flushProcess(f, done, failed, bubbleMaxW);
                 boolean first = !her.equals(f.last);
-                out.add(bubble(false, first ? label(her) : null, Nb.colored(l.shown, TXT),
+                // 光标是接在解析完的正文后面的一小段字:没写完的 Markdown 记号照字面显示,写完才变样式
+                Doc typing = l.caret ? rich(l.shown, false).withTail("_") : rich(l.shown, false);
+                out.add(bubble(false, first ? label(her) : null, typing, TXT,
                         AI_FILL, innerW, her, null, -1, l.shown, null));
                 f.last = her;
             }
@@ -1087,7 +1115,7 @@ public final class ChatView {
         // so a queued message never feels swallowed.
         for (String shown : queued) {
             String body = Quote.parse(shown).body();
-            out.add(bubble(true, null, Nb.colored("⌛ " + body, FAINT), QUEUED_FILL,
+            out.add(bubble(true, null, Doc.plain("⌛ " + body), FAINT, QUEUED_FILL,
                     innerW, null, null, -1, body, null));
             f.last = OWNER;
         }
@@ -1149,12 +1177,11 @@ public final class ChatView {
         };
     }
 
-    private Bubble bubble(boolean own, String label, Component body, int fill,
+    private Bubble bubble(boolean own, String label, Doc body, int ink, int fill,
                           int innerW, UUID who, String time, int entry,
                           String raw, Quote quote) {
-        List<FormattedCharSequence> lines = split(body, innerW);
-        int maxW = 0;
-        for (FormattedCharSequence l : lines) maxW = Math.max(maxW, font.width(l));
+        RichLayout.Laid text = lay(body, innerW);
+        int maxW = text.width();
         if (quote != null) {
             maxW = Math.max(maxW, Math.min(innerW,
                     QUOTE_IN + Math.max(font.width(quote.who()), font.width(quote.snippet()))));
@@ -1163,11 +1190,10 @@ public final class ChatView {
         if (time != null) {
             // 时间戳挤在最后一行右侧(Telegram):放得下就同一行,放不下自己占一小行
             int tw = font.width(time) + 6;
-            int last = lines.isEmpty() ? 0 : font.width(lines.get(lines.size() - 1));
-            inline = last + tw <= innerW;
-            maxW = Math.max(maxW, inline ? last + tw : tw);
+            inline = text.lastEnd() + tw <= innerW;
+            maxW = Math.max(maxW, inline ? text.lastEnd() + tw : tw);
         }
-        return new Bubble(own, label, lines, maxW, fill, false, who, time, inline, entry, raw, quote);
+        return new Bubble(own, label, text, ink, maxW, fill, false, who, time, inline, entry, raw, quote);
     }
 
     /**
@@ -1238,33 +1264,45 @@ public final class ChatView {
     }
 
     /**
-     * 气泡正文:http/https 链接({@link ChatLinks})画成强调色加下划线,带着原版的打开网址点击事件,
-     * 点了由 {@link #mouseClicked} 交给原版确认打开;主人的话里 {@code @} 到的名字画亮——{@code mentions}
-     * 用的是路由那一份匹配({@link Mentions#spans}),所以亮的正好是会醒的,不是"长得像名字";名字按此刻名册,
-     * 改过名之后旧记录里的不亮。两样重叠时算链接。
+     * 气泡正文:Markdown({@link Markdown},粗体、斜体、删除线、代码、链接、列表……)解析成富文本,
+     * 链接画成强调色加下划线,点了由 {@link #mouseClicked} 交给原版确认打开。{@code mentions} 为真时(主人的话)
+     * {@code @} 到的名字画亮——用的是路由那一份匹配({@link Mentions#spans}),量的是画出来的那份正文,
+     * 所以亮的正好是会醒的,不是"长得像名字";名字按此刻名册,改过名之后旧记录里的不亮。
      */
-    private Component rich(String text, List<Mentions.Span> mentions) {
-        List<ChatLinks.Span> links = ChatLinks.find(text);
-        if (links.isEmpty() && mentions.isEmpty()) return Nb.colored(text, TXT);
-        // 每个字属于哪一段:0 正文,-1 @ 到的名字,k + 1 第 k 个链接
-        int[] mark = new int[text.length()];
-        for (Mentions.Span m : mentions) java.util.Arrays.fill(mark, m.start(), m.end(), -1);
-        for (int k = 0; k < links.size(); k++) java.util.Arrays.fill(mark, links.get(k).start(), links.get(k).end(), k + 1);
-        MutableComponent out = Component.empty();
-        for (int i = 0; i < mark.length; ) {
-            int j = i;
-            while (j < mark.length && mark[j] == mark[i]) j++;
-            String part = text.substring(i, j);
-            if (mark[i] > 0) {
-                var click = new net.minecraft.network.chat.ClickEvent(
-                        net.minecraft.network.chat.ClickEvent.Action.OPEN_URL, links.get(mark[i] - 1).url());
-                out.append(Nb.colored(part, MENTION).copy().withStyle(st -> st.withUnderlined(true).withClickEvent(click)));
-            } else {
-                out.append(Nb.colored(part, mark[i] < 0 ? MENTION : TXT));
+    private Doc rich(String text, boolean mentions) {
+        Doc doc = parsed.computeIfAbsent(text, Markdown::parse);
+        if (!mentions) return doc;
+        return doc.accented(Mentions.spans(doc.plainText(), Conversations.instance().named(conv.get())).stream()
+                .map(m -> new Doc.Range(m.start(), m.end())).toList());
+    }
+
+    /** 一段字在某种样式下多宽(排版用):粗体更宽,斜体、删除线不变。 */
+    private int richWidth(String text, int style) {
+        return font.width(richStyled(text, style, TXT).getVisualOrderText());
+    }
+
+    private static MutableComponent richStyled(String text, int style, int color) {
+        return Component.literal(text).withStyle(st -> st.withColor(color & 0xFFFFFF)
+                .withBold((style & Doc.BOLD) != 0).withItalic((style & Doc.ITALIC) != 0)
+                .withStrikethrough((style & Doc.STRIKE) != 0));
+    }
+
+    /** 把排好的正文画在 {@code (x, y)}:链接与 @ 的名字用强调色(链接再加下划线),代码铺一层字色的淡底。 */
+    private void drawRich(GuiGraphics g, RichLayout.Laid text, int x, int y, int ink) {
+        text.paint(new RichLayout.Canvas() {
+            @Override
+            public void backdrop(int bx, int by, int w, int h) {
+                g.fill(bx, by, bx + w, by + h, (ink & 0xFFFFFF) | 0x26000000);
             }
-            i = j;
-        }
-        return out;
+
+            @Override
+            public void text(RichLayout.Frag f, int fx, int fy) {
+                boolean accent = f.link() != null || (f.style() & Doc.ACCENT) != 0;
+                MutableComponent c = richStyled(f.text(), f.style(), accent ? MENTION : ink);
+                if (f.link() != null) c = c.withStyle(st -> st.withUnderlined(true));
+                draw(g, c.getVisualOrderText(), fx, fy);
+            }
+        }, x, y, LINE_H);
     }
 
     /** Advance the typewriter: filter the live partial, ease the reveal toward the
@@ -1283,7 +1321,8 @@ public final class ChatView {
             if (l.revealed > full.length()) l.revealed = full.length();
             if (full.length() - l.revealed > REVEAL_MAX_LAG) l.revealed = full.length() - REVEAL_MAX_LAG;
             l.revealed = Math.min(full.length(), l.revealed + dt * REVEAL_CPS);
-            l.shown = cut(full, (int) l.revealed) + (((now / 500) & 1) == 0 ? "_" : "");
+            l.shown = cut(full, (int) l.revealed);
+            l.caret = ((now / 500) & 1) == 0;
         }
     }
 
@@ -1364,7 +1403,7 @@ public final class ChatView {
         if (!calls.isEmpty()) {
             parts.add(I18n.get("numen.chat.steps", calls.size()));
             for (LlmToolCall tc : calls) {
-                String name = toolLabel(tc.name());
+                String name = ToolWords.label(tc.name());
                 if (!parts.contains(name)) parts.add(name);
             }
         }
@@ -1486,7 +1525,7 @@ public final class ChatView {
         int bw = b.maxLineW() + PAD_H * 2;
         boolean timeLine = b.time() != null && !b.timeInline();
         int qh = b.quote() != null ? QUOTE_H : 0;
-        int bh = qh + b.lines().size() * LINE_H + PAD_V * 2 + (timeLine ? TIME_H : 0);
+        int bh = qh + b.rows() * LINE_H + PAD_V * 2 + (timeLine ? TIME_H : 0);
         int bubTop = y + (b.label() != null ? LABEL_H : 0);
         // 自己的贴右缘(留出尾巴的宽);别人的在脸那一列右边(私聊那一列只有尾巴宽)
         int bx = b.own() ? x + w - TAIL - bw : x + EDGE + faceCol();
@@ -1503,10 +1542,8 @@ public final class ChatView {
             draw(g, Nb.colored(Nb.clip(font, b.quote().snippet(), room), dim).getVisualOrderText(), qx + QUOTE_IN, qy + 9);
         }
         int ty = bubTop + PAD_V + 1 + qh;
-        for (FormattedCharSequence l : b.lines()) {
-            draw(g, l, bx + PAD_H, ty);
-            ty += LINE_H;
-        }
+        drawRich(g, b.text(), bx + PAD_H, ty, b.ink());
+        ty += b.rows() * LINE_H;
         if (b.time() != null) {
             // 时间戳贴右下角:同一行就压在最后一行的右侧,否则在下面自己一小行
             int tx = bx + bw - PAD_H - font.width(b.time());
@@ -1708,13 +1745,7 @@ public final class ChatView {
 
     private static String toolLine(LlmToolCall tc) {
         String args = humanArgs(tc.arguments());
-        return args.isEmpty() ? toolLabel(tc.name()) : toolLabel(tc.name()) + "  " + args;
-    }
-
-    /** 工具名 → 人话:约定键 {@code numen.tool.<name>};没有译文的(MCP 外部工具)原样显示。 */
-    private static String toolLabel(String name) {
-        String key = "numen.tool." + name;
-        return I18n.exists(key) ? I18n.get(key) : name;
+        return args.isEmpty() ? ToolWords.label(tc.name()) : ToolWords.label(tc.name()) + "  " + args;
     }
 
     /** 参数 JSON → 人读摘要:抓最能说明这一步的名词(物品/方块/目标)、坐标、数量,
@@ -1742,7 +1773,7 @@ public final class ChatView {
                     var a = v.getAsJsonArray();
                     StringBuilder b = new StringBuilder();
                     for (int i = 0; i < a.size() && i < 2; i++) {
-                        if (i > 0) b.append('、');
+                        if (i > 0) b.append(I18n.get(com.dwinovo.numen.api.data.ModLanguageData.Keys.LIST_SEPARATOR));
                         b.append(stripNs(a.get(i).getAsString()));
                     }
                     if (a.size() > 2) b.append('…');

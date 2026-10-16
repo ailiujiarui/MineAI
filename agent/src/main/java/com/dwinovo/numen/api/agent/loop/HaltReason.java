@@ -16,24 +16,31 @@ package com.dwinovo.numen.api.agent.loop;
  * 离线补发的 {@code task_finished} 回来照样叫得醒她。
  */
 public enum HaltReason {
-    OWNER_STOP("被主人打断", true, true, true, Hold.OWNER_STOP),
-    DEATH("你死了", false, false, false, Hold.DEAD),
-    DISCONNECT("主人断线了", false, false, false, null),
-    EXTERNAL("外接模型接管了身体", false, false, false, null),
-    DISPOSE("大脑被重置", false, false, false, null);
+    OWNER_STOP("halt.owner_stop", "被主人打断", true, true, true, Hold.OWNER_STOP),
+    DEATH("halt.death", "你死了", false, false, false, Hold.DEAD),
+    DISCONNECT("halt.disconnect", "主人断线了", false, false, false, null),
+    EXTERNAL("halt.external", "外接模型接管了身体", false, false, false, null),
+    DISPOSE("halt.dispose", "大脑被重置", false, false, false, null);
 
+    private final String code;
     private final String words;
     private final boolean stopsBody;
     private final boolean clearsInterrupted;
     private final boolean endsGoal;
     private final Hold enters;
 
-    HaltReason(String words, boolean stopsBody, boolean clearsInterrupted, boolean endsGoal, Hold enters) {
+    HaltReason(String code, String words, boolean stopsBody, boolean clearsInterrupted, boolean endsGoal, Hold enters) {
+        this.code = code;
         this.words = words;
         this.stopsBody = stopsBody;
         this.clearsInterrupted = clearsInterrupted;
         this.endsGoal = endsGoal;
         this.enters = enters;
+    }
+
+    /** 结构化的原因:码 + 现场的话(死因等,没有就空),界面按当前语言说。 */
+    public Cause cause(String detail) {
+        return detail == null || detail.isBlank() ? Cause.of(code) : Cause.of(code, detail);
     }
 
     /** 切断点上给模型看的原因;{@code detail}(死因等)非空时跟在括号里。 */

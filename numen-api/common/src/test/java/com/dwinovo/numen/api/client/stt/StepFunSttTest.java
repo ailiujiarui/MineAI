@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.stt;
 
+import com.dwinovo.numen.api.client.voice.VoiceError;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -19,13 +20,13 @@ class StepFunSttTest {
     private static final class Rec implements StepFunStt.SseTranscript.Sink {
         final List<String> deltas = new ArrayList<>();
         String done;
-        String error;
+        VoiceError error;
 
         @Override public void delta(String text) { deltas.add(text); }
 
         @Override public void done(String text) { done = text; }
 
-        @Override public void error(String message) { error = message; }
+        @Override public void error(VoiceError e) { error = e; }
     }
 
     private static void feed(StepFunStt.SseTranscript t, String... lines) {
@@ -53,7 +54,7 @@ class StepFunSttTest {
         feed(t, "event: transcript.text.delta", "data: {\"delta\":\"半截\"}", "");
         t.end();
         assertEquals(null, rec.done);
-        assertTrue(rec.error != null && rec.error.contains("done"));
+        assertTrue(rec.error != null && rec.error.getMessage().contains("done"));
     }
 
     @Test
@@ -62,7 +63,7 @@ class StepFunSttTest {
         StepFunStt.SseTranscript t = new StepFunStt.SseTranscript(rec);
         feed(t, "event: transcript.text.done", "data: {\"usage\":{\"tokens\":3}}", "");
         assertEquals(null, rec.done);
-        assertTrue(rec.error != null && rec.error.contains("文本字段"));
+        assertTrue(rec.error != null && VoiceError.REPLY_MISSING.equals(rec.error.code()));
     }
 
     @Test
@@ -70,7 +71,7 @@ class StepFunSttTest {
         Rec rec = new Rec();
         StepFunStt.SseTranscript t = new StepFunStt.SseTranscript(rec);
         feed(t, "event: error", "data: {\"code\":\"invalid_api_key\"}", "");
-        assertTrue(rec.error != null && rec.error.contains("invalid_api_key"));
+        assertTrue(rec.error != null && rec.error.getMessage().contains("invalid_api_key"));
     }
 
     @Test
@@ -78,7 +79,7 @@ class StepFunSttTest {
         Rec rec = new Rec();
         StepFunStt.SseTranscript t = new StepFunStt.SseTranscript(rec);
         feed(t, "event: transcript.text.done", "data: <html>bad gateway</html>", "");
-        assertTrue(rec.error != null && rec.error.contains("JSON"));
+        assertTrue(rec.error != null && rec.error.getMessage().contains("JSON"));
     }
 
     @Test

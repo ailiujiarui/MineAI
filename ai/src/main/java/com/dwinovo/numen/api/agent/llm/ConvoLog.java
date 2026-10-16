@@ -570,6 +570,12 @@ public final class ConvoLog {
             case ConvoState.Msg.Halt h -> {
                 o.addProperty("type", EV_HALT);
                 o.addProperty("reason", h.reason());
+                if (h.code() != null) {
+                    o.addProperty("code", h.code());
+                    JsonArray args = new JsonArray();
+                    h.args().forEach(args::add);
+                    o.add("args", args);
+                }
             }
         }
         return o;
@@ -585,7 +591,12 @@ public final class ConvoLog {
     }
 
     private static ConvoState.Msg.Halt decodeHalt(JsonObject o) {
-        return new ConvoState.Msg.Halt(str(o.get("reason")));
+        String code = o.has("code") ? str(o.get("code")) : null;
+        List<String> args = new ArrayList<>();
+        if (o.get("args") instanceof JsonArray a) {
+            a.forEach(e -> args.add(str(e)));
+        }
+        return new ConvoState.Msg.Halt(str(o.get("reason")), code, args);
     }
 
     /** Decode a message record, or {@code null} for an unknown role (forward-compat: skip, don't crash). */

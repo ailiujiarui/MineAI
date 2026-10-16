@@ -46,27 +46,51 @@ public final class Rule {
         this.terms = List.copyOf(terms);
     }
 
-    /** 解析一行;写错了抛 {@link IllegalArgumentException},消息说清哪儿错。 */
+    /**
+     * 规则写错了:原因码 + 现场的原话。{@link #getMessage()} 是给日志与脚本的英文诊断;给主人看的话由命令按码翻
+     * ({@code numen.command.rule_mistake.<码>}),原话({@link #args})按码约定的顺序填进去。
+     */
+    public static final class Mistake extends IllegalArgumentException {
+        private final String code;
+        private final List<String> args;
+
+        Mistake(String code, String message, String... args) {
+            super(message);
+            this.code = code;
+            this.args = List.of(args);
+        }
+
+        public String code() {
+            return code;
+        }
+
+        public List<String> args() {
+            return args;
+        }
+    }
+
+    /** 解析一行;写错了抛 {@link Mistake}(是 {@link IllegalArgumentException}),消息说清哪儿错。 */
     public static Rule parse(String raw) {
         String text = raw == null ? "" : raw.trim();
         int open = text.indexOf('(');
         if (open <= 0 || !text.endsWith(")")) {
-            throw new IllegalArgumentException(
-                    "rule must look like verb(term & term), e.g. break(placed & !block_entity): '" + raw + "'");
+            throw new Mistake("shape",
+                    "rule must look like verb(term & term), e.g. break(placed & !block_entity): '" + raw + "'", raw);
         }
         String verb = text.substring(0, open).trim();
         Action.Kind kind = null;
         if (!verb.equals("*")) {
             kind = Action.Kind.byVerb(verb);
             if (kind == null) {
-                throw new IllegalArgumentException("unknown verb '" + verb + "' in rule '" + raw + "'; verbs are "
-                        + Arrays.stream(Action.Kind.values()).map(Action.Kind::verb).collect(Collectors.joining(", "))
-                        + ", or * for any");
+                String verbs = Arrays.stream(Action.Kind.values()).map(Action.Kind::verb)
+                        .collect(Collectors.joining(", "));
+                throw new Mistake("verb", "unknown verb '" + verb + "' in rule '" + raw + "'; verbs are "
+                        + verbs + ", or * for any", verb, raw, verbs);
             }
         }
         String inner = text.substring(open + 1, text.length() - 1).trim();
         if (inner.isEmpty()) {
-            throw new IllegalArgumentException("rule needs at least one term (use * for any): '" + raw + "'");
+            throw new Mistake("empty", "rule needs at least one term (use * for any): '" + raw + "'", raw);
         }
         List<Term> terms = new ArrayList<>();
         for (String piece : inner.split("&")) {
@@ -133,7 +157,7 @@ public final class Rule {
             }
             Component term = t.shown(action, facts);
             out = out == null ? Component.empty().append(term)
-                    : out.append(Component.translatable(ModLanguageData.Keys.PERMISSION_SEPARATOR)).append(term);
+                    : out.append(Component.translatable(ModLanguageData.Keys.LIST_SEPARATOR)).append(term);
         }
         return out == null ? Component.literal(text) : out;
     }
@@ -230,22 +254,22 @@ public final class Rule {
             boolean negated = raw.startsWith("!");
             String body = negated ? raw.substring(1).trim() : raw;
             if (body.isEmpty()) {
-                throw new IllegalArgumentException("empty term in rule '" + rule + "'");
+                throw new Mistake("empty_term", "empty term in rule '" + rule + "'", rule);
             }
             if (body.equals("*")) {
                 return new Term(Type.ANY, negated, null, null, null, body);
             }
             if (kind == Action.Kind.COMMAND) {
                 if (body.startsWith("/") || body.chars().anyMatch(Character::isWhitespace)) {
-                    throw new IllegalArgumentException("bad command name '" + body + "' in rule '" + rule
-                            + "'; write the command's root name without the slash, e.g. command(setblock)");
+                    throw new Mistake("command_name", "bad command name '" + body + "' in rule '" + rule
+                            + "'; write the command's root name without the slash, e.g. command(setblock)", body, rule);
                 }
                 return new Term(Type.COMMAND, negated, null, null, null, body);
             }
             if (body.startsWith("#")) {
                 ResourceLocation id = ResourceLocation.tryParse(body.substring(1));
                 if (id == null) {
-                    throw new IllegalArgumentException("bad tag '" + body + "' in rule '" + rule + "'");
+                    throw new Mistake("tag", "bad tag '" + body + "' in rule '" + rule + "'", body, rule);
                 }
                 return new Term(Type.TAG, negated, null, id, null, body);
             }
@@ -253,21 +277,23 @@ public final class Rule {
                 try {
                     return new Term(Type.ENTITY, negated, null, null, UUID.fromString(body.substring(7)), body);
                 } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("bad entity uuid '" + body + "' in rule '" + rule + "'");
+                    throw new Mistake("uuid", "bad entity uuid '" + body + "' in rule '" + rule + "'", body, rule);
                 }
             }
             if (body.contains(":")) {
                 ResourceLocation id = ResourceLocation.tryParse(body);
                 if (id == null) {
-                    throw new IllegalArgumentException("bad id '" + body + "' in rule '" + rule + "'");
+                    throw new Mistake("id", "bad id '" + body + "' in rule '" + rule + "'", body, rule);
                 }
                 return new Term(Type.ID, negated, null, id, null, body);
             }
             Signals signal = Signals.byName(body);
             if (signal == null) {
-                throw new IllegalArgumentException("unknown signal '" + body + "' in rule '" + rule + "'; signals are "
-                        + Arrays.stream(Signals.values()).map(Signals::ruleName).collect(Collectors.joining(", "))
-                        + ", or write a namespaced id (minecraft:chest), a tag (#minecraft:beds), entity:<uuid> or *");
+                String signals = Arrays.stream(Signals.values()).map(Signals::ruleName)
+                        .collect(Collectors.joining(", "));
+                throw new Mistake("signal", "unknown signal '" + body + "' in rule '" + rule + "'; signals are "
+                        + signals + ", or write a namespaced id (minecraft:chest), a tag (#minecraft:beds), entity:<uuid> or *",
+                        body, rule, signals);
             }
             return new Term(Type.SIGNAL, negated, signal, null, null, body);
         }

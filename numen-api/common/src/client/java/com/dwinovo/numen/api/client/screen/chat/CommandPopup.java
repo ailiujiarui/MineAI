@@ -94,6 +94,6 @@ final class CommandPopup {
         }
         String clipped = com.dwinovo.numen.api.client.ui.TextClip.fit(s, note, room);
         s.drawText(clipped, x + w - s.textWidth(clipped), textY,
-                row.enabled() ? c.textMuted() : c.danger(), false);
+                row.enabled() ? c.textSecondary() : c.danger(), false);
     }
 }

@@ -75,7 +75,7 @@ public final class PinnedGoal {
             Nb.text(g, font, seq, ix, ly);
             ly += LINE_H;
         }
-        Nb.text(g, font, meta, ix, ly, th.faint());
+        Nb.text(g, font, meta, ix, ly, th.textDim());
         g.disableScissor();
         return fullH;
     }

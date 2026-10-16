@@ -200,11 +200,18 @@ public abstract class TaskRecord<V> {
     }
 
     /**
-     * Short human-readable description for the {@code /numen debug} head
-     * overlay. Defaults to the tool name; subclasses override to append their
-     * salient parameters (e.g. {@code MoveToTaskRecord} adds the target coords).
+     * 给<b>模型</b>看的一句:{@code <current_task>} 与 task status 印的是它。默认是工具名;子类补上要紧的参数
+     * (如 {@code MoveToTaskRecord} 加目标坐标)。
      */
     public String describe() {
         return toolName;
+    }
+
+    /**
+     * 给<b>主人</b>看的一句:头顶气泡与档案页显示的是它,客户端按当前语言翻({@link Activity})。默认只说工具名;
+     * 有进度、有参数值得说的任务覆盖它。
+     */
+    public Activity activity() {
+        return Activity.of(Activity.DEFAULT_KEY, toolName);
     }
 }

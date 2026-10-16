@@ -170,7 +170,7 @@ class EstimateConsistencyTest {
         Set<MoveKind> seen = EnumSet.noneOf(MoveKind.class);
         for (Scene scene : scenes()) {
             for (Goal goal : scene.goals()) {
-                Estimate estimate = Estimate.of(scene.world(), scene.model(), goal, START, Fixtures.BUDGET);
+                Estimate estimate = Estimate.of(scene.world(), scene.model(), goal, START, Fixtures.BUDGET, TripMemory.Frozen.NONE, 1);
                 for (int x = -3; x <= 12; x++) {
                     for (int y = Y - 5; y <= Y + 12; y++) {
                         for (int z = -3; z <= 3; z++) {

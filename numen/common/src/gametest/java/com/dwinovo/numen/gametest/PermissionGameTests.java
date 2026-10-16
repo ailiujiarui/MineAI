@@ -914,7 +914,7 @@ public class PermissionGameTests {
         ServerPlayer owner = presentPlayer(helper, companion, "gametest_geologist");
 
         List<String> mistake = runAs(owner, "numen permission rules add ask brek(placed)");
-        helper.assertTrue(mistake.stream().anyMatch(m -> m.contains("unknown verb 'brek'") && m.contains("break")),
+        helper.assertTrue(mistake.stream().anyMatch(m -> m.contains("Unknown verb 'brek'") && m.contains("break")),
                 "a mistyped rule was not taught: " + mistake);
         List<String> added = runAs(owner, "numen permission rules add ask break(!placed & !block_entity)");
         helper.assertTrue(added.stream().anyMatch(m -> m.contains("Added to ask")), "the row was not added: " + added);

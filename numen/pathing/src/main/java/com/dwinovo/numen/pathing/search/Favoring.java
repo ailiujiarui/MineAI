@@ -31,8 +31,15 @@ public final class Favoring {
         return new Favoring(cells);
     }
 
-    /** 落到 {@code to} 的一步的价钱乘多少。 */
-    double factor(BlockPos to) {
-        return cells.contains(to.asLong()) ? DISCOUNT : 1;
+    /**
+     * 任何一步的价钱至少乘多少:估价是对没折扣的价钱算的下界,沿旧路打折之后要同乘这个数才还是下界(没有旧路是 1)。
+     */
+    double floor() {
+        return cells.isEmpty() ? 1 : DISCOUNT;
+    }
+
+    /** 落到 {@code to}({@link BlockPos#asLong} 编码)的一步的价钱乘多少。 */
+    double factor(long to) {
+        return cells.contains(to) ? DISCOUNT : 1;
     }
 }

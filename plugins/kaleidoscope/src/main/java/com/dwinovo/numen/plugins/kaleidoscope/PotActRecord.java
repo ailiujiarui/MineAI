@@ -1,6 +1,7 @@
 package com.dwinovo.numen.plugins.kaleidoscope;
 
 import com.dwinovo.numen.api.sdk.ServerCall;
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.api.task.TaskRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -28,5 +29,11 @@ public final class PotActRecord extends TaskRecord<KaleidoscopeApi.Done> {
     @Override
     public String describe() {
         return getToolName() + (recipe == null ? "" : " " + recipe) + " @ " + Cooker.where(pos);
+    }
+
+    /** 给主人看的一句:这一步、哪道菜、哪口锅;键在本插件自己的语言文件里。 */
+    @Override
+    public Activity activity() {
+        return Activity.of("numen.kaleidoscope.activity." + act.word, recipe == null ? "" : recipe, Cooker.where(pos));
     }
 }

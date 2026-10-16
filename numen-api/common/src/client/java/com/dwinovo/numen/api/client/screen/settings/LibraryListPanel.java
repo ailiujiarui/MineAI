@@ -215,13 +215,13 @@ public final class LibraryListPanel<T> {
             tog.setBounds(togX, NumenStyle.centerIn(y, NumenStyle.HEADER_H, 11), 22, 11);
             String label = t(toggleLabelKey);
             int lw = font.width(label);
-            Label togLabel = ui.add(new Label(label, Label.Role.MUTED));
+            Label togLabel = ui.add(new Label(label, Label.Role.SECONDARY));
             // 宽度=实测文本宽:标签后加在按钮之上,虚宽会盖住右侧新建钮吞掉点击。
             togLabel.setBounds(togX - lw - 4, NumenStyle.centerIn(y, NumenStyle.HEADER_H, 9), lw, 9);
         }
 
         int body = NumenStyle.bodyTop(y);
-        emptyLabel = ui.add(new Label(t(emptyKey), Label.Role.MUTED));
+        emptyLabel = ui.add(new Label(t(emptyKey), Label.Role.SECONDARY));
         emptyLabel.setBounds(x, body + 2, w, 9);
 
         list = ui.add(new ListView<T>(entries, ROW_H, this::renderRow, null)
@@ -334,7 +334,7 @@ public final class LibraryListPanel<T> {
         s.drawText(TextClip.fit(s, row.name() == null ? "" : row.name(), textW), tx, ry + 4,
                 c.textPrimary(), false);
         s.drawText(TextClip.fit(s, row.meta(), textW), tx, ry + 15,
-                row.metaDanger() ? c.danger() : c.textMuted(), false);
+                row.metaDanger() ? c.danger() : c.textSecondary(), false);
         if (index < entries.size() - 1) {   // 行间细线从文字左缘起,最后一行下面不画
             s.fillRect(tx, ry + rh - 1, rx + rw - tx, 1, c.divider());
         }
@@ -400,7 +400,7 @@ public final class LibraryListPanel<T> {
 
     private void askDelete(T e) {
         confirm.open(ui, dimX, dimY, dimW, dimH, deleteMessage.apply(e),
-                t("numen.gui.settings.cancel"), t("numen.dismiss.delete"),
+                t(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), t("numen.dismiss.delete"),
                 () -> {
                     String name = rowOf.apply(e).name();
                     onDeleteConfirmed.accept(e);

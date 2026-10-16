@@ -1,6 +1,5 @@
 package com.dwinovo.numen.pathing.plan;
 
-import java.util.Arrays;
 import java.util.List;
 
 import com.dwinovo.numen.pathing.world.Recall;
@@ -23,24 +22,22 @@ import net.minecraft.world.level.material.FluidState;
  *
  * <p>规划一步时,草稿在它上面叠这一步设想的改动;搜索展开一个节点时,在快照上叠"走到这个节点的那一步"做过的改动,
  * 下一步的前提看到的就是身体此刻真正面对的世界。叠在另一份改动之上时,直接读它底下的视图、改过的格共用那份的表:
- * 前提函数每一步要读几百格,读一格只经一层。表在自己第一次要改时才抄一份(写时复制)——一个节点展开的几十次前提判断,
- * 绝大多数一格也不改,不必每次抄一遍。
+ * 前提函数每一步要读几百格,读一格只经几层、每层一次哈希查找。改动表一层一层叠(持久的):底下被叠过的一层冻住不再变,
+ * 要改的视图在它上面另起一层只记自己的改动——一个节点展开的几十次前提判断,绝大多数一格也不改,改的也只有那么几格,
+ * 都不必抄整张表。
  */
 public class EditedView implements WorldView, Recall.Source {
 
     private final WorldView base;
-    /** 改过的格;一件改动都没有时不建表(规划一步时大多数草稿一件也不改)。 */
+    /** 改过的格,最上面一层;一件改动都没有时为 null(规划一步时大多数草稿一件也不改)。 */
     private Changes changed;
-    /** 表还有另一份视图在读(叠在这一份之上的,或这一份叠在它之上的):要改先抄一份。 */
-    private boolean shared;
 
     EditedView(WorldView base) {
         if (base instanceof EditedView under) {
             this.base = under.base;
             this.changed = under.changed;
             if (changed != null) {
-                this.shared = true;
-                under.shared = true;
+                changed.freeze();
             }
         } else {
             this.base = base;
@@ -53,6 +50,7 @@ public class EditedView implements WorldView, Recall.Source {
             return base;
         }
         EditedView view = new EditedView(base);
+        view.changed = new Changes(view.changed, edits.size());
         for (Edit edit : edits) {
             switch (edit) {
                 case Edit.Dig dig -> view.dig(dig.pos());
@@ -97,11 +95,8 @@ public class EditedView implements WorldView, Recall.Source {
     }
 
     final void set(BlockPos pos, BlockState state) {
-        if (changed == null) {
-            changed = new Changes();
-        } else if (shared) {
-            changed = changed.copy();
-            shared = false;
+        if (changed == null || changed.frozen()) {
+            changed = new Changes(changed, 2);
         }
         changed.put(pos.asLong(), state);
     }
@@ -177,54 +172,104 @@ public class EditedView implements WorldView, Recall.Source {
     }
 
     /**
-     * 改过的格与改成了什么。一步的改动不过几格(挖两格、放一块、开一扇门),并排的两个数组线性找比哈希表快——
-     * 每读一格方块都要先问它,读得比改得多几个数量级。
+     * 改过的格与改成了什么,一层。开放寻址的哈希表(槽里的方块状态为 null 是空槽):读一格要先问它,读得比改得多几个数量级,
+     * 一个节点叠着最近几步的十几件改动,线性找一遍太贵。{@link #parent} 是底下那一层:被别的视图叠过的层冻住({@link #freeze}),
+     * 不再写;要改的视图在它上面另起一层。
      */
     private static final class Changes {
 
-        private long[] cells = new long[4];
-        private BlockState[] states = new BlockState[4];
+        private static final long GOLDEN = 0x9E3779B97F4A7C15L;
+
+        private final Changes parent;
+        private boolean frozen;
+        private long[] cells;
+        private BlockState[] states;
         private int size;
 
+        /** @param expected 预计要记几格;不够会长大 */
+        Changes(Changes parent, int expected) {
+            this.parent = parent;
+            int capacity = 4;
+            while (capacity < 2 * expected) {
+                capacity <<= 1;
+            }
+            this.cells = new long[capacity];
+            this.states = new BlockState[capacity];
+        }
+
+        void freeze() {
+            frozen = true;
+        }
+
+        boolean frozen() {
+            return frozen;
+        }
+
+        private static int slot(long cell, int mask) {
+            return (int) ((cell * GOLDEN) >>> 32) & mask;
+        }
+
+        /** 这一格改成了什么,自己这层没有就问底下;没改过为 null。 */
         BlockState get(long cell) {
-            for (int i = 0; i < size; i++) {
-                if (cells[i] == cell) {
-                    return states[i];
+            for (Changes layer = this; layer != null; layer = layer.parent) {
+                if (layer.size == 0) {
+                    continue;
+                }
+                int mask = layer.cells.length - 1;
+                for (int i = slot(cell, mask); layer.states[i] != null; i = (i + 1) & mask) {
+                    if (layer.cells[i] == cell) {
+                        return layer.states[i];
+                    }
                 }
             }
             return null;
         }
 
         void put(long cell, BlockState state) {
-            for (int i = 0; i < size; i++) {
+            int mask = cells.length - 1;
+            int i = slot(cell, mask);
+            while (states[i] != null) {
                 if (cells[i] == cell) {
                     states[i] = state;
                     return;
                 }
+                i = (i + 1) & mask;
             }
-            if (size == cells.length) {
-                cells = Arrays.copyOf(cells, size * 2);
-                states = Arrays.copyOf(states, size * 2);
+            if (2 * (size + 1) > cells.length) {
+                grow();
+                put(cell, state);
+                return;
             }
-            cells[size] = cell;
-            states[size++] = state;
+            cells[i] = cell;
+            states[i] = state;
+            size++;
         }
 
-        Changes copy() {
-            Changes copy = new Changes();
-            copy.cells = cells.clone();
-            copy.states = states.clone();
-            copy.size = size;
-            return copy;
+        private void grow() {
+            long[] oldCells = cells;
+            BlockState[] oldStates = states;
+            cells = new long[oldCells.length * 2];
+            states = new BlockState[oldCells.length * 2];
+            size = 0;
+            for (int i = 0; i < oldCells.length; i++) {
+                if (oldStates[i] != null) {
+                    put(oldCells[i], oldStates[i]);
+                }
+            }
         }
 
         /** 改过的格里有没有在 {@code (x, z)} 这一列 {@code yMin} 到 {@code yMax} 之间的。 */
         boolean within(int x, int yMin, int yMax, int z) {
-            for (int i = 0; i < size; i++) {
-                long cell = cells[i];
-                int y = BlockPos.getY(cell);
-                if (y >= yMin && y <= yMax && BlockPos.getX(cell) == x && BlockPos.getZ(cell) == z) {
-                    return true;
+            for (Changes layer = this; layer != null; layer = layer.parent) {
+                for (int i = 0; i < layer.cells.length; i++) {
+                    if (layer.states[i] == null) {
+                        continue;
+                    }
+                    long cell = layer.cells[i];
+                    int y = BlockPos.getY(cell);
+                    if (y >= yMin && y <= yMax && BlockPos.getX(cell) == x && BlockPos.getZ(cell) == z) {
+                        return true;
+                    }
                 }
             }
             return false;
@@ -232,9 +277,11 @@ public class EditedView implements WorldView, Recall.Source {
 
         /** 改过的格里有没有落在区段 {@code section}({@link SectionPos#asLong} 编码)里的。 */
         boolean within(long section) {
-            for (int i = 0; i < size; i++) {
-                if (SectionPos.blockToSection(cells[i]) == section) {
-                    return true;
+            for (Changes layer = this; layer != null; layer = layer.parent) {
+                for (int i = 0; i < layer.cells.length; i++) {
+                    if (layer.states[i] != null && SectionPos.blockToSection(layer.cells[i]) == section) {
+                        return true;
+                    }
                 }
             }
             return false;

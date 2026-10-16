@@ -98,7 +98,7 @@ class BurialTest {
             SearchResult result = Fixtures.search(world, model, START, goal);
             assertTrue(result.arrived(), goal + " " + result.stop());
             Route route = result.route();
-            Estimate estimate = Estimate.of(world, model, goal, START, Fixtures.BUDGET);
+            Estimate estimate = Estimate.of(world, model, goal, START, Fixtures.BUDGET, TripMemory.Frozen.NONE, 1);
             List<BlockPos> nodes = route.nodes();
             BlockPos end = route.end();
             List<Route.Leg> legs = route.legs();

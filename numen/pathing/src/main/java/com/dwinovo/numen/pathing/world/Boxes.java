@@ -102,6 +102,15 @@ final class Boxes {
         return classify(split(state.getCollisionShape(level, new BlockPos(x, y, z), bodyAt(feetY, sneaking))));
     }
 
+    /** 碰撞箱不随世界或身体变、而且一点碰撞也没有的状态(空气在内)。 */
+    static boolean empty(BlockState state) {
+        if (state.isAir()) {
+            return true;
+        }
+        Shape known = SHAPES.of(state);
+        return known != DYNAMIC && known.fill() == Fill.EMPTY;
+    }
+
     /** 碰撞箱不随世界或身体变、而且正好是整格的状态。 */
     static boolean whole(BlockState state) {
         if (state.isAir()) {

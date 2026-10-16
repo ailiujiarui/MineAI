@@ -97,6 +97,14 @@ public final class HttpLlmTransport {
                             java.util.Map<String, String> authHeaders) {
         this.extraHeaders = extraHeaders == null ? java.util.Map.of() : extraHeaders;
         this.authHeaders = authHeaders;
+        this.client = newClient(proxy);
+    }
+
+    /**
+     * 与 LLM 请求同一套设置的 HTTP 客户端(HTTP/1.1、跟随重定向、可选代理)。型号目录的下载走同一个,
+     * 代理的写法与解析只有这一处。
+     */
+    public static HttpClient newClient(String proxy) {
         HttpClient.Builder b = HttpClient.newBuilder()
             // 明文 http 下 JDK 默认发 h2c 升级头,自建服务端(Uvicorn 等)刷警告;钉死 1.1。
             .version(HttpClient.Version.HTTP_1_1)
@@ -104,7 +112,7 @@ public final class HttpLlmTransport {
                 .followRedirects(HttpClient.Redirect.NORMAL);
         java.net.ProxySelector ps = proxySelector(proxy);
         if (ps != null) b.proxy(ps);
-        this.client = b.build();
+        return b.build();
     }
 
     /** Parse a {@code host:port} (scheme optional) proxy into a selector, or null if blank/invalid. */
@@ -262,7 +270,7 @@ public final class HttpLlmTransport {
                 return retryAfterDelay(url, apiKey, body, chunkHandler, cancel, attempt,
                         delay, requestId, "HTTP " + status);
             }
-            return CompletableFuture.<Void>failedFuture(new LlmHttpException(status, body2));
+            return CompletableFuture.<Void>failedFuture(new LlmHttpException(status, body2, resp.uri().getHost()));
         }).thenCompose(f -> f);
     }
 
@@ -377,7 +385,7 @@ public final class HttpLlmTransport {
         if (status / 100 != 2) {
             AiLog.LOG.warn("[numen-http][{}] ✗ {} in {}ms — body: {}",
                     requestId, status, elapsedMs, truncate(body, 500));
-            return CompletableFuture.failedFuture(new LlmHttpException(status, body));
+            return CompletableFuture.failedFuture(new LlmHttpException(status, body, resp.uri().getHost()));
         }
         AiLog.LOG.debug("[numen-http][{}] ✓ {} in {}ms ({} bytes)",
                 requestId, status, elapsedMs, body.length());
@@ -387,7 +395,7 @@ public final class HttpLlmTransport {
         } catch (RuntimeException ex) {
             return CompletableFuture.failedFuture(
                     new LlmHttpException(status, "response is not a JSON object: " + ex.getMessage()
-                            + "; body: " + body));
+                            + "; body: " + body, resp.uri().getHost()));
         }
     }
 

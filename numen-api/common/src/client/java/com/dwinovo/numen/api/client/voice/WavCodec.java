@@ -1,6 +1,5 @@
 package com.dwinovo.numen.api.client.voice;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -17,7 +16,7 @@ import java.nio.ByteOrder;
  *   <li>采样率：8000–48000 Hz 均接受,<b>不重采样</b>——OpenAL buffer 自带
  *       频率,常见 TTS 输出（16k/22.05k/24k/44.1k）都直接可用；</li>
  *   <li>不支持：IEEE float(3)、WAVE_FORMAT_EXTENSIBLE(0xFFFE)、ADPCM、mp3。
- *       遇到即抛 {@link IOException},由管线记日志并跳过该句。</li>
+ *       遇到即抛 {@link VoiceError},由管线记日志并跳过该句。</li>
  * </ul>
  */
 public final class WavCodec {
@@ -33,18 +32,18 @@ public final class WavCodec {
      *
      * <p>给流式 TTS 用:那类后端推回来的是一串不带头的 PCM 分片,拼完得补上头才认得出采样率。
      *
-     * @throws IOException 采样率超出 {@link #MIN_SAMPLE_RATE}–{@link #MAX_SAMPLE_RATE},
+     * @throws VoiceError 采样率超出 {@link #MIN_SAMPLE_RATE}–{@link #MAX_SAMPLE_RATE},
      *                     或 PCM 长度不是偶数(半个采样点说明流是断的)
      */
-    public static byte[] encodeMono16(byte[] pcm, int sampleRate) throws IOException {
+    public static byte[] encodeMono16(byte[] pcm, int sampleRate) {
         if (pcm == null || pcm.length == 0) {
-            throw new IOException("没有音频数据");
+            throw VoiceError.of(VoiceError.BAD_WAV, "no audio data");
         }
         if ((pcm.length & 1) != 0) {
-            throw new IOException("16-bit PCM 长度应为偶数,实际=" + pcm.length);
+            throw VoiceError.of(VoiceError.BAD_WAV, "odd 16-bit PCM length " + pcm.length);
         }
         if (sampleRate < MIN_SAMPLE_RATE || sampleRate > MAX_SAMPLE_RATE) {
-            throw new IOException("采样率超出支持范围(8k–48k): " + sampleRate);
+            throw VoiceError.of(VoiceError.BAD_WAV, "sample rate " + sampleRate);
         }
         final int channels = 1;
         final int bits = 16;
@@ -69,22 +68,22 @@ public final class WavCodec {
     /**
      * 解码一段完整的 WAV 字节。
      *
-     * @throws IOException 非 WAV、缺 fmt/data 块、或格式超出支持范围
+     * @throws VoiceError 非 WAV、缺 fmt/data 块、或格式超出支持范围
      */
-    public static PcmAudio decode(byte[] wav) throws IOException {
+    public static PcmAudio decode(byte[] wav) {
         try {
             return decodeUnsafe(wav);
         } catch (java.nio.BufferUnderflowException | IllegalArgumentException ex) {
-            throw new IOException("WAV 头损坏: " + ex, ex);
+            throw VoiceError.of(ex, VoiceError.BAD_WAV, "damaged header");
         }
     }
 
-    private static PcmAudio decodeUnsafe(byte[] wav) throws IOException {
-        if (wav == null || wav.length < 44) throw new IOException("响应太短,不是有效的 WAV");
+    private static PcmAudio decodeUnsafe(byte[] wav) {
+        if (wav == null || wav.length < 44) throw VoiceError.of(VoiceError.BAD_WAV, "too short");
         ByteBuffer bb = ByteBuffer.wrap(wav).order(ByteOrder.LITTLE_ENDIAN);
-        if (bb.getInt() != 0x46464952) throw new IOException("缺少 RIFF 魔数,不是 WAV");   // "RIFF"
+        if (bb.getInt() != 0x46464952) throw VoiceError.of(VoiceError.BAD_WAV, "missing RIFF");   // "RIFF"
         bb.getInt();   // riff size,不校验(不少 TTS 流式落盘时这里写 0)
-        if (bb.getInt() != 0x45564157) throw new IOException("缺少 WAVE 标记,不是 WAV");   // "WAVE"
+        if (bb.getInt() != 0x45564157) throw VoiceError.of(VoiceError.BAD_WAV, "missing WAVE");   // "WAVE"
 
         int audioFormat = -1, channels = -1, sampleRate = -1, bitsPerSample = -1;
         byte[] pcm = null;
@@ -111,15 +110,15 @@ public final class WavCodec {
             bb.position(Math.min(next + (chunkSize & 1), bb.limit()));   // chunk 按 2 字节对齐
         }
 
-        if (audioFormat < 0) throw new IOException("WAV 缺少 fmt 块");
-        if (pcm == null) throw new IOException("WAV 缺少 data 块");
-        if (audioFormat != 1) throw new IOException("仅支持 PCM 格式的 WAV(audioFormat=1),实际=" + audioFormat);
+        if (audioFormat < 0) throw VoiceError.of(VoiceError.BAD_WAV, "missing fmt chunk");
+        if (pcm == null) throw VoiceError.of(VoiceError.BAD_WAV, "missing data chunk");
+        if (audioFormat != 1) throw VoiceError.of(VoiceError.BAD_WAV, "audioFormat=" + audioFormat);
         if (bitsPerSample != 8 && bitsPerSample != 16) {
-            throw new IOException("仅支持 8/16-bit PCM,实际=" + bitsPerSample + "bit");
+            throw VoiceError.of(VoiceError.BAD_WAV, bitsPerSample + "-bit");
         }
-        if (channels != 1 && channels != 2) throw new IOException("仅支持 1/2 声道,实际=" + channels);
+        if (channels != 1 && channels != 2) throw VoiceError.of(VoiceError.BAD_WAV, channels + " channels");
         if (sampleRate < MIN_SAMPLE_RATE || sampleRate > MAX_SAMPLE_RATE) {
-            throw new IOException("采样率超出支持范围(8k–48k): " + sampleRate);
+            throw VoiceError.of(VoiceError.BAD_WAV, "sample rate " + sampleRate);
         }
 
         return new PcmAudio(sampleRate, toMono16(pcm, channels, bitsPerSample));

@@ -11,6 +11,7 @@ import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
+import net.minecraft.core.BlockPos;
 
 /**
  * 按坐标的代价与禁令:不看方块看位置。四种用法({@link Use})各自一栏,每栏三样——禁止的格、额外加价的格,以及"只许这些格"
@@ -57,6 +58,17 @@ public final class PositionCosts {
     private final Map<Use, Long2DoubleMap> extra;
     /** 设了"只许"的那几栏:这一栏只许这些格。 */
     private final Map<Use, LongSet> confined;
+    /**
+     * 登记过的格的包围盒。表里只有逐格登记的禁令与加价时,盒子外的格查什么都是"不禁止、不加价",不必进哈希表问;
+     * 有整片禁止或设了"只许"的栏,盒子圈不住它们,没有盒子({@link #bounded} 为 false)。
+     */
+    private final boolean bounded;
+    private int minX = Integer.MAX_VALUE;
+    private int maxX = Integer.MIN_VALUE;
+    private int minY = Integer.MAX_VALUE;
+    private int maxY = Integer.MIN_VALUE;
+    private int minZ = Integer.MAX_VALUE;
+    private int maxZ = Integer.MIN_VALUE;
 
     private PositionCosts(Map<Use, LongSet> forbidden, Map<Use, List<Region>> forbiddenRegions,
                           Map<Use, Long2DoubleMap> extra, Map<Use, LongSet> confined) {
@@ -64,6 +76,31 @@ public final class PositionCosts {
         this.forbiddenRegions = forbiddenRegions;
         this.extra = extra;
         this.confined = confined;
+        this.bounded = forbiddenRegions.isEmpty() && confined.isEmpty();
+        if (bounded) {
+            forbidden.values().forEach(cells -> cells.forEach((long cell) -> include(cell)));
+            extra.values().forEach(costs -> costs.keySet().forEach((long cell) -> include(cell)));
+        }
+    }
+
+    private void include(long cell) {
+        minX = Math.min(minX, BlockPos.getX(cell));
+        maxX = Math.max(maxX, BlockPos.getX(cell));
+        minY = Math.min(minY, BlockPos.getY(cell));
+        maxY = Math.max(maxY, BlockPos.getY(cell));
+        minZ = Math.min(minZ, BlockPos.getZ(cell));
+        maxZ = Math.max(maxZ, BlockPos.getZ(cell));
+    }
+
+    /** 这一格可能被禁止或加价:不在包围盒里的格一定不会。 */
+    private boolean mayAffect(long cell) {
+        if (!bounded) {
+            return true;
+        }
+        int x = BlockPos.getX(cell);
+        int y = BlockPos.getY(cell);
+        int z = BlockPos.getZ(cell);
+        return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
     }
 
     public static Builder builder() {
@@ -72,6 +109,9 @@ public final class PositionCosts {
 
     /** 这一格禁不禁止这样用:在禁止的格里、在禁止的某一片里,或这一栏设了"只许"而它不在其中。 */
     public boolean forbids(Use use, long cell) {
+        if (!mayAffect(cell)) {
+            return false;
+        }
         LongSet cells = forbidden.get(use);
         if (cells != null && cells.contains(cell)) {
             return true;
@@ -90,6 +130,9 @@ public final class PositionCosts {
 
     /** 这样用这一格额外加的价钱;没登记是 0。 */
     public double extra(Use use, long cell) {
+        if (!mayAffect(cell)) {
+            return 0;
+        }
         Long2DoubleMap costs = extra.get(use);
         return costs == null ? 0 : costs.get(cell);
     }

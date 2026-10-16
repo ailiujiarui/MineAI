@@ -2,9 +2,9 @@ package com.dwinovo.numen.api.client.eval;
 
 import com.dwinovo.numen.api.agent.acceptance.LiveEvalRun;
 import com.dwinovo.numen.api.agent.goal.GoalState;
+import com.dwinovo.numen.api.agent.llm.LlmEndpoint;
 import com.dwinovo.numen.api.agent.llm.ProviderLibrary;
 import com.dwinovo.numen.api.agent.loop.LoopEvent;
-import com.dwinovo.numen.api.agent.provider.ProviderRegistry;
 import com.dwinovo.numen.api.agent.tool.ToolRegistry;
 import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
 import com.dwinovo.numen.api.client.agent.ClientNumenLookup;
@@ -117,16 +117,17 @@ public final class LiveEvalClient {
         if (!worldRequested) {
             if (mc.getOverlay() != null || mc.screen == null) return;
             var entry = ProviderLibrary.instance().get(request.get("provider_id").getAsString());
-            if (entry == null || !ProviderRegistry.has(entry.provider()) || entry.model() == null
-                    || entry.model().isBlank() || entry.apiKey() == null || entry.apiKey().isBlank()) {
+            LlmEndpoint endpoint = entry == null ? null : ProviderLibrary.instance().resolve(entry.id());
+            if (endpoint == null || !endpoint.hasApiKey() || !endpoint.hasUrl()
+                    || endpoint.model().id().isBlank()) {
                 fail("Selected provider entry is missing or incomplete");
                 return;
             }
             JsonObject model = new JsonObject();
-            model.addProperty("provider", entry.provider());
-            model.addProperty("model", entry.model());
-            model.addProperty("context_window", entry.contextWindow());
-            model.addProperty("reasoning_effort", entry.reasoningEffort());
+            model.addProperty("provider", endpoint.providerId());
+            model.addProperty("model", endpoint.model().id());
+            model.addProperty("context_window", endpoint.contextWindow());
+            model.addProperty("reasoning_effort", entry.profile().reasoningEffort());
             write("model.json", model);
             mc.options.pauseOnLostFocus = false;
             worldRequested = true;

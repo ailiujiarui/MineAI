@@ -78,17 +78,18 @@ public final class NavText {
             // 诊断在许挖许放、设想有料时也没搜出路才给这个结局:这条规格下从这里就是过不去
             case Outcome.NoRoute noRoute -> "found no path to target (" + where + "; every reachable cell was searched"
                     + (spec.changes() ? ", digging, bridging and pillaring included" : "")
-                    + "): there is no way there from here, pick another destination";
+                    + ")" + heldUp(noRoute.cause()) + ": there is no way there from here, pick another destination";
             case Outcome.OutOfBudget budget -> "found no path to target (" + where + "; the search used up its budget"
-                    + " before finding one, so this is not proof there is none; going to a nearer place in that"
-                    + " direction first gets further)";
+                    + " before finding one, so this is not proof there is none" + heldUp(budget.cause()) + "; going to a"
+                    + " nearer place in that direction first gets further)";
             case Outcome.Unloaded unloaded -> "found no path to target (" + where + "; the search reached chunks that"
                     + " are not loaded, so what lies past them is unknown; walk toward it and try again)";
             case Outcome.OverAlterBudget over -> "found no path to target (" + where + "; "
                     + overBudget(spec.alterBudget(), over.needed()) + ")";
             case Outcome.NeedsChanges needs -> needsChanges(needs, where);
             case Outcome.NoMaterials none -> "found no path to target (" + where + "; every way needs blocks to"
-                    + " pillar or bridge with)." + ThrowawayBlocks.shortageAdvice(player, materials);
+                    + " pillar or bridge with, about " + none.needed() + " in all)."
+                    + ThrowawayBlocks.shortageAdvice(player, materials);
             case Outcome.Denied denied when denied.reason() instanceof CompanionHands.Withheld withheld ->
                     "had to stop: changing " + Listing.coords(denied.cell()) + " is unresolved ("
                             + withheld.verdict().reason() + "); nothing was done — try again, or ask your owner";
@@ -153,6 +154,12 @@ public final class NavText {
         return reason == Reason.DENIED ? reason(detail) : reason(reason);
     }
 
+    /** 搜索里离目标最近的地方,朝目标的一步被什么挡住了;没有是空串。 */
+    private static String heldUp(Blockage cause) {
+        return cause == null ? "" : "; nearest to the target, " + move(cause.move()) + " at " + Listing.coords(cause.cell())
+                + " (" + name(cause.block()) + ") was ruled out: " + reason(cause.reason());
+    }
+
     /** 一步走不下去的那一句:哪一格、什么方块、哪种走法、为什么。 */
     public static String blockage(Blockage b) {
         String why = b.reason() != null ? reason(b.reason()) : hitch(b.hitch());
@@ -197,6 +204,7 @@ public final class NavText {
             case PENDING -> "changing it is unresolved — the owner could not be reached";
             case EDIT_RESTRICTED -> "my game mode can't change blocks";
             case UNBREAKABLE -> "it can't be broken";
+            case TOO_HARD -> "the best tool I carry would take over a minute to break it";
             case WOULD_FLOOD -> "breaking it would let liquid in";
             case WOULD_COLLAPSE -> "breaking it would bring loose blocks down";
             case MELTS -> "breaking the ice would leave water";
@@ -218,6 +226,7 @@ public final class NavText {
             case NO_MATERIALS -> "I could not get the block into my hand";
             case DIVERTED -> "the ground changed and the step would land somewhere else";
             case FELL_BACK -> "I kept ending up back where the step before it started";
+            case LOST -> "I kept ending up beside the route instead of where the step lands";
         };
     }
 

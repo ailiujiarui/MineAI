@@ -23,8 +23,8 @@ import java.util.List;
 /**
  * 召唤卡——名字 + 人设/模型配置/模式/声线/皮肤五个选择。版式照 Telegram 的"新建联系人":
  * 标题下面左边一张空头像、右边名字输入框,再往下一行一个选择,右下取消/创建。
- * 人设与声线可空(首项"不配置/无"),模型配置必选(库空则那一行是空的,点创建时
- * 才解释——报错在动作处,不在氛围里);模式无 gamemode 权限时是置灰的继承档。
+ * 人设与声线可空(首项"不配置/无"),模型配置必选(库空则那一行直接写"没有——去设置里新建",
+ * 点它跳去新建;点创建时也会解释——报错在动作处);模式无 gamemode 权限时是置灰的继承档。
  * 校验错误内联在名字字段上,库为空的说明走页面级胶囊。
  */
 public final class SummonPanel extends ModalCard {
@@ -40,6 +40,9 @@ public final class SummonPanel extends ModalCard {
 
         /** 无权限时继承主人当前档。 */
         boolean ownerCreative();
+
+        /** 模型配置库是空的:去设置里新建一条(召唤卡收起)。 */
+        void onNoProvider();
     }
 
     /** 召唤草稿;{@code personaId/voiceId} 为 null = 不配置。 */
@@ -124,7 +127,7 @@ public final class SummonPanel extends ModalCard {
                 });
         ry += ROW_H;
 
-        // 模型配置必选(无默认项无兜底):库空则这一行是空的、点不开,点创建时解释。
+        // 模型配置必选(无默认项无兜底):库空则这一行写"没有——去设置里新建"(警告色),点它跳去新建。
         List<String> provNames = new ArrayList<>();
         List<String> ids = new ArrayList<>();
         for (var e : ProviderLibrary.instance().list()) {
@@ -136,7 +139,8 @@ public final class SummonPanel extends ModalCard {
         if (hasProviders && draft.providerId == null) draft.providerId = ids.get(0);
         select(ry, t(ModLanguageData.Keys.PROVIDER_TITLE), provNames,
                 Math.max(0, providerIds.indexOf(draft.providerId)),
-                i -> draft.providerId = providerIds.get(i));
+                i -> draft.providerId = providerIds.get(i))
+                .whenEmpty(t(ModLanguageData.Keys.SUMMON_NO_PROVIDER), host::onNoProvider);
         ry += ROW_H;
 
         // 无 gamemode 权限:继承主人当前档,这一行置灰(悬停给解释)。

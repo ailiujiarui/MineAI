@@ -94,6 +94,10 @@ final class Drop implements Move {
             return Premise.fail(new BlockPos(tx, from.getY() - 1, tz),
                     kind == MoveKind.DESCEND ? Reason.WRONG_DROP : Reason.NO_FOOTING);
         }
+        if (landing.kind() == Stance.Kind.SWIMMING && Strides.inWater(draft, to.above())) {
+            // 落进水里的身体浮在水面上,够不到水面以下的节点(那要往下潜):落点只能是水面那一格
+            return Premise.fail(to, Reason.WRONG_DROP);
+        }
         int depth = from.getY() - to.getY();
         if (kind == MoveKind.FALL && depth < 2) {
             return Premise.fail(to, Reason.WRONG_DROP);
@@ -106,6 +110,9 @@ final class Drop implements Move {
             if (!walksOff(draft, body, from, f0, heading, landing)) {
                 return Premise.fail(to, Reason.NO_CLEARANCE);
             }
+        }
+        if (!Strides.roomyLanding(draft, body, to, landing, heading)) {
+            return Premise.fail(to, Reason.NO_CLEARANCE);
         }
         boolean wading = Strides.inWater(draft, to);
         double drop = f0 - landing.feetY();
@@ -141,6 +148,90 @@ final class Drop implements Move {
                 : after <= landing.feetY() + Footing.EPSILON;
     }
 
+    /**
+     * 平地上站着的节点,落点那一列在起步脚高上身体占的格全是空的、脚下那一格也是空的,顺着那一列往下找第一块整块:它上面那一格
+     * 就是落点。下一级只收低一个节点处,下落只收低两个节点以上;落点脚下是实的,走出去脚还踩在原来的高度上,那是平走,
+     * 不是往下落。落点摔不起,身上有水桶才有倒水接住的可能(要放,交给精确判断)。
+     */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        if (!q.stance().grounded()) {
+            return Quick.REJECT;
+        }
+        if (!q.plain()) {
+            return Quick.EXACT;
+        }
+        int dx = heading.dx();
+        int dz = heading.dz();
+        boolean blocked = false;
+        for (int dy = 0; dy <= q.top(); dy++) {
+            int flags = q.cell(dx, dy, dz);
+            if (!Quick.simple(flags)) {
+                return Quick.EXACT;
+            }
+            blocked |= Quick.whole(flags);
+        }
+        int under = q.cell(dx, -1, dz);
+        if (!Quick.simple(under)) {
+            return Quick.EXACT;
+        }
+        if (Quick.whole(under)) {
+            return Quick.REJECT;
+        }
+        if (blocked) {
+            return q.mayDig() ? Quick.EXACT : Quick.REJECT;
+        }
+        int support = q.cell(dx, -2, dz);
+        if (!Quick.simple(support)) {
+            return Quick.EXACT;
+        }
+        int depth = 1;
+        if (Quick.whole(support)) {
+            if (kind == MoveKind.FALL) {
+                return Quick.REJECT;
+            }
+        } else {
+            if (kind == MoveKind.DESCEND) {
+                return Quick.REJECT;
+            }
+            int below = -3;
+            while (true) {
+                if (q.y() + below < q.floorY()) {
+                    return Quick.REJECT;
+                }
+                if (-below > q.scan()) {
+                    return Quick.EXACT;
+                }
+                support = q.cellBelow(dx, below, dz);
+                if (!Quick.simple(support)) {
+                    return Quick.EXACT;
+                }
+                if (Quick.whole(support)) {
+                    break;
+                }
+                below--;
+            }
+            depth = -below - 1;
+        }
+        CostModel model = q.model();
+        int damage = model.fallDamage(depth, q.state(dx, -depth - 1, dz));
+        if (!model.bearsLanding(q.ground(q.y() - depth), false, depth, damage)) {
+            return model.mayCatch(q.view()) ? Quick.EXACT : Quick.REJECT;
+        }
+        if (!q.calm() || !q.calmBelow(dx, dz, -depth - 1, -3)) {
+            return Quick.EXACT;
+        }
+        q.entering();
+        for (int dy = -depth; dy <= q.top(); dy++) {
+            q.enter(dx, dy, dz);
+        }
+        if (q.forbidsPassing() || !q.standsOn(dx, -depth - 1, dz, support)) {
+            return Quick.REJECT;
+        }
+        double move = movement(q.walkOff(), 1.0, q.landing(depth));
+        return q.holds(q.x() + dx, q.y() - depth, q.z() + dz, move + Strides.bruise(damage) + q.overhead(dx, -depth - 1, dz), move);
+    }
+
     @Override
     public double cost(CostModel model, Maneuver m) {
         return movement(model, m) + Strides.bruise(m) + model.overhead(m);
@@ -153,6 +244,11 @@ final class Drop implements Move {
 
     /** 身体下去的刻数:走出边沿,落下去,走回列中心。 */
     private static double movement(CostModel model, Maneuver m) {
-        return Kinematics.walkOffEdgeTicks(model.body().stats()) / m.speedFactor() + Strides.landing(model, m);
+        return movement(Kinematics.walkOffEdgeTicks(model.body().stats()), m.speedFactor(), Strides.landing(model, m));
+    }
+
+    /** 同上,走出边沿的工夫、脚下的步速系数与落地的工夫已经给出。 */
+    static double movement(double walkOff, double speedFactor, double landing) {
+        return walkOff / speedFactor + landing;
     }
 }

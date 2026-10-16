@@ -47,6 +47,8 @@ final class TestBody extends ServerPlayer implements Body {
     private final Look look = new Look(this);
     private Mouse mouse = new Mouse(this);
     private final Hotbar hotbar = new Hotbar(this);
+    /** 受到过的伤害合计(含出生无敌期间被挡掉的):用例据此看一路上有没有掉血,不必等无敌过去。 */
+    private float incoming;
 
     private TestBody(MinecraftServer server, ServerLevel level, GameProfile profile) {
         super(server, level, profile, ClientInformation.createDefault());
@@ -104,6 +106,17 @@ final class TestBody extends ServerPlayer implements Body {
     @Override
     public Hotbar hotbar() {
         return hotbar;
+    }
+
+    @Override
+    public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+        incoming += amount;
+        return super.hurt(source, amount);
+    }
+
+    /** 到此刻为止受到的伤害合计。 */
+    float incoming() {
+        return incoming;
     }
 
     @Override

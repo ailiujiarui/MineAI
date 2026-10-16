@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.stt;
 
+import com.dwinovo.numen.api.client.voice.VoiceError;
 import com.dwinovo.numen.api.Constants;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -31,6 +32,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 都从那个常量取。
  */
 public final class DashScopeStt implements SttBackend {
+    /** 界面上说的服务名(商标,不翻译)。 */
+    private static final String SERVICE = "DashScope STT";
+
 
     /** 实时识别的固定入口。带业务空间专属域名的账号可在设置里覆盖。 */
     public static final String DEFAULT_URL = "wss://dashscope.aliyuncs.com/api-ws/v1/inference";
@@ -227,7 +231,7 @@ public final class DashScopeStt implements SttBackend {
         private void handle(String json) {
             Event event = readEvent(json);
             if (event.error() != null) {
-                fail(new IllegalStateException(event.error()));
+                fail(VoiceError.of(VoiceError.API, SERVICE, event.error()));
                 return;
             }
             switch (event.name()) {
@@ -274,8 +278,7 @@ public final class DashScopeStt implements SttBackend {
             public CompletionStage<?> onClose(WebSocket ws, int status, String reason) {
                 // 已经收过 task-finished 的话 settled 为真,这就是正常收尾;否则算断线,
                 // 不把半截转写当成功。
-                fail(new IllegalStateException("连接被关闭 " + status
-                        + (reason == null || reason.isBlank() ? "" : " " + reason)));
+                fail(VoiceError.closed(status, reason));
                 return null;
             }
 

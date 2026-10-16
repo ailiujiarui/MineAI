@@ -3,8 +3,8 @@
 // 目前并不相同(功能先落 1.21.1),所以发布坐标带分支后缀,见下方 artifactId。
 //
 // 现住户:agent.http(传输:SSE 流式/重试退避/空闲看门狗)、agent.prompt(提示词)、
-// agent.provider(线格式适配 + IToolSpec 工具描述面 + 站点注册表 ProviderRegistry,
-// 用户文件落点由宿主引导期注入)、agent.llm(客户端/会话状态/会话日志)。
+// agent.provider(线格式适配 + 兼容项 + IToolSpec 工具描述面)、agent.catalog(型号目录:models.dev 快照/缓存,
+// 缓存文件落点与代理由宿主传入)、agent.llm(客户端/端点解析/会话状态/会话日志)。
 plugins {
     id 'java-library'
     id 'maven-publish'
@@ -56,6 +56,17 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+// 手动更新随包的 models.dev 快照:联网拉 api.json、裁剪、写回资源文件,更新后自己提交。
+// 普通构建不联网。需要代理时 -PmodelsProxy=127.0.0.1:7890。
+tasks.register('updateModelsSnapshot', JavaExec) {
+    group = 'numen'
+    description = 'Fetch models.dev and rewrite src/main/resources/numen_models_snapshot.json'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.dwinovo.numen.api.agent.catalog.SnapshotUpdate'
+    args = [file('src/main/resources/numen_models_snapshot.json').absolutePath,
+            providers.gradleProperty('modelsProxy').getOrElse('')]
 }
 
 publishing {

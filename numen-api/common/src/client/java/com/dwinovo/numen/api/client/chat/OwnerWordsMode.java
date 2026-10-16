@@ -28,8 +28,8 @@ public final class OwnerWordsMode implements ChatDisplayMode {
     @Override
     public String assistantText(String raw) {
         if (raw == null) return "";
-        // 段落间的空行折叠成单换行——聊天面板寸土寸金,空行只是模型的排版习惯。
-        return raw.replaceAll("\\n\\s*\\n+", "\n").strip();
+        // 空行留着:对话面板靠它认出 Markdown 的块(段落、代码块、列表);要折空行的地方自己折。
+        return raw.strip();
     }
 
     /**

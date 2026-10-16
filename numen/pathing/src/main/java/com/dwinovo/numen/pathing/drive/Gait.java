@@ -24,8 +24,8 @@ import net.minecraft.world.level.BlockGetter;
  *       身体此刻饿不饿、撞没撞墙,由按键照原版客户端的规矩再管一道({@link com.dwinovo.numen.api.entity.Controls});</li>
  *   <li><b>带着冲劲进下一步</b>({@link Stride#flows}),否则这一步在落点上收脚:这一步没有水平方向(垫柱、向下挖),没有冲劲可带;下一步要先原地改地形、下一步贴着落坑、起步或
  *       落点不在地上(水里、攀着没有地面可借力)、这一步是自由下落(飘得太远)、下一步不是平地上的走法,都收脚;下一级与跑酷离地之后冲劲
- *       带着身子往前飘,只有下一步朝同一个方向才接得住(冲过了头也还在路上);下一级冲出去落过了这一列,多落的那一格只要还在路线上
- *       (后面连着同方向的下一级,合起来的落差摔得起,{@link #landsOnRoute})就不收脚,由段状态机认到落在了哪一步;转弯时下一步用不上的那一份速度(转角不到直角是侧向的
+ *       带着身子往前飘,只有下一步朝同一个方向才接得住(冲过了头也还在路上);下一级冲出去要落在这一步的落点那一列的支撑上
+ *       ({@link #landsOnFooting}),擦着边沿落下去认不出落在哪一步,就收脚;转弯时下一步用不上的那一份速度(转角不到直角是侧向的
  *       那一份,过了直角是全部)要在落点格里停得住——停下来要滑的距离不超过落点格里的余量。下一步的落点接不接得住冲劲:
  *       它自己带着冲劲往下走,或落点格里的余量够停,或落点前面是堵滑不过去的墙({@link #wallAhead}:冲过去只是撞停,连着的台阶就是这样)。</li>
  * </ul>
@@ -110,48 +110,25 @@ final class Gait {
         boolean sameWay = next.heading().dx() == m.heading().dx() && next.heading().dz() == m.heading().dz();
         boolean airborne = m.kind() == MoveKind.DESCEND || m.kind() == MoveKind.PARKOUR;
         if (m.kind() == MoveKind.DESCEND) {
-            return sameWay && landsOnRoute(level, model, sprinting, m, following);
+            return sameWay && landsOnFooting(model, sprinting, m, next);
         }
         return airborne ? sameWay : turnAbsorbed(level, body, speed, m, next);
     }
 
     /**
-     * 带着冲劲走出边沿的下一级,落在哪一列({@link Kinematics#dropLanding}):压在脚下托着的那一列的外沿以内(身子还压着它),就落在这一步的落点上;
-     * 下一步是平的(平走、上一级),落进下一列也行。落过了这一列的外沿,身子就一直落到后面连着的、同方向的下一级上——多掉的那一格本来就在
-     * 路线上(规划里每一级都摔得起,合起来的落差也要摔得起:{@link CostModel#bearsLanding}),落在路线后面的哪一步上由段状态机认。
-     * 一路落过去都落不到路线上(越出了这几步,或合起来的落差摔不起),这一步收脚。
+     * 带着冲劲走出边沿的下一级,落在这一步的落点上({@link Kinematics#dropLanding},连落地那一刻自己的水平挪动):身子还压着落点那一列的支撑,
+     * 才认得出落在了这一步、才收得住。落过了这一列的外沿(再加半个身宽),身子擦着支撑的边沿落下一刻就滑出去——认步({@link Tracker})
+     * 认不出它落在了哪一步,冲劲又没人收,一路滑下去。飘得再远也不能算作落在后面连着的下一级上:身子下落到这一步的落点那一层时,
+     * 压着这一步的支撑就落在它上面,不会飘过去。下一步是平的(平走、上一级),落点那一列后面还连着下一步的脚下,落进下一列也行。
      */
-    private static boolean landsOnRoute(BlockGetter level, CostModel model, boolean sprinting, Maneuver m, List<Maneuver> following) {
+    private static boolean landsOnFooting(CostModel model, boolean sprinting, Maneuver m, Maneuver next) {
         BodyStats body = model.body().stats();
         double half = body.width() / 2;
         double speed = sprinting ? Kinematics.sprintSpeed(body) : Kinematics.walkSpeed(body);
-        double push = Kinematics.pushAcceleration(body, sprinting);
-        double air = Kinematics.airAcceleration(sprinting);
-        Maneuver step = m;
-        double drop = 0;
-        for (int j = 0;; j++) {
-            drop += step.drop();
-            double landing = Kinematics.dropLanding(body.gravity(), 0.5 + half, speed, push, air, drop);
-            if (Double.isNaN(landing)) {
-                return true;
-            }
-            Maneuver after = j < following.size() ? following.get(j) : null;
-            boolean flatNext = after != null && (after.kind() == MoveKind.WALK || after.kind() == MoveKind.ASCEND);
-            if (landing <= j + 1.5 + (flatNext ? 1 : 0) + half) {
-                return j == 0 || bears(level, model, step, drop);
-            }
-            if (after == null || after.kind() != MoveKind.DESCEND && after.kind() != MoveKind.FALL
-                    || after.heading().dx() != m.heading().dx() || after.heading().dz() != m.heading().dz()) {
-                return false;
-            }
-            step = after;
-        }
-    }
-
-    /** 一路落下来合起来的落差 {@code drop},落在 {@code last} 的落点上摔得起。 */
-    private static boolean bears(BlockGetter level, CostModel model, Maneuver last, double drop) {
-        int damage = model.fallDamage(level, last.landing(), last.support(), drop, last.wading());
-        return model.bearsLanding(last.landing(), last.wading(), drop, damage);
+        double landing = Kinematics.dropLanding(body.gravity(), 0.5 + half, speed, Kinematics.pushAcceleration(body, sprinting),
+                Kinematics.airAcceleration(sprinting), m.drop());
+        boolean flatNext = next.kind() == MoveKind.WALK || next.kind() == MoveKind.ASCEND;
+        return Double.isNaN(landing) || landing <= 1.5 + (flatNext ? 1 : 0) + half;
     }
 
     /** 转向之后下一步用不上的那一份速度,在落点格里停得住。 */

@@ -33,12 +33,40 @@ public final class UiRoot {
     private java.util.function.BiFunction<String, Consumer<String>, TextInput> inputFactory;
     private Supplier<String> clipboardGet = () -> "";
     private Consumer<String> clipboardSet = s -> {};
-    /** GUI 缩放后的视口高(屏幕层 init/resize 时设置);浮层用它避免越出屏幕底缘。 */
-    private int viewportH = Integer.MAX_VALUE;
+    /** 浮层(下拉弹层等)能用的可见区域,GUI 缩放后的绝对坐标;宿主没说的边:上、左是屏幕边,下、右不设限。 */
+    public record Viewport(int left, int top, int right, int bottom) {
+        public static final Viewport UNBOUNDED = new Viewport(0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
 
-    public void setViewportHeight(int h) { this.viewportH = h; }
+        public Viewport withBottom(int bottom) {
+            return new Viewport(left, top, right, bottom);
+        }
 
-    public int viewportHeight() { return viewportH; }
+        /**
+         * 面板 {@code (x, y, w, h)} 与屏幕 {@code screenW × screenH} 相交的那一块:窗口比面板小时以窗口为界,
+         * 缩小游戏窗口后浮层仍整块可见。
+         */
+        public static Viewport clip(int x, int y, int w, int h, int screenW, int screenH) {
+            return new Viewport(Math.max(x, 0), Math.max(y, 0), Math.min(x + w, screenW), Math.min(y + h, screenH));
+        }
+    }
+
+    private Viewport viewport = Viewport.UNBOUNDED;
+
+    /** 屏幕层 init/resize 时设置:浮层不得越出这块区域(窗口、面板)。 */
+    public void setViewport(int left, int top, int right, int bottom) {
+        this.viewport = new Viewport(left, top, right, bottom);
+    }
+
+    public void setViewport(Viewport viewport) {
+        this.viewport = viewport;
+    }
+
+    /** 只知道下缘的宿主用这个:其余三边保持原样。 */
+    public void setViewportHeight(int bottom) {
+        this.viewport = viewport.withBottom(bottom);
+    }
+
+    public Viewport viewport() { return viewport; }
 
     /** 浮层契约:打开状态的下拉弹层等,绘制在最后、事件在最先。 */
     public interface Overlay {
@@ -48,6 +76,15 @@ public final class UiRoot {
         boolean overlayClicked(double mx, double my, int button);
 
         default boolean overlayScrolled(double mx, double my, double delta) { return false; }
+
+        /**
+         * 浮层在场时的按键,先于焦点控件;Esc 不到这里(root 直接关浮层)。
+         * 模态浮层(选择框)自己要上下选、回车定;返回 false 的键继续往下走,落到宿主屏幕的真输入框上。
+         */
+        default boolean overlayKey(int keyCode, int modifiers) { return false; }
+
+        /** 浮层在场时的字符,同 {@link #overlayKey}。 */
+        default boolean overlayChar(char ch) { return false; }
 
         /** root 侧关闭通知(点浮层外/ESC)。 */
         void closeOverlay();
@@ -191,10 +228,12 @@ public final class UiRoot {
             if (overlay == o) release();
             return true;
         }
+        if (overlay != null && overlay.overlayKey(keyCode, modifiers)) return true;
         return focused != null && focused.keyPressed(keyCode, modifiers);
     }
 
     public boolean charTyped(char ch) {
+        if (overlay != null && overlay.overlayChar(ch)) return true;
         return focused != null && focused.charTyped(ch);
     }
 

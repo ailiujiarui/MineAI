@@ -9,8 +9,8 @@ import java.util.function.Consumer;
  */
 public interface ModelPort {
 
-    /** 这只同伴现在发不了请求的理由(没绑档案、没填 key),给主人看的话;{@code null} = 能发。 */
-    String unavailable();
+    /** 这只同伴现在发不了请求的理由(没绑档案、没填 key),结构化的原因;{@code null} = 能发。 */
+    Cause unavailable();
 
     /**
      * 组装这一轮要发的请求:当前历史、这一刻的运行期状态、系统提示、工具表。

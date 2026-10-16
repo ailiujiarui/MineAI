@@ -1,5 +1,6 @@
 package com.dwinovo.numen.plugins.ysm;
 
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.api.sdk.OnHer;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import com.dwinovo.numen.api.task.TaskRecord;
@@ -22,5 +23,11 @@ final class SwitchRecord extends TaskRecord<Void> {
     @Override
     public String describe() {
         return getToolName() + " " + look.model() + " " + look.texture();
+    }
+
+    /** 给主人看的一句:换成哪个形象;键在本插件自己的语言文件里。 */
+    @Override
+    public Activity activity() {
+        return Activity.of("numen.ysm.activity.switch", look.model(), look.texture());
     }
 }

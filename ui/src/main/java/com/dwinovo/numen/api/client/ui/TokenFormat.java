@@ -22,6 +22,19 @@ public final class TokenFormat {
         return Math.round(count / 1_000_000.0) + "M";
     }
 
+    /**
+     * 模型规格(上下文长度、输出上限)的写法,照 models.dev 与 pi 的列:一百万以上保留一位小数并去掉 {@code .0}
+     * ({@code 1M}、{@code 1.1M}),其余按千取整({@code 128K}),不足一千原样。
+     */
+    public static String capacity(long count) {
+        if (count >= 1_000_000) {
+            String m = trim1(count / 1_000_000.0);
+            return (m.endsWith(".0") ? m.substring(0, m.length() - 2) : m) + "M";
+        }
+        if (count >= 1_000) return Math.round(count / 1_000.0) + "K";
+        return Long.toString(count);
+    }
+
     /** 百分比,一位小数——{@code 0.873} → {@code "87.3"}。 */
     public static String percent1(double ratio) {
         return trim1(ratio * 100);

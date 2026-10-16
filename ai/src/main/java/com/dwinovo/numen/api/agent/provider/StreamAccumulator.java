@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.agent.provider;
 
+import com.dwinovo.numen.api.agent.http.LlmStreamException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -55,6 +56,10 @@ public final class StreamAccumulator {
     public final Map<String, JsonElement> extraJson = new LinkedHashMap<>();
 
     public String finishReason;
+    /** 流里带的错误原话(错误帧、拒绝或异常的收尾原因);非空时这次流不算成。 */
+    public String failure;
+    /** 协议约定的收尾到了(Chat 的 finish_reason、Responses 的 completed / incomplete / failed、Anthropic 的 message_stop)。 */
+    public boolean ended;
     public JsonObject usage;
 
     public int chunkCount;
@@ -69,6 +74,22 @@ public final class StreamAccumulator {
     /** 流结束:放出 {@link #appendContent} 扣下的、没能成为标签的尾巴。 */
     public void endContent() {
         thinkTags.flush(content, reasoning);
+    }
+
+    /**
+     * 这次流算不算成功收场——<b>全仓只在这里判</b>,三种协议的收尾都先过它:流里带着错误({@link #failure})就失败,
+     * 连接断了而协议约定的收尾还没来({@link #ended} 为假)也失败,前面收到的只是半截回应,不能当一次成功的回答。
+     * 各协议只负责认出自己的错误帧、拒绝类收尾原因,以及自己的收尾事件。
+     *
+     * @throws LlmStreamException 失败,消息是厂家的原话或看到的情形
+     */
+    public void requireEnded() {
+        if (failure != null) {
+            throw new LlmStreamException(failure);
+        }
+        if (!ended) {
+            throw new LlmStreamException("stream ended before its terminal event");
+        }
     }
 
     /** Look up (or create) the tool-call builder for the given stream index. */

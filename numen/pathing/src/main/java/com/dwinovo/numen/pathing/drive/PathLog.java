@@ -12,6 +12,7 @@ import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.search.Pending;
 import com.dwinovo.numen.pathing.search.Route;
+import com.dwinovo.numen.pathing.search.SearchResult;
 import com.dwinovo.numen.pathing.search.Searches;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
@@ -51,7 +52,7 @@ public final class PathLog {
     /**
      * 主线程上一次导航一刻里寻路做的活(拷快照、组成本模型、复核前提、按键与转头)超过这么多纳秒,就记 WARN。
      * 依据:原版每刻 50 毫秒,这是它的十分之一,一刻里别的实体与区块还要用剩下的;实测拷一次快照 0.1–1 毫秒,复核一步只判
-     * 一次前提(搜索展开一个节点要判二十来次、共十来到二十来微秒,docs/pathing-015.md 第 8 步第三批),平常远在它之下。按墙钟计,不随 {@code /tick rate} 变:刻速调高时一刻的预算变小,
+     * 一次前提(搜索展开一个节点要判二十来次、共几到二十来微秒,docs/adr/pathing/0019-lookup-table-nodes.md),平常远在它之下。按墙钟计,不随 {@code /tick rate} 变:刻速调高时一刻的预算变小,
      * 服务器跟不上是刻速的事;这里只标出寻路自己在主线程上做了重活的那几刻。
      */
     static final long MAIN_THREAD_WARN_NANOS = 5_000_000L;
@@ -192,6 +193,11 @@ public final class PathLog {
     /** 一步:走法、起落点。 */
     public static String step(Maneuver m) {
         return m.kind() + " " + pos(m.from()) + "→" + pos(m.to());
+    }
+
+    /** 搜索里离目标最近的节点上朝目标的一步被拒:哪种走法、从哪个节点、卡在哪一格、哪条前提。 */
+    public static String blocking(SearchResult.Blocking b) {
+        return b.move() + " 从 " + pos(b.from()) + " 卡在 " + pos(b.fails().cell()) + " 前提=" + b.fails().reason();
     }
 
     /** 一步走不下去:哪种走法、哪一格、什么方块、哪条前提或执行里出的事。 */

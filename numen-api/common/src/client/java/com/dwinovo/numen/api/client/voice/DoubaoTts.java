@@ -4,8 +4,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +38,9 @@ import java.util.concurrent.CompletableFuture;
  * {@code seed-icl-2.0},配错服务端报音色鉴权失败。
  */
 public final class DoubaoTts implements TtsBackend {
+    /** 界面上说的服务名(商标,不翻译)。 */
+    private static final String SERVICE = "Doubao TTS";
+
 
     private static final String PATH = "/api/v3/tts/unidirectional";
 
@@ -108,12 +109,10 @@ public final class DoubaoTts implements TtsBackend {
     @Override
     public CompletableFuture<byte[]> synthesize(String text) {
         if (apiKey.isEmpty()) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("豆包 TTS 未填写 API Key"));
+            return CompletableFuture.failedFuture(VoiceError.of(VoiceError.NO_KEY, SERVICE));
         }
         if (speaker.isEmpty()) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("豆包 TTS 未填写音色 ID"));
+            return CompletableFuture.failedFuture(VoiceError.of(VoiceError.NO_VOICE, SERVICE));
         }
         HttpRequest request;
         try {
@@ -134,14 +133,9 @@ public final class DoubaoTts implements TtsBackend {
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
                 .thenApply(resp -> {
                     if (resp.statusCode() / 100 != 2) {
-                        throw new IllegalStateException(
-                                VoiceHttp.humanHttpError("豆包 TTS", resp.statusCode(), resp.body()));
+                        throw VoiceHttp.httpError(SERVICE, resp.statusCode(), resp.body());
                     }
-                    try {
-                        return WavCodec.encodeMono16(parseChunks(resp.body()), SAMPLE_RATE);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
+                    return WavCodec.encodeMono16(parseChunks(resp.body()), SAMPLE_RATE);
                 });
     }
 
@@ -161,7 +155,7 @@ public final class DoubaoTts implements TtsBackend {
             try {
                 o = JsonParser.parseString(line).getAsJsonObject();
             } catch (RuntimeException e) {
-                throw new IllegalStateException("豆包 TTS 返回了无法解析的数据", e);
+                throw VoiceError.of(e, VoiceError.REPLY_BAD, SERVICE, "not JSON");
             }
             if (o.has("message") && o.get("message").isJsonPrimitive()) {
                 lastMessage = o.get("message").getAsString();
@@ -172,7 +166,7 @@ public final class DoubaoTts implements TtsBackend {
                     try {
                         pcm.writeBytes(Base64.getDecoder().decode(encoded));
                     } catch (IllegalArgumentException e) {
-                        throw new IllegalStateException("豆包 TTS 返回了无效的 base64 音频", e);
+                        throw VoiceError.of(e, VoiceError.REPLY_BAD, SERVICE, "invalid base64 audio");
                     }
                 }
             }
@@ -180,14 +174,15 @@ public final class DoubaoTts implements TtsBackend {
                     ? o.get("code").getAsLong() : 0L;
             if (code == CODE_DONE) break;
             if (code != 0L) {
-                throw new IllegalStateException("豆包 TTS 错误 " + code + detail(lastMessage));
+                throw VoiceError.of(VoiceError.API, SERVICE, code + detail(lastMessage));
             }
         }
         if (lines == 0) {
-            throw new IllegalStateException("豆包 TTS 返回为空");
+            throw VoiceError.of(VoiceError.REPLY_BAD, SERVICE, "empty reply");
         }
         if (pcm.size() == 0) {
-            throw new IllegalStateException("豆包 TTS 没有返回音频" + detail(lastMessage));
+            throw lastMessage.isBlank() ? VoiceError.of(VoiceError.EMPTY_AUDIO)
+                    : VoiceError.of(VoiceError.API, SERVICE, lastMessage);
         }
         return pcm.toByteArray();
     }

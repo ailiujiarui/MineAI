@@ -59,11 +59,16 @@ final class Diagonal implements Move {
         if (landing == null || !landing.grounded()) {
             return Premise.fail(to, Reason.NO_CLEARANCE);
         }
+        if (Strides.pit(draft, body, to, landing)) {
+            return Premise.fail(to, Reason.NO_CLEARANCE);
+        }
         boolean jump = step == Stepping.Step.JUMP;
         Contact contact = new Contact(body, from, f0)
                 .column(to.getX(), to.getZ(), low, high)
                 .column(x + heading.dx(), z, low, high)
-                .column(x, z + heading.dz(), low, high);
+                .column(x, z + heading.dz(), low, high)
+                .over(x + heading.dx(), z, f0)
+                .over(x, z + heading.dz(), f0);
         BlockPos support = landing.support(to.getX(), to.getZ());
         boolean wading = Strides.inWater(draft, to);
         double drop = Math.max(0, f0 - f1);
@@ -80,6 +85,96 @@ final class Diagonal implements Move {
                 Strides.reversible(draft, body, from, stance, to, landing)));
     }
 
+    /**
+     * 平地上站着的节点,落点那一列与两侧两列身体占的格全是空的、落点脚下是整块,就是斜着走过去;落点那一列有整块挡着,过不去
+     * (斜走不改地形);两侧有整块,可能擦过去、可能要起跳,交给精确判断。
+     */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        if (!q.stance().grounded()) {
+            return Quick.REJECT;
+        }
+        if (!q.plain()) {
+            return Quick.EXACT;
+        }
+        int dx = heading.dx();
+        int dz = heading.dz();
+        boolean blocked = false;
+        boolean step = false;
+        boolean wall = false;
+        for (int dy = 0; dy <= q.top(); dy++) {
+            int flags = q.cell(dx, dy, dz);
+            int side = q.cell(dx, dy, 0);
+            int other = q.cell(0, dy, dz);
+            if (!Quick.simple(flags) || !Quick.simple(side) || !Quick.simple(other)) {
+                return Quick.EXACT;
+            }
+            blocked |= Quick.whole(flags);
+            if (Quick.whole(side) || Quick.whole(other)) {
+                // 脚那一层的整块是一格高的坎,可以起跳越过去;再往上还有整块就越不过
+                step |= dy == 0;
+                wall |= dy > 0;
+                if (q.excluded(side) || q.excluded(other)) {
+                    // 越过去身体经过它的上方,路线排除这样的格,这一步就不成立
+                    return Quick.REJECT;
+                }
+            }
+        }
+        int floor = q.cell(dx, -1, dz);
+        if (!Quick.simple(floor)) {
+            return Quick.EXACT;
+        }
+        // 擦过的两个拐角列,身体压在它们脚下那一格的上面:路线排除的种类,这一步就不成立
+        int cornerSide = q.cell(dx, -1, 0);
+        int cornerOther = q.cell(0, -1, dz);
+        if (!Quick.simple(cornerSide) || !Quick.simple(cornerOther)) {
+            return Quick.EXACT;
+        }
+        if (q.excluded(cornerSide) || q.excluded(cornerOther)) {
+            return Quick.REJECT;
+        }
+        if (Quick.pass(floor) || blocked || wall) {
+            return Quick.REJECT;
+        }
+        if (step) {
+            // 越过去的那一刻脚比起跳时高一格多,头上多占一格:四列和起步那一列头顶这一格都要空着
+            int top = q.top() + 1;
+            int onto = q.cell(dx, top, dz);
+            int side = q.cell(dx, top, 0);
+            int other = q.cell(0, top, dz);
+            int head = q.cell(0, top, 0);
+            if (!Quick.simple(onto) || !Quick.simple(side) || !Quick.simple(other) || !Quick.simple(head)) {
+                return Quick.EXACT;
+            }
+            if (Quick.whole(onto) || Quick.whole(side) || Quick.whole(other) || Quick.whole(head)) {
+                return Quick.REJECT;
+            }
+        }
+        if (!q.calm()) {
+            return Quick.EXACT;
+        }
+        int damage = q.model().fallDamage(0.0, q.state(dx, -1, dz));
+        if (!q.model().bearsLanding(q.ground(q.y()), false, 0.0, damage)) {
+            return Quick.REJECT;
+        }
+        q.entering();
+        for (int dy = 0; dy <= q.top(); dy++) {
+            q.enter(dx, dy, dz);
+        }
+        for (int dy = 0; dy <= q.top(); dy++) {
+            q.enter(dx, dy, 0);
+        }
+        for (int dy = 0; dy <= q.top(); dy++) {
+            q.enter(0, dy, dz);
+        }
+        if (q.forbidsPassing() || !q.standsOn(dx, -1, dz, floor)) {
+            return Quick.REJECT;
+        }
+        double move = movement(q.pace(), step, step ? q.levelJump() : 0, 0.0, 0);
+        double cost = step ? move + q.jumpPenalty() : move;
+        return q.holds(q.x() + dx, q.y(), q.z() + dz, cost + q.overhead(dx, -1, dz), move);
+    }
+
     @Override
     public double cost(CostModel model, Maneuver m) {
         return movement(model, m) + (m.jump() ? model.spec().jumpPenalty() : 0)
@@ -93,10 +188,16 @@ final class Diagonal implements Move {
 
     /** 身体斜着过去的刻数:斜走一格,要跳的至少是起跳上一格的工夫,落差过半格的加上落地。 */
     private static double movement(CostModel model, Maneuver m) {
-        double move = Strides.pace(model, m) * Math.sqrt(2);
-        if (m.jump()) {
-            move = Math.max(move, Strides.jump(model, Strides.rise(m)));
+        return movement(Strides.pace(model, m), m.jump(), m.jump() ? Strides.jump(model, Strides.rise(m)) : 0, m.drop(),
+                m.drop() > 0.5 ? Strides.landing(model, m) : 0);
+    }
+
+    /** 同上,步速、要不要跳、起跳落到那一高度的工夫({@code jump} 时才用)、落差、落地的工夫({@code drop} 过半格时才用)已经给出。 */
+    static double movement(double pace, boolean jump, double jumpTicks, double drop, double landing) {
+        double move = pace * Math.sqrt(2);
+        if (jump) {
+            move = Math.max(move, jumpTicks);
         }
-        return m.drop() > 0.5 ? move + Strides.landing(model, m) : move;
+        return drop > 0.5 ? move + landing : move;
     }
 }

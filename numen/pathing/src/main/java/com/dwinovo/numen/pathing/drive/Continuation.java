@@ -1,12 +1,8 @@
 package com.dwinovo.numen.pathing.drive;
 
-import java.util.function.ToDoubleFunction;
-
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.Stance;
 import com.dwinovo.numen.pathing.search.Route;
-import com.dwinovo.numen.pathing.search.Search;
-import com.dwinovo.numen.pathing.search.SearchResult;
 
 /**
  * 接续:一条没到目标的路线(半程路线)走到快完了,从它的终点提前搜下一段,接在后面,段与段之间不停顿。管两件事:
@@ -20,8 +16,7 @@ import com.dwinovo.numen.pathing.search.SearchResult;
  *       所以等的位置从末尾那几步的起点往前找,退到第一个不是攀着的起点;规划里等在攀着的节点上,执行就做不到"身体原地不动"。</li>
  * </ul>
  *
- * <p>接续段没搜出路线时,走到终点后从脚下再搜,起点、目标、规格、世界都和它一样,结果必然相同:那次搜索的结论就是这一趟的结论
- * ({@link #unfound}),不再派第二次。
+ * <p>接续段没搜出来(或这一趟的总预算用完不再接),路线走到终点后从脚下再搜:那时这一趟的记忆里多了接续段学到的东西,不是同一次搜索。
  */
 final class Continuation {
 
@@ -30,13 +25,8 @@ final class Continuation {
     /** 末尾这么多步要等"后面接什么"定下来才开始走:认步往前看的 {@link Tracker#WINDOW} 步,再加走这一步时要看的下一步。 */
     static final int TAIL = Tracker.WINDOW + 1;
 
-    /** 从这条路线的终点接着搜过,没搜出能接上的一段。 */
+    /** 从这条路线的终点接着搜过,没搜出能接上的一段,或不再接了。 */
     private boolean failed;
-    /** 从这条路线的终点接着搜过,没交出路线的那次搜索;没有为 null。 */
-    private Unfound unfound;
-
-    /** 一次没交出路线的搜索:结论与它的全部输入。 */
-    record Unfound(SearchResult result, Search search) {}
 
     /** 该提前搜下一段了。 */
     boolean due(Course course) {
@@ -66,28 +56,13 @@ final class Continuation {
      *
      * @return 拼上了
      */
-    boolean splice(Course course, Route found, boolean arrived, ToDoubleFunction<Maneuver> ticks) {
+    boolean splice(Course course, Route found, boolean arrived) {
         if (found != null && found.start().equals(course.end())) {
-            course.extend(found, arrived, ticks);
+            course.extend(found, arrived);
             return true;
         }
         failed = true;
         return false;
-    }
-
-    /**
-     * 从终点接着搜的那次搜索没交出路线({@code search} 是它的输入):走到终点就以它的结论收场。伸进没加载区块的不算——走近了
-     * 区块会加载,那时再搜的结果不一样。
-     */
-    void unfound(SearchResult result, Search search) {
-        if (result.stop() != SearchResult.Stop.UNLOADED) {
-            unfound = new Unfound(result, search);
-        }
-    }
-
-    /** 从终点接着搜过、没交出路线的那次搜索;没有为 null。 */
-    Unfound unfound() {
-        return unfound;
     }
 
     /** 接续没搜出来:不再提前搜了。 */
@@ -95,9 +70,13 @@ final class Continuation {
         return failed;
     }
 
+    /** 不再接了(这一趟的总预算用完了):路线走到头,在那里收场。 */
+    void skip() {
+        failed = true;
+    }
+
     /** 换了新路线,或扔掉了旧的:重新开始。 */
     void reset() {
         failed = false;
-        unfound = null;
     }
 }

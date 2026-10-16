@@ -146,15 +146,18 @@ class SearchTest {
         assertEquals(SearchResult.Stop.EXHAUSTED, search(room, parkour, start, away).stop(), "紧挨着的一列是墙,不是空隙");
     }
 
+    /**
+     * 整片石头里只空着身体站的那两格,空手挖:每挖一格的价钱比估价里走一格贵几十倍。贪心那一遍朝终点直挖,几十个节点就拿到解——
+     * 不用逐个展开最便宜的节点,把石头里每一格的挖法都翻一遍。
+     */
     @Test
-    void aLongTunnelThatRunsOutOfBudgetStillHandsOverAPartialRouteTowardTheGoal() {
-        // 整片石头里只空着身体站的那两格,空手挖:每挖一格的价钱比估价里走一格贵几十倍
+    void aLongTunnelInSolidRockIsFoundByPushingStraightAtTheGoal() {
         TestWorld rock = new TestWorld().fill(-4, Y - 6, -8, 40, Y + 8, 8, STONE)
                 .fill(0, Y, 0, 0, Y + 1, 0, Blocks.AIR.defaultBlockState());
-        SearchResult result = search(rock, Fixtures.model(natural()), START, Goals.at(new BlockPos(30, Y, 0)), 2000);
-        assertEquals(SearchResult.Stop.BUDGET, result.stop());
-        assertNotNull(result.route(), "挖隧道的长路搜不到头,也要交出朝目标挖过去的半程路线");
-        assertTrue(result.route().end().getX() > HandOver.MIN_PARTIAL, "半程路线朝目标推进:" + result.route().end());
+        SearchResult result = search(rock, Fixtures.model(natural()), START, Goals.at(new BlockPos(30, Y, 0)), 100);
+        assertTrue(result.arrived(), result.stop().toString());
+        assertEquals(100, result.expanded(), "贪心那一遍几十个节点拿到解,剩下的预算花在加权那一遍找更便宜的");
+        assertEquals(60, result.route().alterations(), "一条两格高的隧道,每列挖两格");
     }
 
     /**
@@ -219,44 +222,36 @@ class SearchTest {
 
     private static final BlockPos ACROSS = new BlockPos(36, Y, 0);
 
-    /** 跑一次搜索,顺便数它展开了几个节点(每展开一个问一次叫没叫停)。 */
-    private static SearchResult counted(Search search, int[] expanded) {
-        return AStar.run(search, () -> {
-            expanded[0]++;
-            return false;
-        });
-    }
+    /** 一段的长度:十二格疾跑的耗时。 */
+    private static final double SEGMENT = 12 * Fixtures.PACE.sprint();
 
     /**
-     * 许放块时要搭一长段桥:展开到先交半程的节点数时,只要有了离起点够远的一段就交出它,不等搜到底——交出的这一段朝目标推进,
-     * 停因是"没搜完"。
+     * 许放块时要搭一长段桥:一段只要走到估价比起点低一段的节点,不必搜到目标——交出整条通到那里的路线,停因是"到了这一段的终点",
+     * 终点朝目标推进了一段那么远。
      */
     @Test
-    void aSearchHandsOverAPartialRouteOnceItReachesTheHandOverCount() {
+    void aSegmentEndsAtANodeWhoseEstimateIsOneSegmentLower() {
         CostModel model = Fixtures.withCobble(natural());
-        Search search = new Search(chasm(), model, START, Goals.at(ACROSS), 50_000, Favoring.NONE).handingOverAt(2000);
-        int[] expanded = {0};
-        SearchResult result = counted(search, expanded);
-        assertEquals(SearchResult.Stop.BUDGET, result.stop(), "先交出的半程是没搜完,不是到了");
-        assertNotNull(result.route());
-        assertTrue(expanded[0] <= 2001, "展开到先交半程的节点数就交:展开了 " + expanded[0]);
+        Search search = new Search(chasm(), model, START, Goals.at(ACROSS), 50_000, Favoring.NONE).advancing(SEGMENT);
+        SearchResult result = AStar.run(search, () -> false);
+        assertEquals(SearchResult.Stop.SEGMENT, result.stop(), "没到目标,到了这一段的终点");
+        assertTrue(result.reached());
+        assertFalse(result.arrived());
         BlockPos end = result.route().end();
-        assertTrue(end.distSqr(START) > HandOver.MIN_PARTIAL * HandOver.MIN_PARTIAL, "交出的一段离起点够远:" + end);
-        assertTrue(end.distSqr(ACROSS) < START.distSqr(ACROSS), "交出的一段朝目标推进:" + end);
+        assertEquals(12, end.getX(), "朝目标推进了一段:" + end);
     }
 
-    /** 在先交半程的节点数之内就到了的,路线与搜到底一模一样。 */
+    /** 目标就在这一段里:走到目标,路线与不分段时一样。 */
     @Test
-    void aSearchThatArrivesBeforeTheHandOverCountKeepsItsRoute() {
+    void aGoalInsideTheSegmentIsArrivedAtThroughTheSameRoute() {
         TestWorld world = field().fill(6, Y, -6, 6, Y + 1, 6, STONE);
         Goal goal = Goals.at(new BlockPos(15, Y, 3));
-        Search full = new Search(world, Fixtures.withCobble(natural()), START, goal, Fixtures.BUDGET, Favoring.NONE);
-        int[] expanded = {0};
-        SearchResult whole = counted(full, expanded);
-        assertTrue(whole.arrived());
-        SearchResult early = AStar.run(full.handingOverAt(expanded[0]), () -> false);
-        assertTrue(early.arrived());
-        assertEquals(legs(whole.route()), legs(early.route()));
+        Search whole = new Search(world, Fixtures.withCobble(natural()), START, goal, Fixtures.BUDGET, Favoring.NONE);
+        SearchResult plain = AStar.run(whole, () -> false);
+        SearchResult segmented = AStar.run(whole.advancing(40 * Fixtures.PACE.sprint()), () -> false);
+        assertTrue(plain.arrived());
+        assertTrue(segmented.arrived());
+        assertEquals(legs(plain.route()), legs(segmented.route()));
     }
 
     private static List<String> legs(Route route) {
@@ -273,13 +268,12 @@ class SearchTest {
         TestWorld world = chasm();
         CostModel model = Fixtures.withCobble(natural());
         Goal goal = Goals.at(ACROSS);
-        SearchResult first = AStar.run(new Search(world, model, START, goal, 50_000, Favoring.NONE).handingOverAt(2000),
-                () -> false);
-        Route route = first.route();
+        Route route = AStar.run(new Search(world, model, START, goal, 50_000, Favoring.NONE).advancing(SEGMENT),
+                () -> false).route();
         assertNotNull(route);
         BlockPos end = route.end();
         assertTrue(end.getX() > 2, "第一段搭到了空隙上方:" + end);
-        Search fromEnd = new Search(world, model, end, goal, 50_000, Favoring.NONE).handingOverAt(2000);
+        Search fromEnd = new Search(world, model, end, goal, 50_000, Favoring.NONE).advancing(SEGMENT);
         assertEquals(SearchResult.Stop.STRANDED, AStar.run(fromEnd, () -> false).stop(), "快照里桥还没搭,起点待不住");
         SearchResult next = AStar.run(fromEnd.after(route.legs().get(route.legs().size() - 1)), () -> false);
         assertNotNull(next.route(), "照最后一步的落点与它垫的块接着搜:" + next.stop());
@@ -719,16 +713,17 @@ class SearchTest {
 
     // ==================== 旧路打折、生物危险 ====================
 
-    /** 搜索没搜到头(预算用完):交出朝目标推进的那一截——那一截看清了,之后是什么这次没看到。 */
+    /** 搜索没搜到头(预算用完):交出通到边界上总价最小的节点的那一截——那一截看清了,之后是什么这次没看到。 */
     @Test
     void aSearchThatRunsOutOfBudgetHandsOverThePartOfTheWayItSaw() {
-        TestWorld rock = new TestWorld().fill(-4, Y - 6, -8, 40, Y + 8, 8, STONE)
-                .fill(0, Y, 0, 0, Y + 1, 0, Blocks.AIR.defaultBlockState());
-        SearchResult result = search(rock, Fixtures.model(natural()), START, Goals.at(new BlockPos(30, Y, 0)), 2000);
+        BlockPos target = new BlockPos(24, Y, 12);
+        SearchResult result = search(field(), defaults(), START, Goals.at(target), 10);
         assertEquals(SearchResult.Stop.BUDGET, result.stop());
-        assertNotNull(result.route(), "朝目标挖过去的那一截要交出来");
+        assertNotNull(result.route(), "朝目标走过去的那一截要交出来");
         assertEquals(START, result.route().start());
-        assertTrue(result.route().end().getX() > HandOver.MIN_PARTIAL, "那一截朝目标推进:" + result.route().end());
+        BlockPos end = result.route().end();
+        assertTrue(end.distSqr(START) > HandOver.MIN_PARTIAL * HandOver.MIN_PARTIAL, "那一截离起点够远:" + end);
+        assertTrue(end.distSqr(target) < START.distSqr(target), "那一截朝目标推进:" + end);
     }
 
     /**
@@ -740,7 +735,7 @@ class SearchTest {
         TestWorld world = chasm();
         CostModel model = Fixtures.withCobble(natural());
         Goal goal = Goals.at(ACROSS);
-        Route first = AStar.run(new Search(world, model, START, goal, 50_000, Favoring.NONE).handingOverAt(2000),
+        Route first = AStar.run(new Search(world, model, START, goal, 50_000, Favoring.NONE).advancing(SEGMENT),
                 () -> false).route();
         assertNotNull(first);
         BlockPos end = first.end();
@@ -819,6 +814,21 @@ class SearchTest {
         assertTrue(result.breathless(), "有步子是因为憋不住气才没走的");
     }
 
+    /**
+     * 浮沉几下就是憋气更紧的一档、总价更高的同一格:它们走得到的地方,宽裕的那一个都走得到,不展开。不去重的话,宽阔的干地边上那条封顶水道里,
+     * 搜索在浮沉的各档上铺满一段的预算(四千个节点),搜不完能走到的干地,收场说成"预算用完"、往边界推进,身体下水去试;去重之后搜完能走到的地方,
+     * 说"到不了、是憋气丢下了步子"。
+     */
+    @Test
+    void bobbingInTheWaterDoesNotFillTheSegmentBudgetWithDominatedStates() {
+        TestWorld world = sealedChannel(28).fill(-5, Y, 0, -4, Y + 1, 0, Blocks.AIR.defaultBlockState())
+                .floor(-50, -28, -5, 28, Y - 1);
+        SearchResult result = Fixtures.search(world, defaults(), new BlockPos(-30, Y, 0), Goals.at(new BlockPos(30, Y, 0)), 4000);
+        assertEquals(SearchResult.Stop.EXHAUSTED, result.stop(), "expanded " + result.expanded());
+        assertNull(result.route());
+        assertTrue(result.breathless());
+    }
+
     /** 同样的水道只有十格:一口气游得完,照走;路线说得出这一段水下从哪儿到哪儿、憋多久、憋完还剩多少。 */
     @Test
     void aSealedChannelShortEnoughIsSwumAndTheRouteTellsTheDive() {
@@ -830,7 +840,8 @@ class SearchTest {
         assertEquals(new BlockPos(-1, Y, 0), dive.from(), "从踏进水里的那一步起");
         assertEquals(new BlockPos(11, Y, 0), dive.to(), "到走出水的那一步止");
         assertEquals(12, dive.steps());
-        assertTrue(dive.held() > 100 && dive.held() < 120, "十二步水里的工夫:" + dive.held());
+        double underwater = result.route().legs().stream().filter(l -> l.maneuver().submerged()).mapToDouble(Route.Leg::ticks).sum();
+        assertEquals(underwater, dive.held(), 1e-6, "一口气憋的就是水下各步的耗时之和");
         assertEquals(300, dive.held() + dive.left(), 1e-6);
         assertFalse(result.breathless());
     }

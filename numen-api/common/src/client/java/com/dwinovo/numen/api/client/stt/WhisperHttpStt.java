@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.stt;
 
+import com.dwinovo.numen.api.client.voice.VoiceError;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -132,8 +133,7 @@ public final class WhisperHttpStt implements SttBackend {
                             return;
                         }
                         if (resp.statusCode() / 100 != 2) {
-                            listener.onError(new IllegalStateException(
-                                    "STT HTTP " + resp.statusCode() + ": " + brief(resp.body())));
+                            listener.onError(VoiceError.http("STT", resp.statusCode(), brief(resp.body())));
                             return;
                         }
                         listener.onFinal(parseText(resp.body()));

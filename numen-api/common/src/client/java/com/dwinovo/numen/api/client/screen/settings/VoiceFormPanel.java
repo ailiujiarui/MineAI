@@ -86,7 +86,9 @@ public final class VoiceFormPanel {
 
     /** 表单行装不下卡片时整体上下位移(记账在 {@link ScrollBox})。 */
     private final ScrollBox scroll = new ScrollBox();
-    private int formX, formY, formW, formH, viewportBottom;
+    private int formX, formY, formW, formH;
+    /** 下拉不得越出的区域,由宿主给(设置窗口与屏幕的交集)。 */
+    private UiRoot.Viewport window = UiRoot.Viewport.UNBOUNDED;
 
     private Draft draft = new Draft();
     private TextField nameField;
@@ -116,20 +118,20 @@ public final class VoiceFormPanel {
         testGen++;
     }
 
-    public void build(int x, int y, int w, int h, int viewportBottom) {
+    public void build(int x, int y, int w, int h, UiRoot.Viewport window) {
         this.formX = x;
         this.formY = y;
         this.formW = w;
         this.formH = h;
-        this.viewportBottom = viewportBottom;
+        this.window = window;
         ui.clear();
         fixedUi.clear();
-        ui.setViewportHeight(viewportBottom);
+        ui.setViewport(window);
 
         int ry = y;
         Label nameLabel = labelWidget(x, ry, ModLanguageData.Keys.VOICE_FORM_NAME);
         ry += NumenStyle.LABEL_PITCH;
-        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).underlined(true).withLabel(nameLabel));
+        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
@@ -148,7 +150,7 @@ public final class VoiceFormPanel {
 
         ry = label(x, ry, ModLanguageData.Keys.VOICE_FORM_URL);
         TextField urlField = ui.add(new TextField(draft.url, v -> draft.url = v)
-                .placeholder(defaultUrl(draft.backend)).underlined(true));
+                .placeholder(defaultUrl(draft.backend)));
         urlField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
@@ -289,7 +291,7 @@ public final class VoiceFormPanel {
 
     /** 标签控件本体:会报错的字段用 withLabel 认领它(出错时自动让位)。 */
     private Label labelWidget(int lx, int ly, String key) {
-        Label l = ui.add(new Label(t(key), Label.Role.MUTED));
+        Label l = ui.add(new Label(t(key), Label.Role.SECONDARY));
         l.setBounds(lx, ly, 200, 9);
         return l;
     }
@@ -298,7 +300,7 @@ public final class VoiceFormPanel {
     private int textRow(int x, int ry, int w, String labelKey, String placeholder,
                         boolean masked, String initial, Consumer<String> onChange) {
         ry = label(x, ry, labelKey);
-        TextField f = ui.add(new TextField(initial, onChange).masked(masked).underlined(true));
+        TextField f = ui.add(new TextField(initial, onChange).masked(masked));
         if (!placeholder.isEmpty()) f.placeholder(placeholder);
         f.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         return ry + NumenStyle.ROW_PITCH;
@@ -313,7 +315,7 @@ public final class VoiceFormPanel {
         }
         draft.backend = sel;
         scroll.toTop();
-        build(formX, formY, formW, formH, viewportBottom);
+        build(formX, formY, formW, formH, window);
     }
 
     private void save() {
@@ -343,10 +345,11 @@ public final class VoiceFormPanel {
             backend = probe.createBackend();
             synth = backend.synthesize(I18n.get(ModLanguageData.Keys.VOICE_TEST_SENTENCE));
         } catch (Exception ex) {
-            String why = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
-            com.dwinovo.numen.api.Constants.LOG.warn("[numen-voice] 试音失败(同步): {}", why);
+            com.dwinovo.numen.api.Constants.LOG.warn("[numen-voice] 试音失败(同步): {}",
+                    com.dwinovo.numen.api.client.voice.VoiceError.fromError(ex).getMessage());
             resultAlert.show(InlineAlert.Severity.ERROR,
-                    t2(ModLanguageData.Keys.VOICE_TEST_FAIL, shorten(why)));
+                    t2(ModLanguageData.Keys.VOICE_TEST_FAIL,
+                            shorten(com.dwinovo.numen.api.client.voice.VoiceWords.text(ex))));
             return;
         }
         synth.whenComplete((wav, err) -> {
@@ -364,14 +367,12 @@ public final class VoiceFormPanel {
             Minecraft.getInstance().execute(() -> {
                 if (gen != testGen) return;   // 表单已离开/又点了一次:作废
                 if (fail != null) {
-                    Throwable cur = fail;
-                    while (cur.getCause() != null && cur != cur.getCause()) cur = cur.getCause();
-                    String why = cur.getMessage() == null ? cur.getClass().getSimpleName() : cur.getMessage();
                     // 完整原因进日志(胶囊里被截短,排障全靠这行)。
                     com.dwinovo.numen.api.Constants.LOG.warn("[numen-voice] 试音失败({}): {}",
-                            backend.describe(), why);
+                            backend.describe(), com.dwinovo.numen.api.client.voice.VoiceError.fromError(fail).getMessage());
                     resultAlert.show(InlineAlert.Severity.ERROR,
-                            t2(ModLanguageData.Keys.VOICE_TEST_FAIL, shorten(why)));
+                            t2(ModLanguageData.Keys.VOICE_TEST_FAIL,
+                                    shorten(com.dwinovo.numen.api.client.voice.VoiceWords.text(fail))));
                     return;
                 }
                 var sm = Minecraft.getInstance().getSoundManager();

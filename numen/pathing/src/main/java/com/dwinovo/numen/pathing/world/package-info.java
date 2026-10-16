@@ -11,6 +11,8 @@
  *   <li>{@link com.dwinovo.numen.pathing.world.Stepping} —— 走进相邻一列是走过去、要跳还是过不去,走出边沿落到多高;</li>
  *   <li>{@link com.dwinovo.numen.pathing.world.Semantics} —— 碰撞箱表达不了的语义(流体、攀爬、门、危险、落沙、机关、易碎),
  *       碰撞箱随世界或身体变化的方块,以及脚下方块的起跳与步速系数、眼睛泡没泡在水里;</li>
+ *   <li>{@link com.dwinovo.numen.pathing.world.CellFlags} —— 每种方块状态一个标志字(空的、整块的、含水的、可能可攀爬的、伤身的),由上面的几何与语义推出,
+ *       搜索的快判断读它;</li>
  *   <li>{@link com.dwinovo.numen.pathing.world.Bounds} —— 世界边界;</li>
  *   <li>{@link com.dwinovo.numen.pathing.world.BodyStats} —— 身体的尺寸、迈步高度、起跳、交互距离、细雪托不托得住它,由宿主交进来。</li>
  * </ul>

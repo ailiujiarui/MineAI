@@ -5,6 +5,7 @@ import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
 import com.dwinovo.numen.api.client.agent.Conversations;
 import com.dwinovo.numen.api.client.agent.EntityAgentLoop;
 import com.dwinovo.numen.api.client.agent.NumenRoster;
+import com.dwinovo.numen.api.client.chat.CompanionChatScreen;
 import com.dwinovo.numen.api.client.chat.SelectedCompanion;
 import com.dwinovo.numen.api.client.data.ClientPrefs;
 import com.dwinovo.numen.api.client.screen.Nb;
@@ -38,6 +39,9 @@ public final class MessageNotices {
     private static final int W = 160;
     private static final int H = 34;
     private static final int AV = 26;
+    /** 原版快捷栏:居中,182 宽、22 高,贴屏幕下沿。 */
+    private static final int HOTBAR_HALF_W = 91;
+    private static final int HOTBAR_H = 22;
     /** 压在界面里的物品、控件上面,让给界面自己的悬停提示(400)。 */
     private static final float Z = 300f;
 
@@ -103,7 +107,7 @@ public final class MessageNotices {
         g.pose().pushPose();
         g.pose().translate(0, 0, Z);
         for (var p : STACK.placed(now)) {
-            drawCard(g, font, p.payload(), x, top(g.guiHeight(), p), p.opacity(), hot != null && p.live() && p.key().equals(hot.key()));
+            drawCard(g, font, p.payload(), x, top(g.guiWidth(), g.guiHeight(), p), p.opacity(), hot != null && p.live() && p.key().equals(hot.key()));
         }
         g.pose().popPose();
     }
@@ -170,7 +174,7 @@ public final class MessageNotices {
         var cards = STACK.placed(now);
         for (int i = cards.size() - 1; i >= 0; i--) {
             var p = cards.get(i);
-            int y = top(screenH, p);
+            int y = top(screenW, screenH, p);
             if (p.live() && my >= y && my < y + H) return p;
         }
         return null;
@@ -180,7 +184,26 @@ public final class MessageNotices {
         return screenW - NumenStyle.PAD - W;
     }
 
-    private static int top(int screenH, NoticeStack.Placed<Said> p) {
-        return screenH - NumenStyle.PAD - H - Math.round(p.lift());
+    /**
+     * 卡的下沿最低落到哪:屏幕下边留一道边距;和原版快捷栏横向重叠(窄 GUI,1080p 自动缩放就是 480 宽)就抬到快捷栏之上;
+     * 开着快捷对话时,也不压它的输入卡。
+     */
+    private static int floor(int screenW, int screenH) {
+        int floor = screenH - NumenStyle.PAD;
+        int left = left(screenW), right = left + W;
+        if (left < screenW / 2 + HOTBAR_HALF_W && right > screenW / 2 - HOTBAR_HALF_W) {
+            floor = Math.min(floor, screenH - HOTBAR_H - NumenStyle.PAD);
+        }
+        if (Minecraft.getInstance().screen instanceof CompanionChatScreen quick) {
+            int[] box = quick.occupied();
+            if (left < box[2] && right > box[0]) {
+                floor = Math.min(floor, box[1] - NumenStyle.PAD);
+            }
+        }
+        return floor;
+    }
+
+    private static int top(int screenW, int screenH, NoticeStack.Placed<Said> p) {
+        return floor(screenW, screenH) - H - Math.round(p.lift());
     }
 }

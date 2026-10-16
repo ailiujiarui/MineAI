@@ -1,5 +1,6 @@
 package com.dwinovo.numen.task.dig;
 
+import com.dwinovo.numen.api.task.Activity;
 import com.dwinovo.numen.api.area.Cells;
 import com.dwinovo.numen.api.permission.ConsentDesk;
 import com.dwinovo.numen.api.sdk.ServerCall;
@@ -117,9 +118,16 @@ public final class DigTaskRecord extends TaskRecord<DigCompanionTask.Dug> {
         return ConsentDesk.UNBOUNDED_TICKS;
     }
 
-    /** 一行人话,给主人看的:头顶气泡、面板、task status 印的都是它。 */
+    /** 一行给模型看的:{@code <current_task>} 与 task status 印的是它,主人看的是 {@link #activity()}。 */
     @Override
     public String describe() {
         return count == ALL ? "挖 " + label + ",已挖 " + dug + " 格" : "挖 " + label + " " + dug + "/" + count + " 格";
+    }
+
+    /** 给主人看的一句(头顶气泡、档案页),客户端按当前语言翻;{@link #describe()} 是给模型的。 */
+    @Override
+    public Activity activity() {
+        return count == ALL ? Activity.of("numen.activity.dig_all", label, dug)
+                : Activity.of("numen.activity.dig", label, dug, count);
     }
 }

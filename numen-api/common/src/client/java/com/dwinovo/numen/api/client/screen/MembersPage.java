@@ -66,7 +66,7 @@ final class MembersPage {
             int tx = x + FACE_X + AV + 8;
             int room = x + w - 4 - tx;
             Nb.text(g, font, Nb.clip(font, NumenRoster.instance().name(m), room), tx, ry + 5, t.text());
-            Nb.text(g, font, Nb.clip(font, status.apply(m), room), tx, ry + 16, t.faint());
+            Nb.text(g, font, Nb.clip(font, status.apply(m), room), tx, ry + 16, t.textDim());
         }
     }
 

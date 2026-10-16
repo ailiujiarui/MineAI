@@ -167,7 +167,7 @@ public final class FolderEditPanel extends ModalCard {
             }
             String shown = TextClip.fit(s, conv.displayName(NumenRoster.instance()::name), TILE_W);
             s.drawText(shown, tx + (TILE_W - s.textWidth(shown)) / 2, fy + FACE + 4,
-                    on ? c.textPrimary() : c.textMuted(), false);
+                    on ? c.textPrimary() : c.textSecondary(), false);
         }
         s.popScissor();
         float max = maxScroll();

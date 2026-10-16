@@ -36,8 +36,22 @@ public final class ConvoState {
          * the model. History records only where the cut happened — dangling tool calls are not
          * answered and nothing is capped at the time; {@link ProtocolView} turns the record into a
          * provider-valid sequence right before each request.
+         *
+         * <p>Two voices, never spliced: {@code reason} is the sentence for the model; {@code code} + {@code args}
+         * are the structured cause the panel turns into the owner's language when it draws the notice
+         * ({@code code == null}: no structured cause, as in logs written before there was one: the panel then
+         * shows {@code reason} as stored).
          */
-        record Halt(String reason) implements Msg {}
+        record Halt(String reason, String code, List<String> args) implements Msg {
+            public Halt {
+                args = args == null ? List.of() : List.copyOf(args);
+            }
+
+            /** A cut with no structured cause. */
+            public Halt(String reason) {
+                this(reason, null, List.of());
+            }
+        }
     }
 
     private final List<Msg> messages = new ArrayList<>();
@@ -89,8 +103,8 @@ public final class ConvoState {
         push(new Msg.Tool(toolCallId, content));
     }
 
-    public void addHalt(String reason) {
-        push(new Msg.Halt(reason));
+    public void addHalt(String reason, String code, List<String> args) {
+        push(new Msg.Halt(reason, code, args));
     }
 
     private void push(Msg msg) {

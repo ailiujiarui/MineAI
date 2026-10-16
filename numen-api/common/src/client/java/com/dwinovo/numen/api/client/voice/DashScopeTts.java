@@ -36,6 +36,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>拿到的是裸 PCM,补上 WAV 头再交给 {@link WavCodec}。24kHz 落在它支持的 8k–48k 内,不重采样。
  */
 public final class DashScopeTts implements TtsBackend {
+    /** 界面上说的服务名(商标,不翻译)。 */
+    private static final String SERVICE = "DashScope TTS";
+
 
     /** 实时合成的固定入口(model 以查询参数带上)。 */
     public static final String DEFAULT_BASE = "wss://dashscope.aliyuncs.com/api-ws/v1/realtime";
@@ -107,7 +110,7 @@ public final class DashScopeTts implements TtsBackend {
     @Override
     public CompletableFuture<byte[]> synthesize(String text) {
         if (text == null || text.isBlank()) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("TTS 文本为空"));
+            return CompletableFuture.failedFuture(VoiceError.of(VoiceError.EMPTY_TEXT));
         }
         CompletableFuture<byte[]> result = new CompletableFuture<>();
         try {
@@ -175,8 +178,7 @@ public final class DashScopeTts implements TtsBackend {
         @Override
         public CompletionStage<?> onClose(WebSocket ws, int status, String reason) {
             // 收全了的话 settled 为真,这就是正常收尾;否则断在半路,不能把半段音频当成一句话
-            fail(new IllegalStateException("连接被关闭 " + status
-                    + (reason == null || reason.isBlank() ? "" : " " + reason)));
+            fail(VoiceError.closed(status, reason));
             return null;
         }
 
@@ -205,7 +207,7 @@ public final class DashScopeTts implements TtsBackend {
                     finishWith(pcm.toByteArray());
                     ws.sendClose(WebSocket.NORMAL_CLOSURE, "done");
                 }
-                case "error" -> fail(new IllegalStateException(errorOf(root)));
+                case "error" -> fail(VoiceError.of(VoiceError.API, SERVICE, errorOf(root)));
                 default -> { /* session.created / response.created 等与音频无关 */ }
             }
         }
@@ -219,7 +221,7 @@ public final class DashScopeTts implements TtsBackend {
                     return code.isBlank() ? message : code + ": " + message;
                 }
             }
-            return "百炼语音合成返回错误";
+            return "";
         }
 
         private void finishWith(byte[] raw) {

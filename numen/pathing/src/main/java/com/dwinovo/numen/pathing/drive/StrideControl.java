@@ -58,9 +58,13 @@ final class StrideControl extends Control {
     private void move() {
         keys().release(Key.SNEAK);
         Vec3 target = center(m.to());
-        boolean climbOut = m.kind() == MoveKind.ASCEND && !m.start().grounded();
-        // 站在水里起跳:原版在水里按跳是往上浮,浮到身子够高、再顶着岸边,才被水托上去——所以在水里一直按着
-        boolean wadingJump = m.jump() && rig.entity.isInWater();
+        // 够到落点的高度之前一直按着;够到了还按着,落点是浅水(岸上的一汪水)时身子就浮在水底之上,落不到落点上
+        boolean climbOut = m.kind() == MoveKind.ASCEND && !m.start().grounded()
+                && (rig.entity.getY() < m.landing().feetY() - 0.01 || rig.entity.horizontalCollision);
+        // 站在水里起跳:原版在水里按跳是往上浮,浮到身子够高、再顶着岸边,才被水托上去——所以够不着落点的高度、或迎面撞着东西时一直按着;
+        // 够着了还按着,身子就浮在水底之上,落不到落点上
+        boolean wadingJump = m.jump() && rig.entity.isInWater()
+                && (rig.entity.getY() < m.landing().feetY() - 0.01 || rig.entity.horizontalCollision);
         // 脚已经不比落点低(跳过一道薄板落在了板顶,落点是板后更低的半砖)时,只有撞着东西才再跳:提前起跳是为了够到落点,
         // 够到了再按只会一路蹦过落点
         boolean jump = climbOut || floatUp() || wadingJump || m.jump() && rig.entity.onGround()

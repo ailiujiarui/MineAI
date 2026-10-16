@@ -144,12 +144,12 @@ class NavTextTest {
 
     @Test
     void everyOutcomeMapsToOneFailureKind() {
-        assertEquals(FailureType.NO_PATH, NavText.type(new Outcome.NoRoute()));
-        assertEquals(FailureType.NO_PATH, NavText.type(new Outcome.OutOfBudget()));
+        assertEquals(FailureType.NO_PATH, NavText.type(new Outcome.NoRoute(null)));
+        assertEquals(FailureType.NO_PATH, NavText.type(new Outcome.OutOfBudget(null)));
         assertEquals(FailureType.NO_PATH, NavText.type(new Outcome.Unloaded()));
         assertEquals(FailureType.NO_PATH, NavText.type(new Outcome.OverAlterBudget(4)));
         assertEquals(FailureType.TERRAIN_BLOCKED, NavText.type(new Outcome.NeedsChanges(digs(2))));
-        assertEquals(FailureType.NO_MATERIAL, NavText.type(new Outcome.NoMaterials()));
+        assertEquals(FailureType.NO_MATERIAL, NavText.type(new Outcome.NoMaterials(3)));
         assertEquals(FailureType.REFUSED, NavText.type(new Outcome.Denied(A, "no")));
         assertEquals(FailureType.BOXED_IN, NavText.type(new Outcome.Stranded(A, planks())));
         assertEquals(FailureType.OCCLUDED, NavText.type(new Outcome.NoLineOfSight(A)));
@@ -192,9 +192,9 @@ class NavTextTest {
 
     @Test
     void onlyASearchedOutWalkSaysEveryCellWasSearchedAndARunOutBudgetIsNoProof() {
-        String none = NavText.failure(new Outcome.NoRoute(), null, A, C, RouteSpec.defaults(), List.of());
+        String none = NavText.failure(new Outcome.NoRoute(null), null, A, C, RouteSpec.defaults(), List.of());
         assertTrue(none.contains("every reachable cell was searched"), none);
-        String budget = NavText.failure(new Outcome.OutOfBudget(), null, A, C, RouteSpec.defaults(), List.of());
+        String budget = NavText.failure(new Outcome.OutOfBudget(null), null, A, C, RouteSpec.defaults(), List.of());
         assertTrue(budget.contains("not proof there is none") && !budget.contains("every reachable cell"), budget);
     }
 
@@ -202,8 +202,8 @@ class NavTextTest {
     @Test
     void everyWayOfNotGettingThereSaysItsOwnReasonAndWhatToTryNext() {
         RouteSpec spec = RouteSpec.defaults();
-        String none = NavText.failure(new Outcome.NoRoute(), null, A, C, spec, List.of());
-        String budget = NavText.failure(new Outcome.OutOfBudget(), null, A, C, spec, List.of());
+        String none = NavText.failure(new Outcome.NoRoute(null), null, A, C, spec, List.of());
+        String budget = NavText.failure(new Outcome.OutOfBudget(null), null, A, C, spec, List.of());
         String unloaded = NavText.failure(new Outcome.Unloaded(), null, A, C, spec, List.of());
         String alter = NavText.failure(new Outcome.NeedsChanges(digs(2)), null, A, C, spec, List.of());
         String denied = NavText.failure(new Outcome.Denied(B, "no"), null, A, C, spec, List.of());

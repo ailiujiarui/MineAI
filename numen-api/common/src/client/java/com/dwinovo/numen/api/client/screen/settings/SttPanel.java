@@ -49,6 +49,8 @@ public final class SttPanel {
     private List<String> modelIds = List.of();
     private List<String> micIds = List.of();
     private int panelX, panelY, panelW, panelH;
+    /** 下拉不得越出的区域,由宿主给(分区页与屏幕的交集)。 */
+    private UiRoot.Viewport window = UiRoot.Viewport.UNBOUNDED;
 
     public SttPanel() {
         Minecraft mc = Minecraft.getInstance();
@@ -64,11 +66,12 @@ public final class SttPanel {
         seeded = false;
     }
 
-    public void build(int x, int y, int w, int h) {
+    public void build(int x, int y, int w, int h, UiRoot.Viewport window) {
         this.panelX = x;
         this.panelY = y;
         this.panelW = w;
         this.panelH = h;
+        this.window = window;
         INumenConfig cfg = Services.CONFIG;
         if (!seeded) {
             seeded = true;
@@ -81,6 +84,7 @@ public final class SttPanel {
             customModel = seed.models().isEmpty() || !seed.models().contains(model);
         }
         ui.clear();
+        ui.setViewport(window);
         SttProviders.Option opt = SttProviders.byId(provider);
         provider = opt.id();
 
@@ -93,7 +97,7 @@ public final class SttPanel {
         List<String> providerNames = new ArrayList<>();
         for (SttProviders.Option o : SttProviders.all()) {
             providerIds.add(o.id());
-            providerNames.add(o.displayName());
+            providerNames.add(o.label());
         }
         Dropdown providerPick = ui.add(new Dropdown(providerNames,
                 Math.max(0, providerIds.indexOf(provider)), this::onProviderPicked));
@@ -101,7 +105,7 @@ public final class SttPanel {
         ry += SettingsRows.ROW_H;
 
         label(x, ry, cx, ModLanguageData.Keys.GUI_SETTINGS_API_KEY);
-        keyField = ui.add(new TextField(key, v -> key = v).masked(true).underlined(true)
+        keyField = ui.add(new TextField(key, v -> key = v).masked(true)
                 .placeholder(SttProviders.BACKEND_DOUBAO.equals(opt.backend())
                         ? I18n.get(ModLanguageData.Keys.STT_DOUBAO_KEY_PLACEHOLDER) : ""));
         keyField.setBounds(cx, SettingsRows.controlY(ry, NumenStyle.CONTROL_H), cw, NumenStyle.CONTROL_H);
@@ -110,7 +114,7 @@ public final class SttPanel {
         // 模型双态:预设下拉(+自定义…) ↔ 输入框(+▾ 回预设);无预设纯输入框。
         // 名字由服务商自己说——豆包那一栏装的是资源档,叫"模型"读着就不对。
         int cy = SettingsRows.controlY(ry, NumenStyle.CONTROL_H);
-        labelText(x, ry, cx, opt.hasModelLabel() ? opt.modelLabel() : t(ModLanguageData.Keys.GUI_SETTINGS_MODEL));
+        labelText(x, ry, cx, opt.hasModelLabel() ? opt.modelFieldLabel() : t(ModLanguageData.Keys.GUI_SETTINGS_MODEL));
         modelIds = new ArrayList<>(opt.models());
         boolean hasPresets = !modelIds.isEmpty();
         if (hasPresets && !customModel) {
@@ -121,7 +125,7 @@ public final class SttPanel {
             modelPick.setBounds(cx, cy, cw, NumenStyle.CONTROL_H);
             model = modelIds.get(sel);
         } else {
-            modelField = ui.add(new TextField(model, v -> model = v).underlined(true));
+            modelField = ui.add(new TextField(model, v -> model = v));
             modelField.setBounds(cx, cy, hasPresets ? cw - 17 : cw, NumenStyle.CONTROL_H);
             if (hasPresets) {
                 modelBackBtn = ui.add(new Button("▾", Button.Style.NORMAL, this::onModelBackToPresets));
@@ -131,7 +135,7 @@ public final class SttPanel {
         ry += SettingsRows.ROW_H;
 
         label(x, ry, cx, ModLanguageData.Keys.GUI_SETTINGS_BASE_URL);
-        baseUrlField = ui.add(new TextField(baseUrl, v -> baseUrl = v).underlined(true)
+        baseUrlField = ui.add(new TextField(baseUrl, v -> baseUrl = v)
                 .placeholder(opt.defaultBaseUrl()));
         baseUrlField.setBounds(cx, SettingsRows.controlY(ry, NumenStyle.CONTROL_H), cw, NumenStyle.CONTROL_H);
         ry += SettingsRows.ROW_H;
@@ -156,7 +160,7 @@ public final class SttPanel {
 
         saved = ui.add(new InlineAlert());
         saved.setBounds(x, NumenStyle.bodyTop(y), w, 24);
-        Button save = ui.add(new Button(t("numen.gui.settings.save"),
+        Button save = ui.add(new Button(t(ModLanguageData.Keys.GUI_SETTINGS_SAVE),
                 Button.Style.ACCENT, this::save));
         save.setBounds(x + w - 54, NumenStyle.footerTop(y, h), 54, NumenStyle.CONTROL_H);
     }
@@ -225,7 +229,7 @@ public final class SttPanel {
 
     /** 行随状态换(换商/模型双态切换):纯内部重建,不惊动宿主。 */
     private void rebuild() {
-        build(panelX, panelY, panelW, panelH);
+        build(panelX, panelY, panelW, panelH, window);
     }
 
     private void save() {
@@ -236,7 +240,7 @@ public final class SttPanel {
         cfg.setSttBaseUrl(baseUrl.trim());
         cfg.setSttMicrophone(mic);
         cfg.save();
-        saved.show(InlineAlert.Severity.SUCCESS, t("numen.gui.settings.saved"), 2_500);
+        saved.show(InlineAlert.Severity.SUCCESS, t(ModLanguageData.Keys.GUI_SETTINGS_SAVED), 2_500);
     }
 
     private static String t(String labelKey) {

@@ -1,8 +1,8 @@
 # Numen
 
-![Minecraft](https://img.shields.io/badge/Minecraft-62B47A?style=flat-square) ![Java](https://img.shields.io/badge/Java-007396?style=flat-square&logo=openjdk&logoColor=white) ![License](https://img.shields.io/badge/code-LGPL--3.0-A8731E?style=flat-square) ![QQ](https://img.shields.io/badge/QQ%20Group-1121662678-12B7F5?style=flat-square&logo=qq&logoColor=white) [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/MDsCKtemJ)
+![Minecraft](https://img.shields.io/badge/Minecraft-62B47A?style=flat-square) ![Java](https://img.shields.io/badge/Java-007396?style=flat-square&logo=openjdk&logoColor=white) ![License](https://img.shields.io/badge/code-LGPL--3.0-A8731E?style=flat-square) ![QQ](https://img.shields.io/badge/QQ%20Group-1121662678-12B7F5?style=flat-square&logo=qq&logoColor=white) [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/FpDCV327vX)
 
-[**Website**](https://numen.dwinovo.cn) · [**Source**](https://github.com/Dwinovo/minecraft-numen) · [**Discord**](https://discord.gg/MDsCKtemJ) · [**Report a Bug**](https://github.com/Dwinovo/minecraft-numen/issues/new/choose)
+[**Website**](https://numen.dwinovo.cn) · [**Source**](https://github.com/Dwinovo/minecraft-numen) · [**Discord**](https://discord.gg/FpDCV327vX) · [**Report a Bug**](https://github.com/Dwinovo/minecraft-numen/issues/new/choose)
 
 ![Numen](https://raw.githubusercontent.com/Dwinovo/minecraft-numen/1.21.1/assets/branding/numen-hero-2560.webp)
 
@@ -71,7 +71,7 @@ Numen itself is **open source and free**. Calls to the large language model use 
 **No.** In External Brain mode, an external agent takes over Numen. Numen does not hand the persona to it, and the conversation context is not saved inside Numen. *To keep a persona, write it into the external agent's own prompt.*
 
 **Where do I report bugs or suggest features?**
-Please open an issue on [GitHub](https://github.com/Dwinovo/minecraft-numen/issues/new/choose) rather than in the CurseForge comments, so nothing gets lost. You can also chat with us on [Discord](https://discord.gg/MDsCKtemJ).
+Please open an issue on [GitHub](https://github.com/Dwinovo/minecraft-numen/issues/new/choose) rather than in the CurseForge comments, so nothing gets lost. You can also chat with us on [Discord](https://discord.gg/FpDCV327vX).
 
 ## License
 

@@ -135,7 +135,7 @@ public final class Readout extends Popup {
         return switch (tone) {
             case GOOD -> c.success();
             case WARN -> c.danger();
-            case PLAIN -> c.textMuted();
+            case PLAIN -> c.textSecondary();
         };
     }
 }

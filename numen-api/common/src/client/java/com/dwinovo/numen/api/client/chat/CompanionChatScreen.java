@@ -158,6 +158,26 @@ public class CompanionChatScreen extends Screen {
         }
     }
 
+    /**
+     * 此刻占着屏幕的那一块:输入卡连同它上面挂着的征询,{@code {左, 顶, 右}}。消息通知卡落在它旁边就得让开,
+     * 不能压住输入行。
+     */
+    public int[] occupied() {
+        int x = (this.width - INPUT_W) / 2;
+        int cardTop = this.height - 44 - 6 - (inputBar.height() - INPUT_H);
+        int top = cardTop;
+        ConsentCards.Card card = ConsentCards.pending(Conversations.instance().soloOf(conv));
+        if (card != null) top = consentTop(card, cardTop);
+        return new int[]{x - 8, top, x + INPUT_W + 8};
+    }
+
+    /** 征询那张卡的顶边:贴着输入卡上沿往上摞。 */
+    private int consentTop(ConsentCards.Card card, int cardTop) {
+        int innerW = INPUT_W + 16 - 8;
+        int h = 4 + ConsentMessage.listHeight(card) + ConsentMessage.GAP + ConsentMessage.keyboardHeight(this.font, innerW) + 4;
+        return cardTop - 4 - h;
+    }
+
     @Override
     public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTicks) {
         // 刻意留空:super.render 默认会画菜单模糊+压暗遮罩,面对面说话
@@ -211,7 +231,7 @@ public class CompanionChatScreen extends Screen {
         int listH = ConsentMessage.listHeight(card);
         int innerW = w - 8;
         int h = 4 + listH + ConsentMessage.GAP + ConsentMessage.keyboardHeight(this.font, innerW) + 4;
-        int top = cardTop - 4 - h;
+        int top = consentTop(card, cardTop);
         com.dwinovo.numen.api.client.ui.NumenStyle.box(surface, cardX, top, w, h, th.band(), th.aiBorder());
         g.fill(cardX + 1, top + 1, cardX + 1 + Math.round((w - 2) * ConsentMessage.timeLeft(card)), top + 2,
                 ConsentMessage.tone(card));

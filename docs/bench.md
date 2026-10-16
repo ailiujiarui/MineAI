@@ -34,7 +34,7 @@ NUMEN_BENCH_API_KEY=sk-... ./gradlew --no-daemon :plugins:tlm:runBench -Dbench.r
 | `bench`(只能用 `-P`) | 本次运行带的全部套件:`:numen:neoforge:runBench` 是 `vanilla`,`:plugins:tlm:runBench` 是 `tlm`(套件名出自根 `build.gradle` 的 `numenSuites` 表) | 考哪几套,逗号隔开;其余的套件一个都不登记 |
 | `bench.scenarios` | 空 = 选中的套件里的全部 | 再收窄到哪几个场景,逗号隔开:场景名(`mine_iron`)或 `组名/场景名` |
 | `bench.repeats` | 3 | 真实模型每个场景跑几次;0 = 只跑基线 |
-| `bench.provider` | `deepseek` | 服务商,同产品的服务商表 |
+| `bench.provider` | `deepseek` | 厂家,models.dev 的厂家 id(同产品的型号目录,见 `docs/llm.md`) |
 | `bench.model` | `deepseek-v4-flash` | 模型 |
 | `bench.baseUrl` | `https://api.deepseek.com/beta` | 端点 |
 | `bench.reasoning` | 空(= 产品的 auto,不发) | 思考档位,同产品 |

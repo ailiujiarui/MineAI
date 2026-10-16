@@ -2,6 +2,7 @@ package com.dwinovo.numen.api.client.stt;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.dwinovo.numen.api.client.voice.VoiceError;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -120,8 +121,9 @@ class DoubaoSttTest {
     void serverErrorsBecomeErrorsNotEmptyTranscripts() {
         DoubaoFrames.Reply reply = DoubaoFrames.parse(serverError(45000001, "invalid token"));
         assertNotNull(reply.error());
-        assertTrue(reply.error().contains("45000001"), reply.error());
-        assertTrue(reply.error().contains("invalid token"), reply.error());
+        assertEquals(VoiceError.API, reply.error().code());
+        assertTrue(reply.error().getMessage().contains("45000001"), reply.error().getMessage());
+        assertTrue(reply.error().getMessage().contains("invalid token"), reply.error().getMessage());
         assertNull(reply.text());
     }
 

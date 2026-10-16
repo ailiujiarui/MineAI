@@ -4,10 +4,13 @@ import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
 import com.dwinovo.numen.api.client.ui.TextClip;
 
-/** 静态文本。Role 决定取哪个语义色槽。超出自身宽度按码点截断缀省略号。 */
+/**
+ * 静态文本。Role 决定取哪个语义色槽:正文,或者次级(表单标签、说明)。比次级更淡的只属于占位字和时间戳,不用 Label 画。
+ * 超出自身宽度按码点截断缀省略号。
+ */
 public final class Label extends Widget {
 
-    public enum Role { PRIMARY, SECONDARY, MUTED }
+    public enum Role { PRIMARY, SECONDARY }
 
     private String text;
     private Role role;
@@ -26,7 +29,6 @@ public final class Label extends Widget {
         int color = switch (role) {
             case PRIMARY -> c.textPrimary();
             case SECONDARY -> c.textSecondary();
-            case MUTED -> c.textMuted();
         };
         s.drawText(TextClip.fit(s, text, w), x, y, color, false);
     }

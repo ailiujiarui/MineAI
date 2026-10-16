@@ -55,6 +55,21 @@ class ScrollBoxTest {
     }
 
     @Test
+    void resizingTheContentKeepsTheLedgerAndCutsTheViewAtTheEnd() {
+        UiRoot ui = rootWith(20, 60, 100);
+        ScrollBox box = new ScrollBox();
+        box.measure(ui, 10, 20, 100, 90, 38);   // 折起来:内容 38,视口 90
+
+        assertFalse(box.inside(20 + 38), "内容尽头以外不归它:折起来的那一截点不到");
+        box.resize(98);                          // 展开
+        assertTrue(box.inside(20 + 38));
+        assertEquals(8, box.max());
+        box.resize(38);
+        assertEquals(0, box.max());
+        assertEquals(20, ui.widgetsView().get(0).y(), "行留在基线上");
+    }
+
+    @Test
     void theWheelOnlyCountsInsideTheViewport() {
         UiRoot ui = rootWith(20, 60, 100);
         ScrollBox box = new ScrollBox();

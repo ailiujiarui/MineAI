@@ -45,7 +45,7 @@ class DiagnosisTest {
                 Goals.at(new BlockPos(32, Y, 0)), Fixtures.BUDGET, Favoring.NONE);
         SearchResult failed = AStar.run(search, () -> false);
         assertEquals(SearchResult.Stop.EXHAUSTED, failed.stop());
-        Outcome outcome = Diagnosis.of(failed.stop(), failed.breathless(), search, () -> false);
+        Outcome outcome = Diagnosis.of(failed.stop(), failed.breathless(), search, failed.blocking(), () -> false);
         Outcome.Breathless breathless = assertInstanceOf(Outcome.Breathless.class, outcome);
         assertEquals(new BlockPos(-1, Y, 0), breathless.from());
         assertEquals(new BlockPos(31, Y, 0), breathless.to());

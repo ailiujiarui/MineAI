@@ -24,16 +24,16 @@ class TurnOriginTest {
 
     @Test
     void sameModelKeepsItsOwnPrivateFields() {
-        AssistantTurn turn = stamped("DeepSeekProvider/deepseek-reasoner");
-        assertTrue(turn.sameOrigin("DeepSeekProvider/deepseek-reasoner"));
+        AssistantTurn turn = stamped("chat/deepseek/deepseek-reasoner");
+        assertTrue(turn.sameOrigin("chat/deepseek/deepseek-reasoner"));
         assertEquals("一路推下来", turn.reasoning());
         assertFalse(turn.extras().entrySet().isEmpty());
     }
 
     @Test
     void anotherModelGetsTheTurnWithoutThem() {
-        AssistantTurn turn = stamped("DeepSeekProvider/deepseek-reasoner");
-        assertFalse(turn.sameOrigin("OpenAIProvider/gpt-6-astra"));
+        AssistantTurn turn = stamped("chat/deepseek/deepseek-reasoner");
+        assertFalse(turn.sameOrigin("responses/openai/gpt-6-astra"));
 
         AssistantTurn stripped = turn.withoutProviderPrivateFields();
         assertEquals("好", stripped.content(), "说过的话要留着");
@@ -45,6 +45,6 @@ class TurnOriginTest {
     @Test
     void anUnstampedTurnIsTreatedAsForeign() {
         AssistantTurn old = new AssistantTurn("好", List.of(), new JsonObject(), "想了想");
-        assertFalse(old.sameOrigin("OpenAIProvider/gpt-6-astra"));
+        assertFalse(old.sameOrigin("responses/openai/gpt-6-astra"));
     }
 }

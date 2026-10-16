@@ -2,6 +2,7 @@ package com.dwinovo.numen.api.network.payload;
 
 import com.dwinovo.numen.api.Constants;
 import com.dwinovo.numen.api.network.Wire;
+import com.dwinovo.numen.api.task.Activity;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -26,33 +27,47 @@ import java.util.function.Predicate;
  *
  * @param taskId    公开任务 id;<b>空串 = 她现在闲着</b>
  * @param tool      任务名:函数全名(numen.move.to / numen.work.dig / numen.move.follow …)
- * @param describe  这件活的人话描述,由任务记录自己给出
+ * @param describe  给模型看的一句描述,由任务记录自己给出
+ * @param activity  给主人看的一句({@link Activity}:语言键 + 现场的词),客户端按当前语言翻
  * @param standing  常驻(没有终点,不会发 task_finished)
  * @param elapsedMs 已经干了多久——重放回来的活也有正确的起点,不会从推送那一刻重新计时
  *
  * <p>任务名与描述由任务记录给(插件的任务也在内),长短不归这个包定,用 {@link Wire#text()};描述长到整包装不下时
- * 换成一句说明({@link #shrunk}),是哪件活、干了多久照旧。
+ * 描述换成一句说明、给主人看的那句换成只说工具名({@link #shrunk}),是哪件活、干了多久照旧。
  */
 public record CurrentTaskPayload(UUID entityUuid, String taskId, String tool,
-                                 String describe, boolean standing, long elapsedMs)
+                                 String describe, Activity activity, boolean standing, long elapsedMs)
         implements CustomPacketPayload, Wire.Oversized<CurrentTaskPayload> {
 
     public static final Type<CurrentTaskPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "current_task"));
 
-    public static final StreamCodec<ByteBuf, CurrentTaskPayload> STREAM_CODEC =
-            StreamCodec.composite(
-                    UUIDUtil.STREAM_CODEC, CurrentTaskPayload::entityUuid,
-                    Wire.TO_CLIENT.text(), CurrentTaskPayload::taskId,
-                    Wire.TO_CLIENT.text(), CurrentTaskPayload::tool,
-                    Wire.TO_CLIENT.text(), CurrentTaskPayload::describe,
-                    ByteBufCodecs.BOOL, CurrentTaskPayload::standing,
-                    ByteBufCodecs.VAR_LONG, CurrentTaskPayload::elapsedMs,
-                    CurrentTaskPayload::new);
+    /** 一句话最多几个现场的词。 */
+    private static final int MAX_ACTIVITY_ARGS = 8;
+
+    private static final StreamCodec<ByteBuf, Activity> ACTIVITY_CODEC = StreamCodec.composite(
+            Wire.TO_CLIENT.text(), Activity::key,
+            Wire.TO_CLIENT.text().apply(ByteBufCodecs.list(MAX_ACTIVITY_ARGS)), Activity::args,
+            Activity::new);
+
+    public static final StreamCodec<ByteBuf, CurrentTaskPayload> STREAM_CODEC = StreamCodec.of(
+            (buf, p) -> {
+                UUIDUtil.STREAM_CODEC.encode(buf, p.entityUuid);
+                Wire.TO_CLIENT.text().encode(buf, p.taskId);
+                Wire.TO_CLIENT.text().encode(buf, p.tool);
+                Wire.TO_CLIENT.text().encode(buf, p.describe);
+                ACTIVITY_CODEC.encode(buf, p.activity);
+                ByteBufCodecs.BOOL.encode(buf, p.standing);
+                ByteBufCodecs.VAR_LONG.encode(buf, p.elapsedMs);
+            },
+            buf -> new CurrentTaskPayload(UUIDUtil.STREAM_CODEC.decode(buf),
+                    Wire.TO_CLIENT.text().decode(buf), Wire.TO_CLIENT.text().decode(buf),
+                    Wire.TO_CLIENT.text().decode(buf), ACTIVITY_CODEC.decode(buf),
+                    ByteBufCodecs.BOOL.decode(buf), ByteBufCodecs.VAR_LONG.decode(buf)));
 
     /** 她闲着。 */
     public static CurrentTaskPayload idle(UUID entityUuid) {
-        return new CurrentTaskPayload(entityUuid, "", "", "", false, 0L);
+        return new CurrentTaskPayload(entityUuid, "", "", "", Activity.of(Activity.DEFAULT_KEY, ""), false, 0L);
     }
 
     public boolean idle() {
@@ -62,7 +77,8 @@ public record CurrentTaskPayload(UUID entityUuid, String taskId, String tool,
     @Override
     public CurrentTaskPayload shrunk(Predicate<CurrentTaskPayload> fits, int bytes, int budget) {
         return new CurrentTaskPayload(entityUuid, taskId, tool,
-                Wire.TO_CLIENT.tooBig("Its description", bytes) + ", so it is not shown.", standing, elapsedMs);
+                Wire.TO_CLIENT.tooBig("Its description", bytes) + ", so it is not shown.",
+                Activity.of(Activity.DEFAULT_KEY, tool), standing, elapsedMs);
     }
 
     @Override

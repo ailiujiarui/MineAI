@@ -173,7 +173,7 @@ public final class SelectPanel extends Popup {
             return;
         }
         String note = clip(s, row.note(), room);
-        s.drawText(note, rx + rw - s.textWidth(note), textY, c.textMuted(), false);
+        s.drawText(note, rx + rw - s.textWidth(note), textY, c.textSecondary(), false);
     }
 
     private static String clip(IDrawSurface s, String text, int maxW) {

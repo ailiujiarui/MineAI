@@ -44,6 +44,9 @@ public class NumenFabricClient implements ClientModInitializer {
         com.dwinovo.numen.api.client.screen.UiTheme.init(
                 FabricLoader.getInstance().getConfigDir().resolve(Constants.CONFIG_ROOT));
 
+        // 型号目录:后台刷新 models.dev 缓存(一天最多拉一次,拉不到静默用缓存或随包快照)。
+        com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().refreshCatalog();
+
         // MCP client: connect to any external MCP servers listed in
         // config/numen/mcp_clients.json and register their tools so the built-in
         // brain can call them. Config dir from the loader (avoids Minecraft timing).

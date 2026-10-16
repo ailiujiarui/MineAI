@@ -126,7 +126,7 @@ public final class InvitePanel extends ModalCard {
             String name = NumenRoster.instance().name(who);
             String shown = TextClip.fit(s, name == null ? "?" : name, TILE_W);
             s.drawText(shown, tileX(i) + (TILE_W - s.textWidth(shown)) / 2, tilesY + FACE + 4,
-                    in ? c.accent() : on ? c.textPrimary() : c.textMuted(), false);
+                    in ? c.accent() : on ? c.textPrimary() : c.textSecondary(), false);
         }
         if (invite != null) invite.setEnabled(!picked.isEmpty());
     }

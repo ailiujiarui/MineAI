@@ -19,14 +19,15 @@ import java.util.concurrent.CompletableFuture;
  * 正版账号池"代穿一次抠下签名"。免费匿名档按调用方 IP 限流(约 10 张/分),
  * 本客户端跑在每个玩家自己的机器上,额度天然按人头分摊,分发无瓶颈。
  *
- * <p>跟随模组的代理设置(Services.CONFIG.getProxy);失败返回带人话的
- * 异常消息(限流/网络/服务端拒绝),绝不同步抛。
+ * <p>跟随模组的代理设置(Services.CONFIG.getProxy);失败返回带原因码的
+ * {@link SkinError}(限流/网络/服务端拒绝,界面经 {@link SkinWords} 翻),绝不同步抛。
  */
 public final class MineSkinClient {
 
     /** 代签结果。 */
     public record Signed(String value, String signature) {}
 
+    private static final String SERVICE = "MineSkin";
     private static final String GENERATE_URL = "https://api.mineskin.org/v2/generate";
     private static final Duration TIMEOUT = Duration.ofSeconds(40);   // 生成含排队,给足
 
@@ -34,7 +35,7 @@ public final class MineSkinClient {
 
     /**
      * 上传 png 换签名。{@code variant} 取 {@link SkinLibrary#VARIANT_CLASSIC}/
-     * {@link SkinLibrary#VARIANT_SLIM}。失败的 future 携带人话消息。
+     * {@link SkinLibrary#VARIANT_SLIM}。失败的 future 携带 {@link SkinError}。
      */
     public static CompletableFuture<Signed> generate(byte[] png, String variant, String name) {
         HttpRequest request;
@@ -80,13 +81,13 @@ public final class MineSkinClient {
     /** 容错解析:v2({@code skin.texture.data})与 v1({@code data.texture})两种形状都吃。 */
     private static Signed parse(HttpResponse<String> resp) {
         if (resp.statusCode() == 429) {
-            throw new IllegalStateException("MineSkin 限流(免费档 20 张/分),稍等再试");
+            throw SkinError.of(SkinError.RATE_LIMITED, SERVICE);
         }
         JsonObject root;
         try {
             root = JsonParser.parseString(resp.body()).getAsJsonObject();
         } catch (RuntimeException e) {
-            throw new IllegalStateException("MineSkin HTTP " + resp.statusCode() + ": 响应不是 JSON");
+            throw SkinError.of(SkinError.REPLY_BAD, SERVICE);
         }
         // v2: { skin: { texture: { data: { value, signature } } } }
         if (root.has("skin") && root.get("skin").isJsonObject()) {
@@ -114,8 +115,8 @@ public final class MineSkinClient {
             }
         }
         String why = firstError(root);
-        throw new IllegalStateException("MineSkin HTTP " + resp.statusCode()
-                + (why.isEmpty() ? ": 响应缺少 texture 数据" : ": " + why));
+        throw why.isEmpty() ? SkinError.of(SkinError.REPLY_MISSING, SERVICE)
+                : SkinError.http(SERVICE, resp.statusCode(), why);
     }
 
     private static String firstError(JsonObject root) {

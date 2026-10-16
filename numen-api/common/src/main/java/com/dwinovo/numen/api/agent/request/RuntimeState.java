@@ -1,6 +1,7 @@
 package com.dwinovo.numen.api.agent.request;
 
 import com.dwinovo.numen.api.Constants;
+import com.dwinovo.numen.api.task.Activity;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -27,7 +28,7 @@ public final class RuntimeState {
      * (见 {@link com.dwinovo.numen.api.network.payload.CurrentTaskPayload})。{@code standing} = 这件活没有终点
      * (不会有 task_finished),只能被换掉——模型必须分得清,否则会干等一个永不到来的事件。
      */
-    private record CurrentTask(String id, String tool, String describe, long sinceMs,
+    private record CurrentTask(String id, String tool, String describe, Activity activity, long sinceMs,
                                boolean standing) {}
 
     /**
@@ -51,7 +52,7 @@ public final class RuntimeState {
             return;
         }
         // 用服务端给的已耗时回推起点,重放回来的活也不会从这一刻重新计时
-        currentTask = new CurrentTask(p.taskId(), p.tool(), p.describe(),
+        currentTask = new CurrentTask(p.taskId(), p.tool(), p.describe(), p.activity(),
                 System.currentTimeMillis() - p.elapsedMs(), p.standing());
     }
 
@@ -78,15 +79,11 @@ public final class RuntimeState {
     }
 
     /**
-     * 她手上那件活给人看的一句:服务端给的人话描述("挖 64 块泥土"),没有才退到工具 id;没有活返回 {@code null}。
-     * 气泡是给主人看的,他不该在头顶上读内部标识符。
+     * 她手上那件活给主人看的一句(服务端按任务的状态给的语言键 + 现场的词,界面按当前语言翻);没有活返回 {@code null}。
+     * 给模型看的是 {@code <current_task>} 里的描述,两句各自生成。
      */
-    public String activity() {
-        if (currentTask == null) {
-            return null;
-        }
-        String d = currentTask.describe();
-        return d != null && !d.isBlank() ? d : currentTask.tool();
+    public Activity activity() {
+        return currentTask == null ? null : currentTask.activity();
     }
 
     /**

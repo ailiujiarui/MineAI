@@ -6,6 +6,7 @@ import com.dwinovo.numen.api.agent.inbox.EventTypes;
 import com.dwinovo.numen.api.agent.llm.ConvoLog;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
 import com.dwinovo.numen.api.agent.loop.AgentLoop;
+import com.dwinovo.numen.api.agent.loop.Cause;
 import com.dwinovo.numen.api.agent.loop.HaltReason;
 import com.dwinovo.numen.api.agent.loop.HostPort;
 import com.dwinovo.numen.api.agent.loop.LoopEvent;
@@ -67,7 +68,7 @@ final class Brain {
         Compactor compactor = new Compactor(her.toString(), convo, log, () -> window);
         ModelPort model = new ModelPort() {
             @Override
-            public String unavailable() {
+            public Cause unavailable() {
                 return mind.unavailable();
             }
 
@@ -118,8 +119,8 @@ final class Brain {
 
             @Override
             public String activity() {
-                String task = runtime.activity();
-                return task != null ? task : tools.currentToolName();
+                var task = runtime.activity();
+                return task != null ? task.text().getString() : tools.currentToolName();
             }
         };
         this.loop = new AgentLoop(her.toString(), model, tools, convo, queue, compactor, host);

@@ -207,7 +207,7 @@ final class ProfilePage {
                 Nb.text(g, font, line, x + PAD + TEXT_DX, by);
                 by += 10;
             }
-            Nb.text(g, font, I18n.get("numen.profile.bio"), x + PAD + TEXT_DX, by, t.faint());
+            Nb.text(g, font, I18n.get("numen.profile.bio"), x + PAD + TEXT_DX, by, t.textDim());
             cy = by + 12;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -228,7 +228,7 @@ final class ProfilePage {
         cy = sectionHead(g, t, I18n.get("numen.profile.memories"), all.isEmpty() ? "" : String.valueOf(all.size()),
                 x + PAD, cy, iw);
         if (all.isEmpty()) {
-            Nb.text(g, font, I18n.get("numen.profile.memories_none"), x + PAD, cy, t.faint());
+            Nb.text(g, font, I18n.get("numen.profile.memories_none"), x + PAD, cy, t.textDim());
             cy += 14;
         } else {
             for (int i = 0; i < Math.min(NOTES_SHOWN, all.size()); i++) {
@@ -239,7 +239,7 @@ final class ProfilePage {
             }
             if (all.size() > NOTES_SHOWN) {
                 Nb.text(g, font, I18n.get("numen.profile.memories_more", all.size() - NOTES_SHOWN),
-                        x + PAD + TEXT_DX, cy, t.faint());
+                        x + PAD + TEXT_DX, cy, t.textDim());
                 cy += 12;
             }
             cy += 2;
@@ -299,7 +299,8 @@ final class ProfilePage {
         if (loop != null && loop.providerEntryId() != null && !loop.providerEntryId().isBlank()) {
             var entry = com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().get(loop.providerEntryId());
             model = entry == null ? I18n.get("numen.profile.model_deleted")
-                    : entry.model() == null || entry.model().isBlank() ? entry.name() : entry.model();
+                    : entry.profile().model() == null || entry.profile().model().isBlank()
+                            ? entry.name() : entry.profile().model();
         }
         cy = settingRow(g, t, I18n.get("numen.profile.model"), model, x, cy, w, mouseX, mouseY);
         var voice = com.dwinovo.numen.api.client.voice.VoiceLibrary.instance().resolve(who);
@@ -362,13 +363,13 @@ final class ProfilePage {
             slot(g, t, sx, sy);
             collect(g, i < craft.size() ? craft.get(i) : ItemStack.EMPTY, sx + 1, sy + 1, mouseX, mouseY, hover);
         }
-        Nb.text(g, font, "→", crx + 2 * SLOT + 3, midY + 5, t.faint());
+        Nb.text(g, font, "→", crx + 2 * SLOT + 3, midY + 5, t.textDim());
         slot(g, t, resX, midY);
         collect(g, craft.size() > 4 ? craft.get(4) : ItemStack.EMPTY, resX + 1, midY + 1, mouseX, mouseY, hover);
         int sy0 = cy + 2 * SLOT + 6;
         if (snap == null || !snap.loaded() || snap.items().isEmpty()) {
             String hint = I18n.get(snap == null ? "numen.status.loading" : "numen.status.asleep");
-            Nb.text(g, font, hint, gx, sy0 + 4, t.faint());
+            Nb.text(g, font, hint, gx, sy0 + 4, t.textDim());
             return;
         }
         List<ItemStack> items = snap.items();
@@ -428,7 +429,7 @@ final class ProfilePage {
     /** 节头:强调色小字,右端可带一个淡色的数。返回下面内容的顶边。 */
     private int sectionHead(GuiGraphics g, UiTheme t, String title, String count, int x, int y, int w) {
         Nb.text(g, font, title, x, y, t.accent());
-        if (!count.isEmpty()) Nb.text(g, font, count, x + w - font.width(count), y, t.faint());
+        if (!count.isEmpty()) Nb.text(g, font, count, x + w - font.width(count), y, t.textDim());
         return y + 14;
     }
 
@@ -467,7 +468,7 @@ final class ProfilePage {
         Sprites.draw(g, icon, x, y + (ROW_H - Sprites.SIZE) / 2 - 1, Sprites.SIZE, t.textDim());
         int tx = x + TEXT_DX, room = w - TEXT_DX;
         Nb.text(g, font, Nb.clip(font, value, room), tx, y + 1, t.text());
-        Nb.text(g, font, Nb.clip(font, caption, room), tx, y + 11, t.faint());
+        Nb.text(g, font, Nb.clip(font, caption, room), tx, y + 11, t.textDim());
     }
 
     /** 统一凹槽:从窗口底色向边框色压暗两档(边更深、内浅一档),跟着主题换。 */
@@ -508,7 +509,7 @@ final class ProfilePage {
     }
 
     /**
-     * 用量明细:{@code ↑输入 ↓输出 R缓存读 W缓存写 CH命中率 占用/窗口}。每段有值才出现——服务商不报缓存
+     * 用量明细:{@code ↑输入 ↓输出 缓存读 缓存写 命中率 占用/窗口}(缓存三段的前缀是语言键,英文是 R / W / CH)。每段有值才出现——服务商不报缓存
      * 的话那三段自然消失。它是给想知道的人看的,住在上下文那一行的悬停提示里,不常驻。
      * 命中率只看<b>最近一轮</b>:累计命中率会被历史稀释,看不出"刚才那轮把缓存打穿了"。
      */
@@ -517,11 +518,11 @@ final class ProfilePage {
         List<String> parts = new ArrayList<>();
         if (sum.input() > 0) parts.add("↑" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.input()));
         if (sum.output() > 0) parts.add("↓" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.output()));
-        if (sum.cacheRead() > 0) parts.add("R" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.cacheRead()));
-        if (sum.cacheWrite() > 0) parts.add("W" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.cacheWrite()));
+        if (sum.cacheRead() > 0) parts.add(I18n.get("numen.profile.usage_read") + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.cacheRead()));
+        if (sum.cacheWrite() > 0) parts.add(I18n.get("numen.profile.usage_write") + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.cacheWrite()));
         double hit = lp.lastUsage().cacheHitRate();
         if (sum.reportsCache() && hit >= 0) {
-            parts.add("CH" + com.dwinovo.numen.api.client.ui.TokenFormat.percent1(hit) + "%");
+            parts.add(I18n.get("numen.profile.usage_hit") + com.dwinovo.numen.api.client.ui.TokenFormat.percent1(hit) + "%");
         }
         parts.add(lp.contextPercent() + "%/" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(lp.modelWindow()));
         return String.join(" ", parts);

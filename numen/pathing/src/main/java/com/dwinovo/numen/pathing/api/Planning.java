@@ -64,7 +64,7 @@ public final class Planning {
             return result;
         }
         partial = found.route();
-        diagnosis = Searches.submit(cancelled -> Diagnosis.of(found.stop(), found.breathless(), search, cancelled));
+        diagnosis = Searches.submit(cancelled -> Diagnosis.of(found.stop(), found.breathless(), search, found.blocking(), cancelled));
         return null;
     }
 

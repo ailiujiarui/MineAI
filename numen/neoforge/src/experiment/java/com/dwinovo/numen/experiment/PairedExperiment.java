@@ -1,5 +1,6 @@
 package com.dwinovo.numen.experiment;
 
+import com.dwinovo.numen.api.agent.catalog.Catalog;
 import com.dwinovo.numen.api.agent.http.CancelToken;
 import com.dwinovo.numen.api.agent.inbox.*;
 import com.dwinovo.numen.api.agent.llm.*;
@@ -116,9 +117,9 @@ public final class PairedExperiment {
                 .findFirst().orElseThrow(() -> new IllegalArgumentException("provider entry not found"));
         secret = field(entry, "api_key");
         if (secret.isBlank() || field(entry, "model").isBlank()) throw new IllegalArgumentException("provider requires api_key and model");
-        LlmEndpoint endpoint = new LlmEndpoint(field(entry, "provider"), field(entry, "model"), secret,
-                field(entry, "base_url"), field(entry, "proxy"), field(entry, "reasoning_effort"));
-        write("model.json", Map.of("provider", endpoint.provider(), "model", endpoint.model(), "reasoning_effort", endpoint.reasoningEffort()));
+        LlmEndpoint endpoint = EndpointResolver.resolve(profile(entry, secret), Catalog.bundled(), "");
+        write("model.json", Map.of("provider", endpoint.providerId(), "model", endpoint.model().id(),
+                "reasoning_effort", field(entry, "reasoning_effort")));
         Set<String> allowed = Set.of("minecraft", "neoforge", "numen", "numen_api", "numen_experiment");
         for (var mod : net.neoforged.fml.ModList.get().getMods())
             if (!allowed.contains(mod.getModId())) throw new IllegalStateException("unexpected experiment mod: " + mod.getModId());
@@ -173,8 +174,7 @@ public final class PairedExperiment {
         CompanionToolPort port = new CompanionToolPort(her.getUUID(), () -> (ToolAnchor) her::getUUID, uplink,
                 (id, receipt) -> mail.add(() -> loop.push(List.of(com.dwinovo.numen.api.event.NumenEvents.programStopped(
                         level.getDayTime(), id, RunResult.messageOf(receipt), System.currentTimeMillis())))));
-        Compactor compactor = new Compactor(her.getUUID().toString(), convo, log, () -> entry.has("ctx") && entry.get("ctx").getAsInt() > 0
-                ? entry.get("ctx").getAsInt() : com.dwinovo.numen.api.agent.provider.ProviderRegistry.contextWindow(endpoint.provider(), endpoint.model()));
+        Compactor compactor = new Compactor(her.getUUID().toString(), convo, log, endpoint::contextWindow);
         ModelPort model = new ModelPort() {
             public String unavailable() { return null; }
             public ModelRequest turnRequest() { return AgentRequestContext.turn(convo.snapshot(), runtime.xml(), null, Modules.of(her.getUUID())); }
@@ -326,6 +326,19 @@ public final class PairedExperiment {
         return record;
     }
     private static String field(JsonObject o, String key) { return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : ""; }
+
+    /** 档案条目(与 {@code config/numen/providers.json} 的条目同形) → 一次请求要的解析结果。 */
+    private static ConnectionProfile profile(JsonObject entry, String secret) {
+        return new ConnectionProfile(field(entry, "provider"), field(entry, "protocol"),
+                field(entry, "model"), secret, field(entry, "base_url"), field(entry, "proxy"),
+                field(entry, "reasoning_effort"),
+                entry.has("ctx") && entry.get("ctx").isJsonPrimitive() ? entry.get("ctx").getAsInt() : 0,
+                entry.has("temperature") && entry.get("temperature").isJsonPrimitive()
+                        ? entry.get("temperature").getAsDouble() : null,
+                entry.has("max_tokens") && entry.get("max_tokens").isJsonPrimitive()
+                        ? entry.get("max_tokens").getAsInt() : 0,
+                entry.has("compat") && entry.get("compat").isJsonObject() ? entry.getAsJsonObject("compat") : null);
+    }
     private String clean(String text) { return secret == null || secret.isEmpty() ? text : text.replace(secret, "[redacted]"); }
     private void write(String file, Object value) {
         try { Files.writeString(output.resolve(file), clean(JSON.toJson(value))); }

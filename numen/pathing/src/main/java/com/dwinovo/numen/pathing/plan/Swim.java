@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.dwinovo.numen.pathing.world.BodyStats;
+import com.dwinovo.numen.pathing.world.CellFlags;
 import com.dwinovo.numen.pathing.world.Footing;
 
 import net.minecraft.core.BlockPos;
@@ -57,12 +58,26 @@ final class Swim implements Move {
         if (!draft.clear(blockers, false, from.getX(), f0, from.getZ(), stance.grounded())) {
             return draft.failure();
         }
+        if (!blockers.isEmpty()) {
+            // 门翻过来之后,门板可能落在身体要穿过的边上(开着的活板门,板贴着落点那一列朝起步这一侧):腾出之后再看一遍
+            List<BlockPos> remaining = heading.horizontal()
+                    ? Strides.union(Strides.at(draft, body, to, target), Strides.across(draft, body, from, heading, Math.max(f0, target)))
+                    : Strides.at(draft, body, to, target);
+            if (!remaining.isEmpty()) {
+                return Premise.fail(remaining.get(0), Reason.NO_CLEARANCE);
+            }
+        }
         Stance landing = Stance.at(draft, body, to);
         if (landing == null || landing.kind() == Stance.Kind.CLIMBING) {
             return Premise.fail(to, Reason.NO_CLEARANCE);
         }
         if (landing.grounded() && heading.horizontal() && landing.feetY() > f0 + body.stepHeight() + Footing.EPSILON) {
             // 水底的坎高过迈步高度:那是上一级,不是平挪
+            return Premise.fail(to, Reason.TOO_HIGH);
+        }
+        if (landing.grounded() && heading.horizontal() && landing.feetY() > f0 + Footing.EPSILON
+                && landing.feetY() > Strides.exitCeiling(draft, body, from) + Footing.EPSILON) {
+            // 落点踩在比脚高的东西上(水面那一格里的半砖):是出水,蹿不上去
             return Premise.fail(to, Reason.TOO_HIGH);
         }
         double low = Math.min(f0, landing.feetY());
@@ -79,6 +94,12 @@ final class Swim implements Move {
         return new Premise.Holds(new Maneuver(MoveKind.SWIM, heading, from, stance, to, landing, false, false, false, true,
                 Strides.submerged(draft, body, from, stance, to, landing), 1, Math.max(0, f0 - landing.feetY()), 0, heading.horizontal() ? 1 : 0, draft.edits(), contact.cells(), contact.exposure(),
                 support, Strides.reversible(draft, body, from, stance, to, landing)));
+    }
+
+    /** 脚所在的格没有水,游不成立。 */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        return (q.own() & CellFlags.WET) == 0 ? Quick.REJECT : Quick.EXACT;
     }
 
     @Override

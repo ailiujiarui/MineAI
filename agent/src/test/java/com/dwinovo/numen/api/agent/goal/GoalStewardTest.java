@@ -3,6 +3,7 @@ package com.dwinovo.numen.api.agent.goal;
 import com.dwinovo.numen.api.agent.inbox.EventQueue;
 import com.dwinovo.numen.api.agent.inbox.EventTypes;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
+import com.dwinovo.numen.api.agent.loop.Cause;
 import com.dwinovo.numen.api.agent.loop.HaltReason;
 import com.dwinovo.numen.api.agent.loop.LoopEvent;
 import com.dwinovo.numen.api.agent.loop.LoopHarness;
@@ -166,10 +167,10 @@ class GoalStewardTest extends LoopHarness {
         int turnsBefore = goal.turnsExecuted();
         int stuckBefore = goal.stuckStreak();
 
-        model.last().onDone().accept(new ModelOutcome.Failed("endpoint unavailable", false));
+        model.last().onDone().accept(new ModelOutcome.Failed(Cause.of(Cause.UNBOUND), false));
 
         assertEquals(goal, goals.goal(), "失败保留目标");
-        assertTrue(goal.lastReason().contains("endpoint unavailable"), "现有 /goal 展示读取 lastReason");
+        assertTrue(goal.lastReason().contains("没绑模型配置"), "现有 /goal 展示读取 lastReason");
         GoalState restored = persisted.get(persisted.size() - 1);
         assertEquals(goal.toJson(), restored.toJson(), "失败原因不能只留在内存对象里");
         assertEquals(turnsBefore, restored.turnsExecuted());
@@ -182,13 +183,13 @@ class GoalStewardTest extends LoopHarness {
         loop.push(List.of(new EventQueue.Entry(EventTypes.QUERY, EventQueue.query("继续看看"), 0, false)));
         model.last().say("我再检查一下");
         assertTrue(isEvaluation(model.last()), "下一个合法 run 完成后重新评估");
-        assertTrue(model.last().lastUser().contains("endpoint unavailable"), "判官读到持久化的失败原因");
+        assertTrue(model.last().lastUser().contains("没绑模型配置"), "判官读到持久化的失败原因");
         verdict("NOT_MET: 还差 10 个铁");
 
         assertEquals("还差 10 个铁", goal.lastReason());
         assertEquals(turnsBefore + 1, goal.turnsExecuted());
         assertEquals(goal.toJson(), persisted.get(persisted.size() - 1).toJson());
-        assertTrue(restored.lastReason().contains("endpoint unavailable"), "旧落盘快照不会被恢复后的修改污染");
+        assertTrue(restored.lastReason().contains("没绑模型配置"), "旧落盘快照不会被恢复后的修改污染");
     }
 
     @Test

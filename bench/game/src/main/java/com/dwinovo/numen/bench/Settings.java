@@ -1,5 +1,8 @@
 package com.dwinovo.numen.bench;
 
+import com.dwinovo.numen.api.agent.catalog.Catalog;
+import com.dwinovo.numen.api.agent.llm.ConnectionProfile;
+import com.dwinovo.numen.api.agent.llm.EndpointResolver;
 import com.dwinovo.numen.api.agent.llm.LlmEndpoint;
 import com.dwinovo.numen.bench.report.Pricing;
 
@@ -74,8 +77,9 @@ record Settings(List<String> scenarios, int repeats, String provider, String mod
         return key != null && !key.isBlank();
     }
 
-    /** 真实模型的端点。代理不走:评测直连。 */
+    /** 真实模型的端点,按随包的型号目录解析,和产品走同一个解析器。代理不走:评测直连。 */
     LlmEndpoint endpoint() {
-        return new LlmEndpoint(provider, model, System.getenv(KEY_ENV), baseUrl, "", reasoning);
+        return EndpointResolver.resolve(new ConnectionProfile(provider, null, model, System.getenv(KEY_ENV),
+                baseUrl, null, reasoning, 0, null, 0, null), Catalog.bundled(), "");
     }
 }

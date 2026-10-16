@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.function.ObjIntConsumer;
 import java.util.function.Predicate;
 
+import com.dwinovo.numen.pathing.world.CellFlags;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
@@ -31,13 +33,25 @@ import net.minecraft.world.level.material.FluidState;
  * <p>读一格方块要经过调色板和位压缩的存储,一次搜索要读几亿次、而且反复读同一片格子,所以读到的那一层(一个区段里水平 16×16 格)
  * 第一次被读时整层解开,放进 {@code 层表},之后读一格只是数组下标。只解读到的层,搜索没碰过的区段与层一格不解。几个线程同时第一次读到
  * 同一层各解一份,内容一样,谁的先放进去都行(放进去用释放语义,读出来用获取语义,看到数组时数组里的内容一定写完了)。
+ *
+ * <p>搜索的快判断读的是每格的标志字({@link CellFlags}):一层的标志字在第一次被问到时由那一层的方块状态推出,放进另一张同样下标的层表,
+ * 同样是几个线程各推一份、谁的先放进去都行。
  */
 public final class WorldSnapshot implements SearchView {
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
     /** 全是空气的一层,全空的区段的每一层共用。 */
     private static final BlockState[] AIR_LAYER = airLayer();
+    /** 全是空气的一层的标志字,全空的区段的每一层共用。 */
+    private static final byte[] AIR_FLAGS = airFlags();
     private static final VarHandle LAYER = MethodHandles.arrayElementVarHandle(BlockState[][].class);
+    private static final VarHandle FLAG_LAYER = MethodHandles.arrayElementVarHandle(byte[][].class);
+
+    private static byte[] airFlags() {
+        byte[] layer = new byte[256];
+        java.util.Arrays.fill(layer, (byte) CellFlags.AIR);
+        return layer;
+    }
 
     private static BlockState[] airLayer() {
         BlockState[] layer = new BlockState[256];
@@ -58,6 +72,8 @@ public final class WorldSnapshot implements SearchView {
     private final PalettedContainer<BlockState>[][] chunks;
     /** [区块][区段 × 16 + 区段内的层]:解开过的层,行优先 {@code z * 16 + x};还没解的为 null;区块没加载为 null。 */
     private final BlockState[][][] layers;
+    /** 同上的下标,每层每格一个标志字({@link CellFlags}):读到某一层的标志时由那一层的方块状态推出,放进来。 */
+    private final byte[][][] flagLayers;
     private final int minBuildHeight;
     private final int height;
     private final int minSection;
@@ -72,6 +88,7 @@ public final class WorldSnapshot implements SearchView {
         this.side = 2 * radius + 1;
         this.chunks = new PalettedContainer[side * side][];
         this.layers = new BlockState[side * side][][];
+        this.flagLayers = new byte[side * side][][];
         this.minBuildHeight = heights.getMinBuildHeight();
         this.height = heights.getHeight();
         this.minSection = heights.getMinSection();
@@ -91,6 +108,7 @@ public final class WorldSnapshot implements SearchView {
                 }
                 chunks[i * side + j] = states;
                 layers[i * side + j] = new BlockState[states.length * 16][];
+                flagLayers[i * side + j] = new byte[states.length * 16][];
             }
         }
     }
@@ -100,8 +118,13 @@ public final class WorldSnapshot implements SearchView {
 
     /** 为从 {@code start} 出发的一次搜索拷贝快照:以它所在的区块为中心、{@link #SEARCH_RADIUS} 为半径。必须在世界所在的线程上调用。 */
     public static WorldSnapshot around(Level level, BlockPos start) {
+        return around(level, start, SEARCH_RADIUS);
+    }
+
+    /** 同上,半径是 {@code radius} 个区块:一段一段走时一段只看这一段那么远。 */
+    public static WorldSnapshot around(Level level, BlockPos start, int radius) {
         return capture(level, SectionPos.blockToSectionCoord(start.getX()), SectionPos.blockToSectionCoord(start.getZ()),
-                SEARCH_RADIUS);
+                radius);
     }
 
     /**
@@ -218,6 +241,67 @@ public final class WorldSnapshot implements SearchView {
             return AIR;
         }
         return layer(i * side + j, row)[(z & 15) << 4 | (x & 15)];
+    }
+
+    /** 没加载的区块的格带 {@link CellFlags#UNLOADED};建筑高度之外、全空的区段是空气。读一格是两次数组下标。 */
+    @Override
+    public int cellFlags(int x, int y, int z) {
+        int i = (x >> 4) - minChunkX;
+        int j = (z >> 4) - minChunkZ;
+        if (i < 0 || j < 0 || i >= side || j >= side) {
+            return CellFlags.UNLOADED;
+        }
+        byte[][] rows = flagLayers[i * side + j];
+        if (rows == null) {
+            return CellFlags.UNLOADED;
+        }
+        int row = ((y >> 4) - minSection) << 4 | (y & 15);
+        if (row < 0 || row >= rows.length) {
+            return CellFlags.AIR;
+        }
+        return flagLayer(i * side + j, rows, row)[(z & 15) << 4 | (x & 15)] & 0xFF;
+    }
+
+    /** 读同一列从 {@code y} 起往上 {@code n} 格的标志字:查区块只查一次。 */
+    @Override
+    public int cellFlags(int x, int y, int z, int n, byte[] into, int at) {
+        int i = (x >> 4) - minChunkX;
+        int j = (z >> 4) - minChunkZ;
+        byte[][] rows = i < 0 || j < 0 || i >= side || j >= side ? null : flagLayers[i * side + j];
+        if (rows == null) {
+            java.util.Arrays.fill(into, at, at + n, (byte) CellFlags.UNLOADED);
+            return CellFlags.UNLOADED;
+        }
+        int cell = (z & 15) << 4 | (x & 15);
+        int all = 0;
+        for (int k = 0; k < n; k++) {
+            int row = (((y + k) >> 4) - minSection) << 4 | ((y + k) & 15);
+            int flags = row < 0 || row >= rows.length ? CellFlags.AIR : flagLayer(i * side + j, rows, row)[cell] & 0xFF;
+            into[at + k] = (byte) flags;
+            all |= flags;
+        }
+        return all;
+    }
+
+    /** 区块 {@code chunk}(下标)的第 {@code row} 层的标志字,没推过就推出来放进去。 */
+    private byte[] flagLayer(int chunk, byte[][] rows, int row) {
+        byte[] layer = (byte[]) FLAG_LAYER.getAcquire(rows, row);
+        if (layer == null) {
+            layer = flags(layer(chunk, row));
+            FLAG_LAYER.setRelease(rows, row, layer);
+        }
+        return layer;
+    }
+
+    private static byte[] flags(BlockState[] states) {
+        if (states == AIR_LAYER) {
+            return AIR_FLAGS;
+        }
+        byte[] out = new byte[256];
+        for (int k = 0; k < 256; k++) {
+            out[k] = (byte) CellFlags.of(states[k]);
+        }
+        return out;
     }
 
     /** 区块 {@code chunk}(下标)的第 {@code row} 层(区段 × 16 + 区段内的层),没解过就解开。 */

@@ -107,7 +107,19 @@ public final class Stepping {
      */
     public static Step fromHold(BlockGetter level, BodyStats body, int x, double fromFeetY, int z,
                                 int dx, int dz, double toFeetY) {
-        double top = Math.max(fromFeetY, toFeetY);
+        return fromHold(level, body, x, fromFeetY, z, dx, dz, toFeetY, 0);
+    }
+
+    /**
+     * 水里出水蹿过岸沿时,身子升到岸沿之上还要冲出这么高才落回岸沿:原版顶着岸沿往上蹿、蹿出水面后靠冲劲再升一小截,实测脚升到
+     * 岸沿之上 0.6 格左右({@link Kinematics#jumpHeight} 起跳到不了的高度,水给的是另一种冲劲)。头顶只留不到这么多净空的岸沿,出水时脑袋先撞上。
+     */
+    public static final double WATER_EXIT_LIFT = 0.6;
+
+    /** 同 {@link #fromHold(BlockGetter, BodyStats, int, double, int, int, int, double)},升到的高度在落点的脚高之上再加 {@code lift}(出水的冲劲)。 */
+    public static Step fromHold(BlockGetter level, BodyStats body, int x, double fromFeetY, int z,
+                                int dx, int dz, double toFeetY, double lift) {
+        double top = Math.max(fromFeetY, toFeetY + lift);
         if (!Clearance.fits(level, body, x, top, z)
                 || !Clearance.blockers(level, body, x, top, z, dx, dz).isEmpty()) {
             return Step.BLOCKED;
@@ -141,6 +153,12 @@ public final class Stepping {
         }
         return Math.max(0, out - LEAN_STEP);
     }
+
+    /**
+     * 落点那一列里,沿前进方向至少要有这么多滑行余量({@link #slideRoom})才算落得稳:执行停下的精度到不了更细,
+     * 余量比它还小的落点(炼药锅里只比身体宽 0.15,滑一小步就撞上锅沿),身子一落进去就弹出来。
+     */
+    public static final double MIN_LANDING_ROOM = 0.1;
 
     /**
      * 站着的身体脚在 {@code (x, feetY, z)},朝 {@code (dx, dz)} 方向借着冲劲滑出去,身体中心从列中心起最远能滑出多远(格):每滑一小步,

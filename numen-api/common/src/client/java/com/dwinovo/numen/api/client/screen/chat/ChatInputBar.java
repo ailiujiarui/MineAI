@@ -654,7 +654,7 @@ public final class ChatInputBar {
         g.fill(lx, y0 + 3, lx + 2, y0 + BAR_H - 3, c.accent());
         int room = actX - lx - 12;
         Nb.text(g, font, Nb.clip(font, shownTitle, room), lx + 6, y0 + 3, c.accent());
-        Nb.text(g, font, Nb.clip(font, shownText, room), lx + 6, y0 + 12, c.textMuted());
+        Nb.text(g, font, Nb.clip(font, shownText, room), lx + 6, y0 + 12, c.textSecondary());
         boolean hot = open && overBarClose(mouseX, mouseY);
         Nb.text(g, font, "×", actX + (ACT_W - font.width("×")) / 2, y0 + (BAR_H - 8) / 2,
                 hot ? c.textPrimary() : c.textMuted());

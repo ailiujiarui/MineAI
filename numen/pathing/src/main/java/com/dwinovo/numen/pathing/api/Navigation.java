@@ -75,8 +75,8 @@ public final class Navigation {
         switch (halt) {
             case Halt.Searched searched -> {
                 PathLog.info("{} 搜索没交出能走的路(停因 {}),在同一份快照上诊断为什么", who, searched.stop());
-                diagnosis = Searches.submit(
-                        cancelled -> Diagnosis.of(searched.stop(), searched.breathless(), searched.search(), cancelled));
+                diagnosis = Searches.submit(cancelled -> Diagnosis.of(searched.stop(), searched.breathless(), searched.search(),
+                        searched.blocking(), cancelled));
                 return;
             }
             case Halt.Blocked blocked -> status = NavStatus.failed(new Outcome.Blocked(blocked.blockage()));

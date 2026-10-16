@@ -48,7 +48,6 @@ import java.util.function.Consumer;
 public final class AgentLoop {
 
     /** 模型回了一个既没正文也没工具调用的空回复:算失败,不重试——重试的范围是调用本身出错。 */
-    static final String EMPTY_REPLY = "服务端返回了空回应";
 
     private final String name;
     private final ModelPort model;
@@ -66,7 +65,7 @@ public final class AgentLoop {
     /** 后三种停牌:OWNER_STOP / BLOCKED / FAILED;{@code null} = 没有。 */
     private Hold stopped;
     /** 进入 {@link #stopped} 时带的那句话(端点不可用、失败的原因);解开时一起清。 */
-    private String stoppedReason;
+    private Cause stoppedReason;
     /** 最近一次对外报过的停牌。只用来找变化沿发 {@link LoopEvent.HoldChanged},不参与任何判断。 */
     private Hold announced;
     /** 这次整理记忆已经流回来的摘要字数。 */
@@ -280,7 +279,7 @@ public final class AgentLoop {
      * 端点不可用就进 BLOCKED 并把原因随事件交出去,不开 run。
      */
     private void startRun(boolean retried, boolean ownerSpoke) {
-        String problem = model.unavailable();
+        Cause problem = model.unavailable();
         if (problem != null) {
             block(problem);
             return;
@@ -364,13 +363,13 @@ public final class AgentLoop {
             return;
         }
         switch (outcome) {
-            case ModelOutcome.Failed failed -> end(new RunEnd.Failed(failed.words(), failed.retryable()));
+            case ModelOutcome.Failed failed -> end(new RunEnd.Failed(failed.cause(), failed.retryable()));
             case ModelOutcome.Answered answered -> {
                 emit(new LoopEvent.ModelUsed(answered.usage(), LoopEvent.Purpose.TURN));
                 AssistantTurn reply = answered.turn();
                 if (!reply.hasToolCalls() && reply.content().isEmpty()) {
                     AiLog.LOG.warn("[numen-entity#{}] LLM returned an empty turn (no content, no tool calls)", name);
-                    end(new RunEnd.Failed(EMPTY_REPLY, false));
+                    end(new RunEnd.Failed(Cause.of(Cause.EMPTY_REPLY), false));
                     return;
                 }
                 run.retried = false;
@@ -435,7 +434,7 @@ public final class AgentLoop {
         run = null;
         if (end instanceof RunEnd.Failed failed) {
             // 失败的回应不进历史;记一条切断点,之后的请求里模型知道上一轮没连上
-            writeHalt("这一轮没连上(" + failed.words() + ")");
+            writeHalt("这一轮没连上(" + failed.cause().forModel() + ")", failed.cause());
         }
         emit(new LoopEvent.RunEnded(finished.id, end));
         if (end instanceof RunEnd.Failed failed) {
@@ -450,15 +449,15 @@ public final class AgentLoop {
      * 已经排着急件的话不停牌,它们本身就是解开 FAILED 的理由。
      */
     private void afterFailure(Run failed, RunEnd.Failed end) {
-        AiLog.LOG.warn("[numen-entity#{}] turn failed: {}", name, end.words());
+        AiLog.LOG.warn("[numen-entity#{}] turn failed: {}", name, end.cause().forModel());
         if (end.retryable() && !failed.retried) {
             AiLog.LOG.info("[numen-entity#{}] re-running failed turn once", name);
             startRun(true, failed.ownerSpoke);
             return;
         }
-        emit(new LoopEvent.TurnFailed(end.words()));
+        emit(new LoopEvent.TurnFailed(end.cause()));
         stopped = Hold.FAILED;
-        stoppedReason = end.words();
+        stoppedReason = end.cause();
         if (inbox.hasUrgent()) {
             release(Hold.Release.URGENT);
         }
@@ -473,7 +472,7 @@ public final class AgentLoop {
         boolean clears = inbox.nextControls().stream().anyMatch(e -> EventTypes.CLEAR.equals(e.type()));
         if (!clears) {
             // 整理要发一次请求。端点不可用就进 BLOCKED,条目留在队里——绑定改好了自己接着走,按了就一定会发生。
-            String problem = model.unavailable();
+            Cause problem = model.unavailable();
             if (problem != null) {
                 block(problem);
                 return false;
@@ -519,7 +518,7 @@ public final class AgentLoop {
                         return;
                     }
                     switch (outcome) {
-                        case ModelOutcome.Failed failed -> compaction.failed(failed.words());
+                        case ModelOutcome.Failed failed -> compaction.failed(failed.cause().forModel());
                         case ModelOutcome.Answered answered -> {
                             emit(new LoopEvent.ModelUsed(answered.usage(), LoopEvent.Purpose.COMPACT));
                             if (compaction.apply(answered.turn(), answered.usage())) {
@@ -544,7 +543,7 @@ public final class AgentLoop {
      */
     public void consult(LoopEvent.Purpose purpose, ModelRequest request, CancelToken cancel,
                         Consumer<ModelOutcome> onDone) {
-        String problem = model.unavailable();
+        Cause problem = model.unavailable();
         if (problem != null) {
             onDone.accept(new ModelOutcome.Failed(problem, false));
             return;
@@ -582,7 +581,7 @@ public final class AgentLoop {
             // 切断的是一次模型回复或一批工具往返才记切断点:悬空调用的结果、给模型的说明由下一次请求的
             // ProtocolView 按它现算。整理记忆被切断时对话本身没断,不记。
             if (!cut.control && (cut.phase == Phase.MODEL || cut.phase == Phase.TOOLS)) {
-                writeHalt(reason.words(detail));
+                writeHalt(reason.words(detail), reason.cause(detail));
             }
             transcript.resetTurnCount();
             if (!cut.control) {
@@ -603,8 +602,9 @@ public final class AgentLoop {
         announceHold(null);
     }
 
-    private void writeHalt(String words) {
-        transcript.addHalt(words);
+    /** 切断点:{@code words} 是给模型看的那句,{@code cause} 是给界面的结构化原因,两句各自生成、互不拼接。 */
+    private void writeHalt(String words, Cause cause) {
+        transcript.addHalt(words, cause.code(), cause.args());
         emit(new LoopEvent.TranscriptBoundary(LoopEvent.Boundary.HALT));
     }
 
@@ -647,16 +647,16 @@ public final class AgentLoop {
     }
 
     /** 模型端点不可用:进 BLOCKED,把原因随事件交出去。只在刚进去的那一下打日志——停牌期间每 tick 推进也不刷屏。 */
-    private void block(String problem) {
+    private void block(Cause problem) {
         if (stopped != Hold.BLOCKED) {
-            AiLog.LOG.warn("[numen-entity#{}] can't reach the model: {}", name, problem);
+            AiLog.LOG.warn("[numen-entity#{}] can't reach the model: {}", name, problem.forModel());
         }
         stopped = Hold.BLOCKED;
         stoppedReason = problem;
         announceHold(problem);
     }
 
-    private void announceHold(String reason) {
+    private void announceHold(Cause reason) {
         Hold now = hold();
         if (now == announced) {
             return;
