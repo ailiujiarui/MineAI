@@ -10,6 +10,7 @@ import com.dwinovo.numen.api.task.TaskResult;
 import com.dwinovo.numen.api.task.TaskState;
 import com.dwinovo.numen.nav.BoatNav;
 import com.dwinovo.numen.nav.Feet;
+import com.dwinovo.numen.nav.NavText;
 import com.dwinovo.numen.nav.Trip;
 import com.dwinovo.numen.nav.Walked;
 import com.dwinovo.numen.nav.Walking;
@@ -253,16 +254,10 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
 
     @Override
     protected String timeoutMessage() {
-        int gy = player.blockPosition().getY();
-        // Two different stories for the model: a stall (progress dried up — something is wrong, reconsider) vs a
-        // check-in (journey healthy but longer than the cap — resuming is the right move).
-        boolean stalled = boat == null && (nav == null || !nav.progressing());
-        return "timed out " + String.format("%.1f", distance()) + " blocks from target (now at " + here(gy) + "); "
-                + (stalled
-                        ? "progress had stopped — likely blocked; `numen.move.to` again plans from here, or go to a "
-                                + "point on the way first."
-                        : "the journey was still progressing and simply exceeded its check-in budget; call "
-                                + "`numen.move.to` again to go on from here.");
+        // 到期是一趟最长的时间到了(一直在推进),还是租约到期前没有进展:看干活的刻数有没有用满,不看到期那一刻的瞬时信号
+        boolean checkIn = workTicks() >= leaseCapWork;
+        return NavText.timedOut((int) workTicks(), distance(), here(player.blockPosition().getY()),
+                nav == null ? null : nav.nearestRefusal(), checkIn);
     }
 
     @Override

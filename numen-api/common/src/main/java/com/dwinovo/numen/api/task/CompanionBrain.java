@@ -48,8 +48,10 @@ final class CompanionBrain {
     final Preparing preparing = new Preparing();
 
     private final List<Task> reflexes;
-    /** 空闲姿态:没别的事做时才轮到,连身体都不算真正占用。 */
+    /** 空闲姿态:没别的事做时才轮到,连身体都不算真正占用。视线一面、跳一面,同时成立时都做。 */
     private final List<Task> idlePoses;
+    /** 水里的漂浮:不是哪一层的出价,是身体的基本面,每刻在谁拿身体之后补一手,见 {@link FloatChain}。 */
+    private final com.dwinovo.numen.api.task.chain.FloatChain floating = new com.dwinovo.numen.api.task.chain.FloatChain();
 
     /**
      * 重启前留下、还没接回来的那件活:身体进世界那一刻从落盘记录接手,第一次 tick 时取走重放;那之前派下新活
@@ -147,6 +149,7 @@ final class CompanionBrain {
             TaskSessionHooks.fireSessionEnd(companion);
         }
 
+        floating.release(companion);
         Task winner = TaskSelector.select(reflexes, slotTask(sync, companion),
                 slotTask(current, companion), idlePoses, companion);
 
@@ -171,6 +174,9 @@ final class CompanionBrain {
         } else if (winner != null) {
             winner.tick(companion);
         }
+
+        // 谁拿身体都一样:没人按移动和跳跃键、也没沉在水下时,身体自己浮着
+        floating.assist(companion);
 
         // 每刻结算:主人按停止会在带外把记录标成终态,而客户端串行的派发器会一直
         // 卡到那一个结果送出——不能等这个槽下次赢了才结算。

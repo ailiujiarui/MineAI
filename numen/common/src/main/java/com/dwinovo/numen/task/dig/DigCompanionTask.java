@@ -233,8 +233,8 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
             digger.cancel();
             digTarget = null;
         }
-        if (!player.onGround()) {
-            // 脚下那一格刚挖掉、正往下落:落定了再从新的站处看
+        if (!bodySettled()) {
+            // 脚下那一格刚挖掉、正往下落:落定了再从新的站处看(浮在水面上不是在落)
             return TaskState.RUNNING;
         }
         BlockPos target = next();
@@ -592,13 +592,18 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
         return " " + drops.sentence();
     }
 
+    /** 掉落物的账在回执拼之前收口:还在飘的记成"还在动",回执和交回的值都读这一份。 */
+    @Override
+    protected void closeBooks() {
+        if (drops != null) {
+            drops.close();
+        }
+    }
+
     @Override
     protected void cleanup() {
         super.cleanup();
         digger.cancel();
-        if (drops != null) {
-            drops.close();
-        }
     }
 
     /** {@code numen.work.dig} 交回的值。 */
