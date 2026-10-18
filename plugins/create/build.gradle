@@ -1,0 +1,92 @@
+plugins { id 'numen-plugin' }
+
+// 只接 NeoForge:机械动力在 1.21.1 上没有 Fabric 版;编译对着 NeoForge 那份。
+neoForge { version = neoforge_version }
+
+repositories {
+    // 机械动力发在 Modrinth,坐标走 Modrinth Maven;别的坐标这个仓库截不走
+    exclusiveContent {
+        forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup 'maven.modrinth' }
+    }
+}
+
+dependencies {
+    // 瘦 api jar 取 NeoForge 那份:本联动本来就只跑在 NeoForge 上
+    compileOnly files(project(':numen-api:neoforge').tasks.named('apiJar'))
+    // 只对着机械动力编译;运行时由玩家自己装的那份提供(飞轮与 Ponder 在它自己包里),本模块不携带它一个字节。
+    compileOnly "maven.modrinth:create:${create_version}"
+}
+
+/*
+ * 机械动力在场时的 GameTest:用例在 src/gametest,单开一次跑(`./gradlew :plugins:create:runGameTestServer`)。
+ *
+ * 不挂进 Numen 那一次(:numen:neoforge:runGameTestServer):机械动力带着自己的 mixin,挂上去全部用例的环境都跟着变,
+ * 那一次就不再是"只有本体"的样子。这一次照成品的样子:本体、这个联动(成品 jar 里它本来就平铺在本体里)、
+ * 联动的用例同在 numen 这一个模组里;机械动力由运行时类路径带进来,和玩家装它一样被当成模组加载。
+ *
+ * 用例与 Numen 的 GameTest 共用夹具(GameTestKit、Steps)同包,在同一个模组里才看得见包内的那些,所以用例编译
+ * 对着 Numen 的测试夹具(numen/common 的 src/testFixtures)的输出;Numen 自己的用例与寻路的用例不加载——它们
+ * 是套件 numen(见 CreateGameTestSuite);结构模板用 Numen 同步好的那一份目录。
+ */
+sourceSets {
+    gametest {}
+}
+
+// 这个模块的 GameTest 会用到:本体、夹具、结构模板都在别的项目里
+def numenNeoForge = project(':numen:neoforge')
+def gameTestStructures = project(':numen:common').layout.buildDirectory.dir('gameteststructures')
+def createSuite = rootProject.ext.numenSuites[project.path].gametest
+
+neoForge {
+    addModdingDependenciesTo(sourceSets.gametest)
+    mods {
+        numen {
+            sourceSet numenNeoForge.sourceSets.main
+            sourceSet project(':numen:common').sourceSets.testFixtures
+            // 寻路模块的类在成品里平铺在本体的 jar 里,这里不走 jar,同样声明
+            sourceSet project(':numen:pathing').sourceSets.main
+            sourceSet sourceSets.main
+            sourceSet sourceSets.gametest
+        }
+        // Numen API 的 GameTest 支持:套件机制与登记入口、模拟主人连接的加载器实现
+        numen_api_gametest {
+            sourceSet project(':numen-api:neoforge').sourceSets.gametest
+            sourceSet project(':numen-api:common').sourceSets.testFixtures
+        }
+    }
+    runs {
+        gameTestServer {
+            type = 'gameTestServer'
+            ideName = "NeoForge GameTestServer (${project.path})"
+            sourceSet = sourceSets.gametest
+            gameDirectory = project.mkdir(project.file('runs/gametestserver'))
+            // 跑哪些套件:默认是 numenSuites 表里本模块的套件;-Pgametest=(逗号分隔)覆盖
+            systemProperties.put('numen.gametest.suites', providers.gradleProperty('gametest').orElse(createSuite))
+            // 机械动力自带它自己的 GameTest,第三方模组的用例不归我们,NeoForge 的命名空间过滤只放行 numen_create
+            systemProperty('neoforge.enabledGameTestNamespaces', 'numen_create')
+            systemProperty('numen.gametest.structures',
+                    gameTestStructures.get().asFile.absolutePath)
+        }
+    }
+}
+
+dependencies {
+    gametestCompileOnly files({ numenNeoForge.sourceSets.main.output })
+    gametestCompileOnly project(':numen:common').sourceSets.testFixtures.output
+    // 套件接口:本联动的用例经它报到(numen_create)
+    gametestCompileOnly project(':numen-api:common').sourceSets.testFixtures.output
+    // 整个 Numen API(不是瘦 api jar):用例拉起同伴、按模型的样子调工具,和 Numen 的用例一样;运行时它就是 numen_api 那个模组
+    gametestImplementation project(':numen-api:neoforge')
+    // 跑批时机械动力由这里进运行时类路径,和玩家装它一样(飞轮、Ponder 由它包内的 jar 出)
+    gametestImplementation "maven.modrinth:create:${create_version}"
+}
+
+tasks.named('compileGametestJava') {
+    dependsOn ':numen:neoforge:classes', ':numen:common:testFixturesClasses'
+}
+
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    dependsOn ':numen:neoforge:classes', ':numen-api:neoforge:gametestClasses', ':numen:common:syncGameTestStructures',
+            ':numen:common:testFixturesClasses', ':numen-api:common:testFixturesClasses'
+}

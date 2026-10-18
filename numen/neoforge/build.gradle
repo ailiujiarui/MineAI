@@ -24,6 +24,7 @@ evaluationDependsOn(':plugins:ae2')
 evaluationDependsOn(':plugins:mekanism')
 evaluationDependsOn(':plugins:jei')
 evaluationDependsOn(':plugins:twilightforest')
+evaluationDependsOn(':plugins:create')
 
 dependencies {
     // Numen API 同在本构建里。编译期看不见它的内部类(见 numen-loader.gradle),运行与数据生成要它在类路径上,
@@ -42,6 +43,7 @@ dependencies {
     compileOnly project(':plugins:mekanism')
     compileOnly project(':plugins:jei')
     compileOnly project(':plugins:twilightforest')
+    compileOnly project(':plugins:create')
     // 评测 GameTest(在本模块 src/main,不进发行 jar):用 Numen 的 GameTestKit 夹具
     compileOnly project(':numen:common').sourceSets.testFixtures.output
     // Bundle it into Numen's jar (Jar-in-Jar) so players install one file and get both mods.
@@ -158,6 +160,7 @@ neoForge {
             sourceSet project(':plugins:mekanism').sourceSets.main
             sourceSet project(':plugins:jei').sourceSets.main
             sourceSet project(':plugins:twilightforest').sourceSets.main
+            sourceSet project(':plugins:create').sourceSets.main
             // Numen 的夹具:只含原版类;是联动的 GameTest 也用的那一份
             sourceSet project(':numen:common').sourceSets.testFixtures
             // 各模块的用例
@@ -218,6 +221,7 @@ tasks.named('jar', Jar) {
     from({ project(':plugins:mekanism').sourceSets.main.output })
     from({ project(':plugins:jei').sourceSets.main.output })
     from({ project(':plugins:twilightforest').sourceSets.main.output })
+    from({ project(':plugins:create').sourceSets.main.output })
 }
 
 // 跟车发的联动,它们的防漂移测试(技能与命令说明按命令树读一遍)随本模块的 check 一起跑:构建发行 jar 就查过它带上的文字
