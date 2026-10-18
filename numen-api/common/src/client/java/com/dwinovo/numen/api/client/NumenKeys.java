@@ -15,6 +15,10 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 /**
  * Shared key mappings: defined once here, registered by each loader's client
  * init (Fabric {@code KeyMappingHelper} / NeoForge {@code RegisterKeyMappingsEvent}),
@@ -58,6 +62,16 @@ public final class NumenKeys {
             com.dwinovo.numen.api.data.ModLanguageData.Keys.KEY_WATCH_COMPANION,
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_O, CATEGORY);
 
+    /** [ — 观看上一位活着的伙伴;正在观看中按它直接切过去。 */
+    public static final KeyMapping WATCH_PREVIOUS = new KeyMapping(
+            com.dwinovo.numen.api.data.ModLanguageData.Keys.KEY_WATCH_PREVIOUS,
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_BRACKET, CATEGORY);
+
+    /** ] — 观看下一位活着的伙伴;正在观看中按它直接切过去。 */
+    public static final KeyMapping WATCH_NEXT = new KeyMapping(
+            com.dwinovo.numen.api.data.ModLanguageData.Keys.KEY_WATCH_NEXT,
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_BRACKET, CATEGORY);
+
     private static boolean voiceWasDown;
 
     private NumenKeys() {}
@@ -81,6 +95,12 @@ public final class NumenKeys {
                             COMPANION_WHEEL.getTranslatedKeyMessage().getString()), 3000);
                 }
             }
+        }
+        while (WATCH_PREVIOUS.consumeClick()) {
+            stepWatched(-1);
+        }
+        while (WATCH_NEXT.consumeClick()) {
+            stepWatched(1);
         }
         while (OPEN_ROSTER.consumeClick()) {
             if (mc.player != null && mc.screen == null) {
@@ -123,5 +143,47 @@ public final class NumenKeys {
             QuickVoice.release();
         }
         voiceWasDown = voiceDown;
+    }
+
+    /**
+     * [ / ] 沿名册走一位:活着的同伴按服务端排好的名字序成环,观看中从当前订阅的她出发,
+     * 没在观看则从转盘选中的她出发(没选过就从环的头/尾进)。切换由服务端换订阅完成,
+     * 不退出旁观,也不打断观看。
+     */
+    private static void stepWatched(int direction) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || (mc.screen != null
+                && !com.dwinovo.numen.api.spectator.SpectatorMenuClient.viewingScreen())) {
+            return;
+        }
+        List<UUID> ring = new ArrayList<>();
+        for (NumenRoster.Entry entry : NumenRoster.instance().entries()) {
+            if (!entry.dead()) {
+                ring.add(entry.uuid());
+            }
+        }
+        if (ring.isEmpty()) {
+            com.dwinovo.numen.api.client.hud.TalkHint.flash(
+                    I18n.get(NumenRoster.instance().entries().isEmpty()
+                            ? Keys.KEYS_NO_COMPANION : Keys.KEYS_NO_LIVING_COMPANION), 3000);
+            return;
+        }
+        UUID current = null;
+        if (com.dwinovo.numen.api.client.spectator.SpectatorClient.active()) {
+            var state = com.dwinovo.numen.api.client.spectator.SpectatorClient.state();
+            if (state != null) {
+                current = state.target();
+            }
+        } else {
+            Conversation selected = SelectedCompanion.get();
+            if (selected != null && selected.members().size() == 1) {
+                current = selected.members().getFirst();
+            }
+        }
+        int index = current == null ? -1 : ring.indexOf(current);
+        UUID next = index < 0
+                ? (direction > 0 ? ring.getFirst() : ring.getLast())
+                : ring.get((index + direction + ring.size()) % ring.size());
+        com.dwinovo.numen.api.client.spectator.SpectatorClient.enter(next);
     }
 }

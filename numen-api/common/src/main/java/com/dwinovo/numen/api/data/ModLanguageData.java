@@ -161,6 +161,12 @@ public final class ModLanguageData {
         /** Hotkey: view the selected companion, or leave the current viewing session. */
         public static final String KEY_WATCH_COMPANION = "key.numen.watch_companion";
 
+        /** Hotkey: watch the previous living companion, or switch to her while viewing. */
+        public static final String KEY_WATCH_PREVIOUS = "key.numen.watch_previous";
+
+        /** Hotkey: watch the next living companion, or switch to her while viewing. */
+        public static final String KEY_WATCH_NEXT = "key.numen.watch_next";
+
         /** Dedicated Minecraft Controls category so the hotkey gets its own "Numen" section. */
         public static final String KEY_CATEGORY_NUMEN = "key.categories.numen";
 
@@ -389,6 +395,7 @@ public final class ModLanguageData {
         public static final String QUICKVOICE_LISTENING = "numen.quickvoice.listening";
         public static final String QUICKVOICE_TRANSCRIBING = "numen.quickvoice.transcribing";
         public static final String KEYS_NO_COMPANION = "numen.keys.no_companion";
+        public static final String KEYS_NO_LIVING_COMPANION = "numen.keys.no_living_companion";
         public static final String KEYS_PICK_FIRST = "numen.keys.pick_first";
         public static final String TALK_HINT = "numen.talk_hint";
         public static final String CMD_SOLO_ONLY = "numen.cmd.solo_only";
@@ -464,6 +471,8 @@ public final class ModLanguageData {
         adder.add(Keys.KEY_COMPANION_WHEEL, "Companion Wheel (hold)");
         adder.add(Keys.KEY_QUICK_VOICE, "Quick Voice (hold)");
         adder.add(Keys.KEY_WATCH_COMPANION, "Watch Companion / Exit Viewing");
+        adder.add(Keys.KEY_WATCH_PREVIOUS, "Watch Previous Companion");
+        adder.add(Keys.KEY_WATCH_NEXT, "Watch Next Companion");
         adder.add(Keys.KEY_CATEGORY_NUMEN, "Numen");
 
         // --- consolidated into the datagen source (persona / mcp / reasoning / tabs / status ...) ---
@@ -990,6 +999,7 @@ public final class ModLanguageData {
         adder.add(Keys.QUICKVOICE_LISTENING, "%s Listening%s  (release to send to %s)");
         adder.add(Keys.QUICKVOICE_TRANSCRIBING, "◌ Transcribing…  (sending to %s)");
         adder.add(Keys.KEYS_NO_COMPANION, "No companions yet — summon one in the G panel first");
+        adder.add(Keys.KEYS_NO_LIVING_COMPANION, "No living companion to watch right now");
         adder.add(Keys.KEYS_PICK_FIRST, "Press [%s] to pick a companion first, or aim your crosshair at one");
         adder.add(Keys.TALK_HINT, "Press [%s] to talk to %s · hold [%s] to speak");
         adder.add(Keys.CMD_SOLO_ONLY, "Commands only work in a private chat with one companion.");
@@ -1066,6 +1076,8 @@ public final class ModLanguageData {
         adder.add(Keys.KEY_COMPANION_WHEEL, "同伴轮盘(按住)");
         adder.add(Keys.KEY_QUICK_VOICE, "快捷语音(按住)");
         adder.add(Keys.KEY_WATCH_COMPANION, "观看同伴 / 退出观看");
+        adder.add(Keys.KEY_WATCH_PREVIOUS, "观看上一位伙伴");
+        adder.add(Keys.KEY_WATCH_NEXT, "观看下一位伙伴");
 
         // --- consolidated into the datagen source (persona / mcp / reasoning / tabs / status ...) ---
         adder.add("numen.tab.settings", "设置");
@@ -1590,6 +1602,7 @@ public final class ModLanguageData {
         adder.add(Keys.QUICKVOICE_LISTENING, "%s 正在听%s  (松开发给 %s)");
         adder.add(Keys.QUICKVOICE_TRANSCRIBING, "◌ 转写中…  (马上发给 %s)");
         adder.add(Keys.KEYS_NO_COMPANION, "还没有同伴——先在 G 面板召唤一位");
+        adder.add(Keys.KEYS_NO_LIVING_COMPANION, "现在没有活着的伙伴可看");
         adder.add(Keys.KEYS_PICK_FIRST, "先按 [%s] 选一位同伴,或把准星对准它");
         adder.add(Keys.TALK_HINT, "按 [%s] 与 %s 对话 · 按住 [%s] 说话");
         adder.add(Keys.CMD_SOLO_ONLY, "命令只能在和同伴的私聊里用。");

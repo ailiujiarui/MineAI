@@ -61,6 +61,8 @@ public final class SpectatorHud {
             graphics.drawString(mc.font, level, x, y, 0x80FF20, false);
         }
         String hint = SpectatorClient.target().getName().getString() + " · ["
+                + NumenKeys.WATCH_PREVIOUS.getTranslatedKeyMessage().getString() + "]["
+                + NumenKeys.WATCH_NEXT.getTranslatedKeyMessage().getString() + "] 切换伙伴 · ["
                 + NumenKeys.WATCH_COMPANION.getTranslatedKeyMessage().getString() + "] 退出观看 · ["
                 + mc.options.keyInventory.getTranslatedKeyMessage().getString() + "] 背包(只读)";
         graphics.drawCenteredString(mc.font, hint, center, 8, 0xFFFFFFFF);

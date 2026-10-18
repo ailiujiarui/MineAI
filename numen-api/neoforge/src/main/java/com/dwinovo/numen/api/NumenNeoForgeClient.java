@@ -93,6 +93,9 @@ public class NumenNeoForgeClient {
         event.register(com.dwinovo.numen.api.client.NumenKeys.TALK_COMPANION);
         event.register(com.dwinovo.numen.api.client.NumenKeys.QUICK_VOICE);
         event.register(com.dwinovo.numen.api.client.NumenKeys.WATCH_COMPANION);
+        // [ / ] → watch the previous/next living companion; switches without leaving viewing.
+        event.register(com.dwinovo.numen.api.client.NumenKeys.WATCH_PREVIOUS);
+        event.register(com.dwinovo.numen.api.client.NumenKeys.WATCH_NEXT);
     }
 
     static void registerGuiLayers(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) {
