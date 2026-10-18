@@ -90,6 +90,32 @@ public class FluidGameTests {
         });
     }
 
+    /** 已经浮在深水里、面朝的方向与路线垂直:转向目标游过去,不靠沉底或上岸才能转身。 */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 400)
+    public static void turns_toward_the_route_while_already_afloat(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        pool(t, 4, 3, 14, 12, 4);
+        TestBody body = t.body(6, 0, 6);
+        BlockPos start = t.at(6, 0, 6);
+        // 水面格内留出一点下沉余量,等真实物理更新入水状态后开走,不等默认的出生无敌期。
+        body.setPos(body.getX(), body.getY() + 0.3, body.getZ());
+        body.setYRot(0.0f);   // 正南;目标在正东,不能沿出生朝向前后游就到达。
+        t.go(body, Goals.at(t.at(10, 0, 6)), RouteSpec.defaults()).after(2).paced(5).within(300)
+                .during(r -> {
+                    if (r.ticks == 1 && (!r.body.isInWater() || r.body.onGround()
+                            || !r.body.blockPosition().equals(start) || r.body.getYRot() != 0.0f)) {
+                        throw new GameTestAssertException("浮水起点未建立:位置 " + t.rel(r.body.blockPosition())
+                                + ",入水 " + r.body.isInWater() + ",着地 " + r.body.onGround()
+                                + ",yaw " + r.body.getYRot());
+                    }
+                    if (r.body.onGround()) {
+                        throw new GameTestAssertException("应当在浮水时转向,却先踩到了池底或岸上:"
+                                + t.rel(r.body.blockPosition()));
+                    }
+                })
+                .arrives().then(Scenes::unaltered);
+    }
+
     /** 一道流水横在路上(一头是源头,顺着两格高的水渠流开),水渠尽头之外能绕:绕过去,脚从不踩进流水。 */
     @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 800)
     public static void keeps_out_of_flowing_water(GameTestHelper helper) {

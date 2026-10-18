@@ -280,7 +280,7 @@ public class Mouse {
         BlockState state = level.getBlockState(pos);
         if (body.gameMode.isCreative()) {
             cooldown(true, true);
-            body.swing(InteractionHand.MAIN_HAND);
+            body.swing(InteractionHand.MAIN_HAND, false);
             send(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face);
             notifyBroken(pos, state);
             return landed(level, pos, state);
@@ -294,7 +294,7 @@ public class Mouse {
             return Strike.SWINGING;
         }
         progress += state.getDestroyProgress(body, level, pos);
-        body.swing(InteractionHand.MAIN_HAND);
+        body.swing(InteractionHand.MAIN_HAND, false);
         if (progress < 1.0F) {
             return Strike.SWINGING;
         }
@@ -327,7 +327,7 @@ public class Mouse {
     /** 第一下:原版客户端换了目标就先放下旧的,再送 START;秒破的当场碎,否则开始累加进度。 */
     private Strike start(ServerLevel level, BlockPos pos, Direction face, BlockState state) {
         release();
-        body.swing(InteractionHand.MAIN_HAND);
+        body.swing(InteractionHand.MAIN_HAND, false);
         boolean instant = !state.isAir() && state.getDestroyProgress(body, level, pos) >= 1.0F;
         send(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face);
         if (instant) {
@@ -531,7 +531,7 @@ public class Mouse {
     private boolean useItem(ServerLevel level, ItemStack stack, InteractionHand hand) {
         InteractionResult result = body.gameMode.useItem(body, level, stack, hand);
         if (result.shouldSwing()) {
-            body.swing(hand);
+            body.swing(hand, false);
         }
         return result.consumesAction();
     }

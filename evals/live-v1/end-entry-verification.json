@@ -1,0 +1,551 @@
+{
+  "evaluation_version": "end-entry-v1",
+  "case_id": "live.end-entry",
+  "recorded_at_utc": "2026-10-04T17:32:27.822999+00:00",
+  "recorded_timezone": "Asia/Shanghai",
+  "status": "partial_failure",
+  "reason": "Stage-four construction and all executable checks passed; required API tests retain the preexisting compilation blocker",
+  "environment": {
+    "minecraft": "1.21.1",
+    "neoforge_override": "21.1.233",
+    "gradle_offline": true,
+    "gradle_properties_unchanged": true
+  },
+  "scenario": {
+    "path": "scenarios/end-entry.json",
+    "sha256": "bfcce77b354a9cb93f86d1e1279c887691f5951b524efa29c99d360eaae31098",
+    "split": "dev",
+    "initialization": "Public artificial stage-3-ready resources and worn equipment in a fresh normal world",
+    "restores_previous_stage": false,
+    "seed": 73004,
+    "spawn": [
+      0.5,
+      84.0,
+      32.5
+    ],
+    "difficulty": "normal",
+    "world_preset": "normal",
+    "structures": true,
+    "daylight_cycle": true,
+    "setup": {
+      "spawn": [
+        0.5,
+        84.0,
+        32.5
+      ],
+      "inventory": {
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:iron_axe": 1,
+        "minecraft:iron_sword": 1,
+        "minecraft:water_bucket": 1,
+        "minecraft:torch": 32,
+        "minecraft:crafting_table": 1,
+        "minecraft:furnace": 1,
+        "minecraft:cooked_beef": 16,
+        "minecraft:ender_eye": 8,
+        "minecraft:ender_pearl": 8,
+        "minecraft:blaze_rod": 4
+      },
+      "equipment": {
+        "head": "minecraft:iron_helmet",
+        "chest": "minecraft:iron_chestplate",
+        "legs": "minecraft:iron_leggings",
+        "feet": "minecraft:iron_boots",
+        "offhand": "minecraft:shield"
+      }
+    },
+    "initial_health": 20,
+    "initial_food": 20,
+    "initial_saturation": 5,
+    "user_choices": {
+      "mixed_eye_equivalents": 16,
+      "success_hold_ticks": 20,
+      "final_min_health": 16,
+      "final_min_food": 16,
+      "equipment_and_supplies_record_only": true
+    },
+    "allowed_localization_tools": [
+      "locate_structure",
+      "native eye use and existing product tools"
+    ],
+    "stronghold_coordinates_disclosed": false,
+    "formal_portal_fixture": false,
+    "preopened_or_other_actor_assisted_activation_accepted": false,
+    "first_death_fails": true,
+    "real_model_baseline": null
+  },
+  "build": {
+    "status": "passed",
+    "command": ".\\gradlew.bat :core:fabric:build :core:neoforge:build --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "final_evidence": {
+      "path": "verification/end-entry-v1/build-final-facts.log.gz",
+      "bytes": 2468,
+      "sha256": "89fcc6c35e86db96b95b78e7c454543f21e7e381c05aea2208ddc5081d6aadf7",
+      "source_path": "build/evals/end-entry-v1/build-final-facts.log",
+      "uncompressed_sha256": "f9cc51f59b7b8059539980764fbdabdcb33694b2d817c648a94e99427b0d2207"
+    },
+    "earlier_evidence": [
+      {
+        "path": "verification/end-entry-v1/build-after-native-fixes.log.gz",
+        "bytes": 2457,
+        "sha256": "ce1e9c65f54c113814b30db5dc1abdb6a86d503a35fa9a26dff248e4e64b07d3",
+        "source_path": "build/evals/end-entry-v1/build-after-native-fixes.log",
+        "uncompressed_sha256": "d3246ce8fe694a564b1dac320145a231c1444a416e8368ae7c5fb004f2333044"
+      },
+      {
+        "path": "verification/end-entry-v1/build-final-fixture.log.gz",
+        "bytes": 2186,
+        "sha256": "b49716e53695e6e405fcc0c9ce4b97ee9ee88b67a54dd67ddc0f5442d8ca4fe7",
+        "source_path": "build/evals/end-entry-v1/build-final-fixture.log",
+        "uncompressed_sha256": "5263427962e7e985d9842e4115eed40cb592b205f8183c96b72dfec03eb6e092"
+      },
+      {
+        "path": "verification/end-entry-v1/build-final.log.gz",
+        "bytes": 2472,
+        "sha256": "bd0f1a4f10202af618f95bfaae2e8d28b70a0fb9544555202a5c78a7456f5a6b",
+        "source_path": "build/evals/end-entry-v1/build-final.log",
+        "uncompressed_sha256": "c63657c55e4c8cb47f7dcfd49923fe95f086d5fdc95233a10f34833f4f004a2a"
+      },
+      {
+        "path": "verification/end-entry-v1/build-frozen.log.gz",
+        "bytes": 2299,
+        "sha256": "2fbd71220b13afc2a115e30e84a12c0bdbdad2ffe268cfa92626e16914e3979f",
+        "source_path": "build/evals/end-entry-v1/build-frozen.log",
+        "uncompressed_sha256": "f4d161fef0e14cfc05510d24591ea7e00e0e5c9b67e4d4a7e0f5fdf58ffaa4ae"
+      },
+      {
+        "path": "verification/end-entry-v1/build-retry.log.gz",
+        "bytes": 1319,
+        "sha256": "510c2e5113cc8e5037fd80f7a59430f169db993bee4ac76d60ca4e42c75bebbf",
+        "source_path": "build/evals/end-entry-v1/build-retry.log",
+        "uncompressed_sha256": "8409452932241cb05b38f834be5c5b7ada1d081283a3b56216b12ce33b0834f2"
+      },
+      {
+        "path": "verification/end-entry-v1/build.log.gz",
+        "bytes": 1142,
+        "sha256": "f1e8240c9c79918e33b50ade598c7a290d2298bf080faad2634449035109ae81",
+        "source_path": "build/evals/end-entry-v1/build.log",
+        "uncompressed_sha256": "3de93737a4455a934ace81a9677717606074b25120ae7aa4a73b260bd1074e41"
+      }
+    ],
+    "initial_failures": [
+      "Incorrect Minecraft 1.21.1 Structures import; corrected to BuiltinStructures",
+      "EndPortalBlock cast required by Portal API; corrected against local native source"
+    ],
+    "nonfatal_existing_javadoc_diagnostics": true
+  },
+  "jvm_tests": {
+    "status": "partial_failure",
+    "command": ".\\gradlew.bat :ai:test :agent:test :api:common:test :core:common:test --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "passed_modules": [
+      {
+        "module": "ai",
+        "status": "passed",
+        "xml_suites": 21,
+        "tests": 152,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "evidence": {
+          "path": "verification/end-entry-v1/ai-junit.json.gz",
+          "bytes": 5602,
+          "sha256": "74fa1881ddf4e1ab412820572167a738b8571376889cc8cbc577221064e42b83",
+          "source_path": "build/evals/end-entry-v1/ai-junit.json",
+          "uncompressed_sha256": "5902c6527f27fc5864a8da58eeb941a83ae9551a0680569974acc9b90ac323a4"
+        }
+      },
+      {
+        "module": "agent",
+        "status": "passed",
+        "xml_suites": 43,
+        "tests": 330,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "evidence": {
+          "path": "verification/end-entry-v1/agent-junit.json.gz",
+          "bytes": 11650,
+          "sha256": "88e306c7f63596c0a52287ff415ea9e172a847783788b4fb4b22452284244072",
+          "source_path": "build/evals/end-entry-v1/agent-junit.json",
+          "uncompressed_sha256": "70dd5e0c0a095e42ea8d9aad0437a647cc8afa1ae1b22d8c48cfe0e5474f6358"
+        }
+      },
+      {
+        "module": "core/common",
+        "status": "passed",
+        "xml_suites": 50,
+        "tests": 381,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "evidence": {
+          "path": "verification/end-entry-v1/core-common-junit.json.gz",
+          "bytes": 12755,
+          "sha256": "38802118b35f318ae588ce1b87548108c771b47b9a78343ea12cd16b610ca9bd",
+          "source_path": "build/evals/end-entry-v1/core-common-junit.json",
+          "uncompressed_sha256": "27b32bbb045f5fc4a2d5df1858d9ea03a06557da737547fd747b1dbd902853c3"
+        }
+      }
+    ],
+    "passed_tests": 863,
+    "ai_execution": "Gradle UP-TO-DATE; matching-source cached suite retained",
+    "blocked_task": ":api:common:compileTestJava",
+    "tests_run_in_blocked_module": false,
+    "error": "AdapterHandlersTest.java:72: JsonObject cannot be converted to String",
+    "preexisting_evidence": "end-resources-verification.json",
+    "core_followup_command": ".\\gradlew.bat :core:common:test --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "evidence": [
+      {
+        "path": "verification/end-entry-v1/jvm-final-facts.log.gz",
+        "bytes": 1361,
+        "sha256": "e475b9795216958a048df14ce34a7b569d7404c54dad3ed72049dbe6addd397d",
+        "source_path": "build/evals/end-entry-v1/jvm-final-facts.log",
+        "uncompressed_sha256": "9b57290782699a3061ea8c931bc01536a061ebdfbca2f84dcab54f555b9a1ee5"
+      },
+      {
+        "path": "verification/end-entry-v1/core-jvm-final-facts.log.gz",
+        "bytes": 846,
+        "sha256": "2f8494b128295057d9dec14759eb32b3157af91ab9dd24b69e286aaef7e493de",
+        "source_path": "build/evals/end-entry-v1/core-jvm-final-facts.log",
+        "uncompressed_sha256": "64442294bca0fd1ec72276ab6c649bf80e448c4eb044696966c1fca77a62923f"
+      },
+      {
+        "path": "verification/end-entry-v1/LiveEvalRunTest.xml",
+        "bytes": 9077,
+        "sha256": "a6dffff6a4e1f36429a9a0563eba88a735d3e9bad4c7964c23d41ecf8c1827fe",
+        "source_path": "agent/build/test-results/test/TEST-com.dwinovo.numen.agent.acceptance.LiveEvalRunTest.xml"
+      }
+    ],
+    "earlier_evidence": [
+      {
+        "path": "verification/end-entry-v1/core-jvm-frozen.log.gz",
+        "bytes": 846,
+        "sha256": "f2aa79223a8d4ded36bfeed42d0741b92fe4e7606e64512b5c971f1b66c0a5dd",
+        "source_path": "build/evals/end-entry-v1/core-jvm-frozen.log",
+        "uncompressed_sha256": "73e60696fc2090635643503611da2be0cdb718ad07ff9a77094252e8288e447b"
+      },
+      {
+        "path": "verification/end-entry-v1/core-jvm.log.gz",
+        "bytes": 845,
+        "sha256": "adfbb8569c78261d39785eb452c28b5cf07caefb02685dc55fe7d148bdd0431b",
+        "source_path": "build/evals/end-entry-v1/core-jvm.log",
+        "uncompressed_sha256": "ad2c817288a85854fc49fc5c6b505f4739dcfdc2b1942e12f83dc2499224683d"
+      },
+      {
+        "path": "verification/end-entry-v1/jvm-frozen.log.gz",
+        "bytes": 1362,
+        "sha256": "d843a9c4f1e4e18586389a78259ebfc02cd34bcc7c04bfa7babce3eaaa2ae937",
+        "source_path": "build/evals/end-entry-v1/jvm-frozen.log",
+        "uncompressed_sha256": "7496d171b6a071cf314d97ae102b64b0b5210c6dafc4133d5bc0edeebcb19592"
+      },
+      {
+        "path": "verification/end-entry-v1/jvm.log.gz",
+        "bytes": 1361,
+        "sha256": "7bd446885ba5a67467af1c09d715d1fca7ee6ba42f6e6884552afcee534039f4",
+        "source_path": "build/evals/end-entry-v1/jvm.log",
+        "uncompressed_sha256": "8d415fc4e03b3f5541535ff0d9c556a0903a52a107b3b8fab123833507c1ff86"
+      }
+    ]
+  },
+  "game_tests": {
+    "status": "passed",
+    "required_tests": 301,
+    "new_end_entry_calibration_tests": 12,
+    "pass_marker": "All 301 required tests passed",
+    "command": ".\\gradlew.bat :core:neoforge:runGameTestServer --no-daemon --offline '-Pneoforge_version=21.1.233' --console=plain",
+    "evidence": {
+      "path": "verification/end-entry-v1/gametest-frozen.log.gz",
+      "bytes": 37969,
+      "sha256": "729df119304d99eb3d19e4c92082e9025be18354235b5f3115249a4c04ba3938",
+      "source_path": "build/evals/end-entry-v1/gametest-frozen.log",
+      "uncompressed_sha256": "4497a5238a2354c3b92a1d79e260e321106bd71cc985cea3364dce480239a236"
+    },
+    "native_positive_evidence": {
+      "path": "verification/end-entry-v1/native-entry-calibration.json",
+      "bytes": 180934,
+      "sha256": "6886f22000be6592b48c687611b968fb8cea5f2ea53834fe4dd835f6895b61a4",
+      "source_path": "build/evals/end-entry-v1/native-entry-calibration.json"
+    },
+    "native_positive_scope": "Artificial 12-frame ring plus test-only typed PortalRoom metadata. Last eye uses native useItemOn; same-level fixture placement into portal plane followed by actual native collision, handlePortal and dimension travel. No success flags are set. Calibrates observer/grader, not natural generation, searching, or walking.",
+    "initial_invocation": {
+      "status": "failed",
+      "required": 301,
+      "passed": 292,
+      "failed": 9,
+      "reason": "Fixture bare moveTo was undone by queued fake-client login teleport acknowledgement. Corrected same-level fixture placement using teleportTo; start moved outside first portal interior. Native death fact hook added before product recovery.",
+      "evidence": {
+        "path": "verification/end-entry-v1/gametest.log.gz",
+        "bytes": 45981,
+        "sha256": "8e1d690bece1629c81e503c2eaeed950b31f1ef20865cb28b9b919d977a20c7e",
+        "source_path": "build/evals/end-entry-v1/gametest.log",
+        "uncompressed_sha256": "87bba23bc133232c2ca2836ec93a89b374b69c65283e6965bdc4b9509dca1e01"
+      }
+    },
+    "other_attempts": [
+      {
+        "path": "verification/end-entry-v1/gametest-attempt-2.log.gz",
+        "bytes": 33613,
+        "sha256": "f13c37cd8ac748f5c2485783a562b82219d32b30676ecc60a92cebd01d487a1c",
+        "source_path": "build/evals/end-entry-v1/gametest-attempt-2.log",
+        "uncompressed_sha256": "b28e06b3eba42a22380d9ca7187b40e77158bf72eb7123515d4a83719d920e46"
+      },
+      {
+        "path": "verification/end-entry-v1/gametest-attempt-3.log.gz",
+        "bytes": 38002,
+        "sha256": "ac75a33291a789869be0d5dffd4afa6e952baca368438350d1829ec7b3986720",
+        "source_path": "build/evals/end-entry-v1/gametest-attempt-3.log",
+        "uncompressed_sha256": "9cadc3098909547d197180b78fe0312383d8b5207d47ec26abb66d616e652212"
+      }
+    ],
+    "repair_history": [
+      {
+        "attempt": 2,
+        "status": "server_crash",
+        "reason": "New fixture assertion read x instead of existing position[0]; assertion corrected without changing meaning"
+      },
+      {
+        "attempt": 3,
+        "status": "failed",
+        "passed": 300,
+        "required": 301,
+        "reason": "Observer emitted only position arrays for blocks while the new grading protocol requires integer x/y/z. Added explicit block coordinates; no grading threshold change"
+      }
+    ],
+    "python_raw_native_evidence_validation": "passed for initial and final actual observer snapshots"
+  },
+  "python_tests": {
+    "status": "passed",
+    "live_runner_tests": 72,
+    "command": "python -B -m unittest discover -s tools -p test_run_live_eval.py",
+    "evidence": {
+      "path": "verification/end-entry-v1/python-final.log.gz",
+      "bytes": 61,
+      "sha256": "c96703570a1c7d1e8c495687c9b1535e4d5025e22d5d36ecf6de7aab10af71ea",
+      "source_path": "build/evals/end-entry-v1/python-final.log",
+      "uncompressed_sha256": "1c501532c49952f1b5d1d08a4eb7ee0a1bfbcff4cc2ef02aee3312dc06194b36"
+    }
+  },
+  "prepare_only": {
+    "status": "prepared",
+    "command": "python -B tools/run_live_eval.py --prepare-only --scenario evals/live-v1/scenarios/end-entry.json --offline --neoforge-version 21.1.233",
+    "model_requests": 0,
+    "real_provider_configuration_read": false,
+    "evidence": [
+      {
+        "path": "verification/end-entry-v1/prepare/run.json",
+        "bytes": 3356,
+        "sha256": "2141176576ec39ea099aa5f73b7bc3dc5ff0c3e80ae8ac6dbe9c6e0667d5be25",
+        "source_path": "build/evals/live-v1/20261004T172813820684Z-418dcd2f/run.json"
+      },
+      {
+        "path": "verification/end-entry-v1/prepare/request.json",
+        "bytes": 4798,
+        "sha256": "74ca112b5f93f80bc765377ec59cd44c471e458e4f409edb230ea029eb0bd7e5",
+        "source_path": "build/evals/live-v1/20261004T172813820684Z-418dcd2f/request.json"
+      },
+      {
+        "path": "verification/end-entry-v1/prepare/source-hashes.json",
+        "bytes": 186310,
+        "sha256": "2efa751c0ba4e1748fec240241156d2a5c7c28ad6aa279ac569ac327d53d5c48",
+        "source_path": "build/evals/live-v1/20261004T172813820684Z-418dcd2f/source-hashes.json"
+      },
+      {
+        "path": "verification/end-entry-v1/prepare-final.log.gz",
+        "bytes": 144,
+        "sha256": "77fb4573254f673d33ba2613838aec8c352e0ba3f1d237fa6a35c73c2073c8dc",
+        "source_path": "build/evals/end-entry-v1/prepare-final.log",
+        "uncompressed_sha256": "4437a5eae4dcadf24f52a01e265abae7438f6c4d6803fb0e47b6483e179511ef"
+      }
+    ]
+  },
+  "local_client_calibration": {
+    "calibration_only": true,
+    "real_model": false,
+    "capability_baseline": false,
+    "command": "python -B tools/calibrate_live_eval.py --scenario end-entry --offline --neoforge-version 21.1.233",
+    "status": "passed",
+    "outcome": "budget_exhausted",
+    "reason": "max_model_calls",
+    "milestones": 0,
+    "available_milestones": 3,
+    "scripted_requests": 4,
+    "usage_is_synthetic": true,
+    "elapsed_ms": 496.238,
+    "check": {
+      "calibration_only": true,
+      "real_model": false,
+      "usage_is_synthetic": true,
+      "capability_baseline": false,
+      "scenario": "end-entry",
+      "launcher_exit_code": 0,
+      "starter_inventory_matches": true,
+      "initial_worn_armor_matches": true,
+      "initial_offhand_shield_matches": true,
+      "initial_equipment_ready": true,
+      "initial_food_nutrition": 128,
+      "purpose": "Reject prepared sixteen-eye-equivalent resources as a native End entrance with idle localhost replies",
+      "expected_outcome": "budget_exhausted",
+      "scripted_request_budget_reached": true,
+      "initial_eye_equivalents": 16,
+      "initial_mixed_resources_match": true,
+      "idle_resources_retained": true,
+      "no_portal_progress": true,
+      "no_milestones": true,
+      "same_subject": true,
+      "observer_evidence_valid": true,
+      "replanning_not_measured": true,
+      "passed": true
+    },
+    "source_unchanged": true,
+    "evidence": [
+      {
+        "path": "verification/end-entry-v1/localhost-negative/run.json",
+        "bytes": 4328,
+        "sha256": "62b95913faefc5bd55fbb40e3248827baf1dcffbd9c95f94c0e6eb1eb9e2b629",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/run.json"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/request.json",
+        "bytes": 4589,
+        "sha256": "d4f74d13421438621f6cba23f8a7af7adcfb8d3318fecac17b19c46a070c66fb",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/request.json"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/source-hashes.json",
+        "bytes": 186347,
+        "sha256": "3b29523bbc76162a2ce12ea9ed43663c6ba29c3af6708a3c4d6f750445a40bda",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/source-hashes.json"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/calibration.json",
+        "bytes": 859,
+        "sha256": "c21eeff4ffcec30fd86404c66bb6e2819b04a272d7494da91765cfdb76803bdd",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/calibration.json"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/results/result.json",
+        "bytes": 29237,
+        "sha256": "f55120dd5dd048dbab6f322f787981bd6d16eab045d2e72439ca7dca49e254b0",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/results/result.json"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/results/progress.json",
+        "bytes": 29237,
+        "sha256": "f55120dd5dd048dbab6f322f787981bd6d16eab045d2e72439ca7dca49e254b0",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/results/progress.json"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/results/trace.json",
+        "bytes": 56523,
+        "sha256": "436b44f20aa80e53fee0eb0f23c4e6e3822aca9285eba339a1b7376dd1480770",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/results/trace.json"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/results/trace.jsonl",
+        "bytes": 32206,
+        "sha256": "48fbfa8c704a07f3369a5a29e3f9943130a3d490f1174d05ecf858fc85b1e81e",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/results/trace.jsonl"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/results/chat.jsonl",
+        "bytes": 6442,
+        "sha256": "612549ba67e9dd1553c0f0a9774702cd0c5d72d0bda11aeee2e798048f5556c3",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/results/chat.jsonl"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/results/model.json",
+        "bytes": 121,
+        "sha256": "ce788ceaa6d7405cd6d8b2a0dff36ef1fa6aa68cdaf1330479b0500775711862",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/results/model.json"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-negative/launcher.log.gz",
+        "bytes": 7295,
+        "sha256": "f101d4e81b7e16c5924aa9fadab1c3285c2452f7589a6a24fcc2b9f774589eae",
+        "source_path": "build/evals/live-v1/calibration-68a025cf567e441ea63bbd02658af4c5/launcher.log",
+        "uncompressed_sha256": "a1025c76acc3d090a7b596e2783718283e61c68b8f340eff72f527d9cc5e429d"
+      },
+      {
+        "path": "verification/end-entry-v1/localhost-final.log.gz",
+        "bytes": 228,
+        "sha256": "891bf9feff9b05d03d2bddf2a19bb447ed6709b7d91fbb6ce80961f0e0e4fe55",
+        "source_path": "build/evals/end-entry-v1/localhost-final.log",
+        "uncompressed_sha256": "3b25f0f65a205cbc17072adcc4247b49fc495ee630da4309c53afd6ec76664f5"
+      }
+    ],
+    "registered_game_tests": 0,
+    "registered_tools": 42
+  },
+  "workspace_preservation": {
+    "branch": "main",
+    "commit_or_push_performed": false,
+    "reset_clean_stash_performed": false,
+    "preexisting_files": [
+      {
+        "path": "agent/src/main/java/com/dwinovo/numen/agent/decision/DecisionConfig.java",
+        "sha256": "72a29906a0124364dcb737dc2101c090aea9fb7cb54ecc94b0e534d5fed061ae",
+        "final_sha256": "72a29906a0124364dcb737dc2101c090aea9fb7cb54ecc94b0e534d5fed061ae",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "agent/src/main/java/com/dwinovo/numen/agent/decision/JevDecisionProvider.java",
+        "sha256": "e320c29f077220231bc057b6b334975f9017edbb6f4df7bab596ae4aaf4faff7",
+        "final_sha256": "e320c29f077220231bc057b6b334975f9017edbb6f4df7bab596ae4aaf4faff7",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "ai/src/main/java/com/dwinovo/numen/agent/http/HttpLlmTransport.java",
+        "sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53",
+        "final_sha256": "453cb344c61f938b5605f6fe0b4590ccf13617d56733002221f3e01e60fe1a53",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "ai/src/test/java/com/dwinovo/numen/agent/http/TransportCancelTest.java",
+        "sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325",
+        "final_sha256": "bba017ba084f98537ef49f8e99b6a5dd3e276743b25a89e17b879ac2fef61325",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "core/common/src/main/java/com/dwinovo/numen/core/tools/GuiOps.java",
+        "sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a",
+        "final_sha256": "b7af450fc041b15991d9f9b96c13a478c656e06e4f6df797ddb68680287d079a",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "core/neoforge/build.gradle",
+        "sha256": "126d7b83c170453651844fbfcaa641bde92af8d0a627ee219cdb5137a080cfb2",
+        "final_sha256": "126d7b83c170453651844fbfcaa641bde92af8d0a627ee219cdb5137a080cfb2",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "core/neoforge/src/main/java/com/dwinovo/numen/core/gametest/ContainerGameTests.java",
+        "sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e",
+        "final_sha256": "093ce31ba3a7acc3a9d9131091edbaebc3fb9f4c19de889e222bcddbea839c3e",
+        "unchanged_by_this_work": true
+      },
+      {
+        "path": "docs/architecture-mind-model.md",
+        "sha256": "53fb5f7a40f9f736fa15df0d1e25b876f0d41a57252b64b9acf8a7b773956e54",
+        "final_sha256": "53fb5f7a40f9f736fa15df0d1e25b876f0d41a57252b64b9acf8a7b773956e54",
+        "unchanged_by_this_work": true
+      }
+    ]
+  },
+  "real_model_run": {
+    "status": "not_run",
+    "capability_score": null,
+    "external_model_requests": 0,
+    "real_model_key_access": false,
+    "automatic_optimization_loop": false,
+    "reason": "Construction, native GameTest and scripted localhost calibration only"
+  },
+  "limits": [
+    "One hand-authored dev scenario, not an independent test set or multi-seed benchmark",
+    "Fixed fresh-world artificial stage start, not a recovered stage-3 checkpoint or continuous completion",
+    "Native positive fixture does not verify autonomous long-range finding, eye flight tracking, underground room navigation or mixed-resource crafting",
+    "Full same-world progression and dragon combat are not tested",
+    "Unattributed memory and replanning remain not_measured; absent facts remain not_covered",
+    "Snapshot freeze verifies current actual server tick once; repeated reads do not advance held ticks; gaps are permanent",
+    "Frame eye consumption is native and attributed; eye throws, drops and recovery only have sampled inventory before/after. Same-tick changes can cancel; no exact total throw loss is claimed"
+  ]
+}

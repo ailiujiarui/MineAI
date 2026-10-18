@@ -77,6 +77,8 @@ public final class NumenContent {
                 com.dwinovo.numen.eval.ExpeditionWorldObserver::new);
         com.dwinovo.numen.api.eval.WorldEvalObservers.register("end-resources-v1",
                 com.dwinovo.numen.eval.EndResourcesWorldObserver::new);
+        com.dwinovo.numen.api.eval.WorldEvalObservers.register("end-entry-v1",
+                com.dwinovo.numen.eval.EndEntryWorldObserver::new);
         com.dwinovo.numen.api.eval.WorldEvalObservers.register("dragon-combat-v1",
                 com.dwinovo.numen.eval.DragonCombatWorldObserver::new);
         com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen ->

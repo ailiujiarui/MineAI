@@ -77,31 +77,76 @@ end
 
 ---Dig out one cluster: numen.work.dig walks up to what is out of reach and digs it (standing where the hand reaches the
 ---most of what is left), then pick up what that dug dropped and still lies around (numen.work.collect with its drops),
----and again until none of it is left. A round that digs nothing raises failed with what is left; any other failing step (a
----dig that can't get there or is refused, a pick-up with no way) raises its error as it is.
----It takes no options: it digs the whole cluster. To dig a limited number of cells, use numen.work.dig(cells, {count = N}).
+---and again until none of it is left or opts.count cells have been dug and collected. Use count for a small preparation
+---batch; return to smelt and use it before starting the next batch. Before and after each dig and each pick-up, stop
+---with failed (data.reason = "unsafe", dug and any drops) if health falls, is at most half, breath is below half, you
+---are in lava, or a hostile within 16 blocks is visible. Reassess that result instead of retrying the same failed
+---batch. A round that digs nothing raises failed with what is left; any other failing step (a dig that can't get there
+---or is refused, a pick-up with no way) raises its error as it is.
 ---@param cluster Cluster|Cells What to dig: a cluster numen.scan.blocks found, as it is (or Cells, or a list of Blocks).
+---@param opts? {count?: integer} Maximum cells to dig and collect this call; omitted = the whole cluster.
 ---@return integer dug How many cells it dug.
 function M.mine(cluster, opts)
-  -- Lua drops arguments a function does not name, so an option like {count = 20} would vanish here and the caller would
-  -- think it had limited the dig. Refuse it instead of swallowing it, and name the call that does take a count.
-  if opts ~= nil and (type(opts) ~= "table" or next(opts) ~= nil) then
-    local bad = type(opts) == "table" and next(opts)
-    raise("bad_argument", (bad and ("there is no option " .. tostring(bad)) or "the second argument is not a table of options")
-        .. "; numen.work.mine takes only what to dig and digs all of it: to dig a limited number of cells use "
-        .. "numen.work.dig(cells, {count = N})", nil, {got = opts})
+  if opts ~= nil and type(opts) ~= "table" then
+    raise("bad_argument", "the second argument is not a table of options", nil, {got = opts})
+  end
+  -- Lua drops arguments a function does not name: an option other than count would vanish here and the caller would
+  -- think it had taken effect. Refuse it instead of swallowing it.
+  for key in pairs(opts or {}) do
+    if key ~= "count" then
+      raise("bad_argument", "there is no option " .. tostring(key)
+          .. "; numen.work.mine takes only what to dig and count (how many cells to dig and collect)", nil, {got = opts})
+    end
+  end
+  local limit = (opts or {}).count
+  if limit ~= nil and (type(limit) ~= "number" or limit < 1 or limit % 1 ~= 0) then
+    raise("bad_argument", "count must be a positive integer")
   end
   local dug = 0
-  while true do
-    local r = numen.work.dig(cluster)
-    dug = dug + r.dug
-    M.collect({items = r.drops})
-    if r.left == 0 then
-      return dug
+  local previous_hp = nil
+  local function checkpoint(progress)
+    local me = numen.status.self()
+    local reason = nil
+    local threat = nil
+    if me.hp <= me.max_hp / 2 then
+      reason = "health is at most half"
+    elseif previous_hp and me.hp < previous_hp then
+      reason = "health fell during the batch"
+    elseif me.in_lava then
+      reason = "in lava"
+    elseif me.air < me.max_air / 2 then
+      reason = "breath is below half"
     end
-    if r.dug == 0 then
+    if reason == nil then
+      for _, foe in ipairs(numen.scan.entities("hostile", {radius = 16})) do
+        if numen.scan.sight(foe.id).visible then
+          reason = "a hostile is visible nearby"
+          threat = foe
+          break
+        end
+      end
+    end
+    if reason then
+      raise("failed", "stopped mining after digging " .. dug .. " cell(s): " .. reason,
+          "reassess safety, health and the drops before starting another batch",
+          {reason = "unsafe", dug = dug, hp = me.hp, air = me.air, threat = threat,
+              drops = progress and progress.drops, left = progress and progress.left})
+    end
+    previous_hp = me.hp
+  end
+  while true do
+    checkpoint()
+    local r = limit and numen.work.dig(cluster, {count = limit - dug}) or numen.work.dig(cluster)
+    dug = dug + r.dug
+    if r.dug == 0 and r.left > 0 then
       raise("failed", "dug nothing this round and " .. r.left .. " cell(s) of it are left", nil,
-          {left = r.left, nearest = r.nearest})
+          {reason = "no_progress", dug = dug, left = r.left, nearest = r.nearest, drops = r.drops})
+    end
+    checkpoint(r)
+    M.collect({items = r.drops})
+    checkpoint(r)
+    if r.left == 0 or limit and dug >= limit then
+      return dug
     end
   end
 end

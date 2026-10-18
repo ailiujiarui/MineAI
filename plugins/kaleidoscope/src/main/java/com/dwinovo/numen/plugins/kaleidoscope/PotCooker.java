@@ -153,7 +153,7 @@ final class PotCooker implements Cooker {
         if (!pot.onPlaceOil(level, cook, oil)) {
             return Step.blocked("the pot would not take " + Dish.idOf(oil.getItem()) + " as oil");
         }
-        cook.swing(InteractionHand.MAIN_HAND);
+        cook.swing(InteractionHand.MAIN_HAND, false);
         return Step.done("poured " + Dish.idOf(oil.getItem()) + "; the ingredient window is open for "
                 + pot.getCurrentTick() / 20 + " seconds");
     }
@@ -191,7 +191,7 @@ final class PotCooker implements Cooker {
             if (!pot.addIngredient(level, cook, have)) {
                 return Step.blocked("the pot would not take " + added + " (no free slot, or it is not allowed in a pot)");
             }
-            cook.swing(InteractionHand.MAIN_HAND);
+            cook.swing(InteractionHand.MAIN_HAND, false);
             return Step.working("added " + added);
         }
         return Step.done("everything for " + Dish.idOf(dish.result().getItem()) + " is in the pot: "
@@ -226,7 +226,7 @@ final class PotCooker implements Cooker {
         };
     }
 
-    /** 挥一下锅铲。 */
+    /** 挥一下锅铲,只播动画而不重置攻击充能,避免第一视角手持物下沉。 */
     private Step shovel(NumenPlayer cook, String doing) {
         ItemStack shovel = Pantry.find(cook, s -> s.is(TagMod.KITCHEN_SHOVEL));
         if (shovel.isEmpty()) {
@@ -234,7 +234,7 @@ final class PotCooker implements Cooker {
                     + " comes out as a mystery dish");
         }
         pot.onShovelHit(level, cook, shovel);
-        cook.swing(InteractionHand.MAIN_HAND);
+        cook.swing(InteractionHand.MAIN_HAND, false);
         return Step.working(doing);
     }
 
@@ -286,7 +286,7 @@ final class PotCooker implements Cooker {
     }
 
     private Step settle(NumenPlayer cook, ItemStack plated, boolean burnt, boolean ordered) {
-        cook.swing(InteractionHand.MAIN_HAND);
+        cook.swing(InteractionHand.MAIN_HAND, false);
         if (burnt) {
             return Step.ruined(plated, "it burnt in the pot — what came out is "
                     + Dish.idOf(plated.getItem()) + ", not the dish");

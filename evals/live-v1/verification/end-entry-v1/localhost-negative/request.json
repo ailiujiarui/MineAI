@@ -1,0 +1,81 @@
+{
+  "scenario": {
+    "evaluation_version": "end-entry-v1",
+    "case_id": "live.end-entry",
+    "split": "dev",
+    "source": "Scripted localhost transport calibration; no model inference or capability score",
+    "prompt": "找到要塞的末地传送门，补齐其缺少的末影之眼并从同一个入口真正进入末地。这是独立第四阶段专项，起点代表第三阶段资源已经准备完成：种子73004的普通生存新世界，普通难度，结构生成开启，原版默认世界规则和正常昼夜；主世界固定出生坐标(0.5,84,32.5)，初始生命20、饱食20、饱和度5。你已实际穿戴全新铁头盔、铁胸甲、铁护腿、铁靴，副手有全新盾牌；背包有全新铁镐、铁斧、铁剑各1，水桶1、普通火把32、工作台1、熔炉1、熟牛肉16，以及末影之眼8、末影珍珠8、烈焰棒4。眼资源总等价16份：眼 + min(珍珠,粉 + 2×棒)；原料仍需要正常合成才能使用。所有物资都是公开人工初始化，不是上一阶段存档，不恢复旧Agent记忆或目标；没有给出要塞坐标，没有预建或预开启传送门，也不会在过程中补发物资、传送或人工救场。主人以旁观者停在初始位置。\n\n允许使用现有locate_structure等产品工具寻找要塞，也允许投掷末影之眼；不强迫投眼、固定路线或特定寻找策略。定位返回坐标只算线索，你仍须实际到达原生生成的要塞传送门。按正常游戏方式补齐该门所有缺少的眼，确认内部九个末地传送方块可用，再让你自己的身体经同一入口进入minecraft:the_end。原生成门框已带的眼可以利用；初始已开启的门不能作为本轮开启成果；其他主体帮忙补眼不能算作你完成全部缺口。只观察到门已开启、只持有眼、知道坐标、声称完成或因命令、召回、跟随传送、测试直接换维或复活进入末地，都不算完成。\n\n进入后，同一身体须在末地连续存活20个服务端游戏tick（正常20TPS约1秒），完成时生命至少16、饱食至少16。保持期只检查在末地存活，不要求生命和饱食全程维持16；生命或饱食不够时可正常补给，达标后再完成。首次死亡即失败。眼允许正常用于定位、合成和开门，最终不要求保留16份资源；装备耐久和补给只记录事实，不设置本阶段的最终保留门槛，也不要求安全保持200tick。服务端用同伴UUID、同一门的维度与坐标、真实方块状态、原生插眼和穿门证据判分，观察缺口或关键证据不足不能算成功。此阶段只要求找到并进入末地，不要求击杀末影龙。完成后告诉我。",
+    "seed": 73004,
+    "world_preset": "normal",
+    "world_observer": "end-entry-v1",
+    "success_hold_ticks": 20,
+    "setup": {
+      "spawn": [
+        0.5,
+        84.0,
+        32.5
+      ],
+      "inventory": {
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:iron_axe": 1,
+        "minecraft:iron_sword": 1,
+        "minecraft:water_bucket": 1,
+        "minecraft:torch": 32,
+        "minecraft:crafting_table": 1,
+        "minecraft:furnace": 1,
+        "minecraft:cooked_beef": 16,
+        "minecraft:ender_eye": 8,
+        "minecraft:ender_pearl": 8,
+        "minecraft:blaze_rod": 4
+      },
+      "equipment": {
+        "head": "minecraft:iron_helmet",
+        "chest": "minecraft:iron_chestplate",
+        "legs": "minecraft:iron_leggings",
+        "feet": "minecraft:iron_boots",
+        "offhand": "minecraft:shield"
+      }
+    },
+    "success": {
+      "min_health": 16,
+      "min_food": 16,
+      "world": {
+        "native_end_entry": true
+      }
+    },
+    "milestones": [
+      {
+        "id": "portal-reached",
+        "condition": {
+          "world": {
+            "portal_reached": true
+          }
+        }
+      },
+      {
+        "id": "portal-activated",
+        "condition": {
+          "world": {
+            "portal_activated_by_companion": true
+          }
+        }
+      },
+      {
+        "id": "entered-end",
+        "condition": {
+          "world": {
+            "native_end_entry": true
+          }
+        }
+      }
+    ],
+    "budget": {
+      "max_model_calls": 4,
+      "max_seconds": 45,
+      "max_tokens": 1000
+    }
+  },
+  "provider_id": "fixture",
+  "output_dir": "E:\\mineAI\\build\\evals\\live-v1\\calibration-68a025cf567e441ea63bbd02658af4c5\\results",
+  "world_name": "numen-eval-06cab92477da4e198e356ecbc0c8a78e"
+}

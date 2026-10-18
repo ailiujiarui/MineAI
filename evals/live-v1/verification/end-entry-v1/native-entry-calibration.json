@@ -1,0 +1,5413 @@
+{
+  "calibration_fixture": true,
+  "real_model": false,
+  "capability_baseline": false,
+  "result": {
+    "evaluation_version": "end-entry-v1",
+    "case_id": "live.end-entry",
+    "spec": {
+      "evaluation_version": "end-entry-v1",
+      "world_observer": "end-entry-v1",
+      "case_id": "live.end-entry",
+      "prompt": "进入末地",
+      "seed": 42,
+      "world_preset": "normal",
+      "setup": {},
+      "success_hold_ticks": 20,
+      "success": {
+        "world": {
+          "native_end_entry": true
+        },
+        "min_health": 16,
+        "min_food": 16
+      },
+      "budget": {
+        "max_model_calls": 1,
+        "max_seconds": 100,
+        "max_tokens": 100
+      }
+    },
+    "status": "success",
+    "reason": "authoritative_success_criterion_met",
+    "elapsed_ms": 1e-06,
+    "success_held_ticks": 26,
+    "model_calls": 0,
+    "denied_model_calls": 0,
+    "usage_reports": 0,
+    "unknown_usage_reports": 0,
+    "usage_complete": true,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "total": 0
+    },
+    "cost": null,
+    "first_token_ms": null,
+    "first_reply_ms": null,
+    "correct_response_ms": null,
+    "response_correctness": "not_measured",
+    "milestones": [],
+    "initial_snapshot": {
+      "alive": true,
+      "subject_present": true,
+      "companion_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+      "deaths": 0,
+      "health": 20.0,
+      "food": 20,
+      "dragon_kills": 0,
+      "game_tick": 13126,
+      "dimension": "minecraft:overworld",
+      "inventory": {},
+      "position": [
+        -11563036.5,
+        -58.0,
+        -5583301.5
+      ],
+      "world": {
+        "mining_tool_ready": false,
+        "shield_ready": false,
+        "armor_ready": false,
+        "food_nutrition": 0,
+        "safe_state": true,
+        "evidence": {
+          "scanned_game_tick": 13126,
+          "dimension": "minecraft:overworld",
+          "inventory": [
+            {
+              "id": "minecraft:ender_eye",
+              "count": 1,
+              "slot": 0,
+              "safe_nutrition": 0
+            }
+          ],
+          "armor": {
+            "head": {
+              "id": "minecraft:air",
+              "count": 0,
+              "ready": false
+            },
+            "chest": {
+              "id": "minecraft:air",
+              "count": 0,
+              "ready": false
+            },
+            "legs": {
+              "id": "minecraft:air",
+              "count": 0,
+              "ready": false
+            },
+            "feet": {
+              "id": "minecraft:air",
+              "count": 0,
+              "ready": false
+            }
+          },
+          "safety": {
+            "valid": true,
+            "on_fire": false,
+            "in_lava": false,
+            "drowning": false,
+            "air_supply": 300,
+            "fully_frozen": false,
+            "harmful_effects": [],
+            "visible_attackers_within_16": []
+          },
+          "resources": {
+            "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+            "carried_scope": "inventory.items + inventory.offhand; excludes armor slots and external containers",
+            "counts": {
+              "ender_eyes": 1,
+              "ender_pearls": 0,
+              "blaze_powder": 0,
+              "blaze_rods": 0,
+              "pearl_units": 1,
+              "blaze_units": 1,
+              "eye_equivalents": 1
+            },
+            "slots": [
+              {
+                "id": "minecraft:ender_eye",
+                "count": 1,
+                "slot": 0
+              }
+            ]
+          },
+          "end_entry": {
+            "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+            "portal": null,
+            "arrival": null,
+            "activation": null,
+            "entry": null,
+            "calibration_native_end_entry": false,
+            "native_entry_episode_active": false,
+            "critical_evidence_complete": true,
+            "observation_gaps": 0,
+            "first_death_observed": false,
+            "last_verified_game_tick": 13126
+          },
+          "initial_sample": {
+            "position": [
+              -11563037,
+              -58,
+              -5583302
+            ],
+            "x": -11563036.5,
+            "y": -58.0,
+            "z": -5583301.5,
+            "game_tick": 13126,
+            "dimension": "minecraft:overworld",
+            "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+            "inventory": {},
+            "resources": {
+              "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+              "carried_scope": "inventory.items + inventory.offhand; excludes armor slots and external containers",
+              "counts": {
+                "ender_eyes": 0,
+                "ender_pearls": 0,
+                "blaze_powder": 0,
+                "blaze_rods": 0,
+                "pearl_units": 0,
+                "blaze_units": 0,
+                "eye_equivalents": 0
+              },
+              "slots": []
+            }
+          },
+          "eye_consumption": {
+            "initial_ender_eyes": 0,
+            "current_ender_eyes": 1,
+            "native_frame_insertions": 0,
+            "inventory_delta_is_sampled": true,
+            "final_resource_threshold": 0
+          },
+          "events": [],
+          "events_total": 0,
+          "events_truncated": false,
+          "portal_evidence_truncated": false,
+          "coverage": {
+            "portal_reached": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "eye_inserted": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "other_eye_inserted": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "portal_activated": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "native_end_entry": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "dimension_change": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "hurt": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "inventory_change": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "sampled_chunk_change": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "danger_entered": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "danger_cleared": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "observation_gap": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "death": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "risk_replanning": {
+              "status": "not_measured",
+              "reason": "world facts do not attribute memory or planning; review the tool trace"
+            },
+            "resource_site_replanning": {
+              "status": "not_measured",
+              "reason": "world facts do not attribute memory or planning; review the tool trace"
+            },
+            "remember_unfinished_goal": {
+              "status": "not_measured",
+              "reason": "world facts do not attribute memory or planning; review the tool trace"
+            }
+          }
+        },
+        "ender_eyes": 1,
+        "ender_pearls": 0,
+        "blaze_powder": 0,
+        "blaze_rods": 0,
+        "pearl_units": 1,
+        "blaze_units": 1,
+        "eye_equivalents": 1,
+        "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+        "portal_reached": false,
+        "portal_activated_by_companion": false,
+        "native_end_entry": false,
+        "end_alive_held_ticks": 0,
+        "observation_complete": true
+      }
+    },
+    "final_snapshot": {
+      "alive": true,
+      "subject_present": true,
+      "companion_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+      "deaths": 0,
+      "health": 20.0,
+      "food": 20,
+      "dragon_kills": 0,
+      "game_tick": 13153,
+      "dimension": "minecraft:the_end",
+      "inventory": {},
+      "position": [
+        100.5,
+        49.0,
+        0.5
+      ],
+      "world": {
+        "mining_tool_ready": false,
+        "shield_ready": false,
+        "armor_ready": false,
+        "food_nutrition": 0,
+        "safe_state": true,
+        "evidence": {
+          "scanned_game_tick": 13153,
+          "dimension": "minecraft:the_end",
+          "inventory": [],
+          "armor": {
+            "head": {
+              "id": "minecraft:air",
+              "count": 0,
+              "ready": false
+            },
+            "chest": {
+              "id": "minecraft:air",
+              "count": 0,
+              "ready": false
+            },
+            "legs": {
+              "id": "minecraft:air",
+              "count": 0,
+              "ready": false
+            },
+            "feet": {
+              "id": "minecraft:air",
+              "count": 0,
+              "ready": false
+            }
+          },
+          "safety": {
+            "valid": true,
+            "on_fire": false,
+            "in_lava": false,
+            "drowning": false,
+            "air_supply": 300,
+            "fully_frozen": false,
+            "harmful_effects": [],
+            "visible_attackers_within_16": []
+          },
+          "resources": {
+            "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+            "carried_scope": "inventory.items + inventory.offhand; excludes armor slots and external containers",
+            "counts": {
+              "ender_eyes": 0,
+              "ender_pearls": 0,
+              "blaze_powder": 0,
+              "blaze_rods": 0,
+              "pearl_units": 0,
+              "blaze_units": 0,
+              "eye_equivalents": 0
+            },
+            "slots": []
+          },
+          "end_entry": {
+            "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+            "portal": {
+              "position": [
+                -11563033,
+                -58,
+                -5583300
+              ],
+              "x": -11563033,
+              "y": -58,
+              "z": -5583300,
+              "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+              "dimension": "minecraft:overworld",
+              "generated_stronghold": true,
+              "portal_origin": "generated_stronghold",
+              "initial_eyes": 11,
+              "initial_active": false,
+              "companion_eye_insertions": 1,
+              "other_eye_insertions": 0,
+              "frames": [
+                {
+                  "position": [
+                    -11563034,
+                    -58,
+                    -5583302
+                  ],
+                  "x": -11563034,
+                  "y": -58,
+                  "z": -5583302,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "south"
+                },
+                {
+                  "position": [
+                    -11563034,
+                    -58,
+                    -5583298
+                  ],
+                  "x": -11563034,
+                  "y": -58,
+                  "z": -5583298,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "north"
+                },
+                {
+                  "position": [
+                    -11563035,
+                    -58,
+                    -5583301
+                  ],
+                  "x": -11563035,
+                  "y": -58,
+                  "z": -5583301,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "east"
+                },
+                {
+                  "position": [
+                    -11563031,
+                    -58,
+                    -5583301
+                  ],
+                  "x": -11563031,
+                  "y": -58,
+                  "z": -5583301,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "west"
+                },
+                {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583302
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583302,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "south"
+                },
+                {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583298
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583298,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "north"
+                },
+                {
+                  "position": [
+                    -11563035,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563035,
+                  "y": -58,
+                  "z": -5583300,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "east"
+                },
+                {
+                  "position": [
+                    -11563031,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563031,
+                  "y": -58,
+                  "z": -5583300,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "west"
+                },
+                {
+                  "position": [
+                    -11563032,
+                    -58,
+                    -5583302
+                  ],
+                  "x": -11563032,
+                  "y": -58,
+                  "z": -5583302,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "south"
+                },
+                {
+                  "position": [
+                    -11563032,
+                    -58,
+                    -5583298
+                  ],
+                  "x": -11563032,
+                  "y": -58,
+                  "z": -5583298,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "north"
+                },
+                {
+                  "position": [
+                    -11563035,
+                    -58,
+                    -5583299
+                  ],
+                  "x": -11563035,
+                  "y": -58,
+                  "z": -5583299,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "east"
+                },
+                {
+                  "position": [
+                    -11563031,
+                    -58,
+                    -5583299
+                  ],
+                  "x": -11563031,
+                  "y": -58,
+                  "z": -5583299,
+                  "id": "minecraft:end_portal_frame",
+                  "has_eye": true,
+                  "facing": "west"
+                }
+              ],
+              "portal_blocks": [
+                {
+                  "position": [
+                    -11563034,
+                    -58,
+                    -5583301
+                  ],
+                  "x": -11563034,
+                  "y": -58,
+                  "z": -5583301,
+                  "id": "minecraft:end_portal"
+                },
+                {
+                  "position": [
+                    -11563034,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563034,
+                  "y": -58,
+                  "z": -5583300,
+                  "id": "minecraft:end_portal"
+                },
+                {
+                  "position": [
+                    -11563034,
+                    -58,
+                    -5583299
+                  ],
+                  "x": -11563034,
+                  "y": -58,
+                  "z": -5583299,
+                  "id": "minecraft:end_portal"
+                },
+                {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583301
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583301,
+                  "id": "minecraft:end_portal"
+                },
+                {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583300,
+                  "id": "minecraft:end_portal"
+                },
+                {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583299
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583299,
+                  "id": "minecraft:end_portal"
+                },
+                {
+                  "position": [
+                    -11563032,
+                    -58,
+                    -5583301
+                  ],
+                  "x": -11563032,
+                  "y": -58,
+                  "z": -5583301,
+                  "id": "minecraft:end_portal"
+                },
+                {
+                  "position": [
+                    -11563032,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563032,
+                  "y": -58,
+                  "z": -5583300,
+                  "id": "minecraft:end_portal"
+                },
+                {
+                  "position": [
+                    -11563032,
+                    -58,
+                    -5583299
+                  ],
+                  "x": -11563032,
+                  "y": -58,
+                  "z": -5583299,
+                  "id": "minecraft:end_portal"
+                }
+              ],
+              "eyes": 12,
+              "active": true
+            },
+            "arrival": {
+              "position": [
+                -11563037,
+                -58,
+                -5583302
+              ],
+              "x": -11563036.5,
+              "y": -58.0,
+              "z": -5583301.5,
+              "game_tick": 13126,
+              "dimension": "minecraft:overworld",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "kind": "portal_reached",
+              "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+              "portal": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300,
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 0,
+                "other_eye_insertions": 0,
+                "frames": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": false,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:air"
+                  }
+                ],
+                "eyes": 11,
+                "active": false
+              },
+              "evidence_source": "server_body_near_complete_frame_ring"
+            },
+            "activation": {
+              "position": [
+                -11563037,
+                -58,
+                -5583302
+              ],
+              "x": -11563036.5,
+              "y": -58.0,
+              "z": -5583301.5,
+              "game_tick": 13126,
+              "dimension": "minecraft:overworld",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "actor_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+              "frame": {
+                "position": [
+                  -11563031,
+                  -58,
+                  -5583299
+                ],
+                "x": -11563031,
+                "y": -58,
+                "z": -5583299
+              },
+              "native_eye_inserted": true,
+              "eye_inventory_delta": -1,
+              "portal": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300,
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 1,
+                "other_eye_insertions": 0,
+                "frames": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  }
+                ],
+                "eyes": 12,
+                "active": true
+              },
+              "kind": "portal_activated",
+              "evidence_source": "native_ender_eye_use_on_committed"
+            },
+            "entry": {
+              "position": [
+                100,
+                49,
+                0
+              ],
+              "x": 100.5,
+              "y": 49.0,
+              "z": 0.5,
+              "game_tick": 13128,
+              "dimension": "minecraft:the_end",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "same_entity_instance": true,
+              "destination_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+              "portal": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300,
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 1,
+                "other_eye_insertions": 0,
+                "frames": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  }
+                ],
+                "eyes": 12,
+                "active": true
+              },
+              "source_block": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300
+              },
+              "from_dimension": "minecraft:overworld",
+              "to_dimension": "minecraft:the_end",
+              "evidence_source": "vanilla_handle_portal_change_dimension",
+              "kind": "native_end_entry"
+            },
+            "calibration_native_end_entry": false,
+            "native_entry_episode_active": true,
+            "critical_evidence_complete": true,
+            "observation_gaps": 0,
+            "first_death_observed": false,
+            "last_verified_game_tick": 13153
+          },
+          "initial_sample": {
+            "position": [
+              -11563037,
+              -58,
+              -5583302
+            ],
+            "x": -11563036.5,
+            "y": -58.0,
+            "z": -5583301.5,
+            "game_tick": 13126,
+            "dimension": "minecraft:overworld",
+            "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+            "inventory": {},
+            "resources": {
+              "formula": "ender_eyes + min(ender_pearls, blaze_powder + 2 * blaze_rods)",
+              "carried_scope": "inventory.items + inventory.offhand; excludes armor slots and external containers",
+              "counts": {
+                "ender_eyes": 0,
+                "ender_pearls": 0,
+                "blaze_powder": 0,
+                "blaze_rods": 0,
+                "pearl_units": 0,
+                "blaze_units": 0,
+                "eye_equivalents": 0
+              },
+              "slots": []
+            }
+          },
+          "eye_consumption": {
+            "initial_ender_eyes": 0,
+            "current_ender_eyes": 0,
+            "native_frame_insertions": 1,
+            "inventory_delta_is_sampled": true,
+            "final_resource_threshold": 0
+          },
+          "events": [
+            {
+              "position": [
+                -11563037,
+                -58,
+                -5583302
+              ],
+              "x": -11563036.5,
+              "y": -58.0,
+              "z": -5583301.5,
+              "game_tick": 13126,
+              "dimension": "minecraft:overworld",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "kind": "portal_reached",
+              "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+              "portal": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300,
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 0,
+                "other_eye_insertions": 0,
+                "frames": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": false,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:air"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:air"
+                  }
+                ],
+                "eyes": 11,
+                "active": false
+              },
+              "evidence_source": "server_body_near_complete_frame_ring"
+            },
+            {
+              "position": [
+                -11563037,
+                -58,
+                -5583302
+              ],
+              "x": -11563036.5,
+              "y": -58.0,
+              "z": -5583301.5,
+              "game_tick": 13126,
+              "dimension": "minecraft:overworld",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "actor_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+              "frame": {
+                "position": [
+                  -11563031,
+                  -58,
+                  -5583299
+                ],
+                "x": -11563031,
+                "y": -58,
+                "z": -5583299
+              },
+              "native_eye_inserted": true,
+              "eye_inventory_delta": -1,
+              "portal": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300,
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 1,
+                "other_eye_insertions": 0,
+                "frames": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  }
+                ],
+                "eyes": 12,
+                "active": true
+              },
+              "kind": "eye_inserted"
+            },
+            {
+              "position": [
+                -11563037,
+                -58,
+                -5583302
+              ],
+              "x": -11563036.5,
+              "y": -58.0,
+              "z": -5583301.5,
+              "game_tick": 13126,
+              "dimension": "minecraft:overworld",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "actor_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+              "frame": {
+                "position": [
+                  -11563031,
+                  -58,
+                  -5583299
+                ],
+                "x": -11563031,
+                "y": -58,
+                "z": -5583299
+              },
+              "native_eye_inserted": true,
+              "eye_inventory_delta": -1,
+              "portal": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300,
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 1,
+                "other_eye_insertions": 0,
+                "frames": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  }
+                ],
+                "eyes": 12,
+                "active": true
+              },
+              "kind": "portal_activated",
+              "evidence_source": "native_ender_eye_use_on_committed"
+            },
+            {
+              "position": [
+                -11563033,
+                -58,
+                -5583300
+              ],
+              "x": -11563032.5,
+              "y": -57.5,
+              "z": -5583299.5,
+              "game_tick": 13126,
+              "dimension": "minecraft:overworld",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "actor_uuid": "27c7299d-e78c-4eef-bf50-208e26e0ae37",
+              "portal_id": "minecraft:overworld:-11563316:-58:-5583258",
+              "frame": {
+                "position": [
+                  -11563314,
+                  -58,
+                  -5583257
+                ],
+                "x": -11563314,
+                "y": -58,
+                "z": -5583257
+              },
+              "native_eye_inserted": true,
+              "eye_inventory_delta": -1,
+              "portal": {
+                "position": [
+                  -11563316,
+                  -58,
+                  -5583258
+                ],
+                "x": -11563316,
+                "y": -58,
+                "z": -5583258,
+                "portal_id": "minecraft:overworld:-11563316:-58:-5583258",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 0,
+                "other_eye_insertions": 1,
+                "frames": [
+                  {
+                    "position": [
+                      -11563317,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563317,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563317,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563317,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563318,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563318,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563314,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563314,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563316,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563316,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563316,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563316,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563318,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563318,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563314,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563314,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563315,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563315,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563315,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563315,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563318,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563318,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563314,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563314,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563317,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563317,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563317,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563317,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563317,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563317,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563316,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563316,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563316,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563316,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563316,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563316,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563315,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563315,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563315,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563315,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563315,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563315,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  }
+                ],
+                "eyes": 12,
+                "active": true
+              },
+              "kind": "other_eye_inserted"
+            },
+            {
+              "position": [
+                100,
+                49,
+                0
+              ],
+              "x": 100.5,
+              "y": 49.0,
+              "z": 0.5,
+              "game_tick": 13128,
+              "dimension": "minecraft:the_end",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "to_dimension": "minecraft:the_end",
+              "evidence_source": "native_dimension_change_hook",
+              "kind": "dimension_change"
+            },
+            {
+              "position": [
+                100,
+                49,
+                0
+              ],
+              "x": 100.5,
+              "y": 49.0,
+              "z": 0.5,
+              "game_tick": 13128,
+              "dimension": "minecraft:the_end",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "same_entity_instance": true,
+              "destination_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+              "portal": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300,
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 1,
+                "other_eye_insertions": 0,
+                "frames": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583302
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583302,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583298
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583298,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563035,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563035,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563031,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563031,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563034,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563034,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563033,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563033,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583301
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583301,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583300
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583300,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563032,
+                      -58,
+                      -5583299
+                    ],
+                    "x": -11563032,
+                    "y": -58,
+                    "z": -5583299,
+                    "id": "minecraft:end_portal"
+                  }
+                ],
+                "eyes": 12,
+                "active": true
+              },
+              "source_block": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563033,
+                "y": -58,
+                "z": -5583300
+              },
+              "from_dimension": "minecraft:overworld",
+              "to_dimension": "minecraft:the_end",
+              "evidence_source": "vanilla_handle_portal_change_dimension",
+              "kind": "native_end_entry"
+            },
+            {
+              "position": [
+                100,
+                49,
+                0
+              ],
+              "x": 100.5,
+              "y": 49.0,
+              "z": 0.5,
+              "game_tick": 13128,
+              "dimension": "minecraft:the_end",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "from_chunk": "minecraft:overworld:-722690:-348957",
+              "kind": "sampled_chunk_change"
+            },
+            {
+              "position": [
+                100,
+                49,
+                0
+              ],
+              "x": 100.5,
+              "y": 49.0,
+              "z": 0.5,
+              "game_tick": 13141,
+              "dimension": "minecraft:the_end",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "actor_uuid": "93e312cb-5c98-4456-82af-02387dc175be",
+              "portal_id": "minecraft:overworld:-11563234:-58:-5583258",
+              "frame": {
+                "position": [
+                  -11563232,
+                  -58,
+                  -5583257
+                ],
+                "x": -11563232,
+                "y": -58,
+                "z": -5583257
+              },
+              "native_eye_inserted": true,
+              "eye_inventory_delta": -1,
+              "portal": {
+                "position": [
+                  -11563234,
+                  -58,
+                  -5583258
+                ],
+                "x": -11563234,
+                "y": -58,
+                "z": -5583258,
+                "portal_id": "minecraft:overworld:-11563234:-58:-5583258",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 0,
+                "other_eye_insertions": 1,
+                "frames": [
+                  {
+                    "position": [
+                      -11563235,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563235,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563235,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563235,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563236,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563236,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563232,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563232,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563234,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563234,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563234,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563234,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563236,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563236,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563232,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563232,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563233,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563233,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563233,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563233,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563236,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563236,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563232,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563232,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563235,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563235,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563235,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563235,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563235,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563235,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563234,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563234,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563234,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563234,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563234,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563234,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563233,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563233,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563233,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563233,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563233,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563233,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  }
+                ],
+                "eyes": 12,
+                "active": true
+              },
+              "kind": "other_eye_inserted"
+            },
+            {
+              "position": [
+                100,
+                49,
+                0
+              ],
+              "x": 100.5,
+              "y": 49.0,
+              "z": 0.5,
+              "game_tick": 13147,
+              "dimension": "minecraft:the_end",
+              "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+              "actor_uuid": "4bf6bfbc-bb8d-477f-8822-2417643a7adb",
+              "portal_id": "minecraft:overworld:-11563193:-58:-5583258",
+              "frame": {
+                "position": [
+                  -11563191,
+                  -58,
+                  -5583257
+                ],
+                "x": -11563191,
+                "y": -58,
+                "z": -5583257
+              },
+              "native_eye_inserted": true,
+              "eye_inventory_delta": -1,
+              "portal": {
+                "position": [
+                  -11563193,
+                  -58,
+                  -5583258
+                ],
+                "x": -11563193,
+                "y": -58,
+                "z": -5583258,
+                "portal_id": "minecraft:overworld:-11563193:-58:-5583258",
+                "dimension": "minecraft:overworld",
+                "generated_stronghold": true,
+                "portal_origin": "generated_stronghold",
+                "initial_eyes": 11,
+                "initial_active": false,
+                "companion_eye_insertions": 0,
+                "other_eye_insertions": 1,
+                "frames": [
+                  {
+                    "position": [
+                      -11563194,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563194,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563194,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563194,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563195,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563195,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563191,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563191,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563193,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563193,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563193,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563193,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563195,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563195,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563191,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563191,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  },
+                  {
+                    "position": [
+                      -11563192,
+                      -58,
+                      -5583260
+                    ],
+                    "x": -11563192,
+                    "y": -58,
+                    "z": -5583260,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "south"
+                  },
+                  {
+                    "position": [
+                      -11563192,
+                      -58,
+                      -5583256
+                    ],
+                    "x": -11563192,
+                    "y": -58,
+                    "z": -5583256,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "north"
+                  },
+                  {
+                    "position": [
+                      -11563195,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563195,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "east"
+                  },
+                  {
+                    "position": [
+                      -11563191,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563191,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal_frame",
+                    "has_eye": true,
+                    "facing": "west"
+                  }
+                ],
+                "portal_blocks": [
+                  {
+                    "position": [
+                      -11563194,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563194,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563194,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563194,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563194,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563194,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563193,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563193,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563193,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563193,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563193,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563193,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563192,
+                      -58,
+                      -5583259
+                    ],
+                    "x": -11563192,
+                    "y": -58,
+                    "z": -5583259,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563192,
+                      -58,
+                      -5583258
+                    ],
+                    "x": -11563192,
+                    "y": -58,
+                    "z": -5583258,
+                    "id": "minecraft:end_portal"
+                  },
+                  {
+                    "position": [
+                      -11563192,
+                      -58,
+                      -5583257
+                    ],
+                    "x": -11563192,
+                    "y": -58,
+                    "z": -5583257,
+                    "id": "minecraft:end_portal"
+                  }
+                ],
+                "eyes": 12,
+                "active": true
+              },
+              "kind": "other_eye_inserted"
+            }
+          ],
+          "events_total": 9,
+          "events_truncated": false,
+          "portal_evidence_truncated": false,
+          "coverage": {
+            "portal_reached": {
+              "status": "observed",
+              "sampled_events": 1,
+              "first_event": {
+                "position": [
+                  -11563037,
+                  -58,
+                  -5583302
+                ],
+                "x": -11563036.5,
+                "y": -58.0,
+                "z": -5583301.5,
+                "game_tick": 13126,
+                "dimension": "minecraft:overworld",
+                "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "kind": "portal_reached",
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "portal": {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583300,
+                  "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                  "dimension": "minecraft:overworld",
+                  "generated_stronghold": true,
+                  "portal_origin": "generated_stronghold",
+                  "initial_eyes": 11,
+                  "initial_active": false,
+                  "companion_eye_insertions": 0,
+                  "other_eye_insertions": 0,
+                  "frames": [
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": false,
+                      "facing": "west"
+                    }
+                  ],
+                  "portal_blocks": [
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:air"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:air"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:air"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:air"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:air"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:air"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:air"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:air"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:air"
+                    }
+                  ],
+                  "eyes": 11,
+                  "active": false
+                },
+                "evidence_source": "server_body_near_complete_frame_ring"
+              }
+            },
+            "eye_inserted": {
+              "status": "observed",
+              "sampled_events": 1,
+              "first_event": {
+                "position": [
+                  -11563037,
+                  -58,
+                  -5583302
+                ],
+                "x": -11563036.5,
+                "y": -58.0,
+                "z": -5583301.5,
+                "game_tick": 13126,
+                "dimension": "minecraft:overworld",
+                "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "actor_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "frame": {
+                  "position": [
+                    -11563031,
+                    -58,
+                    -5583299
+                  ],
+                  "x": -11563031,
+                  "y": -58,
+                  "z": -5583299
+                },
+                "native_eye_inserted": true,
+                "eye_inventory_delta": -1,
+                "portal": {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583300,
+                  "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                  "dimension": "minecraft:overworld",
+                  "generated_stronghold": true,
+                  "portal_origin": "generated_stronghold",
+                  "initial_eyes": 11,
+                  "initial_active": false,
+                  "companion_eye_insertions": 1,
+                  "other_eye_insertions": 0,
+                  "frames": [
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    }
+                  ],
+                  "portal_blocks": [
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    }
+                  ],
+                  "eyes": 12,
+                  "active": true
+                },
+                "kind": "eye_inserted"
+              }
+            },
+            "other_eye_inserted": {
+              "status": "observed",
+              "sampled_events": 3,
+              "first_event": {
+                "position": [
+                  -11563033,
+                  -58,
+                  -5583300
+                ],
+                "x": -11563032.5,
+                "y": -57.5,
+                "z": -5583299.5,
+                "game_tick": 13126,
+                "dimension": "minecraft:overworld",
+                "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "actor_uuid": "27c7299d-e78c-4eef-bf50-208e26e0ae37",
+                "portal_id": "minecraft:overworld:-11563316:-58:-5583258",
+                "frame": {
+                  "position": [
+                    -11563314,
+                    -58,
+                    -5583257
+                  ],
+                  "x": -11563314,
+                  "y": -58,
+                  "z": -5583257
+                },
+                "native_eye_inserted": true,
+                "eye_inventory_delta": -1,
+                "portal": {
+                  "position": [
+                    -11563316,
+                    -58,
+                    -5583258
+                  ],
+                  "x": -11563316,
+                  "y": -58,
+                  "z": -5583258,
+                  "portal_id": "minecraft:overworld:-11563316:-58:-5583258",
+                  "dimension": "minecraft:overworld",
+                  "generated_stronghold": true,
+                  "portal_origin": "generated_stronghold",
+                  "initial_eyes": 11,
+                  "initial_active": false,
+                  "companion_eye_insertions": 0,
+                  "other_eye_insertions": 1,
+                  "frames": [
+                    {
+                      "position": [
+                        -11563317,
+                        -58,
+                        -5583260
+                      ],
+                      "x": -11563317,
+                      "y": -58,
+                      "z": -5583260,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563317,
+                        -58,
+                        -5583256
+                      ],
+                      "x": -11563317,
+                      "y": -58,
+                      "z": -5583256,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563318,
+                        -58,
+                        -5583259
+                      ],
+                      "x": -11563318,
+                      "y": -58,
+                      "z": -5583259,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563314,
+                        -58,
+                        -5583259
+                      ],
+                      "x": -11563314,
+                      "y": -58,
+                      "z": -5583259,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563316,
+                        -58,
+                        -5583260
+                      ],
+                      "x": -11563316,
+                      "y": -58,
+                      "z": -5583260,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563316,
+                        -58,
+                        -5583256
+                      ],
+                      "x": -11563316,
+                      "y": -58,
+                      "z": -5583256,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563318,
+                        -58,
+                        -5583258
+                      ],
+                      "x": -11563318,
+                      "y": -58,
+                      "z": -5583258,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563314,
+                        -58,
+                        -5583258
+                      ],
+                      "x": -11563314,
+                      "y": -58,
+                      "z": -5583258,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563315,
+                        -58,
+                        -5583260
+                      ],
+                      "x": -11563315,
+                      "y": -58,
+                      "z": -5583260,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563315,
+                        -58,
+                        -5583256
+                      ],
+                      "x": -11563315,
+                      "y": -58,
+                      "z": -5583256,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563318,
+                        -58,
+                        -5583257
+                      ],
+                      "x": -11563318,
+                      "y": -58,
+                      "z": -5583257,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563314,
+                        -58,
+                        -5583257
+                      ],
+                      "x": -11563314,
+                      "y": -58,
+                      "z": -5583257,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    }
+                  ],
+                  "portal_blocks": [
+                    {
+                      "position": [
+                        -11563317,
+                        -58,
+                        -5583259
+                      ],
+                      "x": -11563317,
+                      "y": -58,
+                      "z": -5583259,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563317,
+                        -58,
+                        -5583258
+                      ],
+                      "x": -11563317,
+                      "y": -58,
+                      "z": -5583258,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563317,
+                        -58,
+                        -5583257
+                      ],
+                      "x": -11563317,
+                      "y": -58,
+                      "z": -5583257,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563316,
+                        -58,
+                        -5583259
+                      ],
+                      "x": -11563316,
+                      "y": -58,
+                      "z": -5583259,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563316,
+                        -58,
+                        -5583258
+                      ],
+                      "x": -11563316,
+                      "y": -58,
+                      "z": -5583258,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563316,
+                        -58,
+                        -5583257
+                      ],
+                      "x": -11563316,
+                      "y": -58,
+                      "z": -5583257,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563315,
+                        -58,
+                        -5583259
+                      ],
+                      "x": -11563315,
+                      "y": -58,
+                      "z": -5583259,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563315,
+                        -58,
+                        -5583258
+                      ],
+                      "x": -11563315,
+                      "y": -58,
+                      "z": -5583258,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563315,
+                        -58,
+                        -5583257
+                      ],
+                      "x": -11563315,
+                      "y": -58,
+                      "z": -5583257,
+                      "id": "minecraft:end_portal"
+                    }
+                  ],
+                  "eyes": 12,
+                  "active": true
+                },
+                "kind": "other_eye_inserted"
+              }
+            },
+            "portal_activated": {
+              "status": "observed",
+              "sampled_events": 1,
+              "first_event": {
+                "position": [
+                  -11563037,
+                  -58,
+                  -5583302
+                ],
+                "x": -11563036.5,
+                "y": -58.0,
+                "z": -5583301.5,
+                "game_tick": 13126,
+                "dimension": "minecraft:overworld",
+                "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "actor_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "frame": {
+                  "position": [
+                    -11563031,
+                    -58,
+                    -5583299
+                  ],
+                  "x": -11563031,
+                  "y": -58,
+                  "z": -5583299
+                },
+                "native_eye_inserted": true,
+                "eye_inventory_delta": -1,
+                "portal": {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583300,
+                  "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                  "dimension": "minecraft:overworld",
+                  "generated_stronghold": true,
+                  "portal_origin": "generated_stronghold",
+                  "initial_eyes": 11,
+                  "initial_active": false,
+                  "companion_eye_insertions": 1,
+                  "other_eye_insertions": 0,
+                  "frames": [
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    }
+                  ],
+                  "portal_blocks": [
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    }
+                  ],
+                  "eyes": 12,
+                  "active": true
+                },
+                "kind": "portal_activated",
+                "evidence_source": "native_ender_eye_use_on_committed"
+              }
+            },
+            "native_end_entry": {
+              "status": "observed",
+              "sampled_events": 1,
+              "first_event": {
+                "position": [
+                  100,
+                  49,
+                  0
+                ],
+                "x": 100.5,
+                "y": 49.0,
+                "z": 0.5,
+                "game_tick": 13128,
+                "dimension": "minecraft:the_end",
+                "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "same_entity_instance": true,
+                "destination_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                "portal": {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583300,
+                  "portal_id": "minecraft:overworld:-11563033:-58:-5583300",
+                  "dimension": "minecraft:overworld",
+                  "generated_stronghold": true,
+                  "portal_origin": "generated_stronghold",
+                  "initial_eyes": 11,
+                  "initial_active": false,
+                  "companion_eye_insertions": 1,
+                  "other_eye_insertions": 0,
+                  "frames": [
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583302
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583302,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "south"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583298
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583298,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "north"
+                    },
+                    {
+                      "position": [
+                        -11563035,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563035,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "east"
+                    },
+                    {
+                      "position": [
+                        -11563031,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563031,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal_frame",
+                      "has_eye": true,
+                      "facing": "west"
+                    }
+                  ],
+                  "portal_blocks": [
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563034,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563034,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563033,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563033,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583301
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583301,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583300
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583300,
+                      "id": "minecraft:end_portal"
+                    },
+                    {
+                      "position": [
+                        -11563032,
+                        -58,
+                        -5583299
+                      ],
+                      "x": -11563032,
+                      "y": -58,
+                      "z": -5583299,
+                      "id": "minecraft:end_portal"
+                    }
+                  ],
+                  "eyes": 12,
+                  "active": true
+                },
+                "source_block": {
+                  "position": [
+                    -11563033,
+                    -58,
+                    -5583300
+                  ],
+                  "x": -11563033,
+                  "y": -58,
+                  "z": -5583300
+                },
+                "from_dimension": "minecraft:overworld",
+                "to_dimension": "minecraft:the_end",
+                "evidence_source": "vanilla_handle_portal_change_dimension",
+                "kind": "native_end_entry"
+              }
+            },
+            "dimension_change": {
+              "status": "observed",
+              "sampled_events": 1,
+              "first_event": {
+                "position": [
+                  100,
+                  49,
+                  0
+                ],
+                "x": 100.5,
+                "y": 49.0,
+                "z": 0.5,
+                "game_tick": 13128,
+                "dimension": "minecraft:the_end",
+                "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "to_dimension": "minecraft:the_end",
+                "evidence_source": "native_dimension_change_hook",
+                "kind": "dimension_change"
+              }
+            },
+            "hurt": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "inventory_change": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "sampled_chunk_change": {
+              "status": "observed",
+              "sampled_events": 1,
+              "first_event": {
+                "position": [
+                  100,
+                  49,
+                  0
+                ],
+                "x": 100.5,
+                "y": 49.0,
+                "z": 0.5,
+                "game_tick": 13128,
+                "dimension": "minecraft:the_end",
+                "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+                "from_chunk": "minecraft:overworld:-722690:-348957",
+                "kind": "sampled_chunk_change"
+              }
+            },
+            "danger_entered": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "danger_cleared": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "observation_gap": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "death": {
+              "status": "not_covered",
+              "sampled_events": 0,
+              "first_event": null
+            },
+            "risk_replanning": {
+              "status": "not_measured",
+              "reason": "world facts do not attribute memory or planning; review the tool trace"
+            },
+            "resource_site_replanning": {
+              "status": "not_measured",
+              "reason": "world facts do not attribute memory or planning; review the tool trace"
+            },
+            "remember_unfinished_goal": {
+              "status": "not_measured",
+              "reason": "world facts do not attribute memory or planning; review the tool trace"
+            }
+          }
+        },
+        "ender_eyes": 0,
+        "ender_pearls": 0,
+        "blaze_powder": 0,
+        "blaze_rods": 0,
+        "pearl_units": 0,
+        "blaze_units": 0,
+        "eye_equivalents": 0,
+        "subject_uuid": "09e539fe-fa44-44a9-8bf2-d675322ddcb0",
+        "portal_reached": true,
+        "portal_activated_by_companion": true,
+        "native_end_entry": true,
+        "end_alive_held_ticks": 26,
+        "observation_complete": true
+      }
+    }
+  }
+}

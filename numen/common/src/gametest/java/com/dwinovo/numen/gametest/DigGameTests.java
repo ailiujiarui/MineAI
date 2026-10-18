@@ -681,6 +681,57 @@ public class DigGameTests {
         });
     }
 
+    /** 受理后身体被带到远处水里,够不着就及时交账;游泳不是等待落地的自由落体。 */
+    @GameTest(template = "floor20", timeoutTicks = 120, batch = "numen_dig")
+    public static void dig_reports_lost_reach_while_the_body_is_afloat(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos ore = helper.absolutePos(new BlockPos(7, 2, 4));
+        level.setBlockAndUpdate(ore, Blocks.IRON_ORE.defaultBlockState());
+        // 深水池不在原矿附近,受理时的工具、许可与漏液检查仍走真实干地路径。
+        for (int x = 11; x <= 17; x++) {
+            for (int z = 11; z <= 17; z++) {
+                for (int y = 1; y <= 8; y++) {
+                    boolean wall = x == 11 || x == 17 || z == 11 || z == 17 || y == 1;
+                    level.setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                            (wall ? Blocks.BEDROCK : Blocks.WATER).defaultBlockState());
+                }
+            }
+        }
+        NumenPlayer companion = spawnAt(helper, "gametest_dig_afloat", new BlockPos(4, 2, 4), false);
+        companion.getInventory().add(new ItemStack(Items.STONE_PICKAXE));
+        ToolRun[] dig = new ToolRun[1];
+        steps(helper)
+                .thenWaitUntil(() -> helper.assertTrue(companion.onGround(), "fixture: she has not landed"))
+                .thenExecute(() -> dig[0] = lua(companion, "numen.work.dig(" + xyz(ore) + ")"))
+                .thenWaitUntil(() -> helper.assertTrue(dig[0].accepted(), "fixture: dry dig was not accepted: " + dig[0].reply()))
+                .thenExecute(() -> {
+                    helper.assertTrue(!dig[0].done() && level.getBlockState(ore).is(Blocks.IRON_ORE),
+                            "fixture: target must still exist when the accepted body is displaced");
+                    // 只安排被换气等外力移走后的身体状态;换气本能保持启用,不测本能本身的触发。
+                    drop(helper, companion, new BlockPos(14, 7, 14));
+                    companion.setDeltaMovement(Vec3.ZERO);
+                    companion.setOnGround(false);
+                })
+                .thenIdle(2)
+                .thenExecute(() -> helper.assertTrue(companion.isInWater() && !companion.onGround(),
+                        "fixture: native physics must report swimming without ground support"))
+                .thenIdle(20)
+                .thenExecute(() -> {
+                    helper.assertTrue(companion.isInWater() && !companion.onGround(),
+                            "fixture: she must remain afloat while the dig settles");
+                    helper.assertTrue(dig[0].done(), "accepted dig kept waiting for ground after losing reach in water");
+                    helper.assertTrue(!dig[0].succeeded() && "out_of_reach".equals(dig[0].kind()),
+                            "the waterborne dig did not report lost reach: " + dig[0].kind() + " | " + dig[0].outcome());
+                    var result = dig[0].result(com.dwinovo.numen.task.dig.DigCompanionTask.Dug.class);
+                    helper.assertTrue(result != null && result.dug() == 0 && result.left() == 1,
+                            "the displaced dig did not account for the untouched ore: " + result);
+                    helper.assertTrue(level.getBlockState(ore).is(Blocks.IRON_ORE)
+                                    && dig[0].hint() != null && dig[0].hint().contains("numen.move.to("),
+                            "the inaccessible target or movement hint was lost: " + dig[0].outcome());
+                    CompanionFactory.despawn(level.getServer(), companion);
+                }).thenSucceed();
+    }
+
     /** 这一挖的结果里只有一笔掉落物去向,交回它。 */
     private static com.dwinovo.numen.act.Drops.Drop onlyDrop(ToolRun dig) {
         var drops = dig.result(com.dwinovo.numen.task.dig.DigCompanionTask.Dug.class).drops();

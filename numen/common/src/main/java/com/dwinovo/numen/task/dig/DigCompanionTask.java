@@ -1,5 +1,6 @@
 package com.dwinovo.numen.task.dig;
 
+import com.dwinovo.numen.api.sdk.Place;
 import com.dwinovo.numen.api.task.TaskResult;
 import com.dwinovo.numen.api.agent.script.ErrorKind;
 import com.dwinovo.numen.api.area.Cells;
@@ -17,6 +18,7 @@ import com.dwinovo.numen.task.move.Destination;
 import com.dwinovo.numen.api.entity.NumenPlayer;
 import com.dwinovo.numen.pathing.api.Snapshots;
 import com.dwinovo.numen.pathing.drive.LiveWorld;
+import com.dwinovo.numen.pathing.plan.Stance;
 import com.dwinovo.numen.pathing.search.Goal;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.api.permission.Action;
@@ -41,7 +43,8 @@ import java.util.Set;
  * <ul>
  *   <li>挖手够得着的——够不够得着与挖一格的寻路目标是同一个判据({@link Goals#dig}:够得着、身体不占着它);手边一格都够不着就先
  *       走到够得着剩下最多格的地方({@link #walkTo},到达目标是 {@link Arrival#dig}),挖完够得着的再走,到挖完或真到不了;
- *       走到了仍够不着的,回执说还剩几格、最近一格在哪;</li>
+ *       浮在水面上走不了路时不去走,当场报够不着,回执说还剩几格、最近一格在哪、下一步怎么去到它;
+ *       走到了仍够不着的,照上面的说法交账;</li>
  *   <li>挡在前面的格一并挖开:挖掘器朝隔着的格都清得掉、挡得最少的那一点看过去,准星落在的那一格先挖({@link BlockDigger})。清不清得掉
  *       按 {@link DigTaskRecord#SPEC} 问({@link DigQuote#clearing}):天然地形挖开,要主人同意的、规则不许的不挖,如实说是哪一格、
  *       为什么({@link DigQuote#walledIn});</li>
@@ -190,6 +193,17 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
     /** 一次走去挖最多点名几格(由近及远):寻路的目标也只取最近的这么多。 */
     private static final int MAX_WALK_TARGETS = 64;
 
+    /** 还要挖的格里离她最近、此刻够不着的那一格;都够得着是 null。收工时交账指路用它。 */
+    private BlockPos nearestBeyond() {
+        Feet here = Feet.of(player);
+        for (BlockPos cell : wanted()) {
+            if (!reaches(here, cell)) {
+                return cell;
+            }
+        }
+        return null;
+    }
+
     /** 够不着的格里挖了不用问主人的、挖得成的:手边这一格要问主人时,先走去挖它们。 */
     private List<BlockPos> unaskedBeyond() {
         List<BlockPos> out = new ArrayList<>();
@@ -238,7 +252,10 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
             return TaskState.RUNNING;
         }
         BlockPos target = next();
-        if (target != null && !justWalked) {
+        // 浮在水面上走不了路:够不着就照当下交账,给出去那格的下一步;等站到地上或主人把她带出去再叫一次
+        Feet here = Feet.of(player);
+        boolean canWalk = here != null && here.stance().kind() != Stance.Kind.SWIMMING;
+        if (target != null && !justWalked && canWalk) {
             // 手边这一格要问主人(同一套定价里贵十倍)而别处有不用问的:先走去挖不用问的,不剔除要问的
             List<BlockPos> unasked = pricing.asks(target, level.getBlockState(target)) ? unaskedBeyond() : List.of();
             if (!unasked.isEmpty()) {
@@ -247,14 +264,17 @@ public final class DigCompanionTask extends AbstractCompanionTask<DigTaskRecord,
             }
         }
         if (target == null) {
-            List<BlockPos> beyond = justWalked ? List.of() : beyondReach();
+            List<BlockPos> beyond = canWalk && !justWalked ? beyondReach() : List.of();
             if (!beyond.isEmpty()) {
                 walkingTo = beyond;
                 return walking();
             }
             if (dug.isEmpty()) {
-                return end(TaskState.FAILED, () ->
-                        fail(nothingHere(false) + dropsLine(), nothingHereFailure()));
+                return end(TaskState.FAILED, () -> {
+                    BlockPos near = nearestBeyond();
+                    fail(nothingHere(false) + dropsLine(), nothingHereFailure(),
+                            near == null ? null : NavText.gotoCall(Place.cell(near), Arrival.BESIDE));
+                });
             }
             return end(TaskState.SUCCESS, null);
         }

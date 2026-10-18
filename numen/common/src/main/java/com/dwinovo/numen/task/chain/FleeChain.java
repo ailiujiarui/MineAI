@@ -39,9 +39,6 @@ public final class FleeChain implements Task, Reflex {
     /** 本能名册里的 id。 */
     public static final String ID = "flee";
 
-    /** 看多远的追兵:和自卫、攻击组装局面同一个半径。 */
-    private static final double CHASE_RADIUS = 12.0;
-
     /**
      * 跑的时候扫多远。必须<b>大于</b> {@link Menace#FLEE_DISTANCE},否则她一边跑一边有新的怪进入视野,落点每几刻
      * 换一次,等于没有落点。
@@ -97,7 +94,7 @@ public final class FleeChain implements Task, Reflex {
 
     /** 正在针对她的:锁定了她,或刚打了她。 */
     private static List<Mob> chasers(NumenPlayer companion) {
-        return Menace.hostilesAround(companion, CHASE_RADIUS).stream()
+        return Menace.hostilesAround(companion, Menace.ENGAGEMENT_RADIUS).stream()
                 .filter(m -> m.getTarget() == companion || m == companion.getLastHurtByMob())
                 .toList();
     }

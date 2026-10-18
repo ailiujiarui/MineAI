@@ -149,7 +149,7 @@ final class StockpotCooker implements Cooker {
         if (!stockpot.addSoupBase(level, cook, bucket)) {
             return Step.blocked("the stockpot would not take " + Dish.idOf(bucket.getItem()) + " as a soup base");
         }
-        cook.swing(InteractionHand.MAIN_HAND);
+        cook.swing(InteractionHand.MAIN_HAND, false);
         return Step.done("poured the " + dish.soupBase() + " soup base");
     }
 
@@ -180,7 +180,7 @@ final class StockpotCooker implements Cooker {
                 return Step.blocked("the stockpot would not take " + added
                         + " (no free slot, or it is not allowed in a pot)");
             }
-            cook.swing(InteractionHand.MAIN_HAND);
+            cook.swing(InteractionHand.MAIN_HAND, false);
             return Step.working("added " + added);
         }
         return Step.done("everything for " + Dish.idOf(dish.result().getItem()) + " is in the stockpot: "
@@ -208,7 +208,7 @@ final class StockpotCooker implements Cooker {
             if (!stockpot.onLitClick(level, cook, ItemStack.EMPTY)) {
                 return Step.blocked("the lid would not come off");
             }
-            cook.swing(InteractionHand.MAIN_HAND);
+            cook.swing(InteractionHand.MAIN_HAND, false);
             return Step.done("took the lid off");
         }
         ItemStack lid = Pantry.find(cook, s -> s.is(ModItems.STOCKPOT_LID.get()));
@@ -219,7 +219,7 @@ final class StockpotCooker implements Cooker {
         if (!stockpot.onLitClick(level, cook, lid)) {
             return Step.blocked("the stockpot would not take the lid");
         }
-        cook.swing(InteractionHand.MAIN_HAND);
+        cook.swing(InteractionHand.MAIN_HAND, false);
         return Step.done(contents().isEmpty() ? "put the lid on" : "put the lid on; it simmers now");
     }
 
@@ -255,7 +255,7 @@ final class StockpotCooker implements Cooker {
         } else if (!stockpot.takeOutProduct(level, cook, ItemStack.EMPTY)) {
             return Step.blocked("the stockpot would not hand a serving over");
         }
-        cook.swing(InteractionHand.MAIN_HAND);
+        cook.swing(InteractionHand.MAIN_HAND, false);
         if (!ordered) {
             return Step.ruined(plated, "what came out is " + Dish.idOf(plated.getItem())
                     + " — the mix did not match the recipe");

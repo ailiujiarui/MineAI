@@ -357,6 +357,8 @@ final class Trial {
             this.navigator = navigator;
             this.navigation = navigation;
             this.spec = spec;
+            // 无头服务器不等下一刻的墙钟;给异步搜索留一次调度机会,仍按原刻数与断言验收。
+            paced(1);
             trial.tickers.add(this::tick);
         }
 
