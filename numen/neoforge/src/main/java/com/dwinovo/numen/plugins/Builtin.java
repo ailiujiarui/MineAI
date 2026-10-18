@@ -42,6 +42,8 @@ public final class Builtin {
         gate.open("jei", () -> com.dwinovo.numen.plugins.jei.JeiPlugin::install);
         gate.open("ftbquests", "ftbquests",
                 skills -> () -> com.dwinovo.numen.plugins.ftbquests.NumenFtbQuests.install(skills));
+        gate.open("twilightforest", "twilightforest",
+                skills -> () -> com.dwinovo.numen.plugins.twilightforest.NumenTwilightForest.install(skills));
     }
 
     /** YSM 联动只写原版;它要的加载器专属的两件事,NeoForge 的答案在这里。 */
