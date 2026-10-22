@@ -19,6 +19,7 @@ public final class NumenGameTestSuite implements GameTestSuite {
                 CommandGameTests.class,
                 ContainerGameTests.class,
                 DigGameTests.class,
+                EnchantGameTests.class,
                 FirstPersonHandGameTests.class,
                 FishGameTests.class,
                 FloatGameTests.class,

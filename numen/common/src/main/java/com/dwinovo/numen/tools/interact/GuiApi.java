@@ -3,6 +3,7 @@ package com.dwinovo.numen.tools.interact;
 import com.dwinovo.numen.api.NumenApi;
 import com.dwinovo.numen.task.inventory.GuiItemsTaskRecord;
 import com.dwinovo.numen.tools.ContainerOps;
+import com.dwinovo.numen.tools.EnchantOps;
 import com.dwinovo.numen.tools.GuiOps;
 import com.dwinovo.numen.api.sdk.Doc;
 import com.dwinovo.numen.api.sdk.Example;
@@ -18,9 +19,9 @@ import net.minecraft.world.item.Item;
 import java.util.Optional;
 
 /**
- * {@code numen.gui}:她打开的那个界面(一个 Window)。看它、按种类放进去拿出来、一格挪到另一格、整叠挪到另一边、关掉它。打开它是
- * {@code numen.use.block}(右键一口箱子、一台机器),它交回的就是这个 Window;Window 的方法({@code w:put}、{@code w:take}……)写在内置
- * 模块 {@code numen.gui} 里,调的就是这一组的函数。
+ * {@code numen.gui}:她打开的那个界面(一个 Window)。看它、按种类放进去拿出来、一格挪到另一格、整叠挪到另一边、关掉它;附魔台开着的
+ * 时候,{@code state} 是它的三档报价,{@code enchant} 按下一档。打开它是 {@code numen.use.block}(右键一口箱子、一台机器),它交回的
+ * 就是这个 Window;Window 的方法({@code w:put}、{@code w:take}……)写在内置模块 {@code numen.gui} 里,调的就是这一组的函数。
  *
  * <p>一次一步:{@code move} 放到指定的一格,{@code quick} 像按住 Shift 点它、整叠挪到另一边;{@code put}/{@code take} 按种类搬,
  * 搬够为止。从容器里拿东西的那一步和别的身体动作一样,可能要等主人点头。
@@ -34,7 +35,7 @@ public final class GuiApi {
 
     public static void install(NumenApi numen) {
         numen.api("gui", "The window you have open (numen.use.block on a chest or a machine opens one): read it, put "
-                + "items in and take them out, move a stack, close it.", GuiApi.class);
+                + "items in and take them out, move a stack, press an enchant offer, close it.", GuiApi.class);
     }
 
     @Fn("Look at the window you have open, or at your own inventory menu when none is.")
@@ -43,7 +44,10 @@ public final class GuiApi {
             + "mark), your own filled ones, the cursor and the menu's numbers (progress, fuel, energy).")
     @Note("With nothing open it shows YOUR inventory menu, whose 2x2 grid crafts small recipes without a table. In a "
             + "crafting grid a recipe smaller than the grid goes in the top-left; the result slot is side result.")
-    @SeeAlso({"numen.gui.put", "numen.gui.take", "numen.gui.move", "numen.gui.quick", "numen.gui.close"})
+    @Note("An enchanting table's state lines list its three offers (exact enchantments, level requirement, price, "
+            + "whether it is ready) — press one with numen.gui.enchant.")
+    @SeeAlso({"numen.gui.put", "numen.gui.take", "numen.gui.move", "numen.gui.quick", "numen.gui.close",
+            "numen.gui.enchant"})
     public static GuiOps.Window view(ServerCall call) {
         return GuiOps.window(call.her());
     }
@@ -119,5 +123,24 @@ public final class GuiApi {
     @SeeAlso("numen.gui.view")
     public static boolean close(ServerCall call) {
         return GuiOps.close(call.her());
+    }
+
+    /** 按第几档。 */
+    public record Enchant(@Doc("Which offer: 1, 2 or 3, the numbers numen.gui.view().state lists.") int offer) {}
+
+    @Fn("Press one of the three offers of the enchanting table you have open: what the offer listed goes onto the "
+            + "item, and it takes the levels and lapis the offer said.")
+    @Example("numen.gui.enchant(2)")
+    @Example("local r = numen.gui.enchant(2)\nprint(r.enchantments, r.levels, r.lapis)")
+    @Note("Read the offers first, in numen.gui.view().state: each line names the exact enchantments the offer applies, "
+            + "the levels it requires, the levels and lapis it takes, and whether it is ready. Put the item in with "
+            + "numen.gui.put — a plain item lands in the left slot, lapis in the right (1-3); the table re-rolls its "
+            + "offers after every enchantment.")
+    @Note("What comes back says what was applied, what it took and the three new offers. Fails: not_found with no "
+            + "table open; no_material when the levels or lapis fall short; failed when the offer isn't there (left "
+            + "slot empty, or the item can't be enchanted — the table takes plain, unenchanted items).")
+    @SeeAlso({"numen.gui.view", "numen.gui.put"})
+    public static EnchantOps.Enchanted enchant(ServerCall call, Enchant args) {
+        return EnchantOps.enchant(args.offer(), call.her());
     }
 }

@@ -8,6 +8,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.DataSlot;
+import net.minecraft.world.inventory.EnchantmentMenu;
 import net.minecraft.world.inventory.ResultSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -18,7 +19,8 @@ import java.util.Optional;
 
 /**
  * 打开的界面:{@code numen.gui.view} 读它、{@code numen.gui.close} 关它,{@code numen.use.block} 的右键打开了一个界面时也交回它
- * ({@link #window})。界面是一个 {@link Window}:每个槽一条,方法写在内置模块 {@code numen.gui} 里({@code w:put}、{@code w:take}……)。
+ * ({@link #window})。界面是一个 {@link Window}:每个槽一条,方法写在内置模块 {@code numen.gui} 里({@code w:put}、{@code w:take}……)——
+ * 附魔台还多一样:{@code state} 是它的三档报价,按一档是 {@code numen.gui.enchant}({@link EnchantOps})。
  */
 public final class GuiOps {
 
@@ -44,7 +46,8 @@ public final class GuiOps {
                          @Doc("The menu's numbers: progress, fuel, energy (meaning is GUI-specific; a furnace's are lit "
                                  + "time, lit duration, cook progress, cook total).") List<Integer> data,
                          @Doc("The block whose window it is, when a click on it opened it.") Optional<BlockAt> block,
-                         @Doc("Adapter-specific state of this menu, when a reader is registered.") List<String> state)
+                         @Doc("Readable lines about this menu: what a registered reader reports, or the enchanting "
+                                 + "table's three offers (see numen.gui.enchant).") List<String> state)
             implements Clicks.Pressed {
 
         /** 同一个界面,点开它的是那一格。 */
@@ -82,16 +85,20 @@ public final class GuiOps {
         List<Integer> numbers = data.stream().map(DataSlot::get).toList();
         List<String> state = List.of();
         if (!ownInventory) {
-            String menuId = BuiltInRegistries.MENU.getKey(menu.getType()).toString();
-            var route = com.dwinovo.numen.api.adapter.AdapterManager.registry().gui(menuId);
-            if (route.isPresent()) {
-                String source = route.get().source();
-                var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.gui(source);
-                if (handler == null) {
-                    throw new com.dwinovo.numen.api.agent.script.ApiError(
-                            com.dwinovo.numen.api.agent.script.ErrorKind.FAILED, "missing gui handler '" + source + "'", null);
+            if (menu instanceof EnchantmentMenu table) {
+                state = EnchantOps.state(self, table);
+            } else {
+                String menuId = BuiltInRegistries.MENU.getKey(menu.getType()).toString();
+                var route = com.dwinovo.numen.api.adapter.AdapterManager.registry().gui(menuId);
+                if (route.isPresent()) {
+                    String source = route.get().source();
+                    var handler = com.dwinovo.numen.api.adapter.AdapterHandlers.gui(source);
+                    if (handler == null) {
+                        throw new com.dwinovo.numen.api.agent.script.ApiError(
+                                com.dwinovo.numen.api.agent.script.ErrorKind.FAILED, "missing gui handler '" + source + "'", null);
+                    }
+                    state = handler.read(self, menu, source);
                 }
-                state = handler.read(self, menu, source);
             }
         }
         return new Window(ownInventory ? "InventoryMenu" : menu.getClass().getSimpleName(), slots,

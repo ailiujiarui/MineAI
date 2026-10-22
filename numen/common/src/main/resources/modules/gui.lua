@@ -63,6 +63,12 @@ function M.Window:quick(slot)
   return numen.gui.quick(slot)
 end
 
+---Press one of the enchanting table's three offers: offer 1, 2 or 3, the numbers numen.gui.view() lists.
+---@param offer integer
+function M.Window:enchant(offer)
+  return numen.gui.enchant(offer)
+end
+
 ---Close this window.
 function M.Window:close()
   return numen.gui.close()

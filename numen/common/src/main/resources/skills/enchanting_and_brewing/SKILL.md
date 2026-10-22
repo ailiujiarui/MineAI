@@ -14,7 +14,7 @@ Experience orbs come from killing mobs, mining most ores, smelting (when the out
 - Recipe: 1 book, 2 diamonds, 4 obsidian. Place an item and **lapis lazuli** (1-3); it offers three enchantments costing 1-3 levels of the 1-3 lapis used, with a level requirement shown on each.
 - **Bookshelves** raise the offered level: 15 bookshelves give the maximum (level 30). They must be 2 blocks from the table, on the table's level or one above, with only air between.
 - The offers change after each enchantment. Books can be enchanted too (one enchantment each).
-- Choosing an offer is a button in the table's window.
+- To enchant: open the table with `numen.use.block`, put the item and the lapis in with `numen.gui.put` (a plain item lands in the left slot, lapis in the right), read the three offers in `numen.gui.view()`'s `state` — each line names the exact enchantments the offer applies, the levels it requires, the levels and lapis it takes, and whether it is ready — then press one with `numen.gui.enchant(1)`, `numen.gui.enchant(2)` or `numen.gui.enchant(3)`. A plain item is enchanted in place; a book comes out as an enchanted book. The reply names what was applied and what it took, and the offers re-roll.
 
 ## Anvil and grindstone
 
