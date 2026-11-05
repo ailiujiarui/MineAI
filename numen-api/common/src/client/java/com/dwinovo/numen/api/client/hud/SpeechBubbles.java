@@ -1,6 +1,9 @@
 package com.dwinovo.numen.api.client.hud;
 
+import com.dwinovo.numen.api.agent.loop.Hold;
 import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
+import com.dwinovo.numen.api.client.agent.CauseWords;
+import net.minecraft.client.resources.language.I18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,15 +19,15 @@ import java.util.UUID;
  * <ul>
  *   <li><b>正文行</b>:她说的最后一句,有自己的生命周期(按字数),到点消失。</li>
  *   <li><b>状态行</b>:此刻在干什么——在等主人点头就是「等你点头」(手上的活正停着等这一句),
- *       有工具在跑就是「正在 xxx」,只是在等模型回复就是「正在思考中」,都没有就没有这一行。</li>
+ *       其次显示明确失败,然后才是「正在 xxx」或「正在思考中」,都没有就没有这一行。</li>
  * </ul>
  * 两条线独立:话还在时来了工具,气泡就是"话 + 正在挖矿";话过期了工具还没完,
  * 只剩状态行;工具先完而话还没过期,状态行消失、话继续待着。两条都空 = 不显示。
  *
  * <h2>状态驱动,不是事件驱动</h2>
- * 渲染方逐帧问 {@link #view(UUID)} 现算,而不是靠推来的事件记状态——事件被
+ * 忙碌与停牌由渲染方逐帧问 {@link #view(UUID)} 现算,而不是靠推来的事件记状态——事件被
  * 吞掉就丢了(旧实现里"开轮时正文还活着,思考态被丢弃、之后再没人补"就是
- * 这么来的)。
+ * 这么来的)。程序出错是已经发生的事,短暂留一条提示,按正文的寿命到期。
  *
  * <p>客户端主线程专用。
  */
@@ -44,29 +47,39 @@ public final class SpeechBubbles {
      * @param text     未过期的正文;null = 这会儿没话
      * @param textIn   正文刚说出口的淡入进度 0..1(换了一句从头来)
      * @param textOut  正文快到点时的淡出 1..0(没到最后那一小段一直是 1)
-     * @param asking   她挂着一条征询在等主人点头——画「等你点头」,压过下面两种
+     * @param asking   她挂着一条征询在等主人点头——画「等你点头」,压过其他状态
      * @param activity 正在执行的工具名;null = 没有工具在跑
      * @param waiting  在等模型回复(且没有工具在跑)——画「正在思考中」
+     * @param failure  明确失败的说明;优先于普通动作与思考,null = 没有失败
      */
-    public record View(String text, float textIn, float textOut, boolean asking, String activity, boolean waiting) {
+    public record View(String text, float textIn, float textOut, boolean asking, String activity, boolean waiting,
+                       String failure) {
         public boolean hasText() {
             return text != null && !text.isEmpty();
         }
 
-        /** 有状态行要画吗(等你点头 / 正在 xxx / 正在思考中)。 */
+        /** 有状态行要画吗(等你点头 / 失败 / 正在 xxx / 正在思考中)。 */
         public boolean hasStatus() {
-            return asking || activity != null || waiting;
+            return asking || failure != null || activity != null || waiting;
         }
     }
 
     /** 一句还在生命周期里的话。 */
     private record Said(String text, long bornMs, long lifeMs) {
+        static Said of(String text) {
+            long life = Math.min(TEXT_LIFE_MAX_MS,
+                    TEXT_LIFE_BASE_MS + (long) text.length() * TEXT_LIFE_PER_CHAR_MS);
+            return new Said(text, System.currentTimeMillis(), life);
+        }
+
         boolean expired(long now) {
             return now - bornMs > lifeMs;
         }
     }
 
     private static final Map<UUID, Said> SAID = new HashMap<>();
+    /** 上一步程序明确出错的短暂提示,与正文共用寿命规则。 */
+    private static final Map<UUID, Said> FAILURES = new HashMap<>();
 
     private SpeechBubbles() {}
 
@@ -75,25 +88,42 @@ public final class SpeechBubbles {
     /** 她说了一句话:顶掉上一句,按字数给寿命。空串 = 没话说,清掉当前正文。 */
     public static void say(UUID entityUuid, String text) {
         if (entityUuid == null) return;
+        clearFailure(entityUuid);
         String shown = text == null ? "" : text.trim();
         if (shown.isEmpty()) {
             SAID.remove(entityUuid);
             return;
         }
-        long life = Math.min(TEXT_LIFE_MAX_MS,
-                TEXT_LIFE_BASE_MS + (long) shown.length() * TEXT_LIFE_PER_CHAR_MS);
-        SAID.put(entityUuid, new Said(shown, System.currentTimeMillis(), life));
+        SAID.put(entityUuid, Said.of(shown));
     }
 
-    /** 打断/死亡/退出:清掉这只的正文(忙碌态自会随代理循环停下)。 */
+    /** 程序明确出错:短暂展示上一步失败,不把它当成她说的话。 */
+    public static void fail(UUID entityUuid, String text) {
+        if (entityUuid == null) return;
+        String shown = text == null ? "" : text.trim();
+        if (shown.isEmpty()) {
+            clearFailure(entityUuid);
+            return;
+        }
+        FAILURES.put(entityUuid, Said.of(shown));
+    }
+
+    /** 新动作或发言接管显示时,收起上一步的短暂失败提示。 */
+    public static void clearFailure(UUID entityUuid) {
+        FAILURES.remove(entityUuid);
+    }
+
+    /** 打断/死亡/退出:清掉这只的正文与短暂失败(忙碌态自会随代理循环停下)。 */
     public static void clear(UUID entityUuid) {
         if (entityUuid == null) return;
         SAID.remove(entityUuid);
+        clearFailure(entityUuid);
     }
 
     /** 退出世界:清台账(和其他客户端会话态一起挂在断线钩子上)。 */
     public static void clear() {
         SAID.clear();
+        FAILURES.clear();
     }
 
     // ---- 读取面(渲染方逐帧调用) ----
@@ -117,21 +147,36 @@ public final class SpeechBubbles {
             }
         }
 
-        // 第二条线:此刻在干什么。等主人点头压过一切——活正停着等他;工具优先于"在等回复"——
+        // 第二条线:此刻在干什么。等主人点头压过失败,失败压过普通动作;工具优先于"在等回复"——
         // 具体的事比笼统的忙有信息量
         boolean asking = com.dwinovo.numen.api.client.consent.ConsentCards.pending(entityUuid) != null;
         String activity = null;
         boolean waiting = false;
+        String failure = null;
+        Said failed = FAILURES.get(entityUuid);
+        if (failed != null) {
+            if (failed.expired(System.currentTimeMillis())) {
+                clearFailure(entityUuid);
+            } else {
+                failure = failed.text();
+            }
+        }
         var loop = AgentLoopRegistry.get(entityUuid).orElse(null);
         if (loop != null) {
             var status = loop.status();
             activity = status.activity();
             waiting = activity == null && status.busy();
+            // 模型失败与不可用直接读停牌事实,不把身体空闲当成失败。
+            if (status.hold() == Hold.FAILED || status.hold() == Hold.BLOCKED) {
+                String reason = status.holdReason() == null ? "" : CauseWords.text(status.holdReason());
+                failure = I18n.get(status.hold() == Hold.FAILED
+                        ? "numen.bubble.model_failed" : "numen.bubble.model_unavailable", reason);
+            }
         }
 
-        if (text == null && !asking && activity == null && !waiting) {
+        if (text == null && !asking && failure == null && activity == null && !waiting) {
             return null;   // 话说完了、活干完了:头顶就该干净
         }
-        return new View(text, textIn, textOut, asking, activity, waiting);
+        return new View(text, textIn, textOut, asking, activity, waiting, failure);
     }
 }

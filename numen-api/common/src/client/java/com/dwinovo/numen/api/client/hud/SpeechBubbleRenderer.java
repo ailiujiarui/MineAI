@@ -148,6 +148,8 @@ public final class SpeechBubbleRenderer {
         int statusFrom = lines.size();
         if (bubble.asking()) {
             lines.add(I18n.get("numen.bubble.asking"));
+        } else if (bubble.failure() != null) {
+            lines.addAll(wrapToWidth(font, bubble.failure(), MAX_WIDTH, 2));
         } else if (bubble.hasStatus()) {
             lines.add(bubble.activity() != null
                     ? I18n.get("numen.bubble.doing", bubble.activity())
@@ -203,10 +205,11 @@ public final class SpeechBubbleRenderer {
         float ty = y0 + PAD_Y + 1;
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
-            // 正文用正文色,跟着正文一起淡入淡出;正在做什么、等你点头用强调色文字;只是在想用气泡里的淡字
+            // 正文随生命周期淡入淡出;等你点头与动作用强调色,失败用错误色,思考用淡字
             int color = i < statusFrom
                     ? fade(th.text(), base * bubble.textIn() * bubble.textOut())
-                    : fade(bubble.asking() || bubble.activity() != null ? th.accent() : th.inMeta(), alpha);
+                    : fade(bubble.asking() ? th.accent() : bubble.failure() != null ? th.fail()
+                            : bubble.activity() != null ? th.accent() : th.inMeta(), alpha);
             float tx = -font.width(line) / 2.0f;
             font.drawInBatch(line, tx, ty, color, false, poseStack.last().pose(), buffers,
                     Font.DisplayMode.NORMAL, 0, FULL_BRIGHT);

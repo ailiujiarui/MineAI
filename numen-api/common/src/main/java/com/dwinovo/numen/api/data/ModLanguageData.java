@@ -689,6 +689,9 @@ public final class ModLanguageData {
         adder.add("numen.summon.mode",       "Mode");
         adder.add("numen.bubble.thinking",   "✦ Thinking");
         adder.add("numen.bubble.asking",     "⌛ Waiting for your OK");
+        adder.add("numen.bubble.model_failed", "Model call failed: %s");
+        adder.add("numen.bubble.model_unavailable", "Model unavailable: %s");
+        adder.add("numen.bubble.execution_failed", "Previous action failed");
         adder.add("numen.chat.reasoning",    "Reasoning");
         adder.add("numen.chat.reasoning_now", "Thinking");
         adder.add("numen.pin.goal", "Goal");
@@ -1291,6 +1294,9 @@ public final class ModLanguageData {
         adder.add("numen.summon.mode",       "模式");
         adder.add("numen.bubble.thinking",   "✦ 正在思考");
         adder.add("numen.bubble.asking",     "⌛ 等你点头");
+        adder.add("numen.bubble.model_failed", "模型调用失败: %s");
+        adder.add("numen.bubble.model_unavailable", "模型不可用: %s");
+        adder.add("numen.bubble.execution_failed", "上一步执行失败");
         adder.add("numen.chat.reasoning",    "思考过程");
         adder.add("numen.chat.reasoning_now", "思考中");
         adder.add("numen.pin.goal", "目标");
