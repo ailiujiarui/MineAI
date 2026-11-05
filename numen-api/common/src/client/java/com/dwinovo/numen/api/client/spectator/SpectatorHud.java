@@ -67,6 +67,7 @@ public final class SpectatorHud {
                 + mc.options.keyInventory.getTranslatedKeyMessage().getString() + "] 背包(只读)";
         graphics.drawCenteredString(mc.font, hint, center, 8, 0xFFFFFFFF);
         RenderSystem.disableBlend();
+        SpectatorSpeechHud.render(graphics, state);
     }
 
     private static void drawItem(GuiGraphics graphics, ItemStack item, int x, int y) {

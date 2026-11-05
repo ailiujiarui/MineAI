@@ -9,6 +9,7 @@ import com.dwinovo.numen.api.agent.loop.LoopStatus;
 import com.dwinovo.numen.api.agent.loop.Phase;
 import com.dwinovo.numen.api.agent.loop.RunEnd;
 import com.dwinovo.numen.api.agent.provider.AssistantTurn;
+import com.dwinovo.numen.api.agent.script.ScriptCall;
 import com.dwinovo.numen.api.client.chat.ChatDisplayModes;
 import com.dwinovo.numen.api.client.chat.ChatLines;
 import com.dwinovo.numen.api.client.hud.NumenHudToasts;
@@ -95,10 +96,14 @@ final class TurnPresenter {
                 SpeechBubbles.clear(entityUuid);
             }
             case LoopEvent.RunStarted ignored -> { }
-            case LoopEvent.ToolStarted ignored -> { }
+            case LoopEvent.ToolStarted ignored -> SpeechBubbles.clearFailure(entityUuid);
             case LoopEvent.ToolFinished ignored -> { }
             case LoopEvent.ApiCalled ignored -> { }
-            case LoopEvent.ProgramEnded ignored -> { }
+            case LoopEvent.ProgramEnded ended -> {
+                if (ended.ending().status() == ScriptCall.Status.ERROR) {
+                    SpeechBubbles.fail(entityUuid, I18n.get("numen.bubble.execution_failed"));
+                }
+            }
             case LoopEvent.ModelUsed ignored -> { }
             case LoopEvent.TranscriptBoundary ignored -> { }
         }
